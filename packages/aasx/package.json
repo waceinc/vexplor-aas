@@ -1,0 +1,24 @@
+{
+  "name": "@aas/aasx",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "AASX(OPC) 패키지 입출력 — 기획서 M2",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@aas/core": "0.1.0",
+    "fast-xml-parser": "^5.11.0",
+    "fflate": "^0.8.3"
+  }
+}

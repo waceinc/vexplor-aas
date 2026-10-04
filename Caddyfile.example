@@ -1,0 +1,31 @@
+# HTTPS를 앞에 두는 가장 손쉬운 방법 — Caddy.
+#
+# 🔴 사람이 **계정으로 로그인**하기 시작하면 HTTPS가 사실상 필수입니다.
+#    평문(http)으로는 비밀번호와 로그인 쿠키가 그대로 지나가고, 같은 망의 누구나
+#    주워 담을 수 있습니다. 사내망도 예외가 아닙니다.
+#
+# 쓰는 법
+#   cp Caddyfile.example Caddyfile      # 도메인을 자기 것으로 고치십시오
+#   caddy run --config Caddyfile
+#
+# 인증서는 Caddy가 알아서 받고 갱신합니다(공인 도메인일 때).
+# 자세한 설명: docs/설치.md 「인터넷에 열 때」 · docs/사용법.md §12-3
+
+aas.사내도메인 {
+	# 사내 도메인이라 공인 인증서를 못 받으면 이 줄의 주석을 푸십시오.
+	# 자체 서명이라 사내 PC에 Caddy 루트 인증서를 한 번 설치해야 합니다
+	#   caddy trust
+	# tls internal
+
+	reverse_proxy 127.0.0.1:8080
+}
+
+# 함께 맞춰 둘 것 (.env)
+#   AAS_PUBLIC_URL=https://aas.사내도메인   레지스트리가 다른 시스템에 알려 줄 주소
+#
+# 그리고 docker-compose.yml의 포트를 묶어, 프록시를 거치지 않고는 못 들어오게 합니다
+#   ports: ["127.0.0.1:${APP_PORT:-8080}:8080"]
+#
+# 프로그램은 Caddy가 붙여 주는 X-Forwarded-Proto를 보고 **HTTPS일 때만**
+# 로그인 쿠키에 Secure를 붙이고 HSTS를 말합니다 — 평문 서버가 HSTS를 말하면
+# 그 주소가 브라우저에서 영영 https로만 열리게 굳기 때문입니다.

@@ -1,0 +1,33 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/aas-core"
+    },
+    {
+      "path": "../../packages/aasx"
+    },
+    {
+      "path": "../../packages/linter"
+    },
+    {
+      "path": "../../packages/store"
+    },
+    {
+      "path": "../../packages/collector"
+    },
+    {
+      "path": "../../packages/opcua"
+    }
+  ]
+}

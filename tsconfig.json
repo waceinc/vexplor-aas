@@ -1,0 +1,26 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/aas-core"
+    },
+    {
+      "path": "./packages/linter"
+    },
+    {
+      "path": "./packages/aasx"
+    },
+    {
+      "path": "./packages/collector"
+    },
+    {
+      "path": "./packages/opcua"
+    },
+    {
+      "path": "./packages/store"
+    },
+    {
+      "path": "./apps/api"
+    }
+  ]
+}

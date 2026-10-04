@@ -1,0 +1,21 @@
+VEXPLOR AAS Studio
+Copyright 2026 WACE
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Trademarks
+----------
+"VEXPLOR", "WACE" and the associated logos are trademarks of WACE.
+The Apache License does not grant permission to use these names or logos
+(see section 6 of the License). You may state that your work is based on
+VEXPLOR AAS Studio, but you may not present a modified version under the
+same name or logo.
+
+Third-party material
+--------------------
+- docs/spec/part2/*.yaml — "Specification of the Asset Administration Shell,
+  Part 2: Application Programming Interfaces" (IDTA-01002-3-0), published by
+  the Industrial Digital Twin Association (IDTA) under CC BY 4.0.
+  https://industrialdigitaltwin.org/
+- Runtime and development dependencies are listed with their licenses in
+  THIRD-PARTY-NOTICES.md.

@@ -1,0 +1,29 @@
+{
+  "name": "@aas/api",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "IDTA Part 2 정합 REST API — 기획서 M1",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@aas/core": "0.1.0",
+    "@aas/aasx": "0.1.0",
+    "@aas/linter": "0.1.0",
+    "@aas/store": "0.1.0",
+    "@aas/collector": "0.1.0",
+    "@aas/opcua": "0.1.0",
+    "pg": "^8.23.0"
+  }
+}

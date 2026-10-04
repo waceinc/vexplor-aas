@@ -1,0 +1,22 @@
+{
+  "name": "@aas/linter",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "AAS 규칙 린터 — 기획서 M5 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@aas/core": "0.1.0"
+  }
+}

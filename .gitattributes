@@ -1,0 +1,13 @@
+# 텍스트는 저장소에 LF로 보관하고 체크아웃 시 플랫폼 기본을 따른다.
+# (Windows·Linux를 오가며 작업할 때 줄바꿈 차이로 diff가 생기지 않게 한다)
+* text=auto
+
+# 바이너리 — 줄바꿈 변환 대상이 아니다
+*.aasx binary
+*.pdf  binary
+*.xlsx binary
+*.docx binary
+*.png  binary
+*.jpg  binary
+*.pem  binary
+*.zip  binary

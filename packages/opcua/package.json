@@ -1,0 +1,26 @@
+{
+  "name": "@aas/opcua",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "OPC UA Client(수집·M8) + Server(노출·M6·M7) — node-opcua, MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@aas/collector": "0.1.0",
+    "node-opcua": "^2.178.0"
+  },
+  "devDependencies": {
+    "@aas/store": "0.1.0"
+  }
+}

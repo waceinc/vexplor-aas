@@ -1,0 +1,37 @@
+{
+  "name": "aas-platform",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "author": "WACE",
+  "private": true,
+  "type": "module",
+  "description": "AAS 저작·배포·수집 통합 플랫폼",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b && npm run --silent typecheck --workspace @aas/web",
+    "test": "vitest run && node scripts/part2-coverage.mjs",
+    "test:watch": "vitest",
+    "clean": "tsc -b --clean",
+    "dev:api": "node apps/api/dist/server.js",
+    "dev:web": "npm run --silent dev --workspace @aas/web"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.29.9",
+    "@electric-sql/pglite": "^0.5.5",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
+    "jsdom": "^30.0.1",
+    "pg": "^8.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

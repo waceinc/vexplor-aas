@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+Thumbs.db
+tmp/
+out/
+
+# Playwright MCP가 세션마다 만드는 임시 산출물(스냅샷·추적)
+.playwright-mcp/
+
+# 템플릿 폴더 — 파일은 각자 넣는다(IDTA 라이선스). 안내문만 남긴다
+templates/*.aasx
+
