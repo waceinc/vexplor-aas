@@ -77,8 +77,17 @@ export function visibleInWorkspace(record: Pick<PackageRecord, 'owner'> | undefi
 }
 
 /** 저장소에 작업 공간 겹을 씌운다 */
-export function scopeStore(base: AasStore): AasStore {
-  return new ScopedStore(base);
+export interface ScopeOptions {
+  /**
+   * 한 사람(작업 공간)이 가질 수 있는 파일 수. 주지 않으면 무제한.
+   * 🔴 공개 서버에서 한 사람이 파일을 끝없이 올려 디스크를 채우는 것을 막는다(2026-10-06 보안 점검).
+   *    관리자·API 키(전부 보는 쪽)와 나누지 않는 서버에는 걸지 않는다.
+   */
+  maxPackagesPerOwner?: number;
+}
+
+export function scopeStore(base: AasStore, options: ScopeOptions = {}): AasStore {
+  return new ScopedStore(base, options);
 }
 
 /**
@@ -87,7 +96,10 @@ export function scopeStore(base: AasStore): AasStore {
  *    볼 수 있는지 누군가 정해야 넘어간다. 조용히 통과하는 것이 가장 나쁘다.
  */
 class ScopedStore implements AasStore {
-  constructor(private readonly base: AasStore) {}
+  constructor(
+    private readonly base: AasStore,
+    private readonly options: ScopeOptions = {},
+  ) {}
 
   // ── 보이는가 · 고칠 수 있는가 ─────────────────────────────────────────────
 
@@ -136,6 +148,20 @@ class ScopedStore implements AasStore {
     //    관리자가 남의 파일을 바꿔 줬다고 그 파일이 관리자 것이 되면 안 된다
     //    `null`은 「일부러 공용」 — 공용 파일을 바꾼 뒤에도 공용으로 남긴다
     const owner = input.owner === null ? null : (input.owner ?? workspace?.key ?? null);
+    // 새 파일일 때만 센다 — 「통째로 바꾸기」(id를 준다)는 개수가 늘지 않는다
+    const limit = this.options.maxPackagesPerOwner;
+    if (limit !== undefined && workspace && !workspace.seesAll && owner === workspace.key && input.id === undefined) {
+      let count = 0;
+      let cursor: string | undefined;
+      do {
+        const page = await this.base.listPackages(cursor === undefined ? { limit: 200 } : { limit: 200, cursor }, { owner: workspace.key });
+        count += page.items.filter((item) => item.owner === workspace.key).length;
+        cursor = page.cursor;
+      } while (cursor !== undefined);
+      if (count >= limit) {
+        throw new ForbiddenError(`파일은 한 사람당 ${limit}개까지 올릴 수 있습니다 — 안 쓰는 파일을 지우고 다시 하십시오.`);
+      }
+    }
     return this.base.importPackage({ ...input, owner });
   }
 

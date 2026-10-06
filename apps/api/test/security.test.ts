@@ -8,7 +8,7 @@ import { InMemoryStore } from '@aas/store';
 import { describe, expect, it } from 'vitest';
 import { createApi } from '../src/api.js';
 import type { ApiRequest } from '../src/http.js';
-import { crossSiteWrite, isHttps, sameCode, securityHeaders, setupCode, setupCodeRequired } from '../src/security.js';
+import { clientAddress, crossSiteWrite, isHttps, sameCode, securityHeaders, setupCode, setupCodeRequired } from '../src/security.js';
 
 function ask(init: Partial<ApiRequest> & { headers?: Record<string, string> } = {}): ApiRequest {
   return {
@@ -340,5 +340,23 @@ describe('키 없는 서버도 계정이 생기면 로그인부터 (2026-10-06 �
     expect((await api(ask({ method: 'GET', path: '/auth/me' }))).status).toBe(200);
     // 로그인한 사람은 그대로 쓴다
     expect((await api(ask({ method: 'GET', path: '/packages', headers: { cookie } }))).status).toBe(200);
+  });
+});
+
+describe('접속 주소 — 손님이 적어 보낸 X-Forwarded-For를 믿지 않는다 (2026-10-06)', () => {
+  it('프록시가 덧붙인 마지막 칸을 쓴다', () => {
+    const request = ask({ method: 'GET', path: '/', headers: { 'x-forwarded-for': '1.2.3.4, 203.0.113.9' } });
+    expect(clientAddress(request)).toBe('203.0.113.9');
+  });
+});
+
+describe('/health — 계정이 있으면 인증이 켜진 것이다', () => {
+  it('계정이 없으면 off, 생기면 on', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    const api = createApi(store);
+    expect((await api(ask({ method: 'GET', path: '/health' }))).body).toMatchObject({ auth: 'off' });
+    await api(ask({ path: '/auth/setup', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }));
+    expect((await api(ask({ method: 'GET', path: '/health' }))).body).toMatchObject({ auth: 'on' });
   });
 });

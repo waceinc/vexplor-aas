@@ -229,10 +229,10 @@ describe('회원가입', () => {
       signup: { role: 'editor', privacyUrl: 'https://example.com/privacy' },
     }) as Api;
     expect((await api(ask('POST', '/auth/signup', {
-      body: { login: 'kim', password: '열자가넘는비밀번호입니다', email: '골뱅이없음' },
+      body: { login: 'kim', password: '열자가넘는비밀번호입니다', displayName: '김', company: 'X', agreed: true, email: '골뱅이없음' },
     }))).status).toBe(400);
     const ok = await api(ask('POST', '/auth/signup', {
-      body: { login: 'lee', password: '열자가넘는비밀번호입니다', email: 'lee@example.com' },
+      body: { login: 'lee', password: '열자가넘는비밀번호입니다', displayName: '이', company: 'X', agreed: true, email: 'lee@example.com' },
     }));
     expect(ok.status).toBe(201);
     // 🔴 응답에 연락처를 싣지 않는다 — 화면이 쓸 일이 없다

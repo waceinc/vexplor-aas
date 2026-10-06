@@ -172,7 +172,11 @@ export function sameCode(expected: string, given: string): boolean {
  *    속이면 주소별 상한을 피할 수 있지만 전체 상한은 못 피한다(session.ts SignupThrottle).
  */
 export function clientAddress(request: ApiRequest): string | undefined {
+  // 🔴 **마지막** 칸을 쓴다(2026-10-06 보안 점검). 앞 칸은 손님이 적어 보낸 것일 수 있고,
+  //    프록시(Caddy · Cloudflare)는 자기가 본 주소를 **뒤에 덧붙인다.** 첫 칸을 쓰면
+  //    헤더 하나로 주소를 바꿔 가며 시도 제한을 피할 수 있었다.
+  //    (이 서버는 프록시 뒤에서만 띄운다 — 앱 포트는 127.0.0.1에만 묶는다)
   const forwarded = request.headers['x-forwarded-for'];
-  const first = forwarded?.split(',')[0]?.trim();
-  return first || request.remoteAddress;
+  const last = forwarded?.split(',').map((part) => part.trim()).filter(Boolean).at(-1);
+  return last || request.remoteAddress;
 }

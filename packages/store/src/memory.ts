@@ -388,6 +388,8 @@ export class InMemoryStore implements AasStore {
       createdAt: this.now(),
       // 🔴 빈 문자열은 키를 만들지 않는다 — 「안 적었다」와 「빈 값을 적었다」를 섞지 않는다
       ...(user.email?.trim() ? { email: user.email.trim() } : {}),
+      ...(user.company?.trim() ? { company: user.company.trim() } : {}),
+      ...(user.consentAt ? { consentAt: user.consentAt } : {}),
     };
     this.users.set(record.id, record);
     return clone(record);

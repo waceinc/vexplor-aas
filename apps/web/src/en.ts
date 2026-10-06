@@ -759,4 +759,31 @@ export const EN_MORE: Record<string, string> = {
   'AAS를 만들고 · 검사하고 · 내려받는 웹 도구입니다.': 'A web tool to create, validate and download AAS.',
   '가입 없이 먼저 써 보기': 'Try it without signing up',
   '처음이신가요? 회원가입': 'New here? Sign up',
+
+  // ── 회원가입 — 회사명 · 이메일 · 동의 (2026-10-06) ─────────────────────
+  회사명: 'Company',
+  이메일: 'Email',
+  '이름 · 회사명 · 이메일을 모두 적어 주십시오.': 'Please fill in your name, company and email.',
+  '개인정보 수집·이용에 동의해야 가입할 수 있습니다.': 'You need to agree to the collection and use of personal information to sign up.',
+  '확인 메일은 보내지 않습니다.': 'No confirmation email is sent.',
+  '개인정보 수집·이용 동의 (필수)': 'Consent to collection and use of personal information (required)',
+  '아이디 · 이름 · 회사명 · 이메일 · 비밀번호(암호화 저장)': 'Login ID · name · company · email · password (stored hashed)',
+  목적: 'Purpose',
+  '회원 식별 · 서비스 제공 · 문의 응대': 'Member identification · providing the service · answering inquiries',
+  '보유 기간': 'Retention',
+  '탈퇴할 때까지 — 탈퇴하면 올린 파일과 함께 지웁니다': 'Until you delete your account — your uploaded files are deleted with it',
+  '동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 체험 계정으로 써 볼 수 있습니다.':
+    'You may decline, but then you cannot sign up. You can still try the service with the trial account.',
+  '위 내용과 ': 'I agree to the above and the ',
+  동의: 'Consent',
+
+  // ── 계정 관리 — 삭제 (2026-10-06) ─────────────────────────────────────
+  '계정과 그 사람이 올린 파일을 지웁니다 — 되돌릴 수 없습니다. 막기만 하려면 「잠그기」':
+    'Deletes the account and the files that person uploaded — this cannot be undone. To only block access, use "Lock"',
+  '「{0}」({1}) 계정을 지웁니다.\n\n그 사람이 올린 파일도 함께 지워지며 되돌릴 수 없습니다.\n막기만 하려면 「잠그기」를 쓰십시오.\n\n지울까요?':
+    'Delete the account "{0}" ({1}).\n\nThe files this person uploaded are deleted too, and this cannot be undone.\nTo only block access, use "Lock".\n\nDelete?',
+  '「{0}」 계정을 지웠습니다.': 'Deleted the account "{0}".',
+
+  // ── 계정 관리 ──
+  체험: 'trial',
 };

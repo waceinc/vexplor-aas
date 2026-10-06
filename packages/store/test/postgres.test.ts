@@ -147,6 +147,11 @@ describe('스키마 판 번호 (schema_version)', () => {
     // 색인은 표 정의가 아니라 마이그레이션에 있다 — 옮기면서 빠뜨리지 않았는지 본다
     const index = await db.query("SELECT 1 FROM pg_indexes WHERE indexname = 'aas_package_owner_idx'");
     expect(index.rows).toHaveLength(1);
+    // 7판 — 회사명 · 동의 시각. 열이 없으면 가입이 통째로 터진다
+    const member = await store.createUser({
+      login: 'kim', displayName: '김', role: 'editor', passwordHash: 'h', company: 'WACE', consentAt: '2026-10-06T07:00:00.000Z',
+    });
+    expect((await store.getUser(member.id))?.company).toBe('WACE');
   });
 
   it('🔴 판 번호 도입 전의 1판 표도 제약까지 올라간다 — IF NOT EXISTS만으로는 안 고쳐진다', async () => {

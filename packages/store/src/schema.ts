@@ -44,7 +44,10 @@ CREATE TABLE IF NOT EXISTS app_user (
   last_login_at timestamptz,
   -- 연락처(선택). 🔴 확인하지 않는다 — 메일 서버가 없고, 흉내만 내면 더 나쁘다.
   --    UNIQUE도 걸지 않는다: 한 사람이 계정을 둘 가질 수 있고, 막을 이유가 없다
-  email         text
+  email         text,
+  -- 회사명 · 개인정보 수집 동의 시각(7판). 처리방침을 올린 서버의 가입에서만 채워진다
+  company       text,
+  consent_at    timestamptz
 );
 
 CREATE TABLE IF NOT EXISTS identifiable (
@@ -112,7 +115,7 @@ CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, p
  *    ③ `SCHEMA_VERSION`을 올린다. 마이그레이션은 앞 판의 표를 새 판으로 만들어야 하며 멱등이어야 한다.
  *  - `schema_version`이 없는 기존 DB는 1판으로 본다(판 번호를 도입한 2026-09-04 시점의 표가 1판이다).
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const SCHEMA_VERSION_SQL = `
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -203,6 +206,19 @@ ALTER TABLE app_user ADD COLUMN IF NOT EXISTS email text;
     sql: `
 ALTER TABLE aas_package ADD COLUMN IF NOT EXISTS owner text;
 CREATE INDEX IF NOT EXISTS aas_package_owner_idx ON aas_package (owner);
+`,
+  },
+  {
+    /*
+     * 7판 (2026-10-06) — 회원가입에서 회사명을 받고, 개인정보 수집 동의 시각을 적는다.
+     *
+     * 🔴 NULL을 허용한다. 관리자가 만든 계정·처리방침 없는 서버의 가입에는 둘 다 없다.
+     * 🔴 동의 시각은 증빙이다 — 화면의 체크가 아니라 서버가 받은 때를 적는다.
+     */
+    version: 7,
+    sql: `
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS company text;
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS consent_at timestamptz;
 `,
   },
 ];

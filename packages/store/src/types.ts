@@ -266,6 +266,13 @@ export interface UserRecord {
    *    (docs/배포_호스팅.md). 그래서 비울 수 있게 두었다.
    */
   email?: string;
+  /** 회사명 — 회원가입 때 받는다(처리방침을 올린 서버에서만). 2026-10-06 */
+  company?: string;
+  /**
+   * 개인정보 수집·이용에 동의한 시각. 🔴 「동의했다」는 증빙이다 — 체크했다는 사실을
+   * 서버가 직접 적어 둔다(화면이 보냈다는 것만으로는 나중에 보일 것이 없다)
+   */
+  consentAt?: string;
   /** 🔴 해시만 둔다. 원문 비밀번호는 어디에도 남기지 않는다 */
   passwordHash: string;
   /** 잠근 계정 — 지우지 않고 막는다. 이력에 남은 「누가」가 깨지지 않게 */
@@ -282,6 +289,8 @@ export interface NewUser {
   passwordHash: string;
   /** 선택 — 위 UserRecord.email 설명을 볼 것 */
   email?: string;
+  company?: string;
+  consentAt?: string;
 }
 
 /**

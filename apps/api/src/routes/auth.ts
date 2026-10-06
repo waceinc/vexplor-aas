@@ -126,6 +126,31 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
   const signupThrottle = options.signupThrottle ?? new SignupThrottle();
 
   /**
+   * 계정을 지운다 — 탈퇴(본인)와 관리자 삭제가 **같은 일**을 한다.
+   *
+   * 🔴 그 사람이 올린 파일도 지운다(2026-10-06 처리방침을 쓰다가 찾았다). 계정만 지우면
+   *    주인 없는 파일이 서버에 남는다 — 탈퇴하면 지체 없이 파기한다는 약속과 어긋나고,
+   *    설비 파일에는 회사·도면 정보가 든다. 나누는 서버(체험판·AAS_WORKSPACE=private)에서만
+   *    주인이 적힌다 — 팀 공용 서버의 파일은 팀 것이라 주인이 없고, 지우지 않는다.
+   * 🔴 이 저장소는 작업 공간 겹이다. 관리자는 전부 보고, 본인은 자기 것을 본다 — 어느 쪽이든
+   *    그 사람의 파일이 보인다. 그래도 주인이 맞는 것만 지운다(공용 파일을 지우지 않게).
+   */
+  const removeAccount = async (userId: string): Promise<number> => {
+    const mine = `user:${userId}`;
+    const owned: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await store.listPackages(cursor === undefined ? { limit: 200 } : { limit: 200, cursor });
+      for (const item of page.items) if (item.owner === mine) owned.push(item.id);
+      cursor = page.cursor;
+    } while (cursor !== undefined);
+    for (const id of owned) await store.deletePackage(id);
+    await store.deleteUser(userId);
+    sessions.dropUser(userId);
+    return owned.length;
+  };
+
+  /**
    * 🔴 **체험 계정은 자기 자신을 못 바꾼다.**
    *
    * 여럿이 같이 쓰는 계정이라, 방문자 하나가 비밀번호를 바꾸거나 계정을 지우면
@@ -198,8 +223,12 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         if (login === '' || password === '') {
           throw new ApiError(400, 'BadRequest', '로그인 이름과 비밀번호를 모두 주십시오.');
         }
+        // 🔴 체험 계정은 세지 않는다 — 비밀번호가 화면에 공개돼 있어 지킬 것이 없고,
+        //    세면 누구나 틀린 비밀번호로 체험 계정을 잠가 모든 방문자를 막을 수 있다
+        const counted = demoLogin === undefined || login.toLowerCase() !== demoLogin;
+        const from = clientAddress(request) ?? '';
         // 🔴 막혀 있어도 "그 계정이 있다"를 알려 주지 않는다 — 문구가 아래와 같다
-        if (throttle.blocked(login)) {
+        if (counted && throttle.blocked(login, from)) {
           throw new ApiError(
             429,
             'TooManyRequests',
@@ -210,12 +239,12 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const user = await store.findUserByLogin(login);
         const ok = user && !user.disabled && (await verifyPassword(password, user.passwordHash));
         if (!ok || !user) {
-          throttle.fail(login);
+          if (counted) throttle.fail(login, from);
           // 🔴 있는 계정인지 비밀번호가 틀린 것인지 가르지 않는다
           throw new ApiError(401, 'Unauthorized', '로그인하지 못했습니다 — 이름이나 비밀번호를 확인하십시오.');
         }
 
-        throttle.pass(login);
+        if (counted) throttle.pass(login, from);
         await store.touchUserLogin(user.id);
         const key = sessions.create(user.id);
         return {
@@ -249,6 +278,8 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const password = String(body['password'] ?? '');
         const displayName = String(body['displayName'] ?? '').trim();
         const email = String(body['email'] ?? '').trim();
+        const company = String(body['company'] ?? '').trim();
+        const agreed = body['agreed'] === true;
         if (!/^[A-Za-z][A-Za-z0-9_.-]{1,40}$/.test(login)) {
           throw new ApiError(
             400,
@@ -258,21 +289,29 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         }
         const bad = checkPasswordRule(password);
         if (bad) throw new ApiError(400, 'BadRequest', bad);
-        if (email !== '') {
-          // 🔴 처리방침을 올려 두지 않은 서버는 연락처를 **받지 않는다.** 어떻게 쓰는지
-          //    밝히지 않고 개인정보를 모으지 않겠다는 뜻이고, 운영자가 방침을 먼저
-          //    올리게 만드는 장치이기도 하다(AAS_PRIVACY_URL)
-          if (!signup.privacyUrl) {
-            throw new ApiError(
-              400,
-              'BadRequest',
-              '이 서버는 연락처를 받지 않습니다 — 비워 두고 가입하십시오.',
-            );
+        // 🔴 처리방침을 올려 두지 않은 서버는 개인정보(이메일·회사명)를 **받지 않는다.**
+        //    어떻게 쓰는지 밝히지 않고 모으지 않겠다는 뜻이고, 운영자가 방침을 먼저
+        //    올리게 만드는 장치이기도 하다(AAS_PRIVACY_URL)
+        if (!signup.privacyUrl) {
+          if (email !== '' || company !== '') {
+            throw new ApiError(400, 'BadRequest', '이 서버는 연락처를 받지 않습니다 — 비워 두고 가입하십시오.');
           }
-          // 적었으면 모양만 본다. **확인하지는 않는다** — 메일 서버가 없다.
+        } else {
+          // 처리방침을 올린 서버(공개 체험 서버) — 이름 · 회사명 · 이메일과 **동의**를 받는다(2026-10-06)
+          if (displayName === '' || company === '' || email === '') {
+            throw new ApiError(400, 'BadRequest', '이름 · 회사명 · 이메일을 모두 적어 주십시오.');
+          }
+          if (displayName.length > 40 || company.length > 80 || email.length > 120) {
+            throw new ApiError(400, 'BadRequest', '입력이 너무 깁니다.');
+          }
+          // 모양만 본다. **확인하지는 않는다** — 메일 서버가 없다.
           // 흉내만 내고 「확인된 주소」라고 믿게 만드는 쪽이 더 나쁘다
           if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-            throw new ApiError(400, 'BadRequest', '연락처 형식이 올바르지 않습니다. 비워 두셔도 됩니다.');
+            throw new ApiError(400, 'BadRequest', '이메일 형식이 올바르지 않습니다.');
+          }
+          // 🔴 동의 없이는 받지 않는다 — 화면의 체크만 믿지 않고 서버가 다시 본다
+          if (!agreed) {
+            throw new ApiError(400, 'BadRequest', '개인정보 수집·이용에 동의해야 가입할 수 있습니다.');
           }
         }
 
@@ -284,6 +323,9 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             role: signup.role,
             passwordHash: await hashPassword(password),
             ...(email === '' ? {} : { email }),
+            ...(company === '' ? {} : { company }),
+            // 동의한 때를 서버 시계로 적는다 — 증빙이다
+            ...(signup.privacyUrl ? { consentAt: new Date().toISOString() } : {}),
           });
         } catch {
           // 🔴 「이미 있는 이름」은 숨기지 않는다. 로그인 실패와 달리 여기서는
@@ -326,8 +368,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             );
           }
         }
-        await store.deleteUser(who.userId);
-        sessions.dropUser(who.userId);
+        await removeAccount(who.userId);
         return { status: 204, headers: { 'set-cookie': cookieLine('', secureCookie(request), 0) }, body: undefined };
       },
     },
@@ -406,6 +447,12 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             disabled: user.disabled,
             createdAt: user.createdAt,
             ...(user.lastLoginAt ? { lastLoginAt: user.lastLoginAt } : {}),
+            // 🔴 연락처는 **관리자에게만** 보인다(이 경로가 requireAdmin이다)
+            ...(user.email ? { email: user.email } : {}),
+            ...(user.company ? { company: user.company } : {}),
+            ...(user.consentAt ? { consentAt: user.consentAt } : {}),
+            // 체험 계정 — 화면이 그 줄에서 지우기·잠그기를 빼게 알린다(서버도 막는다)
+            ...(demoLogin !== undefined && user.login.toLowerCase() === demoLogin ? { demo: true } : {}),
           })),
         });
       },
@@ -447,6 +494,41 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
     },
     {
       /**
+       * 관리자가 계정을 지운다(2026-10-06 사용자 요청 — 잠그기 · 비밀번호 초기화 옆에).
+       *
+       * 🔴 탈퇴와 같은 일을 한다 — 그 사람이 올린 파일까지 지운다. 되돌릴 수 없다.
+       *    지우지 않고 막기만 하려면 「잠그기」를 쓴다.
+       * 🔴 막는 것 셋: 나 자신(실수로 지우면 아무도 못 들어온다 — 내 것은 탈퇴로) ·
+       *    마지막 관리자 · 체험 계정(지우면 공개 서버의 문이 닫힌다).
+       */
+      method: 'DELETE',
+      pattern: '/auth/users/:userId',
+      success: [200],
+      async handle({ request, params }) {
+        requireAdmin(request);
+        // API 키(기계)로 부를 때는 사람이 없다 — 「나 자신」 검사는 사람일 때만
+        const me = request.principal;
+        const id = params['userId']!;
+        const target = await store.getUser(id);
+        if (!target) throw new ApiError(404, 'NotFound', '그런 계정이 없습니다.');
+        if (me && target.id === me.userId) {
+          throw new ApiError(409, 'Conflict', '자기 계정은 여기서 지울 수 없습니다 — 「설정 → 탈퇴」를 쓰십시오.');
+        }
+        if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
+          throw new ApiError(403, 'Forbidden', '체험 계정은 지울 수 없습니다 — 지우면 공개 서버에 아무도 들어오지 못합니다.');
+        }
+        if (target.role === 'admin') {
+          const admins = (await store.listUsers()).filter((user) => user.role === 'admin' && !user.disabled);
+          if (admins.length <= 1) {
+            throw new ApiError(409, 'Conflict', '마지막 관리자는 지울 수 없습니다 — 다른 관리자를 먼저 만드십시오.');
+          }
+        }
+        const files = await removeAccount(id);
+        return json(200, { deleted: id, files });
+      },
+    },
+    {
+      /**
        * 계정 고치기 — 역할·이름·잠금·비밀번호 초기화.
        * 🔴 바꾸면 **그 사람의 세션을 끊는다.** 역할을 낮췄는데 열려 있던 창이 그대로
        *    편집하고 있으면 낮춘 의미가 없다.
@@ -458,6 +540,11 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const id = params['userId']!;
         const target = await store.getUser(id);
         if (!target) throw new ApiError(404, 'NotFound', '그런 계정이 없습니다.');
+        // 🔴 체험 계정은 관리자도 바꾸지 못한다(2026-10-06 보안 점검). 역할을 관리자로 올리면
+        //    admin/1234로 들어온 **누구나 관리자**가 되고, 비밀번호를 바꾸거나 잠그면 공개 서버의 문이 닫힌다
+        if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
+          throw new ApiError(403, 'Forbidden', '체험 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.');
+        }
         const body = (request.body ?? {}) as Record<string, unknown>;
 
         const patch: Parameters<AasStore['updateUser']>[1] = {};

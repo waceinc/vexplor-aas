@@ -431,6 +431,12 @@ export interface UserView {
   disabled: boolean;
   createdAt: string;
   lastLoginAt?: string;
+  /** 가입 때 받은 것 — 관리자에게만 온다 */
+  email?: string;
+  company?: string;
+  consentAt?: string;
+  /** 체험 계정(공개 서버) — 지우거나 잠그지 못한다 */
+  demo?: boolean;
 }
 
 const asJson = (body: unknown): RequestInit => ({
@@ -457,8 +463,10 @@ export const api = {
     password: string,
     displayName: string,
     email: string,
+    company = '',
+    agreed = false,
   ): Promise<{ user: AuthState['user'] }> =>
-    request('/auth/signup', asJson({ login, password, displayName, email })),
+    request('/auth/signup', asJson({ login, password, displayName, email, company, agreed })),
   // ── 계정 관리(관리자) ──
   listUsers: (): Promise<{ result: UserView[] }> => request('/auth/users'),
   createUser: (user: { login: string; displayName: string; role: string; password: string }): Promise<unknown> =>
@@ -472,6 +480,9 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(patch),
     }),
+  /** 관리자가 남의 계정을 지운다 — 그 사람이 올린 파일도 함께. 되돌릴 수 없다 */
+  deleteUser: (id: string): Promise<{ deleted: string; files: number }> =>
+    request(`/auth/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   /** 탈퇴 — 내 계정을 지운다. 감사 기록의 「누가」는 남는다 */
   deleteMe: (): Promise<void> => request('/auth/me', { method: 'DELETE' }),
   changePassword: (current: string, next: string): Promise<unknown> =>

@@ -285,6 +285,17 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
 
       // 빈 문자열은 「지우라」는 뜻 — 개인정보를 빼 달라는 요구에 쓰인다
       expect((await store.updateUser(some.id, { email: '' }))?.email).toBeUndefined();
+
+      // 7판 — 회사명과 동의 시각
+      const at = '2026-10-06T07:00:00.000Z';
+      const member = await store.createUser({
+        login: 'c', displayName: '김철수', role: 'editor', passwordHash: 'h', email: 'c@example.com', company: ' WACE ', consentAt: at,
+      });
+      expect(member.company).toBe('WACE');
+      expect(member.consentAt).toBe(at);
+      expect((await store.getUser(member.id))?.company).toBe('WACE');
+      expect((await store.getUser(member.id))?.consentAt).toBe(at);
+      expect(none.company).toBeUndefined();
       // 주지 않으면 그대로 둔다
       const kept = await store.updateUser(none.id, { displayName: 'A2' });
       expect(kept?.email).toBeUndefined();

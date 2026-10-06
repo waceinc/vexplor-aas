@@ -707,10 +707,19 @@ export class PostgresStore implements AasStore {
     const id = `user_${seq[0]?.next ?? 1}`;
     try {
       const { rows } = await this.client.query<UserRow>(
-        `INSERT INTO app_user (id, login, display_name, role, password_hash, email)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, login, display_name, role, password_hash, disabled, created_at, last_login_at, email`,
-        [id, login, display, user.role, user.passwordHash, user.email?.trim() || null],
+        `INSERT INTO app_user (id, login, display_name, role, password_hash, email, company, consent_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING ${USER_FIELDS}`,
+        [
+          id,
+          login,
+          display,
+          user.role,
+          user.passwordHash,
+          user.email?.trim() || null,
+          user.company?.trim() || null,
+          user.consentAt ?? null,
+        ],
       );
       return toUserRecord(rows[0]!);
     } catch (caught) {
@@ -738,7 +747,7 @@ export class PostgresStore implements AasStore {
                               WHEN btrim($6::text) = '' THEN NULL
                               ELSE btrim($6::text) END
        WHERE id = $1
-       RETURNING id, login, display_name, role, password_hash, disabled, created_at, last_login_at, email`,
+       RETURNING ${USER_FIELDS}`,
       [
         id,
         patch.displayName ?? null,
@@ -772,7 +781,8 @@ export class PostgresStore implements AasStore {
   }
 }
 
-const USER_COLUMNS = `SELECT id, login, display_name, role, password_hash, disabled, created_at, last_login_at, email
+const USER_FIELDS = 'id, login, display_name, role, password_hash, disabled, created_at, last_login_at, email, company, consent_at';
+const USER_COLUMNS = `SELECT ${USER_FIELDS}
    FROM app_user`;
 
 interface UserRow {
@@ -785,6 +795,8 @@ interface UserRow {
   created_at: unknown;
   last_login_at: unknown;
   email: string | null;
+  company: string | null;
+  consent_at: unknown;
 }
 
 function toUserRecord(row: UserRow): UserRecord {
@@ -801,6 +813,8 @@ function toUserRecord(row: UserRow): UserRecord {
     record.lastLoginAt = toIso(row.last_login_at);
   }
   if (row.email) record.email = row.email;
+  if (row.company) record.company = row.company;
+  if (row.consent_at !== null && row.consent_at !== undefined) record.consentAt = toIso(row.consent_at);
   return record;
 }
 

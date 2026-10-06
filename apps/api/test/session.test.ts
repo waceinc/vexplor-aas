@@ -123,3 +123,18 @@ describe('로그인 시도 제한', () => {
     expect(throttle.blocked('kim')).toBe(true);
   });
 });
+
+describe('로그인 시도 제한 — 남이 내 계정을 잠그지 못한다 (2026-10-06 보안 점검)', () => {
+  it('다른 주소에서 틀린 것은 내 주소를 막지 않는다', () => {
+    const throttle = new LoginThrottle(() => 0);
+    for (let i = 0; i < 5; i += 1) throttle.fail('kim', '203.0.113.9');
+    expect(throttle.blocked('kim', '203.0.113.9')).toBe(true);
+    expect(throttle.blocked('kim', '198.51.100.7')).toBe(false);
+  });
+
+  it('주소를 바꿔 가며 대입해도 계정 전체 상한에서 멈춘다', () => {
+    const throttle = new LoginThrottle(() => 0);
+    for (let i = 0; i < 50; i += 1) throttle.fail('kim', `10.0.0.${i}`);
+    expect(throttle.blocked('kim', '10.9.9.9')).toBe(true);
+  });
+});

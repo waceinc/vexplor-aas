@@ -1773,9 +1773,9 @@ export function App(): React.JSX.Element {
                 return describeError(caught);
               }
             }}
-            onSignup={async (login, password, displayName, email) => {
+            onSignup={async (login, password, displayName, email, company, agreed) => {
               try {
-                await api.signup(login, password, displayName, email);
+                await api.signup(login, password, displayName, email, company, agreed);
                 setStartAccounts(false);
                 await bootstrap();
                 return undefined;
@@ -3070,7 +3070,7 @@ export function App(): React.JSX.Element {
       {showAccounts && auth?.user && (
         <div className="modal-back" role="presentation" onClick={() => setShowAccounts(false)}>
           <div
-            className="modal"
+            className="modal accounts-modal"
             role="dialog"
             aria-modal="true"
             aria-label={t('계정')}

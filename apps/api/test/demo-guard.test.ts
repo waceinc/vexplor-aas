@@ -135,6 +135,23 @@ describe('탈퇴', () => {
     expect(history.body.result[0].actorName).toBe('홍길동');
   });
 
+  it('🔴 탈퇴하면 그 사람이 올린 파일도 지운다 — 남의 파일은 그대로 (2026-10-06)', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    const api = createApi(store, { signup: { role: 'editor' }, privateWorkspaces: true }) as Api;
+    const hong = cookieFrom(await api(ask('POST', '/auth/signup', { body: { login: 'hong', password: PASSWORD } })));
+    const kim = cookieFrom(await api(ask('POST', '/auth/signup', { body: { login: 'kim', password: PASSWORD } })));
+    const upload = (cookie: string) => api(ask('POST', '/packages', { body: goldenBytes, query: { name: GOLDEN }, cookie }));
+    expect((await upload(hong)).status).toBe(201);
+    expect((await upload(hong)).status).toBe(201);
+    const kept = (await upload(kim)).body.packageId as string;
+
+    expect((await api(ask('DELETE', '/auth/me', { cookie: hong }))).status).toBe(204);
+
+    const left = (await store.listPackages()).items.map((item) => item.id);
+    expect(left).toEqual([kept]);
+  });
+
   it('마지막 관리자는 못 지운다 — 지우면 아무도 계정을 관리하지 못한다', async () => {
     const store = new InMemoryStore();
     await store.init();
@@ -171,7 +188,11 @@ describe('🔴 처리방침이 없으면 연락처를 받지 않는다', () => {
 
   it('방침을 올려 두면 받는다. 화면도 그 주소를 받아 간다', async () => {
     const api = await server('https://example.com/privacy');
-    expect((await api(join({ email: 'hong@example.com' }))).status).toBe(201);
+    // 방침을 올린 서버는 이름 · 회사명 · 이메일과 동의를 함께 받는다(2026-10-06)
+    expect((await api(join({ email: 'hong@example.com' }))).status).toBe(400);
+    expect(
+      (await api(join({ email: 'hong@example.com', displayName: '홍길동', company: 'WACE', agreed: true }))).status,
+    ).toBe(201);
     expect((await api(ask('GET', '/auth/me'))).body.privacyUrl).toBe('https://example.com/privacy');
   });
 });
@@ -211,5 +232,140 @@ describe('가입 속도 제한', () => {
       (await api(ask('POST', '/auth/signup', { body: { login: 'hong', password: PASSWORD }, from: '203.0.113.1' })))
         .status,
     ).toBe(201);
+  });
+});
+
+describe('공개 서버를 남이 망가뜨리지 못한다 (2026-10-06 보안 점검)', () => {
+  it('🔴 틀린 비밀번호를 아무리 넣어도 체험 계정은 잠기지 않는다 — 모든 방문자가 막히던 구멍', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    await seedDemoUser(store, DEMO, hashPassword);
+    const api = createApi(store, { demo: DEMO, signup: { role: 'editor' } }) as Api;
+    for (let i = 0; i < 8; i += 1) {
+      await api(ask('POST', '/auth/login', { body: { login: 'admin', password: 'wrong' }, from: '203.0.113.9' }));
+    }
+    // 같은 회사 망(같은 주소) 뒤의 방문자도 막히면 안 된다 — 체험 계정은 아예 세지 않는다
+    const visitor = await api(ask('POST', '/auth/login', { body: { login: 'admin', password: '1234' }, from: '203.0.113.9' }));
+    expect(visitor.status).toBe(200);
+    // scrypt를 열 번 가까이 돈다(일부러 느린 해시) — 시험을 한꺼번에 돌리면 5초를 넘긴다
+  }, 30_000);
+
+  it('한 사람이 올릴 수 있는 파일 수에 상한이 있다 — 디스크를 채우지 못한다', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    const api = createApi(store, { signup: { role: 'editor' }, privateWorkspaces: true, maxPackagesPerOwner: 2 }) as Api;
+    const cookie = cookieFrom(await api(ask('POST', '/auth/signup', { body: { login: 'hong', password: PASSWORD } })));
+    const upload = () => api(ask('POST', '/packages', { body: goldenBytes, query: { name: GOLDEN }, cookie }));
+    expect((await upload()).status).toBe(201);
+    expect((await upload()).status).toBe(201);
+    const third = await upload();
+    expect(third.status).toBe(403);
+    expect(JSON.stringify(third.body)).toContain('2개까지');
+  });
+});
+
+describe('회원가입 — 이름 · 회사명 · 이메일 · 동의 (처리방침을 올린 서버, 2026-10-06)', () => {
+  async function server(): Promise<{ api: Api; store: InMemoryStore; adminCookie: string }> {
+    const store = new InMemoryStore();
+    await store.init();
+    await store.createUser({ login: 'boss', displayName: '운영자', role: 'admin', passwordHash: await hashPassword(PASSWORD) });
+    const api = createApi(store, { signup: { role: 'editor', privacyUrl: '/privacy.html' } }) as Api;
+    const adminCookie = cookieFrom(await api(ask('POST', '/auth/login', { body: { login: 'boss', password: PASSWORD } })));
+    return { api, store, adminCookie };
+  }
+  const full = { login: 'kim', password: PASSWORD, displayName: '김철수', company: 'WACE', email: 'kim@example.com', agreed: true };
+
+  it('하나라도 비면 받지 않는다', async () => {
+    const { api } = await server();
+    for (const missing of ['displayName', 'company', 'email'] as const) {
+      const reply = await api(ask('POST', '/auth/signup', { body: { ...full, [missing]: '' } }));
+      expect(reply.status).toBe(400);
+    }
+  });
+
+  it('🔴 동의하지 않으면 받지 않는다 — 화면의 체크만 믿지 않는다', async () => {
+    const { api } = await server();
+    expect((await api(ask('POST', '/auth/signup', { body: { ...full, agreed: false } }))).status).toBe(400);
+  });
+
+  it('받으면 동의 시각을 서버가 적고, 회사명·이메일은 관리자에게만 보인다', async () => {
+    const { api, store, adminCookie } = await server();
+    const joined = await api(ask('POST', '/auth/signup', { body: full }));
+    expect(joined.status).toBe(201);
+    const saved = await store.findUserByLogin('kim');
+    expect(saved?.company).toBe('WACE');
+    expect(saved?.consentAt).toBeDefined();
+
+    const list = await api(ask('GET', '/auth/users', { cookie: adminCookie }));
+    expect(list.body.result.find((user: { login: string }) => user.login === 'kim')).toMatchObject({
+      company: 'WACE',
+      email: 'kim@example.com',
+    });
+    // 가입한 본인(편집자)은 남의 목록을 못 본다
+    expect((await api(ask('GET', '/auth/users', { cookie: cookieFrom(joined) }))).status).toBe(403);
+  });
+
+  it('처리방침이 없는 서버는 회사명·이메일을 받지 않는다', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    const api = createApi(store, { signup: { role: 'editor' } }) as Api;
+    expect((await api(ask('POST', '/auth/signup', { body: { login: 'lee', password: PASSWORD, company: 'X' } }))).status).toBe(400);
+    expect((await api(ask('POST', '/auth/signup', { body: { login: 'lee', password: PASSWORD } }))).status).toBe(201);
+  });
+});
+
+describe('관리자의 계정 삭제 (2026-10-06 사용자 요청)', () => {
+  async function server(): Promise<{ api: Api; store: InMemoryStore; boss: string }> {
+    const store = new InMemoryStore();
+    await store.init();
+    await seedDemoUser(store, DEMO, hashPassword);
+    await store.createUser({ login: 'boss', displayName: '운영자', role: 'admin', passwordHash: await hashPassword(PASSWORD) });
+    const api = createApi(store, { demo: DEMO, signup: { role: 'editor' } }) as Api;
+    const boss = cookieFrom(await api(ask('POST', '/auth/login', { body: { login: 'boss', password: PASSWORD } })));
+    return { api, store, boss };
+  }
+
+  it('지우면 그 사람과 그 사람이 올린 파일이 함께 사라진다', async () => {
+    const { api, store, boss } = await server();
+    const hong = cookieFrom(await api(ask('POST', '/auth/signup', { body: { login: 'hong', password: PASSWORD } })));
+    expect((await api(ask('POST', '/packages', { body: goldenBytes, query: { name: GOLDEN }, cookie: hong }))).status).toBe(201);
+    const id = (await store.findUserByLogin('hong'))!.id;
+
+    const reply = await api(ask('DELETE', `/auth/users/${id}`, { cookie: boss }));
+    expect(reply.status).toBe(200);
+    expect(reply.body.files).toBe(1);
+    expect(await store.findUserByLogin('hong')).toBeUndefined();
+    expect((await store.listPackages()).items.filter((item) => item.owner === `user:${id}`)).toHaveLength(0);
+    // 그 사람의 로그인도 바로 끊긴다
+    expect((await api(ask('GET', '/auth/me', { cookie: hong }))).body.authenticated).toBe(false);
+  });
+
+  it('🔴 막는 것 — 나 자신 · 체험 계정 · 관리자가 아닌 사람', async () => {
+    const { api, store, boss } = await server();
+    const me = (await store.findUserByLogin('boss'))!.id;
+    expect((await api(ask('DELETE', `/auth/users/${me}`, { cookie: boss }))).status).toBe(409);
+    const demo = (await store.findUserByLogin('admin'))!.id;
+    expect((await api(ask('DELETE', `/auth/users/${demo}`, { cookie: boss }))).status).toBe(403);
+    const hong = cookieFrom(await api(ask('POST', '/auth/signup', { body: { login: 'hong', password: PASSWORD } })));
+    expect((await api(ask('DELETE', `/auth/users/${me}`, { cookie: hong }))).status).toBe(403);
+  });
+});
+
+describe('🔴 체험 계정은 관리자도 바꾸지 못한다 (2026-10-06 보안 점검)', () => {
+  it('역할을 관리자로 올리면 admin/1234로 들어온 누구나 관리자가 된다 — 막는다', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    await seedDemoUser(store, DEMO, hashPassword);
+    await store.createUser({ login: 'boss', displayName: '운영자', role: 'admin', passwordHash: await hashPassword(PASSWORD) });
+    const api = createApi(store, { demo: DEMO, signup: { role: 'editor' } }) as Api;
+    const boss = cookieFrom(await api(ask('POST', '/auth/login', { body: { login: 'boss', password: PASSWORD } })));
+    const demo = (await store.findUserByLogin('admin'))!;
+    for (const body of [{ role: 'admin' }, { disabled: true }, { password: '새로운긴비밀번호입니다' }]) {
+      expect((await api(ask('PATCH', `/auth/users/${demo.id}`, { body, cookie: boss }))).status).toBe(403);
+    }
+    expect((await store.findUserByLogin('admin'))?.role).toBe('editor');
+    // 관리자 목록에는 체험 계정이라고 적혀 간다 — 화면이 단추를 뺀다
+    const list = await api(ask('GET', '/auth/users', { cookie: boss }));
+    expect(list.body.result.find((user: { login: string }) => user.login === 'admin').demo).toBe(true);
   });
 });

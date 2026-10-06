@@ -42,6 +42,8 @@ interface Props {
     password: string,
     displayName: string,
     email: string,
+    company: string,
+    agreed: boolean,
   ) => Promise<string | undefined>;
   t: (text: string) => string;
   /** 스스로 「첫 관리자 만들기」를 연 경우에만 — 갇힌 사람에게는 주지 않는다 */
@@ -79,6 +81,7 @@ export function Login({
   const [email, setEmail] = useState('');
   /** 연락처를 적었을 때만 묻는다 — 안 적으면 동의받을 개인정보가 없다 */
   const [agreed, setAgreed] = useState(false);
+  const [company, setCompany] = useState('');
   const [error, setError] = useState<string>();
   const [working, setWorking] = useState(false);
 
@@ -89,17 +92,22 @@ export function Login({
       setError(t('두 비밀번호가 다릅니다.'));
       return;
     }
-    // 🔴 적었으면 동의가 먼저다. 안 적었으면 동의받을 것이 없다
-    if (mode === 'signup' && email.trim() !== '' && !agreed) {
-      setError(t('연락처를 적으셨습니다 — 처리방침에 동의해 주십시오.'));
-      return;
+    if (profile) {
+      if (displayName.trim() === '' || company.trim() === '' || email.trim() === '') {
+        setError(t('이름 · 회사명 · 이메일을 모두 적어 주십시오.'));
+        return;
+      }
+      if (!agreed) {
+        setError(t('개인정보 수집·이용에 동의해야 가입할 수 있습니다.'));
+        return;
+      }
     }
     setWorking(true);
     const failed =
       mode === 'setup'
         ? await onSetup(login.trim(), password, displayName.trim(), code.trim())
         : mode === 'signup'
-          ? await onSignup(login.trim(), password, displayName.trim(), email.trim())
+          ? await onSignup(login.trim(), password, displayName.trim(), email.trim(), company.trim(), agreed)
           : await onLogin(login.trim(), password);
     setWorking(false);
     if (failed) {
@@ -109,6 +117,8 @@ export function Login({
     }
   };
 
+  /** 처리방침을 올린 서버의 가입 — 이름 · 회사명 · 이메일 · 동의를 받는다 */
+  const profile = mode === 'signup' && privacyUrl !== undefined && privacyUrl !== '';
   const disabled = busy || working || login.trim() === '' || password === '';
 
   return (
@@ -156,14 +166,47 @@ export function Login({
 
         {mode !== 'login' && (
           <label>
-            {t('표시 이름')}
+            {profile ? t('이름') : t('표시 이름')}
             <input
               value={displayName}
               autoComplete="name"
-              placeholder={t('비워 두면 로그인 이름을 씁니다')}
+              maxLength={40}
+              placeholder={profile ? '' : t('비워 두면 로그인 이름을 씁니다')}
               onChange={(event) => setDisplayName(event.target.value)}
             />
           </label>
+        )}
+
+        {/*
+          회원 정보 — 처리방침을 올린 서버(공개 체험 서버)에서만 받는다(2026-10-06 사용자 요청).
+          🔴 받는 순간 개인정보다. 무엇을·왜·언제까지를 **동의 칸 바로 위에** 적고, 동의해야 가입된다
+             (개인정보 보호법 제15조 — 수집 항목 · 목적 · 보유 기간 · 거부할 권리를 알린다).
+          🔴 처리방침이 없는 서버는 이 칸들이 아예 없다 — 서버도 거절한다.
+        */}
+        {profile && (
+          <>
+            <label>
+              {t('회사명')}
+              <input
+                value={company}
+                autoComplete="organization"
+                maxLength={80}
+                onChange={(event) => setCompany(event.target.value)}
+              />
+            </label>
+            <label>
+              {t('이메일')}
+              <input
+                type="email"
+                value={email}
+                autoComplete="email"
+                maxLength={120}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              {/* 🔴 확인하지 않는다는 사실을 적는다 — 확인된 주소인 양 두면 안 된다 */}
+              <span className="hint">{t('확인 메일은 보내지 않습니다.')}</span>
+            </label>
+          </>
         )}
 
         <label>
@@ -175,35 +218,6 @@ export function Login({
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-
-        {/* 🔴 처리방침을 올려 두지 않은 서버는 연락처 칸 자체가 없다 — 서버도 거절한다 */}
-        {mode === 'signup' && privacyUrl && (
-          <>
-            <label>
-              {t('연락처 (선택)')}
-              <input
-                type="email"
-                value={email}
-                autoComplete="email"
-                placeholder={t('비워 두셔도 됩니다')}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              {/* 🔴 확인하지 않는다는 사실을 적는다 — 확인된 주소인 양 두면 안 된다 */}
-              <span className="hint">{t('연락이 필요할 때만 씁니다. 확인 메일은 보내지 않습니다.')}</span>
-            </label>
-            {email.trim() !== '' && (
-              <label className="agree">
-                <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
-                <span>
-                  <a href={privacyUrl} target="_blank" rel="noreferrer">
-                    {t('개인정보처리방침')}
-                  </a>
-                  {t('에 동의합니다.')}
-                </span>
-              </label>
-            )}
-          </>
-        )}
 
         {mode !== 'login' && (
           <>
@@ -218,6 +232,31 @@ export function Login({
             </label>
             <p className="hint">{t('비밀번호는 10자 이상이어야 합니다.')}</p>
           </>
+        )}
+
+        {profile && (
+          <div className="consent">
+            <p className="consent-title">{t('개인정보 수집·이용 동의 (필수)')}</p>
+            <dl>
+              <dt>{t('항목')}</dt>
+              <dd>{t('아이디 · 이름 · 회사명 · 이메일 · 비밀번호(암호화 저장)')}</dd>
+              <dt>{t('목적')}</dt>
+              <dd>{t('회원 식별 · 서비스 제공 · 문의 응대')}</dd>
+              <dt>{t('보유 기간')}</dt>
+              <dd>{t('탈퇴할 때까지 — 탈퇴하면 올린 파일과 함께 지웁니다')}</dd>
+            </dl>
+            <p className="hint">{t('동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 체험 계정으로 써 볼 수 있습니다.')}</p>
+            <label className="agree">
+              <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
+              <span>
+                {t('위 내용과 ')}
+                <a href={privacyUrl} target="_blank" rel="noreferrer">
+                  {t('개인정보처리방침')}
+                </a>
+                {t('에 동의합니다.')}
+              </span>
+            </label>
+          </div>
         )}
 
         {/* 🔴 role="alert" — 화면 낭독기가 실패를 바로 읽어 준다 */}

@@ -175,7 +175,7 @@ const EN: Record<string, string> = {
   '계정 만들기': 'Create account',
   '계정을 만들었습니다.': 'Account created.',
   '개인정보처리방침': 'Privacy policy',
-  '에 동의합니다.': ' — I agree.',
+  '에 동의합니다.': '.',
   '연락처를 적으셨습니다 — 처리방침에 동의해 주십시오.':
     'You entered a contact address — please agree to the privacy policy.',
   '탈퇴 — 계정 지우기': 'Delete my account',

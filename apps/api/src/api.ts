@@ -77,6 +77,11 @@ export interface ApiOptions {
    * 나누면 저마다 자기가 올린 것만 보고, 남의 것은 없는 것처럼 보인다(@aas/store scoped.ts).
    */
   privateWorkspaces?: boolean;
+  /**
+   * 나누는 서버에서 한 사람이 가질 수 있는 파일 수(기본 50). 0이면 무제한.
+   * 🔴 공개 서버에서 디스크를 채우는 것을 막는다 — 체험 방문자는 60분 정리가 있지만 가입한 사람은 없다
+   */
+  maxPackagesPerOwner?: number;
   /** 가입 속도 제한. 🔴 시험이 시각을 쥐려면 밖에서 넣는다 */
   signupThrottle?: SignupThrottle;
   /** 접근 제어(기계용 API 키). 주지 않으면 열려 있다(개발·시연용) */
@@ -146,7 +151,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
         json(200, {
           status: 'ok',
           version: PRODUCT_VERSION,
-          auth: isOpen(options.auth ?? OPEN_ACCESS) ? 'off' : 'on',
+          // 🔴 키가 없어도 계정이 있으면 로그인을 요구한다 — 「off」라고 하면 운영자도 공격자도 오해한다
+          auth: isOpen(options.auth ?? OPEN_ACCESS) && (await store.countUsers()) === 0 ? 'off' : 'on',
         }),
     },
   ];
@@ -160,9 +166,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   // 🔴 저장소에 작업 공간 겹을 씌운다. 라우트는 **이 겹만** 본다 — 날것의 저장소를 쥔
   //    라우트가 하나라도 있으면 그 길로 남의 파일이 샌다. 문맥을 깔지 않으면(나누지 않는
   //    서버) 이 겹은 아무 일도 하지 않는다
-  const store = scopeStore(base);
   // 체험판은 **언제나** 나눈다 — 여럿이 같은 계정으로 들어오는데 나누지 않으면 서로의 파일을 본다
   const privateWorkspaces = options.privateWorkspaces === true || options.demo !== undefined;
+  const quota = options.maxPackagesPerOwner ?? 50;
+  const store = scopeStore(base, privateWorkspaces && quota > 0 ? { maxPackagesPerOwner: quota } : {});
   const undo = new UndoStack(store);
   // 🔴 라우트와 요청 처리가 **같은 세션 표**를 봐야 한다 — 따로 만들면 로그인해도 안 통한다
   const sessions = options.sessions ?? new SessionStore();

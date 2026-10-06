@@ -99,35 +99,63 @@ export class SessionStore {
  * 🔴 막혀도 "그 계정은 있다"를 알려 주지 않는다 — 응답은 똑같이 「로그인하지 못했습니다」다.
  */
 export class LoginThrottle {
+  /** 「이 계정 × 이 주소」 — 한 사람이 비밀번호를 대입하는 것을 늦춘다 */
   private readonly fails = new Map<string, { count: number; until: number }>();
+  /** 「이 계정」 전체 — 주소를 바꿔 가며 대입해도 결국 멈춘다 */
+  private readonly perLogin = new Map<string, { count: number; until: number }>();
 
+  /**
+   * 🔴 예전에는 **계정 이름만** 셌다(2026-10-06 보안 점검). 그러면 아무나 남의 아이디로
+   *    다섯 번 틀려 그 사람을 5분씩 잠글 수 있다 — 공개 체험 서버에서는 체험 계정(admin)을
+   *    누구나 잠가 모든 방문자를 막을 수 있었다. 그래서 「계정 × 주소」로 세고, 계정 전체에는
+   *    훨씬 높은 상한(주소를 바꿔 가며 대입하는 것)만 둔다.
+   */
   constructor(
     private readonly now: () => number = () => Date.now(),
-    /** 이만큼 틀리면 */
+    /** 한 주소에서 이만큼 틀리면 */
     private readonly limit = 5,
     /** 이만큼 막는다 */
     private readonly blockMs = 5 * 60 * 1000,
+    /** 주소를 가리지 않고 한 계정에 이만큼 틀리면(대입 공격) */
+    private readonly loginLimit = 50,
+    private readonly loginBlockMs = 15 * 60 * 1000,
   ) {}
 
-  blocked(login: string): boolean {
-    const found = this.fails.get(login.toLowerCase());
-    if (!found) return false;
-    if (this.now() >= found.until) {
-      this.fails.delete(login.toLowerCase());
-      return false;
+  private static active(
+    map: Map<string, { count: number; until: number }>,
+    key: string,
+    at: number,
+  ): { count: number; until: number } | undefined {
+    const found = map.get(key);
+    if (found && at >= found.until) {
+      map.delete(key);
+      return undefined;
     }
-    return found.count >= this.limit;
+    return found;
   }
 
-  fail(login: string): void {
-    const key = login.toLowerCase();
-    const found = this.fails.get(key);
-    const count = (found && this.now() < found.until ? found.count : 0) + 1;
-    this.fails.set(key, { count, until: this.now() + this.blockMs });
+  blocked(login: string, address = ''): boolean {
+    const name = login.toLowerCase();
+    const at = this.now();
+    const mine = LoginThrottle.active(this.fails, `${name}|${address}`, at);
+    const all = LoginThrottle.active(this.perLogin, name, at);
+    return (mine?.count ?? 0) >= this.limit || (all?.count ?? 0) >= this.loginLimit;
   }
 
-  pass(login: string): void {
-    this.fails.delete(login.toLowerCase());
+  fail(login: string, address = ''): void {
+    const name = login.toLowerCase();
+    const at = this.now();
+    for (const [map, key, ms] of [
+      [this.fails, `${name}|${address}`, this.blockMs],
+      [this.perLogin, name, this.loginBlockMs],
+    ] as const) {
+      const found = LoginThrottle.active(map, key, at);
+      map.set(key, { count: (found?.count ?? 0) + 1, until: at + ms });
+    }
+  }
+
+  pass(login: string, address = ''): void {
+    this.fails.delete(`${login.toLowerCase()}|${address}`);
   }
 }
 
