@@ -1295,23 +1295,50 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--error); font-weight:
 .accounts-table td.row-buttons { text-align: right; white-space: nowrap; }
 .accounts .reset-form { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
 
-/* 로그인 화면의 체험판 안내 — 처음 온 사람이 가장 먼저 봐야 하는 것이라 카드로 세운다 */
+/* 로그인 화면 — 로그인 카드가 주인공, 체험 안내는 그 아래(2026-10-06 디자인 검토)
+   파란 채움 단추는 화면에 하나만 둔다(로그인). 체험 단추는 테두리 단추다 */
+.login { width: min(400px, 100%); word-break: keep-all; }
+.login-form {
+  padding: 20px 20px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.login-form button.link { align-self: center; color: var(--accent); }
+
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; color: var(--dim); font-size: 13px; }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
 .demo-card {
   width: 100%;
-  margin: 4px 0 2px;
-  padding: 16px 18px 14px;
-  border: 1px solid #5a4a1c;
-  border-radius: 8px;
-  background: #221d10;
+  padding: 16px 20px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(76, 154, 255, .06);
   text-align: left;
 }
-.demo-card h2 { margin: 0 0 12px; font-size: 15px; color: #f2d98a; }
-.demo-card dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 12px; }
-.demo-card dt { color: var(--dim, #8b949e); }
-.demo-card dd { margin: 0; font-size: 15px; color: var(--text, #e6edf3); letter-spacing: .02em; }
-.demo-card button.big { width: 100%; }
-.demo-card ul { list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; color: var(--dim, #8b949e); }
-.demo-card li { padding-left: 20px; position: relative; line-height: 1.7; }
-.demo-card li::before { content: '✓'; position: absolute; left: 2px; color: var(--ok, #3fb950); }
+.demo-card h2 { margin: 0 0 10px; font-size: 14px; color: var(--text); }
+.demo-card dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; align-items: center; }
+.demo-card dt { color: var(--dim); font-size: 13px; }
+.demo-card dd { margin: 0; }
+.demo-card code {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  letter-spacing: .03em;
+  color: var(--text);
+}
+.demo-card button.demo-enter {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.demo-card button.demo-enter:hover:not(:disabled) { background: rgba(76, 154, 255, .12); }
+.demo-card ul { list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; color: var(--dim); }
+.demo-card li { padding-left: 20px; position: relative; line-height: 1.75; }
+.demo-card li::before { content: '✓'; position: absolute; left: 2px; color: var(--ok); }
+.demo-card li.locked { color: var(--warning); }
 .demo-card li.locked::before { content: '🔒'; left: 0; font-size: 11px; }
-.login .or { margin: 14px 0 2px; color: var(--dim, #8b949e); font-size: 13px; }

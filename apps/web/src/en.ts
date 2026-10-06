@@ -754,4 +754,9 @@ export const EN_MORE: Record<string, string> = {
   '견본으로 시작하기': 'Start with a sample',
 
   '견본 열기': 'Open sample',
+
+  // ── 로그인 화면 — 로그인 위 · 체험 아래 ───────────────────────────────
+  'AAS를 만들고 · 검사하고 · 내려받는 웹 도구입니다.': 'A web tool to create, validate and download AAS.',
+  '가입 없이 먼저 써 보기': 'Try it without signing up',
+  '처음이신가요? 회원가입': 'New here? Sign up',
 };

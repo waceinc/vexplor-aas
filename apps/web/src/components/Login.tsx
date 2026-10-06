@@ -122,50 +122,11 @@ export function Login({
         </p>
       ) : mode === 'signup' ? (
         <p>{t('계정을 만들면 작업한 파일을 내려받을 수 있습니다.')}</p>
-      ) : demo ? null : (
+      ) : demo ? (
+        <p>{t('AAS를 만들고 · 검사하고 · 내려받는 웹 도구입니다.')}</p>
+      ) : (
         <p>{t('로그인하십시오.')}</p>
       )}
-
-      {/*
-        체험판 안내 — 카드 한 장으로 묶는다.
-        🔴 처음에는 회색 잔글씨 두 줄이었다. 체험 서버에 온 사람이 **가장 먼저 알아야 하는 것**
-           (어떻게 들어가나 · 무엇이 되고 안 되나)인데 눈에 들어오지 않았다(사용자 2026-10-04).
-        🔴 아이디·비밀번호를 적어 두기만 하지 않고 **단추 하나로 들어가게** 한다 —
-           보고 베껴 치게 할 이유가 없다. 값은 그대로 보여 준다(무엇으로 들어가는지 숨기지 않는다).
-      */}
-      {demo && mode === 'login' && (
-        <section className="demo-card" aria-label={t('체험판 안내')}>
-          <h2>{t('가입 없이 바로 써 볼 수 있습니다')}</h2>
-          <dl>
-            <dt>{t('아이디')}</dt>
-            <dd className="mono">{demo.login}</dd>
-            <dt>{t('비밀번호')}</dt>
-            <dd className="mono">{demo.password}</dd>
-          </dl>
-          <button
-            className="primary big"
-            type="button"
-            disabled={busy || working}
-            onClick={() => {
-              setError(undefined);
-              setWorking(true);
-              void onLogin(demo.login, demo.password).then((failed) => {
-                setWorking(false);
-                if (failed) setError(failed);
-              });
-            }}
-          >
-            {t('체험 계정으로 들어가기')}
-          </button>
-          <ul>
-            <li>{t('열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다')}</li>
-            <li>{t('올린 파일은 나만 봅니다 · 한동안 안 쓰면 지워집니다')}</li>
-            <li className="locked">{t('파일 내려받기는 회원가입 후에 됩니다')}</li>
-          </ul>
-        </section>
-      )}
-
-      {demo && mode === 'login' && <p className="or">{t('또는 내 계정으로 로그인')}</p>}
 
       <form className="login-form" onSubmit={(event) => void submit(event)}>
         <label>
@@ -288,7 +249,7 @@ export function Login({
               setConfirm('');
             }}
           >
-            {wantSignup ? t('← 로그인으로 돌아가기') : t('계정이 없습니다 — 회원가입')}
+            {wantSignup ? t('← 로그인으로 돌아가기') : t('처음이신가요? 회원가입')}
           </button>
         )}
 
@@ -305,6 +266,54 @@ export function Login({
           </button>
         )}
       </form>
+
+      {demo && mode === 'login' && (
+        <div className="login-divider" role="separator">
+          <span>{t('가입 없이 먼저 써 보기')}</span>
+        </div>
+      )}
+
+      {/*
+        체험판 안내 — 로그인 **아래**에 카드 한 장으로 둔다(2026-10-06 사용자·디자인 검토).
+        🔴 위에 두었더니 다시 찾아온 회원도 체험 안내부터 지나야 했고, 파란 단추가 둘이라
+           주인공이 흐렸다. 로그인이 이 서버의 정식 입구다 — 체험 단추는 테두리 단추(보조)로 둔다.
+        🔴 처음에는 회색 잔글씨 두 줄이었다. 체험 서버에 온 사람이 **가장 먼저 알아야 하는 것**
+           (어떻게 들어가나 · 무엇이 되고 안 되나)인데 눈에 들어오지 않았다(사용자 2026-10-04).
+        🔴 아이디·비밀번호를 적어 두기만 하지 않고 **단추 하나로 들어가게** 한다 —
+           보고 베껴 치게 할 이유가 없다. 값은 그대로 보여 준다(무엇으로 들어가는지 숨기지 않는다).
+      */}
+      {demo && mode === 'login' && (
+        <section className="demo-card" aria-label={t('체험판 안내')}>
+          <h2>{t('체험 계정')}</h2>
+          <dl>
+            <dt>{t('아이디')}</dt>
+            <dd><code>{demo.login}</code></dd>
+            <dt>{t('비밀번호')}</dt>
+            <dd><code>{demo.password}</code></dd>
+          </dl>
+          <button
+            className="big demo-enter"
+            type="button"
+            disabled={busy || working}
+            onClick={() => {
+              setError(undefined);
+              setWorking(true);
+              void onLogin(demo.login, demo.password).then((failed) => {
+                setWorking(false);
+                if (failed) setError(failed);
+              });
+            }}
+          >
+            {t('체험 계정으로 들어가기')}
+          </button>
+          <ul>
+            <li>{t('열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다')}</li>
+            <li>{t('올린 파일은 나만 봅니다 · 한동안 안 쓰면 지워집니다')}</li>
+            <li className="locked">{t('파일 내려받기는 회원가입 후에 됩니다')}</li>
+          </ul>
+        </section>
+      )}
+
     </div>
   );
 }

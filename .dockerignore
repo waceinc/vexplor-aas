@@ -9,3 +9,6 @@ tests/fixtures/*.aasx.bak
 **/*.tsbuildinfo
 .env
 .playwright-mcp
+# 배포 설정 — 비밀번호(.env)와 DB 백업이 든다. 이미지 안으로 들어가면 안 된다
+deploy
+**/.env
