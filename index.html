@@ -110,7 +110,6 @@
       <a href="#why">소개</a>
       <a href="#features">기능</a>
       <a href="#trial">체험</a>
-      <a href="#install">직접 설치</a>
       <a href="https://github.com/waceinc/vexplor-aas">GitHub</a>
     </nav>
   </div>
@@ -218,30 +217,6 @@
     </div>
   </section>
 
-  <section id="install">
-    <div class="wrap">
-      <h2>직접 설치</h2>
-      <p class="sub">오픈소스(Apache-2.0)입니다. 자기 서버에 올려 제한 없이 쓸 수 있습니다.</p>
-      <div class="two">
-        <div>
-          <h3 style="margin:0 0 10px">Docker — 가장 쉽습니다</h3>
-<pre>git clone https://github.com/waceinc/vexplor-aas.git
-cd vexplor-aas
-cp .env.example .env     # POSTGRES_PASSWORD만 채웁니다
-docker compose up -d --build</pre>
-          <p style="color:var(--dim);margin:0">브라우저에서 <code>http://localhost:8080</code> — 띄운 뒤 가장 먼저 첫 관리자를 만드십시오.</p>
-        </div>
-        <div>
-          <h3 style="margin:0 0 10px">소스에서 — Node.js 22 이상</h3>
-<pre>npm install
-npx tsc -b
-npm run build --workspace apps/web
-node apps/api/dist/server.js</pre>
-          <p style="color:var(--dim);margin:0">자세한 설치와 사용법은 <a href="https://github.com/waceinc/vexplor-aas#readme">GitHub README</a>를 보십시오.</p>
-        </div>
-      </div>
-    </div>
-  </section>
 </main>
 
 <footer>
@@ -272,7 +247,7 @@ node apps/api/dist/server.js</pre>
       document.querySelectorAll('.privacy-link').forEach((a) => { a.href = demo.url.replace(/\/$/, '') + '/privacy.html'; a.target = '_blank'; });
       say('체험 계정 <code>admin</code> / <code>1234</code> — 새 창으로 열립니다. 체험 서버는 시연용이라 가끔 쉬어 갈 수 있습니다.');
     } catch {
-      say('체험 서버를 준비하는 중입니다. 잠시 뒤 다시 와 주시거나, 아래 「직접 설치」로 띄워 보십시오.');
+      say('체험 서버를 준비하는 중입니다. 잠시 뒤 다시 와 주십시오.');
     }
   })();
 </script>
