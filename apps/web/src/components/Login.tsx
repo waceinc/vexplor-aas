@@ -347,7 +347,7 @@ export function Login({
           </button>
           <ul>
             <li>{t('열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다')}</li>
-            <li>{t('올린 파일은 나만 봅니다 · 한동안 안 쓰면 지워집니다')}</li>
+            <li>{t('체험판은 일정 시간 후 초기화됩니다')}</li>
             <li className="locked">{t('파일 내려받기는 회원가입 후에 됩니다')}</li>
           </ul>
         </section>

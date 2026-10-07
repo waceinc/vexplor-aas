@@ -219,6 +219,8 @@ export function App(): React.JSX.Element {
    * 🔴 가입해 자기 계정으로 들어오면 `auth.demo`가 비고 제한이 풀린다(서버가 정한다).
    */
   const demoLocked = auth?.demo !== undefined;
+  /** 체험 계정이 견본을 눌렀다 — 회원가입 뒤에 쓸 수 있다고 알린다(사용자 2026-10-07) */
+  const [sampleLocked, setSampleLocked] = useState(false);
   const [lang] = useState<Lang>(() => readLang());
   const [showSettings, setShowSettings] = useState(false);
   /** 계정 화면 — 내 비밀번호, 그리고 관리자면 사람 더하기·역할·잠그기 */
@@ -688,6 +690,11 @@ export function App(): React.JSX.Element {
    *    같은 견본을 다시 눌러도 번들 열기가 해시로 알아보고 사본을 만들지 않는다.
    */
   const onOpenSample = async (): Promise<void> => {
+    // 체험 계정은 견본을 열지 않는다 — 토큰을 묻는 대신 회원가입을 안내한다
+    if (demoLocked) {
+      setSampleLocked(true);
+      return;
+    }
     const name = 'RB01_OptimizationQuality_sample_bundle.zip';
     const data = await run(async () => {
       const response = await fetch(`${import.meta.env.BASE_URL}samples/${name}`);
@@ -1871,7 +1878,7 @@ export function App(): React.JSX.Element {
               },
               {
                 // 첫 화면에만 두면 파일이 하나라도 생긴 뒤에는 다시 못 연다 — 지운 견본을 되살릴 길도 여기다
-                label: t('견본 열기'),
+                label: demoLocked ? `🔒 ${t('견본 열기')}` : t('견본 열기'),
                 title: tr('다 채워진 설비 1종과 공정 구성을 열어 둘러봅니다 — 고쳐도 되는 연습용입니다'),
                 onClick: () => void onOpenSample(),
                 disabled: busy,
@@ -2000,7 +2007,7 @@ export function App(): React.JSX.Element {
               ...(auth?.user
                 ? [
                     {
-                      label: `${auth.user.displayName} · ${t('로그아웃')}`,
+                      label: `${demoLocked ? t('체험 계정') : auth.user.displayName} · ${t('로그아웃')}`,
                       title: tr('이 브라우저의 로그인을 끝냅니다'),
                       onClick: () => {
                         void api
@@ -2133,7 +2140,7 @@ export function App(): React.JSX.Element {
             <span className="spacer" />
             <span className="group submit">
             <Menu
-              label={t('뽑아내기')}
+              label={t('내보내기')}
               align="right"
               title={tr('제출·문서에 붙일 자료를 뽑습니다')}
               disabled={busy}
@@ -2219,6 +2226,26 @@ export function App(): React.JSX.Element {
           {t('올린 파일은 다른 방문자에게 보이지 않습니다. 한동안 쓰지 않으면 지워지고, 로그인을 새로 하면 빈 칸에서 시작합니다.')}{' '}
           <button className="link" onClick={() => setStartAccounts(true)}>
             {t('회원가입하면 내려받을 수 있습니다')}
+          </button>
+        </div>
+      )}
+
+      {sampleLocked && (
+        <div className="demo-bar" role="alertdialog">
+          🔒 <b>{t('견본은 회원가입 후 사용할 수 있습니다.')}</b>{' '}
+          {auth?.signupAllowed === true && (
+            <button
+              className="link"
+              onClick={() => {
+                setSampleLocked(false);
+                setStartAccounts(true);
+              }}
+            >
+              {t('회원가입')}
+            </button>
+          )}{' '}
+          <button className="link" onClick={() => setSampleLocked(false)}>
+            {t('닫기')}
           </button>
         </div>
       )}

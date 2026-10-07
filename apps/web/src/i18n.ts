@@ -36,7 +36,7 @@ const EN: Record<string, string> = {
   '다른 파일에서 가져오기': 'Import from another file',
   '자동 고치기': 'Auto-fix',
   // 헤더 — 제출
-  뽑아내기: 'Export',
+  내보내기: 'Export',
   '검증 결과서': 'Validation report',
   '문서용 자료': 'Document assets',
   '레퍼런스 번들': 'Reference bundle',
@@ -134,7 +134,8 @@ const EN: Record<string, string> = {
   '아이디': 'ID',
   '체험 계정으로 들어가기': 'Enter with the trial account',
   '열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다': 'Open, edit, validate and quick-fix — all available',
-  '올린 파일은 나만 봅니다 · 한동안 안 쓰면 지워집니다': 'Only you see your uploads. They are deleted after a period of inactivity',
+  '체험판은 일정 시간 후 초기화됩니다': 'The trial is reset after a while',
+  '견본은 회원가입 후 사용할 수 있습니다.': 'Samples are available after you sign up.',
   '파일 내려받기는 회원가입 후에 됩니다': 'Downloading files requires signing up',
   '또는 내 계정으로 로그인': 'or sign in with your own account',
 
