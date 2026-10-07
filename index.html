@@ -321,9 +321,9 @@
         <div class="text rv rv-l">
           <h3>검사 — 무엇이 어긋났는지</h3>
           <ul>
-            <li>규칙 43종 — 패키지 구조 · 메타모델 제약 · 제출처(KOSMO) 사업 규칙</li>
+            <li>규칙 43종 — 패키지 구조 · 메타모델 제약 · KOSMO 사업 규칙</li>
             <li>위반 · 경고 · 참고로 나눠 어디가 왜 틀렸는지, 어떻게 고치는지까지</li>
-            <li>표준 검증을 다 통과해도 제출처에서 떨어지는 자리를 미리 걸러 줍니다</li>
+            <li>표준 검증을 다 통과해도 KOSMO 규칙에 어긋나는 자리를 미리 걸러 줍니다</li>
           </ul>
         </div>
         <div class="shot rv rv-r" data-marks="findings"><img src="img/v2/findings.jpg" alt="검사 결과 — 위반 0건, 경고 9건과 고치는 법" loading="lazy" width="1035" height="747"></div>
@@ -346,7 +346,7 @@
           <h3>공정 묶음 · 레퍼런스 번들</h3>
           <ul>
             <li>회사 / 공정 단위의 설비를 제작 및 편집</li>
-            <li>공정 · 설비 · 사전 점검 결과를 제출 꾸러미(ZIP) 하나로</li>
+            <li>공정 · 설비 · 사전 점검 결과를 ZIP 묶음 하나로</li>
             <li>받은 쪽은 해시로 바뀐 파일이 없는지 확인합니다</li>
           </ul>
         </div>
@@ -511,7 +511,7 @@
         $('layout').classList.add('on', 'dim'); $('fix').classList.add('on'); move(1450, 30);
         at(700, () => move(320, 770)); at(2000, () => { $('apply').classList.add('on'); click(); });
       } },
-      { t: '위반 0건 · 경고 0건 — 제출 전 사전 점검 통과', dur: 3600, run() {
+      { t: '위반 0건 · 경고 0건 — KOSMO 규칙 사전 점검 통과', dur: 3600, run() {
         $('fixed').classList.add('on'); move(320, 770);
         at(400, () => move(1450, 30)); at(1300, () => { $('chip').classList.add('on'); $('pass').classList.add('on'); });
       } },
