@@ -73,10 +73,10 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
           (사용자 2026-09-30). 위반은 제출 전에 반드시 고칠 것, 경고는 제출을 막지 않지만 확인할 것 */}
       <section className="findings-section error">
         <h3>
-          <T k={'{0} {1}건{2}'} v={[<span className="level error">{tr('위반')}</span>, count(errors), <span className="sub"> {tr('— 제출 전에 반드시 고칩니다(KOSMO 규칙)')}</span>]} />
+          <T k={'{0} {1}건{2}'} v={[<span className="level error">{tr('위반')}</span>, count(errors), <span className="sub"> {tr('— 반드시 고칩니다(KOSMO 규칙)')}</span>]} />
         </h3>
         {errors.length === 0 ? (
-          <p className="hint">{tr('위반이 없습니다 — 사전 점검 기준으로 제출 조건을 채웠습니다.')}</p>
+          <p className="hint">{tr('위반이 없습니다 — KOSMO 규칙을 모두 지켰습니다.')}</p>
         ) : (
           <ul>{errors.map((group) => renderGroup(group))}</ul>
         )}
@@ -84,7 +84,7 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
 
       <section className="findings-section warning">
         <h3>
-          <T k={'{0} {1}건{2}'} v={[<span className="level warning">{tr('경고')}</span>, count(warnings), <span className="sub"> {tr('— 제출을 막지는 않습니다. 확인하고 필요하면 「자동 고치기」')}</span>]} />
+          <T k={'{0} {1}건{2}'} v={[<span className="level warning">{tr('경고')}</span>, count(warnings), <span className="sub"> {tr('— 확인하고 필요하면 「자동 고치기」')}</span>]} />
         </h3>
         {warnings.length === 0 ? (
           <p className="hint">{tr('경고가 없습니다.')}</p>

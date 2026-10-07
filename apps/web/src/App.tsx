@@ -401,7 +401,7 @@ export function App(): React.JSX.Element {
               typeNote: tr('수집 연결'),
               typeTitle:
                 tr('설비의 OPC UA 주소와 읽을 태그를 적는 표준 서브모델(IDTA 02017 Asset Interfaces Description)입니다. ') +
-                tr('「수집 연결 만들기」나 「가상 PLC로 연결」을 누르면 이 파일에 더해집니다. 제출하는 참조모델에는 원래 없으며, ') +
+                tr('「수집 연결 만들기」나 「가상 PLC로 연결」을 누르면 이 파일에 더해집니다. 원본 참조모델에는 원래 없으며, ') +
                 tr('이것이 붙은 파일은 시연본입니다 — 필요 없으면 오른쪽 수집 칸의 「연결 삭제」로 지웁니다.'),
             }
           : node.children.length > 0
@@ -1472,7 +1472,7 @@ export function App(): React.JSX.Element {
       !globalThis.confirm(
         tr('이 설비 파일에 가상 PLC(시뮬레이션) 수집 연결을 만듭니다.\n\n') +
           tr('· 파일에 AID 서브모델이 더해져 「시연본」이 됩니다.\n') +
-          tr('· 제출할 참조모델을 그대로 두려면, 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?'),
+          tr('· 원본 참조모델을 그대로 두려면, 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?'),
       )
     )
       return;
@@ -1517,7 +1517,7 @@ export function App(): React.JSX.Element {
       !globalThis.confirm(
         fill(tr('「{0}」에 가상 PLC(시뮬레이션) 수집 연결을 만듭니다.\n\n'), { 0: equipmentName(pid) }) +
           tr('· 그 설비 파일에 AID 서브모델이 더해져 「시연본」이 됩니다.\n') +
-          tr('· 제출할 참조모델이면 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?'),
+          tr('· 원본 참조모델이면 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?'),
       )
     )
       return;
@@ -2142,12 +2142,12 @@ export function App(): React.JSX.Element {
             <Menu
               label={t('내보내기')}
               align="right"
-              title={tr('제출·문서에 붙일 자료를 뽑습니다')}
+              title={tr('검증 결과서 · 문서용 자료 · 번들을 내보냅니다')}
               disabled={busy}
               items={[
                 {
                   label: t('검증 결과서'),
-                  title: tr('검사 결과를 인쇄용으로 엽니다 — 인쇄하면 그대로 제출용 PDF가 됩니다'),
+                  title: tr('검사 결과를 인쇄용으로 엽니다 — 인쇄하면 그대로 PDF로 저장할 수 있습니다'),
                   onClick: () => void run(() => api.openReport(packageId)),
                 },
                 {
@@ -2160,7 +2160,7 @@ export function App(): React.JSX.Element {
                   ? [
                       {
                         label: t('레퍼런스 번들'),
-                        title: tr('이 공정을 제출 꾸러미(ZIP)로 봅니다 — 구성·준비 상태·데이터 연계'),
+                        title: tr('이 공정을 ZIP 묶음으로 봅니다 — 구성·준비 상태·데이터 연계'),
                         onClick: () => setAdding('bundle'),
                         disabled: busy,
                         separated: true,
@@ -2180,8 +2180,8 @@ export function App(): React.JSX.Element {
                 demoLocked
                   ? t('체험 계정으로는 내려받을 수 없습니다 — 눌러서 계정을 만드십시오.')
                   : errors > 0
-                    ? fill(tr('위반 {0}건이 남아 있습니다 — 받을 수는 있지만 KOSMO 제출은 아직입니다'), { 0: errors })
-                    : tr('KOSMO 제출용 .aasx로 내려받습니다')
+                    ? fill(tr('위반 {0}건이 남아 있습니다 — 받을 수는 있지만 KOSMO 규칙을 아직 다 지키지 못했습니다'), { 0: errors })
+                    : tr('지금 파일을 .aasx로 내려받습니다')
               }
             >
               {demoLocked ? `🔒 ${t('AASX 내려받기')}` : t('AASX 내려받기')}

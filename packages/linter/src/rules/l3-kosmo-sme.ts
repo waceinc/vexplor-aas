@@ -138,7 +138,7 @@ export const kosmoSme3ConceptMapping: Rule = {
             ? {
                 policyNote:
                   '정책(preserve) — IDTA·W3C 표준 용어라 교정 대상에서 뺐습니다. ' +
-                  'KOSMO Validator가 이를 어떻게 판정하는지는 실측 자료가 없으니 제출 전에 확인하십시오.',
+                  'KOSMO Validator가 이를 어떻게 판정하는지는 실측 자료가 없으니 Validator로 확인하십시오.',
               }
             : {}),
         });

@@ -535,7 +535,7 @@ export async function buildBundle(
   put(
     `${FOLDERS.guidance}/_작성안내.md`,
     pendingNote('가이던스 (장비별 1:1)', [
-      '아래 설비마다 제출한 가이던스를 넣습니다. 참조모델과 **같은 버전**이어야 합니다.',
+      '아래 설비마다 작성한 가이던스를 넣습니다. 참조모델과 **같은 버전**이어야 합니다.',
       '',
       ...[...new Set(resolved.members.filter((m) => m.record).map((m) => m.record!.name))].map(
         (name) => `- [ ] ${name.replace(/\.aasx$/i, '')}_AAS활용가이던스`,
@@ -592,7 +592,7 @@ export async function buildBundle(
     notes: [
       '모델의 공식 검증(KOSMO Validator)은 장비별 AASX를 만들 때 받는 것이다. 여기 lint는 번들에 넣은 모델을 이 도구가 다시 확인한 참고 기록이다.',
       '번들 자체의 확인은 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 한다.',
-      '공정 구성 파일은 참조모델로 제출하지 않는다(설비 필수 서브모델 4종이 없다).',
+      '공정 구성 파일은 참조모델에 포함하지 않는다(설비 필수 서브모델 4종이 없다).',
     ],
   };
   put(BUNDLE_MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -633,7 +633,7 @@ export async function buildBundle(
         ? [
             '',
             `> ⚡ **시연본 포함**: ${[...new Set(models.filter((m) => m.demo).map((m) => m.sourceName))].join(', ')} — 수집 연결(AID)이 붙어 있습니다.`,
-            '> 제출용 번들에는 수집 연결이 없는 **원본 참조모델**을 넣으십시오.',
+            '> 정식 번들에는 수집 연결이 없는 **원본 참조모델**을 넣으십시오.',
           ]
         : []),
       '',
@@ -662,7 +662,7 @@ export async function buildBundle(
       '',
       '1. AAS 저작 도구(설치판)를 띄우고 **「번들 열기」**로 이 ZIP을 엽니다 — 알림 띠에 해시 일치가 나옵니다',
       '2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 세우고 수집 연결을 만듭니다',
-      '3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 제출본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오',
+      '3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오',
       '',
       '## 사람이 넣은 문서',
       '',
@@ -674,7 +674,7 @@ export async function buildBundle(
       '',
       `| 폴더 | 내용 |`,
       '|---|---|',
-      `| ${FOLDERS.process} | 공정 구성 파일(HierarchicalStructures). 참조모델로 제출하지 않음 |`,
+      `| ${FOLDERS.process} | 공정 구성 파일(HierarchicalStructures). 참조모델에 포함하지 않음 |`,
       `| ${FOLDERS.usecase} | Use-Case 문서 — 작성 안내 |`,
       `| ${FOLDERS.models} | 설비 참조모델 AASX (해시는 ${BUNDLE_MANIFEST}) |`,
       `| ${FOLDERS.guidance} | 장비별 가이던스 — 넣을 목록 |`,

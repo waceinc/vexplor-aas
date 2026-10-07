@@ -160,7 +160,7 @@ ${
   ${summaryRow('① IRI 충돌', policy.iriConflict === 'kosmo-first' ? 'KOSMO 우선 — 화이트리스트 밖 IRI를 위반으로 본다' : 'IDTA 보존 — 공식 IRI는 경고로만')}
   ${summaryRow('② CD 정의', policy.cdDefinition === 'require-en' ? '영문 definition 필수' : '공란 허용(KTL §8)')}
   ${summaryRow('③ 언어 태그', policy.langTagTypo === 'fix-when-evidence' ? '중복 태그를 교정 대상으로 본다' : '원본 유지(KTL §7)')}
-  ${summaryRow('④ SML 자식 idShort (AASd-120)', { warn: '경고 — KOSMO 제출은 막지 않는다', forbid: '위반 — 표준 도구·BaSyx 적재가 목표', allow: '참고 — 알고도 둔다' }[policy.smlChildIdShort])}
+  ${summaryRow('④ SML 자식 idShort (AASd-120)', { warn: '경고 — KOSMO 판정에는 영향 없음', forbid: '위반 — 표준 도구·BaSyx 적재가 목표', allow: '참고 — 알고도 둔다' }[policy.smlChildIdShort])}
   ${summaryRow('⑤ 표준 템플릿 용어', policy.standardTemplateSemantics === 'kosmo-first' ? 'KOSMO 우선 — CD 없는 표준 용어를 위반으로 본다' : '보존 — 표준 용어는 참고로만')}
   ${summaryRow('자체 IRI 접두', policy.iriBase)}
   ${summaryRow('인정 IRDI 접두', policy.irdiPrefixes.join(' / '))}
@@ -172,7 +172,7 @@ ${relocationSection}
 
 <p class="note">
   이 문서는 <b>자체 규칙 린터</b>의 결과입니다. KOSMO Validator가 출력한 결과서가 아닙니다.
-  제출 전 Validator 실행 결과와 함께 확인하십시오.
+  Validator 실행 결과와 함께 확인하십시오.
   ${options.note ? `<br />${escapeHtml(options.note)}` : ''}
 </p>
 </body>

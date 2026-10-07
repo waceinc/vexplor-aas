@@ -61,8 +61,8 @@ export const EN_MORE: Record<string, string> = {
   '예: RollFormingSafety': 'e.g. RollFormingSafety',
   '버전 · 리비전 (administration){0}': 'Version · revision (administration){0}',
   '필수 서브모델 4종 중 하나입니다(KOSMO-AAS-4).': 'This is one of the four mandatory submodels (KOSMO-AAS-4).',
-  '이미 「{0}」이(가) 있습니다 — 같은 이름이 둘이면 어느 것이 제출물인지 정해지지 않습니다.':
-    '"{0}" already exists — with two of the same name it is undefined which one is the deliverable.',
+  '이미 「{0}」이(가) 있습니다 — 같은 이름이 둘이면 어느 것이 맞는 것인지 정해지지 않습니다.':
+    '"{0}" already exists — with two of the same name it is undefined which one is the right one.',
   '지금 {0}종입니다 — 하나 더 넣으면 KOSMO 상한(8종)을 넘어 위반(KOSMO-AAS-4)이 됩니다.':
     'There are {0} now — one more exceeds the KOSMO limit of 8 and becomes an error (KOSMO-AAS-4).',
   '이 설비에 서브모델을 새로 만듭니다 — id는 규약대로 지어집니다':
@@ -133,10 +133,10 @@ export const EN_MORE: Record<string, string> = {
   '위반 {0}건{1}': '{0} errors{1}',
   '· 경고 {0}건': '· {0} warnings',
   '{0} {1}건{2}': '{0} {1}{2}',
-  '— 제출 전에 반드시 고칩니다(KOSMO 규칙)': '— must be fixed before submission (KOSMO rules)',
-  '위반이 없습니다 — 사전 점검 기준으로 제출 조건을 채웠습니다.':
-    'No errors — by this pre-check, the submission conditions are met.',
-  '— 제출을 막지는 않습니다. 확인하고 필요하면 「자동 고치기」': '— does not block submission. Review, and use "Auto-fix" if needed',
+  '— 반드시 고칩니다(KOSMO 규칙)': '— must be fixed (KOSMO rules)',
+  '위반이 없습니다 — KOSMO 규칙을 모두 지켰습니다.':
+    'No violations — all KOSMO rules are met.',
+  '— 확인하고 필요하면 「자동 고치기」': '— review, and use "Auto-fix" if needed',
   '경고가 없습니다.': 'No warnings.',
   '참고 {0}건 — 고칠 것 없음, 알아 둘 사실만': '{0} info item(s) — nothing to fix, just facts to know',
   '자동으로 고치지 못한 것 {0}건': '{0} could not be fixed automatically',
@@ -166,7 +166,7 @@ export const EN_MORE: Record<string, string> = {
   '규칙 전부를 봅니다': 'Show all rules',
   'L1 — 파일(OPC 패키지) 규칙': 'L1 — file (OPC package) rules',
   'L2 — AAS 메타모델 제약(AASd-*)': 'L2 — AAS metamodel constraints (AASd-*)',
-  'L3 — KOSMO 사업 규칙': 'L3 — KOSMO submission rules',
+  'L3 — KOSMO 사업 규칙': 'L3 — KOSMO business rules',
   전체: 'All',
   계층: 'Layer',
   근거: 'Source',
@@ -244,8 +244,8 @@ export const EN_MORE: Record<string, string> = {
   '도구 안의 가상 PLC(시뮬레이션)에 바로 연결하고 한 번 수집합니다': 'Connects straight to the built-in virtual PLC (simulation) and collects once',
   '가상 PLC': 'Virtual PLC',
   '열기 →': 'Open →',
-  '🔴 연결하면 그 설비 파일에 수집 연결(AID)이 더해져 <b>시연본</b>이 됩니다. 제출할 참조모델은 그대로 두고 「호기별로 나누기」로 만든 호기에서 연결하는 것을 권합니다. 모은 값은 「레퍼런스 번들」의 <b>실동작 증빙</b>으로 실립니다.':
-    '🔴 Connecting adds a collection link (AID) to that equipment file and turns it into a <b>demo copy</b>. Keep the reference model you will submit as it is, and connect from the units created by "Split into units" instead. Collected values are included in the reference bundle as <b>operation evidence</b>.',
+  '🔴 연결하면 그 설비 파일에 수집 연결(AID)이 더해져 <b>시연본</b>이 됩니다. 원본 참조모델은 그대로 두고 「호기별로 나누기」로 만든 호기에서 연결하는 것을 권합니다. 모은 값은 「레퍼런스 번들」의 <b>실동작 증빙</b>으로 실립니다.':
+    '🔴 Connecting adds a collection link (AID) to that equipment file and turns it into a <b>demo copy</b>. Keep the original reference model as it is, and connect from the units created by "Split into units" instead. Collected values are included in the reference bundle as <b>operation evidence</b>.',
   '설비의 OPC UA 주소와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 지어 줍니다':
     'Enter the equipment\'s OPC UA address and tags, and an AID submodel is built to the specification (IDTA-02017)',
   '도구 안의 가상 PLC가 이 설비의 운전 데이터 이름대로 값을 흉내 냅니다 — 시연·재현용이며 값은 시뮬레이션입니다':
@@ -462,8 +462,8 @@ export const EN_MORE: Record<string, string> = {
   '공정 구성 + 설비 AASX + manifest(SHA256) + 폴더 골격을 ZIP 하나로 받습니다':
     'Downloads the process structure, the equipment AASX files, the manifest (SHA256) and the folder skeleton as one ZIP',
   '번들 내보내기 (.zip)': 'Export bundle (.zip)',
-  '⚡ <b>시연본 {0}대 포함</b> — 수집 연결(AID)이 붙어 있습니다. 시연용으로는 맞지만,<b> 제출용 번들</b>에는 연결이 없는 원본 참조모델을 넣으십시오. 내보내면 README와 manifest에도 표시됩니다.':
-    '⚡ <b>{0} demo copy(ies) included</b> — they carry a collection link (AID). That is right for a demo, but for<b> a submission bundle</b> use the original reference models without the link. The export marks this in the README and the manifest as well.',
+  '⚡ <b>시연본 {0}대 포함</b> — 수집 연결(AID)이 붙어 있습니다. 시연용으로는 맞지만,<b> 정식 번들</b>에는 연결이 없는 원본 참조모델을 넣으십시오. 내보내면 README와 manifest에도 표시됩니다.':
+    '⚡ <b>{0} demo copy(ies) included</b> — they carry a collection link (AID). That is right for a demo, but for<b> the official bundle</b> use the original reference models without the link. The export marks this in the README and the manifest as well.',
   '파일 {0}{1}': '{0} file(s){1}',
   '예정 {0}': '{0} planned',
   '사전 점검': 'Pre-check',
@@ -487,8 +487,8 @@ export const EN_MORE: Record<string, string> = {
   '눌러서 이 설비 파일을 엽니다': 'Click to open this equipment file',
   '파일이 없습니다 — 같은 이름으로 설비 파일을 만들면 이어집니다': 'No file — create an equipment file with the same name and it links up',
   '파일 없음': 'No file',
-  '수집 연결(AID)이 붙은 시연본입니다 — 제출용 번들에는 원본 참조모델을 넣으십시오':
-    'A demo copy with a collection link (AID) — use the original reference model in a submission bundle',
+  '수집 연결(AID)이 붙은 시연본입니다 — 정식 번들에는 원본 참조모델을 넣으십시오':
+    'A demo copy with a collection link (AID) — use the original reference model in the official bundle',
   '⚡ 수집 연결 · 시연본': '⚡ Collection link · demo copy',
   'SubmodelElementList 자식에 idShort — KOSMO는 통과지만 표준 검증기는 오류, BaSyx는 그 하위를 버립니다. 설비 파일을 열어 「자동 고치기」로 지우면 KOSMO에도 영향 없이 풀립니다':
     'idShort on SubmodelElementList children — KOSMO passes it, but the standard validator reports an error and BaSyx drops everything below. Open the equipment file and remove them with "Auto-fix"; KOSMO is not affected',
@@ -554,8 +554,8 @@ export const EN_MORE: Record<string, string> = {
   '수집 연결': 'Collection link',
   '설비의 OPC UA 주소와 읽을 태그를 적는 표준 서브모델(IDTA 02017 Asset Interfaces Description)입니다. ':
     'The standard submodel (IDTA 02017 Asset Interfaces Description) that records the equipment\'s OPC UA address and the tags to read. ',
-  '「수집 연결 만들기」나 「가상 PLC로 연결」을 누르면 이 파일에 더해집니다. 제출하는 참조모델에는 원래 없으며, ':
-    'It is added to this file when you press "Create collection link" or "Connect a virtual PLC". A reference model for submission does not normally have it, and ',
+  '「수집 연결 만들기」나 「가상 PLC로 연결」을 누르면 이 파일에 더해집니다. 원본 참조모델에는 원래 없으며, ':
+    'It is added to this file when you press "Create collection link" or "Connect a virtual PLC". The original reference model does not normally have it, and ',
   '이것이 붙은 파일은 시연본입니다 — 필요 없으면 오른쪽 수집 칸의 「연결 삭제」로 지웁니다.':
     'a file that carries it is a demo copy — remove it with "Delete link" in the collection pane on the right when not needed.',
   '같은 이름의 파일이 이미 열려 있습니다 — 둘 다 유지됩니다. 정리하려면 「파일 목록」에서 지우십시오.':
@@ -617,13 +617,13 @@ export const EN_MORE: Record<string, string> = {
   ' · 나쁜 태그 {0}건': ' · {0} bad tag(s)',
   '이 설비 파일에 가상 PLC(시뮬레이션) 수집 연결을 만듭니다.\n\n': 'This creates a virtual PLC (simulation) collection link in this equipment file.\n\n',
   '· 파일에 AID 서브모델이 더해져 「시연본」이 됩니다.\n': '· An AID submodel is added and the file becomes a "demo copy".\n',
-  '· 제출할 참조모델을 그대로 두려면, 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?':
-    '· To keep the reference model for submission intact, create units with "Split into units" first and do it there.\n\nContinue?',
+  '· 원본 참조모델을 그대로 두려면, 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?':
+    '· To keep the original reference model intact, create units with "Split into units" first and do it there.\n\nContinue?',
   '{0}에 연결했습니다 — 태그 {1}개. 한 번 수집합니다.': 'Connected to {0} — {1} tags. Collecting once.',
   '「{0}」에 가상 PLC(시뮬레이션) 수집 연결을 만듭니다.\n\n': 'This creates a virtual PLC (simulation) collection link in "{0}".\n\n',
   '· 그 설비 파일에 AID 서브모델이 더해져 「시연본」이 됩니다.\n': '· An AID submodel is added to that equipment file and it becomes a "demo copy".\n',
-  '· 제출할 참조모델이면 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?':
-    '· If it is a reference model for submission, create units with "Split into units" first and do it there.\n\nContinue?',
+  '· 원본 참조모델이면 먼저 「호기별로 나누기」로 호기를 만들어 거기서 하십시오.\n\n계속할까요?':
+    '· If it is the original reference model, create units with "Split into units" first and do it there.\n\nContinue?',
   '「{0}」 {1}에 연결 — 태그 {2}개{3}': '"{0}" connected to {1} — {2} tags{3}',
   ' · 수집 {0}건': ' · {0} collected',
   '「{0}」 수집 {1}건{2}': '"{0}" — {1} collected{2}',
@@ -674,15 +674,15 @@ export const EN_MORE: Record<string, string> = {
   '고칠 수 있는 지적을 규약대로 교정합니다 — 설비 파일 것은 그 설비 파일에 저장됩니다':
     'Fix the fixable findings by the conventions — those of an equipment file are saved to that file',
   '고칠 수 있는 지적(경고 포함)을 규약대로 자동 교정합니다': 'Automatically fix the fixable findings (warnings included) by the conventions',
-  '제출·문서에 붙일 자료를 뽑습니다': 'Produce material for submission and documents',
-  '검사 결과를 인쇄용으로 엽니다 — 인쇄하면 그대로 제출용 PDF가 됩니다':
-    'Open the check result for printing — printing it gives the PDF for submission',
+  '검증 결과서 · 문서용 자료 · 번들을 내보냅니다': 'Export the validation report, document material and bundles',
+  '검사 결과를 인쇄용으로 엽니다 — 인쇄하면 그대로 PDF로 저장할 수 있습니다':
+    'Open the check result for printing — you can save it as a PDF from the print dialog',
   '가이던스에 붙일 UML 그림과 표를 뽑습니다': 'Produce the UML diagrams and tables for the guidance document',
-  '이 공정을 제출 꾸러미(ZIP)로 봅니다 — 구성·준비 상태·데이터 연계':
-    'View this process as a submission package (ZIP) — structure, readiness, data links',
-  '위반 {0}건이 남아 있습니다 — 받을 수는 있지만 KOSMO 제출은 아직입니다':
-    '{0} error(s) remain — you can download it, but it is not ready for KOSMO submission',
-  'KOSMO 제출용 .aasx로 내려받습니다': 'Download as an .aasx for KOSMO submission',
+  '이 공정을 ZIP 묶음으로 봅니다 — 구성·준비 상태·데이터 연계':
+    'View this process as a ZIP package — structure, readiness, data links',
+  '위반 {0}건이 남아 있습니다 — 받을 수는 있지만 KOSMO 규칙을 아직 다 지키지 못했습니다':
+    '{0} error(s) remain — you can download it, but it does not yet meet every KOSMO rule',
+  '지금 파일을 .aasx로 내려받습니다': 'Download this file as an .aasx',
   '접근 토큰이 필요합니다.': 'An access token is required.',
   '관리자에게 받은 토큰을 넣어 주세요.': 'Enter the token you received from the administrator.',
   토큰: 'Token',

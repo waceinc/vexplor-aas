@@ -468,7 +468,7 @@ export const aasd120SmlChildIdShort: Rule = {
           'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). ' +
           '지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. ' +
           // 🔴 이미 Validator를 받은 파일은 고치면 해시가 달라진다 — 번들은 원본 바이트로 대조한다(2026-09-30)
-          '단, 이미 Validator를 받아 제출한 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.',
+          '단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.',
         fixable: true,
         policyNote:
           policy === 'forbid'

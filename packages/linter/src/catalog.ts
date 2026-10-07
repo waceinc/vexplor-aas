@@ -63,7 +63,7 @@ const LAYER_MEANING: Record<Layer, { title: string; meaning: string }> = {
   },
   L3: {
     title: 'L3 — KOSMO 사업 규칙',
-    meaning: '제출처(KOSMO)가 요구하는 것. 실측(설비 20종 × Validator 4회)으로 확정했다',
+    meaning: 'KOSMO가 요구하는 것. 실측(설비 20종 × Validator 4회)으로 확정했다',
   },
 };
 
@@ -89,7 +89,7 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
       title: '① IDTA 공식 IRI',
       conflict: 'KTL §4는 IDTA 공식 IRI 보존을 요구하고, KOSMO는 admin-shell.io IRI를 거부한다',
       choices: [
-        { value: 'kosmo-first', meaning: '허용 목록 밖 IRI는 위반 (KOSMO 제출 우선)' },
+        { value: 'kosmo-first', meaning: '허용 목록 밖 IRI는 위반 (KOSMO 우선)' },
         { value: 'idta-preserve', meaning: 'IDTA 공식 IRI는 통과, 경고로만 표시' },
       ],
       current: merged.iriConflict,
@@ -120,7 +120,7 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
       conflict:
         'KOSMO Validator는 검사하지 않지만, aas-test-engines는 오류로 떨어뜨리고 basyx는 그 가지를 잃는다',
       choices: [
-        { value: 'warn', meaning: '경고 — 제출은 막지 않되 상호운용이 깨진다고 알린다' },
+        { value: 'warn', meaning: '경고 — 상호운용이 깨진다고 알린다' },
         { value: 'forbid', meaning: '위반 — 표준 도구 통과가 목표인 배포' },
         { value: 'allow', meaning: '참고 — 알고도 두겠다는 선택' },
       ],
@@ -132,7 +132,7 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
       conflict:
         'IDTA 공식 템플릿에는 ConceptDescription이 딸려 오지 않아 KOSMO-SME-3이 요소 수만큼 걸린다. 「고치기」로 없앨 수 있지만 표준 용어가 자체 IRI로 덮인다',
       choices: [
-        { value: 'kosmo-first', meaning: '위반으로 본다 (KOSMO 제출 우선)' },
+        { value: 'kosmo-first', meaning: '위반으로 본다 (KOSMO 우선)' },
         { value: 'preserve', meaning: '표준 용어를 지키고 참고로만 남긴다 (KTL §7·상호운용)' },
       ],
       current: merged.standardTemplateSemantics,
@@ -193,7 +193,7 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
   const verdict = [
     {
       who: 'KOSMO Validator',
-      role: '🔴 합격 판정 주체. 오류 0건이어야 제출할 수 있다',
+      role: '🔴 공식 판정 주체. 오류 0건이 기준이다',
     },
     {
       who: 'aas-test-engines',
@@ -201,7 +201,7 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
     },
     {
       who: '이 도구의 린터',
-      role: '제출 전에 미리 걸러 주는 것. 위 둘을 대신하지 않는다',
+      role: '미리 걸러 주는 사전 점검. 위 둘을 대신하지 않는다',
     },
     {
       who: 'AASX Package Explorer',

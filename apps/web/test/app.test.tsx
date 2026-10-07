@@ -1713,7 +1713,7 @@ describe('규칙·규약 화면', () => {
 
     const panel = (await screen.findByText(/합격은 누가 정하는가/)).closest('section')!;
     expect(within(panel).getByText('KOSMO Validator')).toBeTruthy();
-    expect(within(panel).getByText(/제출 전에 미리 걸러 주는 것/)).toBeTruthy();
+    expect(within(panel).getByText(/미리 걸러 주는 사전 점검/)).toBeTruthy();
   });
 
   it('규정 충돌에서 무엇을 골랐는지 표시한다', async () => {

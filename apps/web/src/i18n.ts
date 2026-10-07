@@ -134,7 +134,7 @@ const EN: Record<string, string> = {
   '아이디': 'ID',
   '체험 계정으로 들어가기': 'Enter with the trial account',
   '열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다': 'Open, edit, validate and quick-fix — all available',
-  '체험판은 일정 시간 후 초기화됩니다': 'The trial is reset after a while',
+  '체험판은 일정 시간 후 초기화 됩니다': 'The trial is reset after a while',
   '견본은 회원가입 후 사용할 수 있습니다.': 'Samples are available after you sign up.',
   '파일 내려받기는 회원가입 후에 됩니다': 'Downloading files requires signing up',
   '또는 내 계정으로 로그인': 'or sign in with your own account',

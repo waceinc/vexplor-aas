@@ -63,7 +63,7 @@ export function AddSubmodel({ policy, assetName, existing = [], busy, onCancel, 
         <p className="hint">{tr('필수 서브모델 4종 중 하나입니다(KOSMO-AAS-4).')}</p>
       )}
       {existing.includes(idShort) && (
-        <p className="note warning"><T k={'이미 「{0}」이(가) 있습니다 — 같은 이름이 둘이면 어느 것이 제출물인지 정해지지 않습니다.'} v={[idShort]} /></p>
+        <p className="note warning"><T k={'이미 「{0}」이(가) 있습니다 — 같은 이름이 둘이면 어느 것이 맞는 것인지 정해지지 않습니다.'} v={[idShort]} /></p>
       )}
       {existing.length >= 8 && (
         <p className="note warning"><T k={'지금 {0}종입니다 — 하나 더 넣으면 KOSMO 상한(8종)을 넘어 위반(KOSMO-AAS-4)이 됩니다.'} v={[existing.length]} /></p>
