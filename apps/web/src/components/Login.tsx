@@ -145,11 +145,6 @@ export function Login({
       )}
 
       <form className="login-form" onSubmit={(event) => void submit(event)}>
-        {marks && (
-          <p className="hint req-legend">
-            <span className="req" aria-hidden="true" /> {t('표시는 꼭 적어야 하는 항목입니다.')}
-          </p>
-        )}
         <label>
           {t('로그인 이름')}
           {req}

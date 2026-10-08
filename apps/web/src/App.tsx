@@ -78,6 +78,10 @@ import {
 } from './model.js';
 import { tr } from './i18n.js';
 import { T } from './components/T.js';
+import { GettingStarted, type StartItem } from './components/GettingStarted.js';
+import { HelpPanel } from './components/HelpPanel.js';
+import { Tour } from './components/Tour.js';
+import { fileTour, markTourSeen, readStart, START_STEPS, tourSeen, welcomeTour, writeStart, type HelpContext, type StartState, type StartStep, type TourStep } from './help.js';
 
 /**
  * 서버가 준 문장을 그대로 띄우면 「TypeError: Failed to fetch」 같은 것이 사용자에게 간다.
@@ -204,6 +208,21 @@ export function App(): React.JSX.Element {
    *    한 번 깜빡인다 — 셋 중 하나로 갈릴 때까지 아무 것도 그리지 않는다.
    */
   const [auth, setAuth] = useState<AuthState>();
+  /**
+   * 화면 안 도움말(2026-10-08) — 매뉴얼을 따로 펼치지 않게.
+   * 도움말 패널 · 따라 하기 안내 · 시작하기 목록. 글은 help.ts 한 곳에 있다.
+   */
+  const [showHelp, setShowHelp] = useState(false);
+  const [tour, setTour] = useState<{ name: string; steps: TourStep[] }>();
+  const [start, setStart] = useState<StartState>(() => readStart());
+  const markStart = useCallback((step: StartStep) => {
+    setStart((current) => {
+      if (current.done.includes(step)) return current;
+      const next = { ...current, done: [...current.done, step] };
+      writeStart(next);
+      return next;
+    });
+  }, []);
   /**
    * 「첫 관리자 만들기」를 스스로 연 것인가.
    *
@@ -1567,6 +1586,7 @@ export function App(): React.JSX.Element {
    */
   const onFix = async (): Promise<void> => {
     if (!packageId) return;
+    markStart('fix');
     // 공정(묶음)이면 이어 붙인 설비 파일까지 — 각 파일의 미리보기를 따로 받아 파일별로 보여 준다
     const targets = [
       {
@@ -1661,6 +1681,7 @@ export function App(): React.JSX.Element {
     )
       return;
     await run(() => api.download(packageId));
+    markStart('download');
     setNotice(tr('AASX를 내려받았습니다 — 브라우저의 다운로드 폴더에 있습니다.'));
   };
 
@@ -1678,6 +1699,86 @@ export function App(): React.JSX.Element {
     linkedFixable > 0
       ? (fixCount ?? 0) + linkedFixable
       : (fixCount ?? allFindings.filter((f) => f.fixable && f.severity !== 'info').length);
+
+  // 시작하기 목록 — 파일을 열었다 · 검사 결과를 봤다
+  useEffect(() => {
+    if (packageId) markStart('open');
+  }, [packageId, markStart]);
+  useEffect(() => {
+    if (showFindings) markStart('check');
+  }, [showFindings, markStart]);
+
+  /** 안으로 들어와 있나 — 로그인 화면에서는 도움말 장치를 띄우지 않는다 */
+  const inside = auth !== undefined && !(auth.authRequired && !auth.authenticated);
+  /** 지금 화면 — 도움말이 먼저 펼칠 주제 */
+  const helpContext: HelpContext = showFindings || fixPlans ? 'check' : packageId ? 'edit' : 'open';
+  const startTour = useCallback((name: string) => {
+    setShowHelp(false);
+    setTour({ name, steps: name === 'file' ? fileTour() : welcomeTour() });
+  }, []);
+  /** 시작하기 목록의 네 줄 — 누르면 그 일을 바로 시작한다(할 수 없으면 무엇을 먼저 할지 알린다) */
+  const startItems = (): StartItem[] => {
+    const has = (step: StartStep): boolean => start.done.includes(step);
+    return [
+      {
+        id: 'open',
+        label: t('파일 열기'),
+        hint: demoLocked ? t('내 PC의 AASX를 올려 열어 보세요') : t('견본이나 내 AASX를 열어 보세요'),
+        done: has('open'),
+        action: demoLocked ? () => fileInput.current?.click() : () => void onOpenSample(),
+      },
+      {
+        id: 'check',
+        label: t('검사 결과 보기'),
+        hint: packageId ? t('머리줄의 「위반 · 경고」를 누르세요') : t('먼저 파일을 여세요'),
+        done: has('check'),
+        ...(packageId ? { action: () => setShowFindings(true) } : {}),
+      },
+      {
+        id: 'fix',
+        label: t('미리 보고 고치기'),
+        hint: packageId ? t('「자동 고치기」로 고칠 항목을 전 / 후로 확인합니다') : t('먼저 파일을 여세요'),
+        done: has('fix'),
+        ...(packageId ? { action: () => void onFix() } : {}),
+      },
+      demoLocked
+        ? {
+            id: 'download',
+            label: t('회원가입하고 내려받기'),
+            hint: t('데모 계정은 내려받기가 막혀 있습니다'),
+            done: has('download'),
+            action: () => setStartAccounts(true),
+          }
+        : {
+            id: 'download',
+            label: t('파일 내려받기'),
+            hint: packageId ? t('완성본을 .aasx로 받습니다') : t('먼저 파일을 여세요'),
+            done: has('download'),
+            ...(packageId ? { action: () => void onDownload() } : {}),
+          },
+    ];
+  };
+
+  // 처음 들어왔을 때 · 처음 파일을 열었을 때 한 번씩. 🔴 시험에서는 저절로 띄우지 않는다(화면을 덮는다)
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test' || !inside || tour || showHelp) return;
+    const name = packageId ? 'file' : 'welcome';
+    if (tourSeen(name)) return;
+    const timer = window.setTimeout(() => startTour(name), packageId ? 1400 : 900);
+    return () => window.clearTimeout(timer);
+  }, [inside, packageId, tour, showHelp, startTour]);
+  // F1 — 도움말 (브라우저 자체 도움말 대신)
+  useEffect(() => {
+    if (!inside) return;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'F1') {
+        event.preventDefault();
+        setShowHelp((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inside]);
 
   // 알림 띠는 저절로 사라진다 — 닫기를 누르지 않으면 한 시간 전 알림이 그대로 남아 있었다
   useEffect(() => {
@@ -1952,6 +2053,15 @@ export function App(): React.JSX.Element {
               <span className="sub">{' '}<T k={'· 변수 {0}개'} v={[opcua.variables]} /></span>
             </button>
           )}
+          {/* 도움말 — 매뉴얼 대신 화면 안에서(2026-10-08). 글자로 둔다 — 「?」 하나로는 무엇인지 모른다 */}
+          <button
+            className={`help-trigger${showHelp ? ' on' : ''}`}
+            aria-expanded={showHelp}
+            title={tr('이 화면에서 할 수 있는 일과 쓰는 법을 봅니다 (F1)')}
+            onClick={() => setShowHelp((open) => !open)}
+          >
+            {t('? 도움말')}
+          </button>
           {/*
             🔴 설정(2026-10-02) — 늘 쓰는 것이 아닌데 헤더 자리를 차지하던 것들을 모았다.
                「규칙」은 하루에 한 번 볼까 말까고, 「토큰 지우기」는 자리를 뜰 때만 쓴다.
@@ -3184,6 +3294,46 @@ export function App(): React.JSX.Element {
             />
           </div>
         </div>
+      )}
+
+      {showHelp && (
+        <HelpPanel
+          context={helpContext}
+          t={t}
+          onClose={() => setShowHelp(false)}
+          onTour={() => startTour(packageId ? 'file' : 'welcome')}
+          onChecklist={() => {
+            const next = { ...start, hidden: false };
+            writeStart(next);
+            setStart(next);
+            setShowHelp(false);
+          }}
+        />
+      )}
+
+      {tour && (
+        <Tour
+          key={tour.name}
+          steps={tour.steps}
+          t={t}
+          onClose={() => {
+            markTourSeen(tour.name);
+            setTour(undefined);
+          }}
+        />
+      )}
+
+      {/* 시작하기 목록 — 다 했거나 닫으면 사라진다. 「? 도움말」에서 다시 꺼낸다 */}
+      {inside && !start.hidden && !tour && start.done.length < START_STEPS.length && (
+        <GettingStarted
+          t={t}
+          items={startItems()}
+          onHide={() => {
+            const next = { ...start, hidden: true };
+            writeStart(next);
+            setStart(next);
+          }}
+        />
       )}
     </div>
   );

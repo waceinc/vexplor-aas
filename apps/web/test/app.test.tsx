@@ -1894,3 +1894,63 @@ describe('되돌리기 — 실수했을 때 뒤로가기', () => {
     await waitFor(() => expect(within(tree).getByText('SerialNumber')).toBeTruthy());
   });
 });
+
+describe('화면 안 도움말 — 매뉴얼 대신 (2026-10-08)', () => {
+  beforeEach(() => {
+    localStorage.removeItem('aas.start.v1');
+    localStorage.removeItem('aas.tour.v1');
+  });
+
+  it('「? 도움말」은 지금 화면의 주제를 먼저 펼치고, 찾을 수 있고, Esc로 닫힌다', async () => {
+    await mountApi();
+    render(<App />);
+    await screen.findByText('DigitalNameplate');
+    fireEvent.click(screen.getByRole('button', { name: '? 도움말' }));
+    const panel = screen.getByRole('dialog', { name: '도움말' });
+    // 파일이 열린 화면이라 「값 고치기」가 맨 위에 펼쳐져 있다
+    expect(within(panel).getByText('지금 화면')).toBeTruthy();
+    expect(within(panel).getByText('요소 하나 — 트리에서 고르고 값을 바꾼 뒤 「저장」')).toBeTruthy();
+    fireEvent.change(within(panel).getByLabelText('도움말 찾기'), { target: { value: '가상 PLC' } });
+    expect(within(panel).getByText('현장 값 수집')).toBeTruthy();
+    expect(within(panel).queryByText('내 계정')).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '도움말' })).toBeNull();
+    // F1로도 연다
+    fireEvent.keyDown(window, { key: 'F1' });
+    expect(screen.getByRole('dialog', { name: '도움말' })).toBeTruthy();
+  });
+
+  it('🔴 둘러보기는 가리킬 단추를 모두 찾는다 — 화면이 바뀌어 단추가 사라지면 여기서 걸린다', async () => {
+    await mountApi();
+    render(<App />);
+    await screen.findByText('DigitalNameplate');
+    fireEvent.click(screen.getByRole('button', { name: '? 도움말' }));
+    fireEvent.click(screen.getByRole('button', { name: '▶ 화면 둘러보기' }));
+    const card = screen.getByRole('dialog', { name: '화면 둘러보기' });
+    const { fileTour } = await import('../src/help.js');
+    expect(within(card).getByText(`1 / ${fileTour().length}`)).toBeTruthy();
+    expect(within(card).getByText('트리')).toBeTruthy();
+    fireEvent.click(within(card).getByRole('button', { name: '다음' }));
+    expect(within(card).getByText(`2 / ${fileTour().length}`)).toBeTruthy();
+    fireEvent.click(within(card).getByRole('button', { name: '건너뛰기' }));
+    expect(screen.queryByRole('dialog', { name: '화면 둘러보기' })).toBeNull();
+    expect(localStorage.getItem('aas.tour.v1')).toContain('file');
+  });
+
+  it('시작하기 목록 — 해 보면 저절로 체크되고, 닫아도 도움말에서 다시 꺼낸다', async () => {
+    await mountApi();
+    render(<App />);
+    await screen.findByText('DigitalNameplate');
+    const list = screen.getByRole('complementary', { name: '시작하기' });
+    // 파일이 열렸으니 첫 줄은 끝났다
+    expect(await within(list).findByText('1 / 4')).toBeTruthy();
+    fireEvent.click(within(list).getByRole('button', { name: /^검사 결과 보기/ }));
+    expect(await screen.findByRole('dialog', { name: '지적 목록' })).toBeTruthy();
+    expect(await within(screen.getByRole('complementary', { name: '시작하기' })).findByText('2 / 4')).toBeTruthy();
+    fireEvent.click(within(list).getByRole('button', { name: '시작하기 목록 닫기' }));
+    expect(screen.queryByRole('complementary', { name: '시작하기' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '? 도움말' }));
+    fireEvent.click(screen.getByRole('button', { name: '시작하기 목록 보기' }));
+    expect(screen.getByRole('complementary', { name: '시작하기' })).toBeTruthy();
+  });
+});
