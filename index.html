@@ -379,11 +379,11 @@
   <section id="trial">
     <div class="wrap">
       <h2 class="rv">체험해 보기</h2>
-      <p class="sub rv" style="--d:.1s">✅ 가입 없이 체험 계정으로 바로 사용할 수 있습니다.<br>✅ 작업한 결과물 파일을 내려받으려면 회원가입이 필요합니다.</p>
+      <p class="sub rv" style="--d:.1s">✅ 가입 없이 데모 계정으로 바로 사용할 수 있습니다.<br>✅ 작업한 결과물 파일을 내려받으려면 회원가입이 필요합니다.</p>
       <div class="trial">
         <div class="card rv rv-l">
           <table>
-            <tr><th></th><th>체험 계정 <code>admin</code> / <code>1234</code></th><th>가입한 회원</th></tr>
+            <tr><th></th><th>데모 계정 <code>demo</code> / <code>0629</code></th><th>가입한 회원</th></tr>
             <tr><td>열기 · 고치기 · 검사 · 자동 고치기</td><td>✅</td><td>✅</td></tr>
             <tr><td>검증 결과서 보기</td><td>✅</td><td>✅</td></tr>
             <tr><td>AASX · 번들 내려받기</td><td class="lock">🔒</td><td>✅</td></tr>
@@ -391,7 +391,7 @@
           <p style="margin:16px 0 0"><a class="btn primary demo-link" href="#trial" aria-disabled="true">체험 서버 열기 →</a></p>
           <p class="demo-note" id="demo-state2" style="text-align:left"></p>
         </div>
-        <div class="shot rv rv-r"><img src="img/v2/login.jpg" alt="로그인 화면 — 위는 회원 로그인, 아래는 체험 계정 안내" loading="lazy" width="672" height="1129" style="max-height:540px;object-fit:contain;background:#14181d"></div>
+        <div class="shot rv rv-r"><img src="img/v2/login.jpg" alt="로그인 화면 — 위는 회원 로그인, 아래는 데모 계정 안내" loading="lazy" width="672" height="1129" style="max-height:540px;object-fit:contain;background:#14181d"></div>
       </div>
     </div>
   </section>
@@ -424,9 +424,9 @@
         a.removeAttribute('aria-disabled');
       });
       document.querySelectorAll('.privacy-link').forEach((a) => { a.href = demo.url.replace(/\/$/, '') + '/privacy.html'; a.target = '_blank'; });
-      say('체험 계정 <code>admin</code> / <code>1234</code> — 새 창으로 열립니다. 체험 서버는 시연용입니다.');
+      say('데모 계정 <code>demo</code> / <code>0629</code> — 새 창으로 열립니다. 체험 서버는 시연용입니다.');
       // 아래 체험 칸은 짧게 — 「새 창으로 열립니다」까지만(사용자 요청 2026-10-07)
-      if (states[1]) states[1].innerHTML = '체험 계정 <code>admin</code> / <code>1234</code> — 새 창으로 열립니다.';
+      if (states[1]) states[1].innerHTML = '데모 계정 <code>demo</code> / <code>0629</code> — 새 창으로 열립니다.';
     } catch {
       say('체험 서버를 준비하는 중입니다. 잠시 뒤 다시 와 주십시오.');
     }
