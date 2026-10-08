@@ -132,7 +132,7 @@ const EN: Record<string, string> = {
   '체험판 안내': 'About the trial',
   '가입 없이 바로 써 볼 수 있습니다': 'Try it now — no sign-up needed',
   '아이디': 'ID',
-  '체험 계정으로 들어가기': 'Enter with the trial account',
+  '데모 계정으로 들어가기': 'Enter with the demo account',
   '열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다': 'Open, edit, validate and quick-fix — all available',
   '체험판은 일정 시간 후 초기화 됩니다': 'The trial is reset after a while',
   '견본은 회원가입 후 사용할 수 있습니다.': 'Samples are available after you sign up.',
@@ -194,11 +194,11 @@ const EN: Record<string, string> = {
   '가입하고 시작하기': 'Create account and start',
   '계정을 만들면 작업한 파일을 내려받을 수 있습니다.':
     'With your own account you can download the files you work on.',
-  '체험 계정': 'Trial account',
-  '체험 계정으로는 파일을 내려받을 수 없습니다. 올린 파일은 다른 방문자에게 보이지 않고, 한동안 쓰지 않으면 지워집니다.':
-    'The trial account cannot download files. Other visitors cannot see your uploads, and they are deleted after a period of inactivity.',
-  '체험 계정으로는 내려받을 수 없습니다 — 눌러서 계정을 만드십시오.':
-    'The trial account cannot download — click to create your own account.',
+  '데모 계정': 'Demo account',
+  '데모 계정으로는 파일을 내려받을 수 없습니다. 올린 파일은 다른 방문자에게 보이지 않고, 한동안 쓰지 않으면 지워집니다.':
+    'The demo account cannot download files. Other visitors cannot see your uploads, and they are deleted after a period of inactivity.',
+  '데모 계정으로는 내려받을 수 없습니다 — 눌러서 계정을 만드십시오.':
+    'The demo account cannot download — click to create your own account.',
   '연락처 (선택)': 'Contact (optional)',
   '비워 두셔도 됩니다': 'You may leave this blank',
   '연락이 필요할 때만 씁니다. 확인 메일은 보내지 않습니다.':

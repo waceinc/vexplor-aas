@@ -11,6 +11,7 @@
  *    「시뮬레이션」이 박혀 있는지뿐이라, 그때만 C를 기본값으로 제안한다.
  */
 import { parseAid } from '@aas/collector';
+import { csvCell } from '@aas/linter';
 import type { Environment } from '@aas/core';
 import type { AasStore, CollectedValue, PackageRecord } from '@aas/store';
 import { localTimestamp } from './packages.js';
@@ -131,7 +132,7 @@ export function suggestedLevel(sources: EvidenceSource[]): EvidenceLevel | null 
 const valueOf = (value: CollectedValue): string =>
   value.valueNumber !== undefined ? String(value.valueNumber) : (value.valueText ?? '');
 
-const cell = (text: string): string => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+const cell = (text: string): string => csvCell(text);
 
 /** 호기 하나의 수집값 CSV — 엑셀로 KPI를 계산하는 재료 */
 export function evidenceCsv(source: EvidenceSource): string {

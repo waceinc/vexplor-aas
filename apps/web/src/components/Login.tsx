@@ -20,7 +20,7 @@ interface Props {
   setupCodeRequired: boolean;
   /** 스스로 가입할 수 있는 서버인가 — 아니면 「회원가입」 자체를 보이지 않는다 */
   signupAllowed: boolean;
-  /** 체험판이면 체험 계정으로 바로 들어가는 길을 안내한다 */
+  /** 체험판이면 데모 계정으로 바로 들어가는 길을 안내한다 */
   demo?: { login: string; password: string };
   /** 「회원가입」을 눌러 들어왔으면 가입 칸부터 보인다 — 한 번 더 누르게 하지 않는다 */
   startInSignup?: boolean;
@@ -93,8 +93,9 @@ export function Login({
       return;
     }
     if (profile) {
-      if (displayName.trim() === '' || company.trim() === '' || email.trim() === '') {
-        setError(t('이름 · 회사명 · 이메일을 모두 적어 주십시오.'));
+      // 회사명은 선택이다(2026-10-08 사용자 요청) — 서버도 같은 규칙이다
+      if (displayName.trim() === '' || email.trim() === '') {
+        setError(t('이름 · 이메일을 적어 주십시오.'));
         return;
       }
       if (!agreed) {
@@ -120,6 +121,11 @@ export function Login({
   /** 처리방침을 올린 서버의 가입 — 이름 · 회사명 · 이메일 · 동의를 받는다 */
   const profile = mode === 'signup' && privacyUrl !== undefined && privacyUrl !== '';
   const disabled = busy || working || login.trim() === '' || password === '';
+  /** 필수 칸 표시 — 계정을 만드는 화면(가입 · 첫 관리자)에서만. 로그인 화면은 두 칸뿐이라 붙이지 않는다 */
+  const marks = mode !== 'login';
+  // 🔴 별표는 글자가 아니라 CSS로 그린다(.req::after) — 글자로 넣으면 칸 이름이 「로그인 이름*」이 되어
+  //    화면 낭독기가 「별표」까지 읽는다. 꼭 적어야 한다는 뜻은 aria-required가 전한다
+  const req = marks ? <span className="req" aria-hidden="true" /> : null;
 
   return (
     <div className="login">
@@ -139,10 +145,17 @@ export function Login({
       )}
 
       <form className="login-form" onSubmit={(event) => void submit(event)}>
+        {marks && (
+          <p className="hint req-legend">
+            <span className="req" aria-hidden="true" /> {t('표시는 꼭 적어야 하는 항목입니다.')}
+          </p>
+        )}
         <label>
           {t('로그인 이름')}
+          {req}
           <input
             value={login}
+            aria-required={marks}
             autoFocus
             autoComplete="username"
             placeholder={mode === 'setup' ? 'admin' : ''}
@@ -153,6 +166,7 @@ export function Login({
         {mode === 'setup' && setupCodeRequired && (
           <label>
             {t('설치 코드')}
+            {req}
             <input
               value={code}
               autoComplete="off"
@@ -167,7 +181,9 @@ export function Login({
         {mode !== 'login' && (
           <label>
             {profile ? t('이름') : t('표시 이름')}
+            {profile && req}
             <input
+              aria-required={profile}
               value={displayName}
               autoComplete="name"
               maxLength={40}
@@ -186,7 +202,7 @@ export function Login({
         {profile && (
           <>
             <label>
-              {t('회사명')}
+              {t('회사명')} <span className="dim">{t('(선택)')}</span>
               <input
                 value={company}
                 autoComplete="organization"
@@ -196,7 +212,9 @@ export function Login({
             </label>
             <label>
               {t('이메일')}
+              {req}
               <input
+                aria-required
                 type="email"
                 value={email}
                 autoComplete="email"
@@ -211,8 +229,10 @@ export function Login({
 
         <label>
           {t('비밀번호')}
+          {req}
           <input
             type="password"
+            aria-required={marks}
             value={password}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             onChange={(event) => setPassword(event.target.value)}
@@ -223,7 +243,9 @@ export function Login({
           <>
             <label>
               {t('비밀번호 확인')}
+              {req}
               <input
+                aria-required
                 type="password"
                 value={confirm}
                 autoComplete="new-password"
@@ -236,16 +258,19 @@ export function Login({
 
         {profile && (
           <div className="consent">
-            <p className="consent-title">{t('개인정보 수집·이용 동의 (필수)')}</p>
+            <p className="consent-title">
+              {t('개인정보 수집·이용 동의 (필수)')}
+              {req}
+            </p>
             <dl>
               <dt>{t('항목')}</dt>
-              <dd>{t('아이디 · 이름 · 회사명 · 이메일 · 비밀번호(암호화 저장)')}</dd>
+              <dd>{t('아이디 · 이름 · 이메일 · 비밀번호(암호화 저장) · 회사명(선택)')}</dd>
               <dt>{t('목적')}</dt>
               <dd>{t('회원 식별 · 서비스 제공 · 문의 응대')}</dd>
               <dt>{t('보유 기간')}</dt>
               <dd>{t('탈퇴할 때까지 — 탈퇴하면 올린 파일과 함께 지웁니다')}</dd>
             </dl>
-            <p className="hint">{t('동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 체험 계정으로 써 볼 수 있습니다.')}</p>
+            <p className="hint">{t('동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 데모 계정으로 써 볼 수 있습니다.')}</p>
             <label className="agree">
               <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
               <span>
@@ -323,7 +348,7 @@ export function Login({
       */}
       {demo && mode === 'login' && (
         <section className="demo-card" aria-label={t('체험판 안내')}>
-          <h2>{t('체험 계정')}</h2>
+          <h2>{t('데모 계정')}</h2>
           <dl>
             <dt>{t('아이디')}</dt>
             <dd><code>{demo.login}</code></dd>
@@ -343,7 +368,7 @@ export function Login({
               });
             }}
           >
-            {t('체험 계정으로 들어가기')}
+            {t('데모 계정으로 들어가기')}
           </button>
           <ul>
             <li>{t('열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다')}</li>

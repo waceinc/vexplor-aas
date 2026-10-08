@@ -91,7 +91,7 @@ export interface AuthRouteOptions {
   /** 가입 속도 제한 — 공개 체험 서버에 봇이 붙는 것을 늦춘다 */
   signupThrottle?: SignupThrottle;
   /**
-   * 체험 계정 — 로그인 화면이 「이 계정으로 눌러 보십시오」라고 알려 준다.
+   * 데모 계정 — 로그인 화면이 「이 계정으로 눌러 보십시오」라고 알려 준다.
    *
    * 🔴 비밀번호를 응답에 싣는다. 공개 체험 서버에서 **누구나 쓰라고 내놓은 값**이라
    *    로그인 화면에 적는 것과 노출이 같다. `DEMO_MODE=on`일 때만 실린다.
@@ -113,6 +113,22 @@ function publicUser(user: { id: string; login: string; displayName: string; role
     displayName: user.displayName,
     role: user.role,
     level: levelOfRole(user.role),
+  };
+}
+
+/**
+ * 「지금 로그인한 나」의 모습 — 내 계정 설정 화면이 채워 보일 연락처까지.
+ * 🔴 **나를 묻는 자리(GET · PATCH /auth/me)에만** 쓴다. 로그인·가입 응답에는 싣지 않는다 —
+ *    거기서는 화면이 쓸 일이 없고, 응답이 남는 곳(로그·캐시)을 늘릴 이유가 없다.
+ */
+function selfUser(user: { id: string; login: string; displayName: string; role: UserRole; email?: string; company?: string }): ReturnType<typeof publicUser> & {
+  email?: string;
+  company?: string;
+} {
+  return {
+    ...publicUser(user),
+    ...(user.email ? { email: user.email } : {}),
+    ...(user.company ? { company: user.company } : {}),
   };
 }
 
@@ -151,7 +167,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
   };
 
   /**
-   * 🔴 **체험 계정은 자기 자신을 못 바꾼다.**
+   * 🔴 **데모 계정은 자기 자신을 못 바꾼다.**
    *
    * 여럿이 같이 쓰는 계정이라, 방문자 하나가 비밀번호를 바꾸거나 계정을 지우면
    * **그 뒤로 아무도 체험 서버에 못 들어온다.** 서버를 다시 띄우기 전까지 죽는다.
@@ -162,11 +178,11 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       throw new ApiError(
         403,
         'Forbidden',
-        '체험 계정은 바꾸거나 지울 수 없습니다 — 여럿이 함께 쓰는 계정입니다. 「회원가입」으로 자기 계정을 만드십시오.',
+        '데모 계정은 바꾸거나 지울 수 없습니다 — 여럿이 함께 쓰는 계정입니다. 「회원가입」으로 자기 계정을 만드십시오.',
       );
     }
   };
-  /** 체험 계정으로 보고 있나 — 로그인 전(계정 없음)도 체험으로 본다(api.ts와 같은 기준) */
+  /** 데모 계정으로 보고 있나 — 로그인 전(계정 없음)도 체험으로 본다(api.ts와 같은 기준) */
   const demoNow = (login?: string): boolean =>
     demoLogin !== undefined && (login === undefined || login.toLowerCase() === demoLogin);
 
@@ -206,9 +222,9 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           authRequired,
           ...(signup ? { signupAllowed: true } : {}),
           ...(signup?.privacyUrl ? { privacyUrl: signup.privacyUrl } : {}),
-          // 들어와 있는 사람이 **체험 계정일 때만** 체험이라고 말한다 — 가입한 사람은 제한이 없다
+          // 들어와 있는 사람이 **데모 계정일 때만** 체험이라고 말한다 — 가입한 사람은 제한이 없다
           ...(demoNow(user.login) && options.demo ? { demo: { ...options.demo } } : {}),
-          user: publicUser(user),
+          user: selfUser(user),
         });
       },
     },
@@ -223,8 +239,8 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         if (login === '' || password === '') {
           throw new ApiError(400, 'BadRequest', '로그인 이름과 비밀번호를 모두 주십시오.');
         }
-        // 🔴 체험 계정은 세지 않는다 — 비밀번호가 화면에 공개돼 있어 지킬 것이 없고,
-        //    세면 누구나 틀린 비밀번호로 체험 계정을 잠가 모든 방문자를 막을 수 있다
+        // 🔴 데모 계정은 세지 않는다 — 비밀번호가 화면에 공개돼 있어 지킬 것이 없고,
+        //    세면 누구나 틀린 비밀번호로 데모 계정을 잠가 모든 방문자를 막을 수 있다
         const counted = demoLogin === undefined || login.toLowerCase() !== demoLogin;
         const from = clientAddress(request) ?? '';
         // 🔴 막혀 있어도 "그 계정이 있다"를 알려 주지 않는다 — 문구가 아래와 같다
@@ -260,7 +276,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
        *
        * 🔴 **첫 관리자 만들기와 다르다.** 이쪽은 계정이 이미 있어도 되고, 역할은
        *    운영자가 정한 것(기본 editor)으로 고정된다 — 가입한다고 관리자가 되지 않는다.
-       * 🔴 비밀번호 규칙은 그대로 받는다. 체험 계정의 `1234`는 서버가 직접 심은
+       * 🔴 비밀번호 규칙은 그대로 받는다. 데모 계정의 `1234`는 서버가 직접 심은
        *    예외이고, 사람이 만드는 계정까지 느슨하게 할 이유는 없다.
        */
       method: 'POST',
@@ -298,8 +314,9 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           }
         } else {
           // 처리방침을 올린 서버(공개 체험 서버) — 이름 · 회사명 · 이메일과 **동의**를 받는다(2026-10-06)
-          if (displayName === '' || company === '' || email === '') {
-            throw new ApiError(400, 'BadRequest', '이름 · 회사명 · 이메일을 모두 적어 주십시오.');
+          // 🔴 회사명은 **선택**이다(2026-10-08 사용자 요청) — 개인으로 써 보는 사람도 가입할 수 있게
+          if (displayName === '' || email === '') {
+            throw new ApiError(400, 'BadRequest', '이름 · 이메일을 적어 주십시오.');
           }
           if (displayName.length > 40 || company.length > 80 || email.length > 120) {
             throw new ApiError(400, 'BadRequest', '입력이 너무 깁니다.');
@@ -451,7 +468,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             ...(user.email ? { email: user.email } : {}),
             ...(user.company ? { company: user.company } : {}),
             ...(user.consentAt ? { consentAt: user.consentAt } : {}),
-            // 체험 계정 — 화면이 그 줄에서 지우기·잠그기를 빼게 알린다(서버도 막는다)
+            // 데모 계정 — 화면이 그 줄에서 지우기·잠그기를 빼게 알린다(서버도 막는다)
             ...(demoLogin !== undefined && user.login.toLowerCase() === demoLogin ? { demo: true } : {}),
           })),
         });
@@ -499,7 +516,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
        * 🔴 탈퇴와 같은 일을 한다 — 그 사람이 올린 파일까지 지운다. 되돌릴 수 없다.
        *    지우지 않고 막기만 하려면 「잠그기」를 쓴다.
        * 🔴 막는 것 셋: 나 자신(실수로 지우면 아무도 못 들어온다 — 내 것은 탈퇴로) ·
-       *    마지막 관리자 · 체험 계정(지우면 공개 서버의 문이 닫힌다).
+       *    마지막 관리자 · 데모 계정(지우면 공개 서버의 문이 닫힌다).
        */
       method: 'DELETE',
       pattern: '/auth/users/:userId',
@@ -515,7 +532,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           throw new ApiError(409, 'Conflict', '자기 계정은 여기서 지울 수 없습니다 — 「설정 → 탈퇴」를 쓰십시오.');
         }
         if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
-          throw new ApiError(403, 'Forbidden', '체험 계정은 지울 수 없습니다 — 지우면 공개 서버에 아무도 들어오지 못합니다.');
+          throw new ApiError(403, 'Forbidden', '데모 계정은 지울 수 없습니다 — 지우면 공개 서버에 아무도 들어오지 못합니다.');
         }
         if (target.role === 'admin') {
           const admins = (await store.listUsers()).filter((user) => user.role === 'admin' && !user.disabled);
@@ -540,10 +557,10 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const id = params['userId']!;
         const target = await store.getUser(id);
         if (!target) throw new ApiError(404, 'NotFound', '그런 계정이 없습니다.');
-        // 🔴 체험 계정은 관리자도 바꾸지 못한다(2026-10-06 보안 점검). 역할을 관리자로 올리면
+        // 🔴 데모 계정은 관리자도 바꾸지 못한다(2026-10-06 보안 점검). 역할을 관리자로 올리면
         //    admin/1234로 들어온 **누구나 관리자**가 되고, 비밀번호를 바꾸거나 잠그면 공개 서버의 문이 닫힌다
         if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
-          throw new ApiError(403, 'Forbidden', '체험 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.');
+          throw new ApiError(403, 'Forbidden', '데모 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.');
         }
         const body = (request.body ?? {}) as Record<string, unknown>;
 
@@ -585,6 +602,48 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           sessions.dropUser(id);
         }
         return json(200, { user: publicUser(after) });
+      },
+    },
+    {
+      /**
+       * 내 정보 고치기 — 표시 이름 · 회사명 · 이메일(2026-10-08 「내 계정 설정」).
+       *
+       * 🔴 로그인 이름과 역할은 여기서 못 바꾼다. 로그인 이름은 감사 기록과 맞물린 열쇠이고,
+       *    역할을 스스로 올리면 권한 체계가 무너진다(역할은 관리자가 「계정 관리」에서).
+       * 🔴 데모 계정은 거절한다 — 여럿이 쓰는 공용 입구다.
+       * 빈 문자열은 「지우라」는 뜻이다(회사명 · 이메일). 표시 이름은 비울 수 없다.
+       */
+      method: 'PATCH',
+      pattern: '/auth/me',
+      async handle({ request }) {
+        const who = request.principal;
+        if (!who) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        refuseDemoAccount(who);
+        const body = (request.body ?? {}) as Record<string, unknown>;
+        const patch: { displayName?: string; email?: string; company?: string } = {};
+        if (body['displayName'] !== undefined) {
+          const displayName = String(body['displayName']).trim();
+          if (displayName === '' || displayName.length > 40) {
+            throw new ApiError(400, 'BadRequest', '표시 이름은 1~40자로 적어 주십시오.');
+          }
+          patch.displayName = displayName;
+        }
+        if (body['email'] !== undefined) {
+          const email = String(body['email']).trim();
+          if (email.length > 120 || (email !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))) {
+            throw new ApiError(400, 'BadRequest', '이메일 형식이 올바르지 않습니다.');
+          }
+          patch.email = email;
+        }
+        if (body['company'] !== undefined) {
+          const company = String(body['company']).trim();
+          if (company.length > 80) throw new ApiError(400, 'BadRequest', '회사명이 너무 깁니다.');
+          patch.company = company;
+        }
+        if (Object.keys(patch).length === 0) throw new ApiError(400, 'BadRequest', '바꿀 내용이 없습니다.');
+        const updated = await store.updateUser(who.userId, patch);
+        if (!updated) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        return json(200, { user: selfUser(updated) });
       },
     },
     {

@@ -977,6 +977,25 @@ describe('설정 메뉴 · 계정 관리 (2026-10-04)', () => {
     expect(within(dialog).getByText('김편집')).toBeTruthy();
   });
 
+  it('관리자도 「내 계정 설정」에서 이름 · 회사명 · 이메일을 바꾼다 (2026-10-08)', async () => {
+    await enterAsAdmin();
+    clickMenuItem('설정', '내 계정 설정');
+    const dialog = await screen.findByRole('dialog', { name: '계정' });
+    expect(within(dialog).getByText('내 계정 설정')).toBeTruthy();
+    expect((within(dialog).getByLabelText('로그인 이름') as HTMLInputElement).disabled).toBe(true);
+    fireEvent.change(within(dialog).getByLabelText('표시 이름'), { target: { value: 'WACE 관리자' } });
+    fireEvent.change(within(dialog).getByLabelText('회사명'), { target: { value: 'WACE' } });
+    fireEvent.change(within(dialog).getByLabelText('이메일'), { target: { value: 'admin@example.com' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '저장' }));
+    expect(await within(dialog).findByText('내 정보를 저장했습니다.')).toBeTruthy();
+    // 계정 관리 창에는 내 비밀번호 칸이 없다 — 내 것은 「내 계정 설정」에서
+    fireEvent.click(within(dialog).getByRole('button', { name: '닫기' }));
+    clickMenuItem('설정', '계정 관리');
+    const people = await screen.findByRole('dialog', { name: '계정' });
+    expect(within(people).queryByLabelText('지금 비밀번호')).toBeNull();
+    expect(await within(people).findByText('WACE 관리자')).toBeTruthy();
+  });
+
   it('서버가 거절하면 그 까닭을 그대로 보인다 — 짧은 비밀번호', async () => {
     await enterAsAdmin();
     clickMenuItem('설정', '계정 관리');

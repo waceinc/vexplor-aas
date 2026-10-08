@@ -275,12 +275,18 @@ describe('회원가입 — 이름 · 회사명 · 이메일 · 동의 (처리방
   }
   const full = { login: 'kim', password: PASSWORD, displayName: '김철수', company: 'WACE', email: 'kim@example.com', agreed: true };
 
-  it('하나라도 비면 받지 않는다', async () => {
+  it('이름 · 이메일 중 하나라도 비면 받지 않는다', async () => {
     const { api } = await server();
-    for (const missing of ['displayName', 'company', 'email'] as const) {
+    for (const missing of ['displayName', 'email'] as const) {
       const reply = await api(ask('POST', '/auth/signup', { body: { ...full, [missing]: '' } }));
       expect(reply.status).toBe(400);
     }
+  });
+
+  it('회사명은 비워도 가입된다(2026-10-08 사용자 요청)', async () => {
+    const { api, store } = await server();
+    expect((await api(ask('POST', '/auth/signup', { body: { ...full, company: '' } }))).status).toBe(201);
+    expect((await store.findUserByLogin('kim'))?.company).toBeUndefined();
   });
 
   it('🔴 동의하지 않으면 받지 않는다 — 화면의 체크만 믿지 않는다', async () => {
@@ -311,6 +317,48 @@ describe('회원가입 — 이름 · 회사명 · 이메일 · 동의 (처리방
     const api = createApi(store, { signup: { role: 'editor' } }) as Api;
     expect((await api(ask('POST', '/auth/signup', { body: { login: 'lee', password: PASSWORD, company: 'X' } }))).status).toBe(400);
     expect((await api(ask('POST', '/auth/signup', { body: { login: 'lee', password: PASSWORD } }))).status).toBe(201);
+  });
+});
+
+describe('내 계정 설정 — 내 정보 고치기 (2026-10-08 사용자 요청)', () => {
+  async function server(): Promise<{ api: Api; store: InMemoryStore; boss: string; demo: string }> {
+    const store = new InMemoryStore();
+    await store.init();
+    await seedDemoUser(store, DEMO, hashPassword);
+    await store.createUser({ login: 'boss', displayName: '운영자', role: 'admin', passwordHash: await hashPassword(PASSWORD), email: 'boss@example.com', company: 'WACE' });
+    const api = createApi(store, { demo: DEMO, signup: { role: 'editor' } }) as Api;
+    const boss = cookieFrom(await api(ask('POST', '/auth/login', { body: { login: 'boss', password: PASSWORD } })));
+    const demo = cookieFrom(await api(ask('POST', '/auth/login', { body: { login: DEMO.login, password: DEMO.password } })));
+    return { api, store, boss, demo };
+  }
+
+  it('표시 이름 · 회사명 · 이메일을 바꾸고, 내 화면에 그대로 보인다', async () => {
+    const { api, store, boss } = await server();
+    const reply = await api(ask('PATCH', '/auth/me', { cookie: boss, body: { displayName: 'WACE 관리자', company: '와이스', email: 'admin@example.com' } }));
+    expect(reply.status).toBe(200);
+    expect(reply.body.user).toMatchObject({ displayName: 'WACE 관리자', company: '와이스', email: 'admin@example.com', role: 'admin' });
+    const me = await api(ask('GET', '/auth/me', { cookie: boss }));
+    expect(me.body.user).toMatchObject({ displayName: 'WACE 관리자', company: '와이스' });
+    // 빈 값은 지운다
+    await api(ask('PATCH', '/auth/me', { cookie: boss, body: { company: '' } }));
+    expect((await store.findUserByLogin('boss'))?.company).toBeUndefined();
+  });
+
+  it('🔴 역할 · 로그인 이름은 여기서 못 바꾼다 — 보내도 무시된다', async () => {
+    const { api, store, boss } = await server();
+    await api(ask('PATCH', '/auth/me', { cookie: boss, body: { displayName: '나', role: 'viewer', login: 'other' } }));
+    const saved = await store.findUserByLogin('boss');
+    expect(saved?.role).toBe('admin');
+    expect(await store.findUserByLogin('other')).toBeUndefined();
+  });
+
+  it('잘못된 값 · 데모 계정 · 로그인 안 한 사람은 거절한다', async () => {
+    const { api, boss, demo } = await server();
+    expect((await api(ask('PATCH', '/auth/me', { cookie: boss, body: { displayName: '' } }))).status).toBe(400);
+    expect((await api(ask('PATCH', '/auth/me', { cookie: boss, body: { email: '골뱅이없음' } }))).status).toBe(400);
+    expect((await api(ask('PATCH', '/auth/me', { cookie: boss, body: {} }))).status).toBe(400);
+    expect((await api(ask('PATCH', '/auth/me', { cookie: demo, body: { displayName: '해커' } }))).status).toBe(403);
+    expect((await api(ask('PATCH', '/auth/me', { body: { displayName: '누구' } }))).status).toBe(401);
   });
 });
 

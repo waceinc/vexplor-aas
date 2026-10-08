@@ -772,8 +772,8 @@ export const EN_MORE: Record<string, string> = {
   '회원 식별 · 서비스 제공 · 문의 응대': 'Member identification · providing the service · answering inquiries',
   '보유 기간': 'Retention',
   '탈퇴할 때까지 — 탈퇴하면 올린 파일과 함께 지웁니다': 'Until you delete your account — your uploaded files are deleted with it',
-  '동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 체험 계정으로 써 볼 수 있습니다.':
-    'You may decline, but then you cannot sign up. You can still try the service with the trial account.',
+  '동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 데모 계정으로 써 볼 수 있습니다.':
+    'You may decline, but then you cannot sign up. You can still try the service with the demo account.',
   '위 내용과 ': 'I agree to the above and the ',
   동의: 'Consent',
 
@@ -785,5 +785,22 @@ export const EN_MORE: Record<string, string> = {
   '「{0}」 계정을 지웠습니다.': 'Deleted the account "{0}".',
 
   // ── 계정 관리 ──
-  체험: 'trial',
+  데모: 'demo',
+
+  // ── 내 계정 설정 (2026-10-08) ──
+  '사람을 더하고, 역할을 바꾸고, 잠급니다': 'Add people, change roles and lock accounts',
+  '내 계정 설정': 'My account',
+  '내 이름 · 회사명 · 이메일 · 비밀번호를 바꿉니다': 'Change my name, company, email and password',
+  '내 정보를 저장했습니다.': 'Saved my details.',
+  '내 정보': 'My details',
+  '역할: {0} — 역할은 관리자가 「계정 관리」에서 바꿉니다.': 'Role: {0} — an administrator changes roles in "Accounts".',
+  '비밀번호는 10자 이상이어야 합니다. 바꾸면 다른 곳의 로그인은 끊깁니다.': 'At least 10 characters. Changing it signs you out everywhere else.',
+  '내 계정 설정 →': 'My account →',
+  '내 이름 · 연락처 · 비밀번호는 여기서 바꿉니다.': 'Change your own name, contact details and password there.',
+
+  // ── 회원가입 — 회사명 선택 · 필수 표시 (2026-10-08) ──
+  '이름 · 이메일을 적어 주십시오.': 'Please enter your name and email.',
+  '표시는 꼭 적어야 하는 항목입니다.': 'marks a required field.',
+  '(선택)': '(optional)',
+  '아이디 · 이름 · 이메일 · 비밀번호(암호화 저장) · 회사명(선택)': 'Login name · name · email · password (stored encrypted) · company (optional)',
 };

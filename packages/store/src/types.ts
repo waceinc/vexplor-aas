@@ -399,7 +399,7 @@ export interface AasStore {
   /** 비밀번호·이름·역할·잠금을 고친다. 준 것만 바꾼다 */
   updateUser(
     id: string,
-    patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email'>>,
+    patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email' | 'company'>>,
   ): Promise<UserRecord | undefined>;
   /** 로그인에 성공한 시각 — 안 쓰는 계정을 가려내는 근거 */
   touchUserLogin(id: string): Promise<void>;

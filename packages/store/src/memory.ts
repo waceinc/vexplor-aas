@@ -397,7 +397,7 @@ export class InMemoryStore implements AasStore {
 
   async updateUser(
     id: string,
-    patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email'>>,
+    patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email' | 'company'>>,
   ): Promise<UserRecord | undefined> {
     const found = this.users.get(id);
     if (!found) return undefined;
@@ -409,6 +409,11 @@ export class InMemoryStore implements AasStore {
     if (patch.email !== undefined) {
       if (patch.email.trim() === '') delete found.email;
       else found.email = patch.email.trim();
+    }
+    // 회사명도 같다 — 빈 문자열은 「지우라」는 뜻(2026-10-08 내 계정 설정)
+    if (patch.company !== undefined) {
+      if (patch.company.trim() === '') delete found.company;
+      else found.company = patch.company.trim();
     }
     return clone(found);
   }

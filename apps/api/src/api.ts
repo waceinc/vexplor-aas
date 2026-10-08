@@ -61,7 +61,7 @@ export interface ApiOptions {
    */
   setupCode?: string;
   /**
-   * 체험판 설정(`DEMO_MODE=on`). 주면 **체험 계정으로는 파일을 내려받지 못한다** —
+   * 체험판 설정(`DEMO_MODE=on`). 주면 **데모 계정으로는 파일을 내려받지 못한다** —
    * 가입해 자기 계정으로 들어오면 받을 수 있다. 주지 않으면 아무 제한이 없다(demo.ts).
    */
   demo?: DemoConfig;
@@ -234,13 +234,13 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
             ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name)
             : undefined;
         const response = await found.route.handle({ request: inbound, params: found.params });
-        // 🔴 체험 계정은 **파일을 가지고 나가지 못한다.** 경로가 아니라 나가는 응답을
+        // 🔴 데모 계정은 **파일을 가지고 나가지 못한다.** 경로가 아니라 나가는 응답을
         //    본다 — 내려받기 경로가 늘어도 빠뜨릴 자리가 없다(demo.ts)
         if (options.demo && isDemoAccount(options.demo, principal) && isFileDownload(response)) {
           return errorResponse(
             403,
             'Forbidden',
-            '체험 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.',
+            '데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.',
           );
         }
         if (snapshot && packageId !== undefined && response.status < 300) {
@@ -260,13 +260,13 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
  *
  * | 누구 | 열쇠 | 전부 보나 |
  * |---|---|---|
- * | 체험 계정 | `visitor:<로그인마다 다른 이름>` | 아니다 — 같은 계정이라도 서로 못 본다 |
+ * | 데모 계정 | `visitor:<로그인마다 다른 이름>` | 아니다 — 같은 계정이라도 서로 못 본다 |
  * | 가입한 사람 | `user:<계정 id>` | 아니다 — 다시 로그인해도 같은 칸이다 |
  * | 관리자 | `user:<계정 id>` | **본다** — 운영하려면 남의 것도 봐야 한다 |
  * | API 키 | `apikey` | **본다** — 기계 연동(레지스트리·수집)은 전체를 다룬다 |
  * | 그 밖 | `anonymous` | 아니다 — 공용(주인 없는 것)만 보인다 |
  *
- * 🔴 체험 계정을 계정 id로 가르면 **모두가 한 칸에 들어간다** — 여럿이 같이 쓰는 한 계정이다.
+ * 🔴 데모 계정을 계정 id로 가르면 **모두가 한 칸에 들어간다** — 여럿이 같이 쓰는 한 계정이다.
  */
 function workspaceOf(
   principal: Principal | undefined,
@@ -283,7 +283,7 @@ function workspaceOf(
   return { key: 'anonymous', seesAll: false };
 }
 
-/** 여럿이 같이 쓰는 체험 계정인가 — 가입해 만든 자기 계정과 가르는 기준 */
+/** 여럿이 같이 쓰는 데모 계정인가 — 가입해 만든 자기 계정과 가르는 기준 */
 function isDemoAccount(demo: DemoConfig, principal: Principal | undefined): boolean {
   // 🔴 로그인하지 않은 상태(인증이 꺼진 서버)도 체험으로 본다 — 공개 서버에서
   //    로그인 없이 들어온 사람에게 내려받기를 열어 주면 막은 뜻이 없다

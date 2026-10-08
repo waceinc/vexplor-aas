@@ -419,7 +419,7 @@ export interface AuthState {
    * 눌러서 403을 보여 주는 것보다 처음부터 「가입하면 됩니다」라고 말하는 쪽이 낫다.
    */
   demo?: { login: string; password: string };
-  user?: { id: string; login: string; displayName: string; role: 'admin' | 'editor' | 'viewer'; level: 'full' | 'read-only' };
+  user?: { id: string; login: string; displayName: string; role: 'admin' | 'editor' | 'viewer'; level: 'full' | 'read-only'; email?: string; company?: string };
 }
 
 /** 계정 관리 화면의 한 줄 */
@@ -487,6 +487,9 @@ export const api = {
   deleteMe: (): Promise<void> => request('/auth/me', { method: 'DELETE' }),
   changePassword: (current: string, next: string): Promise<unknown> =>
     request('/auth/password', asJson({ current, next })),
+  /** 내 정보 고치기 — 표시 이름 · 회사명 · 이메일. 빈 문자열은 지운다 */
+  updateMe: (patch: { displayName?: string; company?: string; email?: string }): Promise<{ user: AuthState['user'] }> =>
+    request('/auth/me', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }),
 
   listPackages: (): Promise<{ result: PackageDescription[] }> => request('/packages'),
 

@@ -7,9 +7,9 @@
  *    제한이 실제로 서는 자리는 **우리가 띄운 서버 한 곳뿐**이고, 거기서의 목적도
  *    「약을 올려 가입시키기」가 아니라 **공개 모래밭을 운영하는 최소한의 안전장치**다.
  *
- * 체험 계정으로는 **파일을 내려받을 수 없다.** 가입해 자기 계정으로 들어오면 받을 수 있다.
+ * 데모 계정으로는 **파일을 내려받을 수 없다.** 가입해 자기 계정으로 들어오면 받을 수 있다.
  *
- * 🔴 체험 계정은 **여럿이 같이 쓰는 한 계정**이다. 그래서 작업 공간을 **로그인마다** 가른다 —
+ * 🔴 데모 계정은 **여럿이 같이 쓰는 한 계정**이다. 그래서 작업 공간을 **로그인마다** 가른다 —
  *    같은 계정으로 들어와도 서로가 올린 파일을 보지 못한다(@aas/store scoped.ts · api.ts).
  *    처음에는 가르지 않고 「남이 봅니다」라고 적어만 두었는데, 설비 도면·운전 데이터가
  *    올라오는 도구에서 그것은 고지가 아니라 사고 예고였다(2026-10-04에 바로잡음).
@@ -22,26 +22,27 @@ import type { AasStore, UserRole } from '@aas/store';
 import type { ApiResponse } from './http.js';
 
 export interface DemoConfig {
-  /** 체험 계정의 로그인 이름 — 이 계정으로 들어오면 내려받기가 막힌다 */
+  /** 데모 계정의 로그인 이름 — 이 계정으로 들어오면 내려받기가 막힌다 */
   login: string;
   /** 처음 한 번 계정을 만들 때 쓰는 비밀번호 */
   password: string;
   displayName: string;
-  /** 체험 계정의 역할. 눌러 보는 것이 목적이라 고칠 수는 있어야 한다 */
+  /** 데모 계정의 역할. 눌러 보는 것이 목적이라 고칠 수는 있어야 한다 */
   role: UserRole;
   /** 방문자가 이만큼(분) 손대지 않은 파일을 지운다. 0이면 안 지운다(쌓이기만 한다) */
   resetMinutes: number;
 }
 
 /**
- * 🔴 기본 비밀번호가 `1234`다. 이것이 위험하지 않은 **유일한 이유**는 체험 계정이
+ * 🔴 기본 비밀번호가 `0629`다(2026-10-08 — 예전에는 `1234`). 이것이 위험하지 않은 **유일한 이유**는 데모 계정이
  *    내려받기도 계정 관리도 못 하고, 올린 것이 주기적으로 지워지는 모래밭 전용이기
  *    때문이다. `DEMO_MODE`를 켜지 않은 서버에는 이 계정이 **생기지 않는다.**
  */
 const DEFAULTS = {
-  login: 'admin',
-  password: '1234',
-  displayName: '체험 계정',
+  // 2026-10-08 — 예전에는 admin. 「관리자」로 읽혀 운영자 계정과 헷갈렸다
+  login: 'demo',
+  password: '0629',
+  displayName: '데모 계정',
   role: 'editor' as UserRole,
   resetMinutes: 60,
 };
@@ -73,13 +74,28 @@ export function isFileDownload(response: ApiResponse): boolean {
   return disposition.toLowerCase().includes('attachment');
 }
 
-/** 체험 계정이 처음 들어올 수 있게 한 번 만들어 둔다. 이미 있으면 아무 것도 안 한다 */
+/**
+ * 데모 계정을 만들어 두고, 이미 있으면 **설정에 맞춘다**(이름 · 비밀번호).
+ *
+ * 🔴 예전에는 있으면 아무것도 안 했다. 그러면 `.env`에서 비밀번호를 바꿔도 운영 중인 서버의
+ *    계정은 옛 비밀번호 그대로라, 화면에는 새 비밀번호가 뜨는데 로그인이 안 된다(2026-10-08).
+ *    데모 계정은 관리자도 화면에서 못 바꾸는 계정이라(auth.ts) 설정이 유일한 원본이다.
+ */
 export async function seedDemoUser(
   store: AasStore,
   demo: DemoConfig,
   hash: (password: string) => Promise<string>,
-): Promise<'created' | 'exists'> {
-  if (await store.findUserByLogin(demo.login)) return 'exists';
+  verify?: (password: string, stored: string) => Promise<boolean>,
+): Promise<'created' | 'exists' | 'updated'> {
+  const found = await store.findUserByLogin(demo.login);
+  if (found) {
+    const patch: { displayName?: string; passwordHash?: string } = {};
+    if (found.displayName !== demo.displayName) patch.displayName = demo.displayName;
+    if (verify && !(await verify(demo.password, found.passwordHash))) patch.passwordHash = await hash(demo.password);
+    if (Object.keys(patch).length === 0) return 'exists';
+    await store.updateUser(found.id, patch);
+    return 'updated';
+  }
   // 🔴 저장소에 바로 넣는다 — API의 비밀번호 규칙(10자 이상)을 타면 `1234`가 거절된다.
   //    규칙을 느슨하게 고치는 쪽이 아니라 **이 자리만 예외**로 두는 쪽이 맞다
   await store.createUser({

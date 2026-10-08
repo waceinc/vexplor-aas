@@ -1279,6 +1279,13 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--error); font-weight:
 .login > p { color: var(--dim); margin: 0 0 16px; }
 .login-form { display: flex; flex-direction: column; gap: 12px; text-align: left; margin-top: 16px; }
 .login-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--dim); }
+/* 칸 이름 옆에 필수 표시(*) · (선택)이 한 줄로 붙게 — 입력 칸과 도움말은 다음 줄로(2026-10-08) */
+.login-form label:not(.agree) { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 3px; row-gap: 4px; }
+.login-form label:not(.agree) > input,
+.login-form label:not(.agree) > select,
+.login-form label:not(.agree) > .hint { flex-basis: 100%; }
+.req::after { content: '*'; color: #ff6b6b; font-weight: 700; margin-left: 1px; }
+.login .req-legend { margin: 0; font-size: 12px; }
 .login-form input { font-size: 14px; padding: 8px 10px; }
 .login-form button { margin-top: 6px; }
 .login .note { margin: 0; text-align: left; }
@@ -1361,6 +1368,8 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--error); font-weight:
 
 /* 계정 관리 — 칸이 많아도 창이 화면 밖으로 넘어가지 않게(2026-10-06 사용자) */
 .modal.accounts-modal { width: min(1120px, 100%); max-height: 88vh; }
+/* 내 계정 설정 — 칸 몇 개라 좁게. 계정 관리의 넓은 최소 너비를 물려받으면 칸이 창 밖으로 나간다(2026-10-08) */
+.modal.accounts-modal.mine-modal { width: min(520px, 100%); }
 .modal.accounts-modal .accounts { min-width: 0; }
 .accounts .table-scroll { overflow-x: auto; margin-bottom: 12px; }
 .accounts .table-scroll .accounts-table { margin-bottom: 0; }

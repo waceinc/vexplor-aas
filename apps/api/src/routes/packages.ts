@@ -1391,6 +1391,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
            */
           // 🔴 `instanceof`를 쓰지 않는다 — 이 파일은 프로토콜을 몰라야 한다(browseDevice 주입 원칙).
           //    이름으로 본다: @aas/opcua의 SelfBrowseError가 이 이름을 쓴다.
+          if (error instanceof Error && error.name === 'OutboundBlockedError') {
+            throw new ApiError(403, 'Forbidden', error.message);
+          }
           if (error instanceof Error && error.name === 'SelfBrowseError') {
             throw new ApiError(409, 'Conflict', error.message);
           }

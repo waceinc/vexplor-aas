@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createApi } from '../src/api.js';
 import { demoFromEnv, isFileDownload, seedDemoUser } from '../src/demo.js';
-import { hashPassword } from '../src/password.js';
+import { hashPassword, verifyPassword } from '../src/password.js';
 import type { ApiRequest } from '../src/http.js';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
@@ -63,12 +63,24 @@ describe('설정 읽기', () => {
     expect(demoFromEnv({ DEMO_MODE: 'off' })).toBeUndefined();
   });
 
-  it('켜면 admin/1234 · 60분마다 정리가 기본이다', () => {
+  it('켜면 demo/0629 · 데모 계정 · 60분마다 정리가 기본이다', () => {
     expect(demoFromEnv({ DEMO_MODE: 'on' })).toMatchObject({
-      login: 'admin',
-      password: '1234',
+      login: 'demo',
+      password: '0629',
+      displayName: '데모 계정',
       resetMinutes: 60,
     });
+  });
+
+  it('🔴 이미 있는 데모 계정도 설정의 비밀번호 · 이름으로 맞춘다 — 바꾼 설정이 운영 서버에 먹는다', async () => {
+    const store = new InMemoryStore();
+    await seedDemoUser(store, { ...DEMO, password: '1234', displayName: '체험 계정' }, hashPassword, verifyPassword);
+    expect(await seedDemoUser(store, { ...DEMO, password: '0629', displayName: '데모 계정' }, hashPassword, verifyPassword)).toBe('updated');
+    const user = await store.findUserByLogin('admin');
+    expect(user?.displayName).toBe('데모 계정');
+    expect(await verifyPassword('0629', user!.passwordHash)).toBe(true);
+    expect(await verifyPassword('1234', user!.passwordHash)).toBe(false);
+    expect(await seedDemoUser(store, { ...DEMO, password: '0629', displayName: '데모 계정' }, hashPassword, verifyPassword)).toBe('exists');
   });
 
   it('운영자가 바꿀 수 있다', () => {

@@ -21,6 +21,7 @@
  *    KPI가 조용히 틀린다. 사람이 채우도록 매핑표에 빈 칸을 준다.
  */
 import type { Environment, SubmodelElement } from '@aas/core';
+import { csvCell } from './csv.js';
 
 /** 기본으로 훑는 서브모델 — 30종 전부가 가진 운전 데이터 서브모델 */
 export const LINKAGE_SUBMODELS = ['OperationalData'] as const;
@@ -234,7 +235,7 @@ export function bundleLinkage(
 }
 
 /** CSV 한 칸 — 쉼표·따옴표·줄바꿈을 감싼다 */
-const cell = (value: string): string => (/[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+const cell = (value: string): string => csvCell(value);
 
 /**
  * 연계 정의표(번들 04_데이터연계정의). 엑셀에서 바로 열리게 BOM을 붙인다.

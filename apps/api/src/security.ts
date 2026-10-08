@@ -57,6 +57,32 @@ export function securityHeaders(https: boolean): Record<string, string> {
   return headers;
 }
 
+/**
+ * 체험판에서 서버가 **밖으로 접속해도 되는 주소**인가 — 도구 안의 가상 PLC 하나뿐이다.
+ *
+ * 🔴 「설비에서 불러오기」와 「수집」은 방문자가 적은 주소로 **서버가** 접속한다. 공개 체험판에서
+ *    이를 열어 두면 아무나 서버를 발판 삼아 서버가 놓인 내부망(사무실 장비·공유기)을 두드려
+ *    볼 수 있다(SSRF — 접속 실패 사유가 「열림/닫힘」을 알려 준다). 2026-10-08 점검에서 찾았다.
+ *    체험판의 목적은 기능을 보여 주는 것이라 가상 PLC로 충분하고, 실제 설비 연결은 설치판의 일이다.
+ * 🔴 주소 **문자열**로만 본다(DNS를 풀지 않는다). 이름으로 우회하지 못하게 이름은 전부 막는다 —
+ *    허용하는 것은 루프백 IP 글자 그대로와 가상 PLC 포트 하나다.
+ */
+export function demoOutboundAllowed(endpoint: string, simulatorPort: number): boolean {
+  const match = /^opc\.tcp:\/\/(\[[^\]]+\]|[^/:]+)(?::(\d+))?(?:\/|$)/i.exec(endpoint.trim());
+  if (!match) return false;
+  const host = (match[1] ?? '').toLowerCase();
+  const port = Number(match[2] ?? 4840);
+  return ['127.0.0.1', 'localhost', '[::1]'].includes(host) && port === simulatorPort;
+}
+
+/** 체험판에서 막힌 외부 접속 — 라우트가 이름으로 알아보고 403으로 돌려준다 */
+export class OutboundBlockedError extends Error {
+  constructor() {
+    super('체험판에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.');
+    this.name = 'OutboundBlockedError';
+  }
+}
+
 /** 프록시 뒤에서도 「이 요청이 HTTPS로 왔나」를 본다 */
 export function isHttps(headers: Record<string, string | string[] | undefined>, encrypted: boolean): boolean {
   if (encrypted) return true;

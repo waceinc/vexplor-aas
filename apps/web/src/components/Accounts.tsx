@@ -1,5 +1,8 @@
 /**
- * 계정 — 내 비밀번호 바꾸기 · (관리자) 사람 더하기·역할·잠그기·비밀번호 초기화.
+ * 계정 — 두 얼굴이다(2026-10-08).
+ *  - **내 계정 설정**(누구나): 표시 이름 · 회사명 · 이메일 · 비밀번호
+ *  - **계정 관리**(관리자): 사람 더하기 · 역할 · 잠그기 · 비밀번호 초기화 · 삭제
+ *  예전에는 한 창에 섞여, 관리자의 내 비밀번호 칸이 맨 아래 접혀 있었고 내 이름·연락처는 고칠 길이 없었다.
  *
  * 🔴 이 화면은 한동안 **없었다.** 서버에는 계정 관리 API가 있었고 문서에도 「설정 → 계정 관리」라고
  *    적혀 있었는데, 정작 누를 자리가 없었다(2026-10-04에 문서를 읽다 알아챘다).
@@ -17,6 +20,10 @@ type Role = 'admin' | 'editor' | 'viewer';
 
 interface Props {
   me: NonNullable<AuthState['user']>;
+  /** mine — 내 계정 설정 · people — 계정 관리(관리자) */
+  mode: 'mine' | 'people';
+  /** 계정 관리 창에서 「내 계정 설정」으로 건너간다 */
+  onOpenMine?: () => void;
   /** 내 비밀번호를 바꾸면 로그인이 새로 잡힌다 — 화면이 다시 읽게 한다 */
   onChanged: () => void;
   onClose: () => void;
@@ -26,8 +33,8 @@ interface Props {
 
 const ROLES: readonly Role[] = ['admin', 'editor', 'viewer'];
 
-export function Accounts({ me, onChanged, onClose, describeError, t }: Props): React.JSX.Element {
-  const isAdmin = me.role === 'admin';
+export function Accounts({ me, mode, onOpenMine, onChanged, onClose, describeError, t }: Props): React.JSX.Element {
+  const isAdmin = me.role === 'admin' && mode === 'people';
   const roleName = (role: Role): string =>
     role === 'admin' ? t('관리자') : role === 'editor' ? t('편집자') : t('열람자');
 
@@ -37,6 +44,12 @@ export function Accounts({ me, onChanged, onClose, describeError, t }: Props): R
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [working, setWorking] = useState(false);
+
+  // 내 정보
+  const [myName, setMyName] = useState(me.displayName);
+  const [myCompany, setMyCompany] = useState(me.company ?? '');
+  const [myEmail, setMyEmail] = useState(me.email ?? '');
+  const profileChanged = myName.trim() !== me.displayName || myCompany.trim() !== (me.company ?? '') || myEmail.trim() !== (me.email ?? '');
 
   // 내 비밀번호
   const [current, setCurrent] = useState('');
@@ -94,6 +107,15 @@ export function Accounts({ me, onChanged, onClose, describeError, t }: Props): R
     }
   };
 
+  const saveMine = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault();
+    const done = await act(
+      () => api.updateMe({ displayName: myName.trim(), company: myCompany.trim(), email: myEmail.trim() }),
+      t('내 정보를 저장했습니다.'),
+    );
+    if (done) onChanged();
+  };
+
   const addUser = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (await act(() => api.createUser({ login: login.trim(), displayName: displayName.trim(), role, password }), t('계정을 만들었습니다.'))) {
@@ -123,7 +145,7 @@ export function Accounts({ me, onChanged, onClose, describeError, t }: Props): R
 
   return (
     <div className="settings accounts">
-      <h2>{t('계정')}</h2>
+      <h2>{mode === 'mine' ? t('내 계정 설정') : t('계정 관리')}</h2>
 
       {error && (
         <p className="note bad" role="alert">
@@ -157,7 +179,7 @@ export function Accounts({ me, onChanged, onClose, describeError, t }: Props): R
                   <td className="mono">
                     {user.login}
                     {user.id === me.id && <span className="dim"> ({t('나')})</span>}
-                    {user.demo === true && <span className="dim"> ({t('체험')})</span>}
+                    {user.demo === true && <span className="dim"> ({t('데모')})</span>}
                   </td>
                   <td>{user.displayName}</td>
                   {hasProfile && <td>{user.company ?? '—'}</td>}
@@ -184,7 +206,7 @@ export function Accounts({ me, onChanged, onClose, describeError, t }: Props): R
                   </td>
                   <td className="dim">{user.lastLoginAt ? user.lastLoginAt.slice(0, 10) : '—'}</td>
                   <td className="row-buttons">
-                    {/* 체험 계정은 바꾸지 못한다 — 비밀번호가 화면에 공개된 공용 입구다(서버도 막는다) */}
+                    {/* 데모 계정은 바꾸지 못한다 — 비밀번호가 화면에 공개된 공용 입구다(서버도 막는다) */}
                     {user.demo !== true && (
                     <button
                       className="link"
@@ -296,58 +318,72 @@ export function Accounts({ me, onChanged, onClose, describeError, t }: Props): R
         </section>
       )}
 
-      {/*
-        🔴 관리자가 이 창을 여는 이유는 대개 **사람들 표**다(2026-10-06 디자인 검토) — 예전에는
-           내 비밀번호 칸이 위에서 화면 절반을 차지해 표가 아래로 밀렸다. 관리자에게는 접어서 맨 아래에.
-      */}
-      {isAdmin ? (
-        <details className="mine">
-          <summary>{t('내 비밀번호 바꾸기')}</summary>
-        <form className="login-form" onSubmit={(event) => void changeMine(event)}>
-            <label>
-              {t('지금 비밀번호')}
-              <input type="password" value={current} autoComplete="current-password" onChange={(event) => setCurrent(event.target.value)} />
-            </label>
-            <label>
-              {t('새 비밀번호')}
-              <input type="password" value={next} autoComplete="new-password" onChange={(event) => setNext(event.target.value)} />
-            </label>
-            <label>
-              {t('새 비밀번호 확인')}
-              <input type="password" value={confirm} autoComplete="new-password" onChange={(event) => setConfirm(event.target.value)} />
-            </label>
-            <p className="hint">{t('비밀번호는 10자 이상이어야 합니다.')}</p>
-            <div className="row-buttons">
-              <button type="submit" disabled={working || current === '' || next === ''}>
-                {t('비밀번호 바꾸기')}
-              </button>
-            </div>
-          </form>
-        </details>
-      ) : (
-        <section>
-          <h3>{t('내 비밀번호 바꾸기')}</h3>
-        <form className="login-form" onSubmit={(event) => void changeMine(event)}>
-            <label>
-              {t('지금 비밀번호')}
-              <input type="password" value={current} autoComplete="current-password" onChange={(event) => setCurrent(event.target.value)} />
-            </label>
-            <label>
-              {t('새 비밀번호')}
-              <input type="password" value={next} autoComplete="new-password" onChange={(event) => setNext(event.target.value)} />
-            </label>
-            <label>
-              {t('새 비밀번호 확인')}
-              <input type="password" value={confirm} autoComplete="new-password" onChange={(event) => setConfirm(event.target.value)} />
-            </label>
-            <p className="hint">{t('비밀번호는 10자 이상이어야 합니다.')}</p>
-            <div className="row-buttons">
-              <button type="submit" disabled={working || current === '' || next === ''}>
-                {t('비밀번호 바꾸기')}
-              </button>
-            </div>
-          </form>
-        </section>
+      {mode === 'mine' && (
+        <>
+          <section>
+            <h3>{t('내 정보')}</h3>
+            <form className="login-form" onSubmit={(event) => void saveMine(event)}>
+              <label>
+                {t('로그인 이름')}
+                <input value={me.login} disabled readOnly />
+              </label>
+              <label>
+                {t('표시 이름')}
+                <input value={myName} maxLength={40} autoComplete="name" onChange={(event) => setMyName(event.target.value)} />
+              </label>
+              <label>
+                {t('회사명')}
+                <input value={myCompany} maxLength={80} autoComplete="organization" onChange={(event) => setMyCompany(event.target.value)} />
+              </label>
+              <label>
+                {t('이메일')}
+                <input type="email" value={myEmail} maxLength={120} autoComplete="email" onChange={(event) => setMyEmail(event.target.value)} />
+              </label>
+              <p className="hint">
+                {fill(tr('역할: {0} — 역할은 관리자가 「계정 관리」에서 바꿉니다.'), { 0: roleName(me.role) })}
+              </p>
+              <div className="row-buttons">
+                <button type="submit" className="primary" disabled={working || !profileChanged || myName.trim() === ''}>
+                  {t('저장')}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section>
+            <h3>{t('비밀번호 바꾸기')}</h3>
+            <form className="login-form" onSubmit={(event) => void changeMine(event)}>
+              <label>
+                {t('지금 비밀번호')}
+                <input type="password" value={current} autoComplete="current-password" onChange={(event) => setCurrent(event.target.value)} />
+              </label>
+              <label>
+                {t('새 비밀번호')}
+                <input type="password" value={next} autoComplete="new-password" onChange={(event) => setNext(event.target.value)} />
+              </label>
+              <label>
+                {t('새 비밀번호 확인')}
+                <input type="password" value={confirm} autoComplete="new-password" onChange={(event) => setConfirm(event.target.value)} />
+              </label>
+              <p className="hint">{t('비밀번호는 10자 이상이어야 합니다. 바꾸면 다른 곳의 로그인은 끊깁니다.')}</p>
+              <div className="row-buttons">
+                <button type="submit" disabled={working || current === '' || next === ''}>
+                  {t('비밀번호 바꾸기')}
+                </button>
+              </div>
+            </form>
+          </section>
+        </>
+      )}
+
+      {/* 계정 관리 창에서 내 것을 고치러 가는 길 — 관리자도 자기 이름 · 비밀번호는 「내 계정 설정」에서 */}
+      {mode === 'people' && onOpenMine && (
+        <p className="hint">
+          <button type="button" className="link" onClick={onOpenMine}>
+            {t('내 계정 설정 →')}
+          </button>{' '}
+          {t('내 이름 · 연락처 · 비밀번호는 여기서 바꿉니다.')}
+        </p>
       )}
 
       <div className="row-buttons actions">

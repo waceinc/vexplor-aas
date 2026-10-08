@@ -215,16 +215,17 @@ export function App(): React.JSX.Element {
   /** 탈퇴 확인 — 되돌릴 수 없는 일이라 한 번 묻는다 */
   const [confirmQuit, setConfirmQuit] = useState(false);
   /**
-   * 체험 계정으로 보고 있나 — 내려받기가 막힌 상태다.
+   * 데모 계정으로 보고 있나 — 내려받기가 막힌 상태다.
    * 🔴 가입해 자기 계정으로 들어오면 `auth.demo`가 비고 제한이 풀린다(서버가 정한다).
    */
   const demoLocked = auth?.demo !== undefined;
-  /** 체험 계정이 견본을 눌렀다 — 회원가입 뒤에 쓸 수 있다고 알린다(사용자 2026-10-07) */
+  /** 데모 계정이 견본을 눌렀다 — 회원가입 뒤에 쓸 수 있다고 알린다(사용자 2026-10-07) */
   const [sampleLocked, setSampleLocked] = useState(false);
   const [lang] = useState<Lang>(() => readLang());
   const [showSettings, setShowSettings] = useState(false);
   /** 계정 화면 — 내 비밀번호, 그리고 관리자면 사람 더하기·역할·잠그기 */
-  const [showAccounts, setShowAccounts] = useState(false);
+  /** 계정 창 — mine: 내 계정 설정(누구나) · people: 계정 관리(관리자) */
+  const [showAccounts, setShowAccounts] = useState<'mine' | 'people'>();
   const t = useMemo(() => translator(lang), [lang]);
   /**
    * 자동 고치기 미리보기 — 열려 있으면 팝업. 체크한 것만 반영한다(사용자 2026-09-11).
@@ -690,7 +691,7 @@ export function App(): React.JSX.Element {
    *    같은 견본을 다시 눌러도 번들 열기가 해시로 알아보고 사본을 만들지 않는다.
    */
   const onOpenSample = async (): Promise<void> => {
-    // 체험 계정은 견본을 열지 않는다 — 토큰을 묻는 대신 회원가입을 안내한다
+    // 데모 계정은 견본을 열지 않는다 — 토큰을 묻는 대신 회원가입을 안내한다
     if (demoLocked) {
       setSampleLocked(true);
       return;
@@ -1967,7 +1968,7 @@ export function App(): React.JSX.Element {
                 title: tr('화면 글자의 언어를 고릅니다'),
                 onClick: () => setShowSettings(true),
               },
-              // 체험 계정으로 보고 있다 — 자기 계정을 만들면 내려받을 수 있다
+              // 데모 계정으로 보고 있다 — 자기 계정을 만들면 내려받을 수 있다
               ...(auth?.demo !== undefined && auth.signupAllowed === true
                 ? [
                     {
@@ -1989,17 +1990,25 @@ export function App(): React.JSX.Element {
                     },
                   ]
                 : []),
-              // 계정 화면 — 내 비밀번호, 관리자면 사람들. 🔴 체험 계정에는 없다(바꿀 수 없는 계정이다)
+              // 계정 — 🔴 데모 계정에는 없다(여럿이 쓰는 공용 입구라 바꿀 수 없다)
+              //    관리자는 「계정 관리」(사람들)와 「내 계정 설정」(내 것)을 따로 본다(2026-10-08)
               ...(auth?.user && auth.demo === undefined
                 ? [
+                    ...(auth.user.role === 'admin'
+                      ? [
+                          {
+                            label: t('계정 관리'),
+                            title: t('사람을 더하고, 역할을 바꾸고, 잠급니다'),
+                            onClick: () => setShowAccounts('people'),
+                            separated: true,
+                          },
+                        ]
+                      : []),
                     {
-                      label: auth.user.role === 'admin' ? t('계정 관리') : t('내 비밀번호 바꾸기'),
-                      title:
-                        auth.user.role === 'admin'
-                          ? t('사람을 더하고, 역할을 바꾸고, 잠급니다. 내 비밀번호도 여기서 바꿉니다')
-                          : t('이 계정의 비밀번호를 바꿉니다'),
-                      onClick: () => setShowAccounts(true),
-                      separated: true,
+                      label: t('내 계정 설정'),
+                      title: t('내 이름 · 회사명 · 이메일 · 비밀번호를 바꿉니다'),
+                      onClick: () => setShowAccounts('mine'),
+                      separated: auth.user.role !== 'admin',
                     },
                   ]
                 : []),
@@ -2007,7 +2016,7 @@ export function App(): React.JSX.Element {
               ...(auth?.user
                 ? [
                     {
-                      label: `${demoLocked ? t('체험 계정') : auth.user.displayName} · ${t('로그아웃')}`,
+                      label: `${demoLocked ? t('데모 계정') : auth.user.displayName} · ${t('로그아웃')}`,
                       title: tr('이 브라우저의 로그인을 끝냅니다'),
                       onClick: () => {
                         void api
@@ -2020,7 +2029,7 @@ export function App(): React.JSX.Element {
                   ]
                 : []),
               /*
-               * 탈퇴 — 🔴 체험 계정에는 보이지 않는다(여럿이 쓰는 계정이라 서버도 거절한다).
+               * 탈퇴 — 🔴 데모 계정에는 보이지 않는다(여럿이 쓰는 계정이라 서버도 거절한다).
                * 되돌릴 수 없으므로 한 번 묻는다. 지워도 **누가 고쳤나는 남는다** —
                * 그 이름은 사람 표를 참조하지 않고 그때 베껴 둔 값이다.
                */
@@ -2169,7 +2178,7 @@ export function App(): React.JSX.Element {
                   : []),
               ]}
             />
-            {/* 🔴 체험 계정은 눌러도 403이다. 눌러 보고 알게 하는 것보다 **왜 안 되는지**를
+            {/* 🔴 데모 계정은 눌러도 403이다. 눌러 보고 알게 하는 것보다 **왜 안 되는지**를
                 먼저 말하는 편이 낫다 — 단추는 남겨 두고 설명을 바꾼다(없으면 「받는 기능이
                 없는 도구」로 보인다) */}
             <button
@@ -2178,7 +2187,7 @@ export function App(): React.JSX.Element {
               disabled={busy}
               title={
                 demoLocked
-                  ? t('체험 계정으로는 내려받을 수 없습니다 — 눌러서 계정을 만드십시오.')
+                  ? t('데모 계정으로는 내려받을 수 없습니다 — 눌러서 계정을 만드십시오.')
                   : errors > 0
                     ? fill(tr('위반 {0}건이 남아 있습니다 — 받을 수는 있지만 KOSMO 규칙을 아직 다 지키지 못했습니다'), { 0: errors })
                     : tr('지금 파일을 .aasx로 내려받습니다')
@@ -2218,7 +2227,7 @@ export function App(): React.JSX.Element {
         체험판 띠 — 무엇이 막혀 있고 올린 것이 어떻게 되는지를 먼저 말한다.
         🔴 처음에는 「다른 사람에게도 보입니다」였다. 작업 공간을 로그인마다 가른 뒤로는
            사실이 아니다(2026-10-04). 대신 **로그인을 새로 하면 빈 칸에서 시작한다**는 것을
-           적는다 — 체험 계정은 로그인이 곧 작업 공간이라, 모르면 「파일이 사라졌다」가 된다.
+           적는다 — 데모 계정은 로그인이 곧 작업 공간이라, 모르면 「파일이 사라졌다」가 된다.
       */}
       {demoLocked && (
         <div className="demo-bar">
@@ -3095,20 +3104,23 @@ export function App(): React.JSX.Element {
       )}
 
       {showAccounts && auth?.user && (
-        <div className="modal-back" role="presentation" onClick={() => setShowAccounts(false)}>
+        <div className="modal-back" role="presentation" onClick={() => setShowAccounts(undefined)}>
           <div
-            className="modal accounts-modal"
+            className={showAccounts === 'people' ? 'modal accounts-modal' : 'modal accounts-modal mine-modal'}
             role="dialog"
             aria-modal="true"
             aria-label={t('계정')}
             onClick={(event) => event.stopPropagation()}
           >
             <Accounts
+              key={showAccounts}
               me={auth.user}
+              mode={showAccounts}
+              onOpenMine={() => setShowAccounts('mine')}
               t={t}
               describeError={describeError}
               onChanged={() => void bootstrap()}
-              onClose={() => setShowAccounts(false)}
+              onClose={() => setShowAccounts(undefined)}
             />
           </div>
         </div>

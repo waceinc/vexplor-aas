@@ -17,6 +17,7 @@
  * 🔴 도구는 파일에서 **읽을 수 있는 것만** 채운다. 활용 시나리오·특징 같은 것은 사람이 쓴다.
  *    모르는 칸은 비워 두고 「사람이 채울 자리」로 표시한다 — 그럴듯하게 지어내지 않는다.
  */
+import { csvCell } from '../csv.js';
 import type { ConceptDescription, Environment, Submodel, SubmodelElement } from '@aas/core';
 import { isStandardTerm } from '../policy.js';
 import { iec61360Of } from '../util.js';
@@ -227,7 +228,7 @@ ${body}
 
 /** 엑셀에서 열 수 있게. 🔴 BOM을 붙인다 — 없으면 엑셀이 한글을 깨뜨린다 */
 export function tableCsv(rows: readonly TableRow[]): string {
-  const escape = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+  const escape = (value: string): string => csvCell(value, 'always');
   const lines = [COLUMNS.map(escape).join(',')];
   for (const row of rows) {
     lines.push(

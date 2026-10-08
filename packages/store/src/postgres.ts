@@ -733,7 +733,7 @@ export class PostgresStore implements AasStore {
 
   async updateUser(
     id: string,
-    patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email'>>,
+    patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email' | 'company'>>,
   ): Promise<UserRecord | undefined> {
     // 🔴 준 것만 바꾼다. COALESCE로 undefined를 흘리면 멀쩡한 값이 지워진다
     const { rows } = await this.client.query<UserRow>(
@@ -745,7 +745,10 @@ export class PostgresStore implements AasStore {
          -- 🔴 빈 문자열은 「지우라」는 뜻이다. COALESCE로는 그 뜻을 낼 수 없어 따로 쓴다
          email         = CASE WHEN $6::text IS NULL THEN email
                               WHEN btrim($6::text) = '' THEN NULL
-                              ELSE btrim($6::text) END
+                              ELSE btrim($6::text) END,
+         company       = CASE WHEN $7::text IS NULL THEN company
+                              WHEN btrim($7::text) = '' THEN NULL
+                              ELSE btrim($7::text) END
        WHERE id = $1
        RETURNING ${USER_FIELDS}`,
       [
@@ -755,6 +758,7 @@ export class PostgresStore implements AasStore {
         patch.passwordHash ?? null,
         patch.disabled ?? null,
         patch.email ?? null,
+        patch.company ?? null,
       ],
     );
     return rows[0] ? toUserRecord(rows[0]) : undefined;

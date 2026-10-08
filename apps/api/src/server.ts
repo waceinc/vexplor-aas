@@ -26,9 +26,9 @@ import { isDocumentRequest, openStatic, resolveStatic } from './static.js';
 import { seedTemplates } from './templates.js';
 import { retentionDaysFromEnv, startRetention } from './retention.js';
 import { corsFromEnv, corsHeaders, isPreflight, type CorsPolicy } from './cors.js';
-import { isHttps, securityHeaders, setupCode, setupCodeRequired } from './security.js';
+import { demoOutboundAllowed, isHttps, OutboundBlockedError, securityHeaders, setupCode, setupCodeRequired } from './security.js';
 import { demoFromEnv, seedDemoUser, startDemoReset } from './demo.js';
-import { hashPassword } from './password.js';
+import { hashPassword, verifyPassword } from './password.js';
 
 /** 업로드 상한 — Zip Bomb 대비(기획서 Ⅷ 보안 항목). 기본 512MB */
 const DEFAULT_MAX_BODY = 512 * 1024 * 1024;
@@ -167,6 +167,11 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   const publicBaseUrl = process.env['AAS_PUBLIC_URL'];
   // 체험판 여부는 아래 여러 곳이 본다(OPC UA 거절·내려받기 차단·가입) — 먼저 읽어 둔다
   const demo = demoFromEnv(process.env);
+  const simulatorPort = Number(process.env['SIMULATOR_PORT'] ?? 14850);
+  /** 체험판이면 가상 PLC 말고는 밖으로 접속하지 않는다(SSRF 차단 — security.ts) */
+  const guardOutbound = (endpoint: string): void => {
+    if (demo && !demoOutboundAllowed(endpoint, simulatorPort)) throw new OutboundBlockedError();
+  };
 
   /** AID가 말한 주소로 붙는다. 프로토콜을 아는 곳은 @aas/opcua 하나뿐이다 */
   const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
@@ -174,6 +179,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       throw new Error(`아직 지원하지 않는 프로토콜입니다: ${descriptor.protocol}`);
     }
     if (!descriptor.base) throw new Error('EndpointMetadata.base가 없습니다.');
+    guardOutbound(descriptor.base);
     return (await opcua()).OpcUaReader.connect({ endpoint: descriptor.base });
   };
 
@@ -185,7 +191,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   const simulatorOnce = (): Promise<SimulatorServer> =>
     // 약속을 들고 있는다 — 두 번 겹쳐 눌러도 가상 PLC는 하나만 뜬다
     (simulator ??= opcua().then(
-      ({ SimulatorServer: Simulator }) => new Simulator({ port: Number(process.env['SIMULATOR_PORT'] ?? 14850) }),
+      ({ SimulatorServer: Simulator }) => new Simulator({ port: simulatorPort }),
     ));
 
   /**
@@ -329,6 +335,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     // 🔴 훑기는 수집이 꺼져 있어도 쓸 수 있어야 한다 — AID를 **만들 때** 필요한 기능이다.
     //    우리 서버의 신원을 함께 넘겨 **자기 자신을 훑는 사고**를 막는다.
     browseDevice: async (endpoint: string) => {
+      guardOutbound(endpoint);
       const self = publisher?.status().instanceUri;
       return (await opcua()).browseDevice({ endpoint, ...(self ? { selfUri: self } : {}) });
     },
@@ -479,7 +486,7 @@ if (process.argv[1]?.endsWith('server.js')) {
   });
   // 체험판 — 계정을 심고, 올린 것을 주기적으로 비운다(demo.ts)
   const bootDemo = demoFromEnv(process.env);
-  const demoSeeded = bootDemo ? await seedDemoUser(bootStore, bootDemo, hashPassword) : undefined;
+  const demoSeeded = bootDemo ? await seedDemoUser(bootStore, bootDemo, hashPassword, verifyPassword) : undefined;
   if (bootDemo) startDemoReset(bootStore, bootDemo.resetMinutes, (line) => console.log(`  ${line}`));
 
   const bootAuth = authFromEnv(process.env);
@@ -555,10 +562,10 @@ if (process.argv[1]?.endsWith('server.js')) {
       console.log('');
       console.log('  🧪 체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.');
       console.log(
-        `     체험 계정: ${bootDemo.login} / ${bootDemo.password}  (${demoSeeded === 'created' ? '지금 만들었습니다' : '이미 있습니다'})`,
+        `     데모 계정: ${bootDemo.login} / ${bootDemo.password}  (${demoSeeded === 'created' ? '지금 만들었습니다' : demoSeeded === 'updated' ? '설정에 맞춰 고쳤습니다' : '이미 있습니다'})`,
       );
       console.log('     이 계정으로는 **파일을 내려받을 수 없습니다.** 가입한 계정은 받을 수 있습니다.');
-      console.log('     작업 공간은 **로그인마다 따로**입니다 — 같은 체험 계정으로 들어와도 서로의 파일을 못 봅니다.');
+      console.log('     작업 공간은 **로그인마다 따로**입니다 — 같은 데모 계정으로 들어와도 서로의 파일을 못 봅니다.');
       console.log(
         bootDemo.resetMinutes > 0
           ? `     방문자가 ${bootDemo.resetMinutes}분 넘게 손대지 않은 파일은 지웁니다(가입한 사람의 파일은 남깁니다).`

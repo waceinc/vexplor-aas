@@ -14,6 +14,7 @@
 import type { AidInterfaceView, CollectedValueView, LiveMapping } from './api.js';
 import { localTime } from './model.js';
 import { tr, fill } from './i18n.js';
+import { csvCell } from '@aas/linter';
 
 export interface AddressRow {
   interfaceName: string;
@@ -113,7 +114,7 @@ export function addressRows(
 
 /** 엑셀에서 열 수 있게. 🔴 BOM을 붙인다 — 없으면 엑셀이 한글을 깨뜨린다 */
 export function addressCsv(rows: readonly AddressRow[]): string {
-  const escape = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+  const escape = (value: string): string => csvCell(value, 'always');
   const lines = [ADDRESS_COLUMNS.map(escape).join(',')];
   for (const row of rows) {
     lines.push(

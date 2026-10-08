@@ -8,7 +8,7 @@ import { InMemoryStore } from '@aas/store';
 import { describe, expect, it } from 'vitest';
 import { createApi } from '../src/api.js';
 import type { ApiRequest } from '../src/http.js';
-import { clientAddress, crossSiteWrite, isHttps, sameCode, securityHeaders, setupCode, setupCodeRequired } from '../src/security.js';
+import { clientAddress, crossSiteWrite, demoOutboundAllowed, isHttps, sameCode, securityHeaders, setupCode, setupCodeRequired } from '../src/security.js';
 
 function ask(init: Partial<ApiRequest> & { headers?: Record<string, string> } = {}): ApiRequest {
   return {
@@ -358,5 +358,27 @@ describe('/health — 계정이 있으면 인증이 켜진 것이다', () => {
     expect((await api(ask({ method: 'GET', path: '/health' }))).body).toMatchObject({ auth: 'off' });
     await api(ask({ path: '/auth/setup', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }));
     expect((await api(ask({ method: 'GET', path: '/health' }))).body).toMatchObject({ auth: 'on' });
+  });
+});
+
+describe('🔴 체험판의 외부 접속 — 가상 PLC 말고는 막는다(SSRF, 2026-10-08)', () => {
+  it('가상 PLC 주소는 통한다', () => {
+    expect(demoOutboundAllowed('opc.tcp://127.0.0.1:14850/UA/Simulator', 14850)).toBe(true);
+    expect(demoOutboundAllowed('opc.tcp://localhost:14850', 14850)).toBe(true);
+    expect(demoOutboundAllowed('opc.tcp://[::1]:14850/UA/Simulator', 14850)).toBe(true);
+  });
+  it('내부망 · 다른 포트 · 이름 · 다른 프로토콜은 막힌다', () => {
+    for (const endpoint of [
+      'opc.tcp://192.168.0.1:4840',
+      'opc.tcp://10.0.0.5:14850',
+      'opc.tcp://127.0.0.1:5432',
+      'opc.tcp://127.0.0.1',
+      'opc.tcp://db:5432',
+      'opc.tcp://127.0.0.1.nip.io:14850',
+      'opc.tcp://localhost.evil.com:14850',
+      'opc.tcp://user@127.0.0.1:14850',
+      'http://127.0.0.1:14850',
+      '',
+    ]) expect(demoOutboundAllowed(endpoint, 14850), endpoint).toBe(false);
   });
 });
