@@ -28,6 +28,9 @@
     },
     {
       "path": "../../packages/opcua"
+    },
+    {
+      "path": "../../packages/fieldbus"
     }
   ]
 }

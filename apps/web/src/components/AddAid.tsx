@@ -32,7 +32,15 @@ interface Props {
 import { AidOptions } from './aid/AidOptions.js';
 import { BrowsedTags } from './aid/BrowsedTags.js';
 import { PickedTags } from './aid/PickedTags.js';
+import { protocolOfEndpoint } from './aid/protocol.js';
 import { EMPTY, type TagRow } from './aid/types.js';
+
+/** 프로토콜 고유 폼 항목(AID 바인딩) — Modbus 는 레지스터 종류 · 자료형, MQTT 는 구독. OPC UA 는 없다 */
+function formFor(protocol: string | undefined, row: TagRow): { form?: Record<string, string> } {
+  if (protocol === 'MODBUS') return { form: { modv_entity: row.entity ?? 'HoldingRegister', modv_type: row.dataType ?? 'xsd:unsignedShort' } };
+  if (protocol === 'MQTT') return { form: { mqv_controlPacket: 'subscribe' } };
+  return {};
+}
 
 /** 요소 이름으로 쓸 수 있게 다듬는다 — 안 그러면 「만들기」에서 막힌다 */
 function asElementName(raw: string): string {
@@ -60,6 +68,8 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
   const isOurOwn =
     outEndpoint !== undefined && endpoint.trim() !== '' && endpoint.trim() === outEndpoint.trim();
 
+  /** 접속 주소로 정한 프로토콜 — 설비에서 불러오기는 OPC UA 만 된다(Modbus · MQTT 는 주소를 적는다) */
+  const protocol = protocolOfEndpoint(endpoint);
   const filled = rows.filter((row) => row.name.trim() !== '' && row.href.trim() !== '');
   const misses = filled.filter((row) => !leafNames.includes(row.name.trim())).length;
 
@@ -95,7 +105,13 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
     try {
       const result = await api.createAid(packageId, {
         endpoint: endpoint.trim(),
-        tags: filled.map((row) => ({ name: row.name.trim(), href: row.href.trim(), type: row.type })),
+        tags: filled.map((row) => ({
+          name: row.name.trim(),
+          href: row.href.trim(),
+          type: row.type,
+          // 프로토콜 고유 폼 항목(AID 바인딩) — Modbus 는 레지스터 종류 · 자료형, MQTT 는 구독
+          ...formFor(protocol, row),
+        })),
         ...(makeElements ? { createMissing: { group: group.trim(), subgroup: subgroup.trim() } } : {}),
       });
       // 🔴 알림 띠는 한 줄이다 — 세 문장을 이어 붙이니 200자가 넘어 아무도 안 읽었다(시연 실측).
@@ -136,7 +152,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
         {/* ── ① 설비 주소 ───────────────────────────────────── */}
         <section className="step">
           <h4>
-            <T k={'{0} 설비(PLC)의 OPC UA 주소{1}'} v={[<span className="num">1</span>, <span className="count dim">{tr('내가 접속하러 갈 곳')}</span>]} />
+            <T k={'{0} 설비(PLC)의 접속 주소 — OPC UA · Modbus TCP · MQTT{1}'} v={[<span className="num">1</span>, <span className="count dim">{tr('내가 접속하러 갈 곳')}</span>]} />
           </h4>
           <div className="step-line">
             <input
@@ -150,11 +166,18 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
               className="primary"
               title={tr('그 주소에 붙어 설비가 내주는 태그 목록을 읽어 옵니다 — 값을 바꾸지 않습니다')}
               onClick={() => void browse()}
-              disabled={browsing || isOurOwn || !/^opc\.tcp:\/\/.+/.test(endpoint.trim())}
+              disabled={browsing || isOurOwn || protocol !== 'OPCUA'}
             >
               {browsing ? tr('훑는 중…') : tr('설비에서 불러오기')}
             </button>
           </div>
+          {(protocol === 'MODBUS' || protocol === 'MQTT') && (
+            <p className="hint">
+              {protocol === 'MODBUS'
+                ? tr('Modbus TCP 는 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 주소(예: 40 · 1/40)와 레지스터 종류 · 자료형을 적습니다. 40001 같은 관례 주소는 바꿔 드립니다.')
+                : tr('MQTT 는 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 토픽을 적습니다. 장치가 보낸 마지막 값을 읽습니다.')}
+            </p>
+          )}
           {isOurOwn && (
             <p className="note warn self-warn">
               <T k={'<b>여기는 설비가 아니라 이 도구 자신입니다.</b> 이 주소는 우리가 상위 앱(MES·SCADA)에 값을 <b>내주는</b> 주소입니다 — 여기서 보이는 것은 설비 태그가 아니라 열려 있는 AAS 파일의 내용(제조사명·일련번호 같은 명판 정보)입니다.<br/>수집할 곳은 <b>설비(PLC)의 주소</b>입니다. 예: {0}<br/>장비 없이 시험만 해 보려면 가상 PLC를 띄우십시오 — {1}'} v={[<span className="mono">opc.tcp://192.168.0.50:4840</span>, <span className="mono">node scripts/plc-simulator.mjs</span>]} />
@@ -170,11 +193,11 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
 
           {found && <BrowsedTags found={found} picked={picked} setPicked={setPicked} setFound={setFound} applyPicked={applyPicked} />}
 
-          {!found && rows.length === 0 && !manual && (
+          {!found && rows.length === 0 && !manual && protocol !== 'MODBUS' && protocol !== 'MQTT' && (
             <p className="hint"><T k={'위에 주소를 넣고 <b>「설비에서 불러오기」</b>를 누르면 태그를 골라 담을 수 있습니다.'} /></p>
           )}
 
-          {rows.length > 0 && <PickedTags rows={rows} setRows={setRows} leafNames={leafNames} />}
+          {rows.length > 0 && <PickedTags rows={rows} setRows={setRows} leafNames={leafNames} {...(protocol ? { protocol } : {})} />}
 
           <div className="row-buttons">
             <button
@@ -182,7 +205,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
               title={tr('설비에 붙지 않고 태그 주소를 직접 적습니다 — 주소를 이미 아는 경우')}
               onClick={() => {
                 setManual(true);
-                setRows([...rows, { ...EMPTY }]);
+                setRows([...rows, protocol === 'MODBUS' ? { ...EMPTY, type: 'integer', entity: 'HoldingRegister', dataType: 'xsd:unsignedShort' } : { ...EMPTY }]);
               }}
             >
               {tr('+ 손으로 입력')}

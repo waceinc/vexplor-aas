@@ -6,6 +6,9 @@ export interface TagRow {
   name: string;
   href: string;
   type: string;
+  /** Modbus 만 — 레지스터 종류(modv_entity)와 자료형(modv_type) */
+  entity?: string;
+  dataType?: string;
 }
 
 export const EMPTY: TagRow = { name: '', href: '', type: 'float' };

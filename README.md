@@ -43,7 +43,7 @@ Validator)는 semanticId 허용 목록 · 필수 서브모델 · 패키지 구�
 | **검증 결과서** | 인쇄하면 PDF가 되는 HTML 결과서 |
 | **되돌리기 · 이력** | 실수를 한 번에 되돌리고, 서브모델을 지난 시점으로 복원합니다 |
 | **공정 묶음** | 설비 여러 대를 공정으로 묶어 제출용 꾸러미(레퍼런스 번들)로 내보냅니다 |
-| **현장 값 수집** | OPC UA 설비에서 값을 모읍니다. 주소는 AAS 안의 AID(Asset Interface Description) 서브모델이 정합니다 |
+| **현장 값 수집** | OPC UA · Modbus TCP · MQTT 설비에서 값을 모읍니다. 주소는 AAS 안의 AID(Asset Interface Description) 서브모델이 정합니다. 설비마다 하루 상태(가동 · 정지 · 알람) 막대를 그립니다 |
 | **표준 API** | IDTA Part 2 REST API — 다른 시스템이 이 서버의 AAS를 읽어 갑니다 |
 | **계정** | 관리자 · 편집자 · 열람자. 변경 이력에 누가 고쳤는지 남습니다 |
 
@@ -93,6 +93,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | `packages/store` | 저장소 — 메모리 · 폴더 · PostgreSQL이 같은 시험을 통과합니다 |
 | `packages/collector` | AID를 읽어 현장 값을 모읍니다 |
 | `packages/opcua` | OPC UA 클라이언트 · 서버([node-opcua](https://github.com/node-opcua/node-opcua)) |
+| `packages/fieldbus` | Modbus TCP · MQTT 수집 어댑터(외부 의존성 없음 — `node:net`) · 시험용 장치와 브로커 |
 | `apps/api` | REST API 서버 |
 | `apps/web` | 화면(React) |
 
@@ -103,7 +104,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | AAS 메타모델 **V3.0** (IDTA-01001-3-0) | 타입 고정. 3.1로 자동 올리지 않습니다 |
 | AASX 패키지 (IDTA-01005) | JSON · XML 읽기, JSON 쓰기 |
 | **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · Registry · Discovery 일부 |
-| AID 1.1 (IDTA-02017) | OPC UA 주소 해석 |
+| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT 주소 해석(Modbus · MQTT 는 W3C WoT 바인딩 표기) |
 
 구현 범위는 `node scripts/part2-coverage.mjs`가 규격 원문(OpenAPI)과 대조해 보여 줍니다.
 

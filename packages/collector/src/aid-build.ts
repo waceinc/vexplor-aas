@@ -46,14 +46,53 @@ export interface AidTagInput {
   type?: string;
   /** UCUM 단위 (rpm · Cel · ea …) */
   unit?: string;
+  /**
+   * 프로토콜 고유 폼 항목(2026-10-14) — Modbus 는 modv_*(entity · function · type · 바이트 순서 · unitID),
+   * MQTT 는 mqv_*(controlPacket · qos · retain). 이름은 FORM_FIELDS 에 있는 것만 받는다. OPC UA 에는 쓰지 않는다.
+   */
+  form?: Readonly<Record<string, string>>;
 }
+
+/** 접속 주소로 정하는 프로토콜 — AID 인터페이스 이름도 이것으로 짓는다(parseAid 의 protocolOf 와 짝) */
+export type AidBuildProtocol = 'OPCUA' | 'MODBUS' | 'MQTT';
+export function endpointProtocol(endpoint: string): AidBuildProtocol | undefined {
+  if (/^opc\.tcp:\/\/.+/i.test(endpoint)) return 'OPCUA';
+  if (/^modbus\+tcp:\/\/.+/i.test(endpoint)) return 'MODBUS';
+  if (/^mqtts?:\/\/.+/i.test(endpoint)) return 'MQTT';
+  return undefined;
+}
+
+const INTERFACE_NAME: Record<AidBuildProtocol, string> = {
+  OPCUA: 'InterfaceTemplateForOPCUA',
+  MODBUS: 'InterfaceTemplateForModbus',
+  MQTT: 'InterfaceTemplateForMQTT',
+};
+const PROTOCOL_LABEL: Record<AidBuildProtocol, string> = { OPCUA: 'OPC UA', MODBUS: 'Modbus TCP', MQTT: 'MQTT' };
+
+/**
+ * 폼 항목과 그 어휘(W3C WoT 바인딩). 원문은 이름공간만 정하고 항목별 IRI 를 따로 두지 않는다 —
+ * 그래서 항목 IRI 를 지어내지 않고, 자체 IRI(cd/{이름}) + 이름공간 IRI 를 supplemental 로 단다.
+ */
+const MODBUS_NS = 'https://www.w3.org/2019/wot/modbus';
+const MQTT_NS = 'https://www.w3.org/2019/wot/mqtt';
+const FORM_FIELDS: Record<string, { protocol: AidBuildProtocol; ns: string; values?: readonly string[] }> = {
+  modv_entity: { protocol: 'MODBUS', ns: MODBUS_NS, values: ['Coil', 'DiscreteInput', 'HoldingRegister', 'InputRegister'] },
+  modv_function: { protocol: 'MODBUS', ns: MODBUS_NS, values: ['readCoil', 'readDeviceDiscreteInput', 'readHoldingRegisters', 'readInputRegisters'] },
+  modv_type: { protocol: 'MODBUS', ns: MODBUS_NS },
+  modv_mostSignificantByte: { protocol: 'MODBUS', ns: MODBUS_NS, values: ['true', 'false'] },
+  modv_mostSignificantWord: { protocol: 'MODBUS', ns: MODBUS_NS, values: ['true', 'false'] },
+  modv_unitID: { protocol: 'MODBUS', ns: MODBUS_NS },
+  mqv_controlPacket: { protocol: 'MQTT', ns: MQTT_NS, values: ['subscribe'] },
+  mqv_qos: { protocol: 'MQTT', ns: MQTT_NS, values: ['0', '1'] },
+  mqv_retain: { protocol: 'MQTT', ns: MQTT_NS, values: ['true', 'false'] },
+};
 
 export interface AidBuildInput {
   /** 장비명 — AAS의 idShort. 서브모델 id에 들어간다 */
   assetName: string;
   /** KOSMO 자체 IRI 뿌리 */
   iriBase: string;
-  /** 접속 주소 (opc.tcp://호스트:포트/...) */
+  /** 접속 주소 — opc.tcp:// · modbus+tcp:// · mqtt:// · mqtts:// */
   endpoint: string;
   tags: readonly AidTagInput[];
   /** 인터페이스 표시 이름. 기본은 "{장비명} 제어반 (OPC UA)" */
@@ -96,9 +135,10 @@ const TYPES = new Set(['float', 'integer', 'string', 'boolean']);
 
 /** 들어온 값을 먼저 본다 — 틀린 AID를 만들어 놓고 수집이 안 되는 것보다 여기서 멈추는 게 낫다 */
 export function checkAidInput(input: AidBuildInput): void {
-  if (!/^opc\.tcp:\/\/.+/.test(input.endpoint)) {
+  const protocol = endpointProtocol(input.endpoint);
+  if (!protocol) {
     throw new AidBuildError(
-      `접속 주소는 opc.tcp:// 로 시작해야 합니다: ${input.endpoint}`,
+      `접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// 중 하나로 시작해야 합니다: ${input.endpoint}`,
     );
   }
   if (input.tags.length === 0) throw new AidBuildError('태그가 하나도 없습니다.');
@@ -114,6 +154,20 @@ export function checkAidInput(input: AidBuildInput): void {
     // 🔴 href가 아예 없으면(API를 직접 부른 호출) 500이 났다 — 빈 주소와 같이 400으로 알린다(2026-09-30)
     if (typeof tag.href !== 'string' || tag.href.trim() === '') {
       throw new AidBuildError(`${tag.name}의 읽을 주소(NodeId)가 비었습니다.`);
+    }
+    // 주소 모양 — Modbus 는 「주소」·「unit/주소」(+ ?quantity=n), MQTT 는 와일드카드 없는 토픽(마지막 값을 읽는다)
+    if (protocol === 'MODBUS' && !/^(modbus\+tcp:\/\/[^/]+)?\/?(\d+\/)?\d+(\?quantity=\d+)?$/i.test(tag.href.trim())) {
+      throw new AidBuildError(`${tag.name}의 Modbus 주소가 이상합니다: ${tag.href} — 예: 40 · 1/40 · 1/40?quantity=2`);
+    }
+    if (protocol === 'MQTT' && /[+#]/.test(tag.href)) {
+      throw new AidBuildError(`${tag.name}의 MQTT 토픽에 와일드카드(+ #)를 쓸 수 없습니다: ${tag.href}`);
+    }
+    for (const [key, value] of Object.entries(tag.form ?? {})) {
+      const rule = FORM_FIELDS[key];
+      if (!rule || rule.protocol !== protocol) throw new AidBuildError(`${tag.name}에 쓸 수 없는 폼 항목입니다: ${key}`);
+      if (rule.values && !rule.values.includes(value)) {
+        throw new AidBuildError(`${tag.name}의 ${key} 값이 이상합니다: ${value} — 쓸 수 있는 것: ${rule.values.join(' · ')}`);
+      }
     }
     if (tag.type !== undefined && !TYPES.has(tag.type)) {
       throw new AidBuildError(
@@ -131,6 +185,7 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
   const base = input.iriBase;
   checkAidInput(input);
   const id = `${input.iriBase}/sm/${input.assetName}/AssetInterfacesDescription/1/0`;
+  const protocol = endpointProtocol(input.endpoint)!;
 
   return {
     modelType: 'Submodel',
@@ -140,8 +195,8 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
     administration: { version: '1', revision: '0' },
     semanticId: ref(id),
     submodelElements: [
-      smc(base, 'InterfaceTemplateForOPCUA', TERM.interface, [
-        prop(base, 'title', TERM.title, input.title ?? `${input.assetName} 제어반 (OPC UA)`),
+      smc(base, INTERFACE_NAME[protocol], TERM.interface, [
+        prop(base, 'title', TERM.title, input.title ?? `${input.assetName} 제어반 (${PROTOCOL_LABEL[protocol]})`),
         smc(base, 'EndpointMetadata', TERM.endpointMetadata, [
           prop(base, 'base', TERM.base, input.endpoint),
           prop(base, 'contentType', TERM.contentType, 'application/json'),
@@ -158,7 +213,10 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
                 prop(base, 'title', TERM.title, tag.name),
                 prop(base, 'observable', TERM.observable, 'true'),
                 ...(tag.unit ? [prop(base, 'unit', TERM.unit, tag.unit)] : []),
-                smc(base, 'forms', TERM.forms, [prop(base, 'href', TERM.href, tag.href)]),
+                smc(base, 'forms', TERM.forms, [
+                  prop(base, 'href', TERM.href, tag.href),
+                  ...Object.entries(tag.form ?? {}).map(([key, value]) => prop(base, key, FORM_FIELDS[key]!.ns, value)),
+                ]),
               ]),
             ),
           ),
@@ -198,8 +256,9 @@ function aidConcept(iriBase: string, idShort: string, idtaTerm: string): Record<
 
 /** 이 AID가 쓰는 용어 전부의 CD — 태그 이름(장비마다 다름)까지 포함 */
 export function aidConceptDescriptions(input: AidBuildInput): Record<string, unknown>[] {
+  const protocol = endpointProtocol(input.endpoint) ?? 'OPCUA';
   const fixed: [string, string][] = [
-    ['InterfaceTemplateForOPCUA', TERM.interface],
+    [INTERFACE_NAME[protocol], TERM.interface],
     ['EndpointMetadata', TERM.endpointMetadata],
     ['InteractionMetadata', TERM.interactionMetadata],
     ['properties', TERM.properties],
@@ -213,6 +272,9 @@ export function aidConceptDescriptions(input: AidBuildInput): Record<string, unk
     ['key', TERM.key],
     ['unit', TERM.unit],
   ];
+  // 쓴 폼 항목의 용어 — 한 번씩만
+  const formKeys = [...new Set(input.tags.flatMap((tag) => Object.keys(tag.form ?? {})))].filter((key) => FORM_FIELDS[key]);
+  for (const key of formKeys) fixed.push([key, FORM_FIELDS[key]!.ns]);
   const out = fixed.map(([idShort, term]) => aidConcept(input.iriBase, idShort, term));
   for (const tag of input.tags) {
     out.push(aidConcept(input.iriBase, tag.name, TERM.propertyDefinition));

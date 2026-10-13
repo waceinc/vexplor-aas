@@ -90,3 +90,40 @@ describe('AID 만들기', () => {
     expect(text).not.toContain('unitCode');
   });
 });
+
+describe('AID 만들기 — Modbus TCP · MQTT (2026-10-14)', () => {
+  const base = { assetName: 'PressMachine', iriBase: 'https://www.smart-factory.kr/ids' };
+
+  it('Modbus — 인터페이스 이름 · 폼 항목(modv_*)이 들어가고 parseAid 가 도로 읽는다', () => {
+    const submodel = buildAidSubmodel({
+      ...base,
+      endpoint: 'modbus+tcp://192.168.0.20:502/1',
+      tags: [
+        { name: 'Counter', href: '40', form: { modv_entity: 'HoldingRegister', modv_type: 'xsd:unsignedShort' } },
+        { name: 'Running', href: '1/5', form: { modv_function: 'readCoil' } },
+      ],
+    });
+    const [descriptor] = parseAid({ submodels: [submodel] } as never);
+    expect(descriptor).toMatchObject({ name: 'InterfaceTemplateForModbus', protocol: 'MODBUS', base: 'modbus+tcp://192.168.0.20:502/1' });
+    expect(descriptor!.properties[0]).toMatchObject({ href: '40', formFields: { modv_entity: 'HoldingRegister', modv_type: 'xsd:unsignedShort' } });
+    expect(descriptor!.properties[1]!.formFields).toEqual({ modv_function: 'readCoil' });
+  });
+
+  it('MQTT — 토픽 주소와 mqv_* 가 들어간다', () => {
+    const submodel = buildAidSubmodel({ ...base, endpoint: 'mqtt://broker.local:1883', tags: [{ name: 'Temp', href: 'plant/press/temp', form: { mqv_controlPacket: 'subscribe' } }] });
+    const [descriptor] = parseAid({ submodels: [submodel] } as never);
+    expect(descriptor).toMatchObject({ name: 'InterfaceTemplateForMQTT', protocol: 'MQTT' });
+    expect(descriptor!.properties[0]).toMatchObject({ href: 'plant/press/temp', formFields: { mqv_controlPacket: 'subscribe' } });
+  });
+
+  it('틀린 입력은 만들기 전에 멈춘다 — 다른 프로토콜의 폼 항목 · 값 · 주소 모양 · 와일드카드', () => {
+    const modbus = (tag: AidBuildInput['tags'][number]) => () => buildAidSubmodel({ ...base, endpoint: 'modbus+tcp://h', tags: [tag] });
+    expect(modbus({ name: 'A', href: '40', form: { mqv_qos: '0' } })).toThrow(AidBuildError);
+    expect(modbus({ name: 'A', href: '40', form: { modv_entity: 'Register' } })).toThrow(/modv_entity/);
+    expect(modbus({ name: 'A', href: 'ns=1;s=X' })).toThrow(/Modbus 주소/);
+    expect(() => buildAidSubmodel({ ...base, endpoint: 'mqtt://h', tags: [{ name: 'A', href: 'plant/+/temp' }] })).toThrow(/와일드카드/);
+    expect(() => buildAidSubmodel({ ...base, endpoint: 'http://h', tags: [{ name: 'A', href: 'x' }] })).toThrow(/modbus\+tcp/);
+    // OPC UA 에 Modbus 항목은 안 된다
+    expect(() => buildAidSubmodel({ ...base, endpoint: 'opc.tcp://h:4840', tags: [{ name: 'A', href: 'ns=1;s=X', form: { modv_type: 'xsd:int' } }] })).toThrow(AidBuildError);
+  });
+});

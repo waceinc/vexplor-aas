@@ -17,6 +17,9 @@
       "path": "./packages/opcua"
     },
     {
+      "path": "./packages/fieldbus"
+    },
+    {
       "path": "./packages/store"
     },
     {

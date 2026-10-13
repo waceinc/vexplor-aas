@@ -35,7 +35,7 @@ export const collectionApi = {
     input: {
       endpoint: string;
       title?: string;
-      tags: { name: string; href: string; key?: string; type?: string; unit?: string }[];
+      tags: { name: string; href: string; key?: string; type?: string; unit?: string; form?: Record<string, string> }[];
       /** 모델에 없는 태그의 자리를 OperationalData에 함께 세운다. 없으면 만들지 않는다 */
       createMissing?: { group: string; subgroup: string };
     },
