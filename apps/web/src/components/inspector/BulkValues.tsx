@@ -9,6 +9,8 @@ import { fill, tr } from '../../i18n.js';
 import type { TreeNode } from '../../model.js';
 import { T } from '../T.js';
 import type { SubmodelRequirement } from '../../api.js';
+import { CsvFillDialog } from '../csvfill/CsvFillDialog.js';
+import { applyValue } from './applyValue.js';
 import { needOf, type Need } from './need.js';
 
 interface Props {
@@ -19,10 +21,13 @@ interface Props {
   /** 수집 연결(AID)의 항목 이름 — 같은 이름의 칸은 수집으로 채워진다 */
   collectedNames?: ReadonlySet<string>;
   onBulkSaveValues: (node: TreeNode, content: Record<string, unknown>) => void;
+  /** CSV 에서 채우기(여러 설비 파일)를 마친 뒤 — 알림을 띄우고 지금 파일을 다시 읽는다. 없으면 단추를 그리지 않는다 */
+  onCsvFilled?: (notice: string) => void;
   t: (text: string) => string;
 }
 
-export function BulkValues({ node, busy, requirement, collectedNames, onBulkSaveValues, t }: Props): React.JSX.Element | null {
+export function BulkValues({ node, busy, requirement, collectedNames, onBulkSaveValues, onCsvFilled, t }: Props): React.JSX.Element | null {
+  const [csvOpen, setCsvOpen] = useState(false);
   /** 값 표의 편집분 — idShortPath → 새 값. 저장 때 서브모델 JSON에 한꺼번에 얹는다 */
   const [bulk, setBulk] = useState<Record<string, string>>({});
   /** 채울 것(필수 · 수집)만 보기 — 템플릿을 알 때만 켤 수 있다 */
@@ -70,7 +75,30 @@ export function BulkValues({ node, busy, requirement, collectedNames, onBulkSave
   const shown = onlyNeeded ? rows.filter((row) => row.need === 'required' || row.need === 'collected') : rows;
   return (
     <div className="bulk-values">
-      <p className="pick-title"><T k={'값 한꺼번에 입력 ({0}개)'} v={[rows.length]} /></p>
+      <p className="pick-title">
+        <T k={'값 한꺼번에 입력 ({0}개)'} v={[rows.length]} />
+        {onCsvFilled && (
+          <button
+            className="link csv-open"
+            disabled={busy}
+            title={tr('설비 대장 CSV 로 이 서브모델을 가진 여러 설비 파일의 값을 한 번에 채웁니다')}
+            onClick={() => setCsvOpen(true)}
+          >
+            {tr('CSV에서 채우기…')}
+          </button>
+        )}
+      </p>
+      {csvOpen && onCsvFilled && (
+        <CsvFillDialog
+          submodel={node.node as Record<string, unknown>}
+          busy={busy}
+          onClose={() => setCsvOpen(false)}
+          onDone={(notice) => {
+            setCsvOpen(false);
+            onCsvFilled(notice);
+          }}
+        />
+      )}
       {/* 무엇을 채워야 하나 — 템플릿을 알면 필수 · 수집 · 선택을 센다. 모르면 그 사실을 말한다 */}
       {requirement ? (
         <div className="need-summary">
@@ -113,28 +141,7 @@ export function BulkValues({ node, busy, requirement, collectedNames, onBulkSave
         onClick={() => {
           // 서브모델 JSON을 복제해 바뀐 값만 얹는다 — 한 번의 PATCH로 저장된다
           const content = JSON.parse(JSON.stringify(node.node)) as Record<string, unknown>;
-          const apply = (holder: Record<string, unknown>, path: string, value: string): void => {
-            const segments = path.split('.');
-            let cursor: Record<string, unknown> | undefined = holder;
-            for (let index = 0; index < segments.length; index += 1) {
-              const list = (cursor?.['submodelElements'] ?? cursor?.['value'] ??
-                cursor?.['statements']) as Record<string, unknown>[] | undefined;
-              cursor = list?.find((element) => element['idShort'] === segments[index]);
-              if (!cursor) return;
-            }
-            if (cursor['modelType'] === 'MultiLanguageProperty') {
-              const list = (cursor['value'] as { language: string; text: string }[]) ?? [];
-              if (list.length > 0) list[0]!.text = value;
-              else cursor['value'] = [{ language: 'ko', text: value }];
-            } else if (cursor['modelType'] === 'Range') {
-              const [min, max] = value.split('~');
-              cursor['min'] = (min ?? '').trim();
-              cursor['max'] = (max ?? '').trim();
-            } else {
-              cursor['value'] = value;
-            }
-          };
-          for (const [path, value] of Object.entries(bulk)) apply(content, path, value);
+          for (const [path, value] of Object.entries(bulk)) applyValue(content, path, value);
           onBulkSaveValues(node, content);
           setBulk({});
         }}

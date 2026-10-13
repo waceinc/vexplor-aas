@@ -6,6 +6,8 @@ import { tr } from '../../i18n.js';
 
 export interface DraftNode {
   name: string;
+  /** 라인 층(group 일 때만) — 회사 → 라인 → 공정 → 설비 */
+  line?: boolean;
   /** group = 공정·라인(파일 없는 층) · file = 올려 둔 설비 파일 · planned = 이름만(파일은 나중에) · unopened = 파일이 안 열림 */
   kind: 'group' | 'file' | 'planned' | 'unopened';
   packageId?: string;
@@ -20,7 +22,8 @@ export interface DraftNode {
 /** 열려 있는 입력 줄 — 어느 줄 밑(path)에 무엇(kind)을 넣는 중인가 */
 export interface Adder {
   path: string[];
-  kind: 'asset' | 'group';
+  /** line = 라인(회사 줄에서만) · group = 공정(조립체) · asset = 설비(부품) */
+  kind: 'asset' | 'group' | 'line';
 }
 
 /**
@@ -44,6 +47,10 @@ export const TERMS = {
     groupMark: tr('공정·라인 — 파일 없는 층'),
     groupPlaceholder: tr('공정 이름 — 예: WeldingProcess (Enter로 연달아)'),
     assetPlaceholder: tr('이름만 — 예: PressMachine2'),
+    /** 라인 — 회사와 공정 사이 층. 부품 구성(equipment)에는 없다 */
+    line: tr('라인') as string | undefined,
+    lineMark: tr('라인 — 공정을 묶는 층(회사 바로 밑)'),
+    linePlaceholder: tr('라인 이름 — 예: BodyLine (Enter로 연달아)'),
     /** 파일 없는 설비에 「예정」·「파일 안 열림」 배지 — 설비는 제 파일이 있어야 한다는 뜻 */
     fileBadges: true,
   },
@@ -53,6 +60,9 @@ export const TERMS = {
     groupMark: tr('조립체·모듈 — 부품을 묶는 층'),
     groupPlaceholder: tr('조립체 이름 — 예: DriveUnit (Enter로 연달아)'),
     assetPlaceholder: tr('부품 이름 — 예: MainMotor'),
+    line: undefined as string | undefined,
+    lineMark: '',
+    linePlaceholder: '',
     /** 부품은 대개 제 파일이 없다 — 「예정」「파일 안 열림」이라 하면 빠진 것처럼 읽힌다 */
     fileBadges: false,
   },

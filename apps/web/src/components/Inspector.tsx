@@ -54,6 +54,8 @@ interface Props {
    * 한 번의 PATCH로 저장한다 — 줄마다 쓰면 revision이 어긋나 두 번째부터 409가 난다.
    */
   onBulkSaveValues?: (node: TreeNode, content: Record<string, unknown>) => void;
+  /** CSV 에서 채우기를 마친 뒤(값 표가 연다) */
+  onCsvFilled?: (notice: string) => void;
   /** 이 요소가 다른 파일의 것이면 그 파일 이름 — 어디를 고치는 중인지 알려야 한다 */
   linkedFileName?: string;
   /** semanticId 검사에 쓴다 (M4 축소판) */
@@ -133,6 +135,7 @@ export function Inspector(props: Props): React.JSX.Element {
             {...(props.requirement ? { requirement: props.requirement } : {})}
             {...(props.collectedNames ? { collectedNames: props.collectedNames } : {})}
             onBulkSaveValues={onBulkSaveValues}
+            {...(props.onCsvFilled ? { onCsvFilled: props.onCsvFilled } : {})}
             t={t}
           />
         )}

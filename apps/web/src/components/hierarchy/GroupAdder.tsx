@@ -10,13 +10,16 @@ interface Props {
   path: string[];
   siblings: readonly string[];
   terms: Terms;
+  /** 라인을 넣는 줄인가 — 낱말·표시만 다르다 */
+  line?: boolean;
   busy: boolean;
-  onAddGroup: (parentPath: string[], name: string) => void;
+  onAddGroup: (parentPath: string[], name: string, line?: boolean) => void;
   close: () => void;
   t: (text: string) => string;
 }
 
-export function GroupAdder({ path, siblings, terms, busy, onAddGroup, close, t }: Props): React.JSX.Element {
+export function GroupAdder({ path, siblings, terms, line = false, busy, onAddGroup, close, t }: Props): React.JSX.Element {
+  const label = line && terms.line ? terms.line : terms.group;
   const [name, setName] = useState('');
   const adderRef = useRef<HTMLDivElement>(null);
   // 그 자리로 스크롤한다(입력 줄이 다른 자리로 옮겨 가면 Hierarchy 가 key 를 바꿔 새로 그린다 — 값도 비워진다)
@@ -24,17 +27,17 @@ export function GroupAdder({ path, siblings, terms, busy, onAddGroup, close, t }
   const ok = nodeNameOk(name, siblings);
   const commit = (): void => {
     if (!ok) return;
-    onAddGroup(path, name);
+    onAddGroup(path, name, line);
     setName(''); // 줄은 열어 둔다 — 공정 여러 개를 연달아
   };
   return (
     <div className="build-adder" ref={adderRef}>
-      <span className="build-mark">▦</span>
+      <span className="build-mark">{line ? '▤' : '▦'}</span>
       <input
         autoFocus
-        aria-label={fill(tr('{0} 이름'), { 0: t(terms.group) })}
+        aria-label={fill(tr('{0} 이름'), { 0: t(label) })}
         value={name}
-        placeholder={t(terms.groupPlaceholder)}
+        placeholder={t(line ? terms.linePlaceholder : terms.groupPlaceholder)}
         disabled={busy}
         onChange={(event) => setName(event.target.value)}
         onKeyDown={(event) => {

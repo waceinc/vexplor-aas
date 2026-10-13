@@ -34,14 +34,16 @@ export function summaryTotals(
   return { submodels: subCount, elements: elementCount, concepts: conceptCount, unopened };
 }
 
-/** 사람이 보는 구성으로 센다 — 그룹(공정·층)과 설비(참조), 대수 합 */
-export function summaryComposition(hierarchy: HierarchyView): { groups: number; assets: number; units: number } {
+/** 사람이 보는 구성으로 센다 — 라인 · 그룹(공정·층)과 설비(참조), 대수 합 */
+export function summaryComposition(hierarchy: HierarchyView): { lines: number; groups: number; assets: number; units: number } {
+  let lines = 0;
   let groups = 0;
   let assets = 0;
   let units = 0;
   const walk = (nodes: readonly HierarchyNode[]): void => {
     for (const node of nodes) {
-      if (node.globalAssetId === '') groups += 1;
+      if (node.globalAssetId === '' && node.line) lines += 1;
+      else if (node.globalAssetId === '') groups += 1;
       else {
         assets += 1;
         units += node.bulkCount;
@@ -50,5 +52,5 @@ export function summaryComposition(hierarchy: HierarchyView): { groups: number; 
     }
   };
   walk(hierarchy.children);
-  return { groups, assets, units };
+  return { lines, groups, assets, units };
 }

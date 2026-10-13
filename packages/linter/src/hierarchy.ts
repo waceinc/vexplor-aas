@@ -108,13 +108,31 @@ export function buildHasPart(
  *    그룹은 가리킬 파일이 없다 — 표준이 정확히 이런 경우를 위해 CoManaged를 둔다
  *    (상위 자산에 딸려 관리되는 부분). 골든 파일의 중첩 구조와 같은 문법이다.
  */
-export function buildGroupNode(name: string, iriBase: string): Entity {
+export function buildGroupNode(name: string, iriBase: string, line = false): Entity {
   return {
     idShort: name,
     modelType: 'Entity',
     entityType: 'CoManagedEntity',
-    ...semanticPair(`${iriBase}/cd/Node/1/0`, IDTA_HIERARCHY.node),
+    ...semanticPair(line ? lineSemanticId(iriBase) : `${iriBase}/cd/Node/1/0`, IDTA_HIERARCHY.node),
   } as unknown as Entity;
+}
+
+/**
+ * 라인 — 회사(공장)와 공정 사이의 층. 회사 → 라인 → 공정 → 설비 → 부품(설비 파일 안 BoM) 5단계를 담는다.
+ *
+ * 층 종류는 이름이 아니라 semanticId 로 남긴다 — 이름은 사용자가 짓는 것이라(WeldingLine · L1 …) 추측할 수 없다.
+ * 자체 IRI `…/cd/Line/1/0` 에 IDTA Node 를 supplemental 로 함께 단다 — IDTA 02011 을 읽는 쪽에는 여전히
+ * 보통 Node 로 보인다. 자체 IRI 라 ConceptDescription 이 있어야 한다(KOSMO-SME-3, lineConceptDescription).
+ * 라인은 맨 위(진입점 바로 밑)에만 둔다 — 라인 밑 라인은 층 뜻이 흐려진다.
+ */
+export function lineSemanticId(iriBase: string): string {
+  return `${iriBase}/cd/Line/1/0`;
+}
+
+/** 이 마디가 라인인가 — semanticId 의 끝으로 본다(iriBase 가 파일마다 다를 수 있다) */
+export function isLineNode(entity: Entity): boolean {
+  const keys = (entity as unknown as { semanticId?: { keys?: { value?: string }[] } }).semanticId?.keys ?? [];
+  return keys.some((key) => typeof key.value === 'string' && key.value.endsWith('/cd/Line/1/0'));
 }
 
 /** 경로(이름들)로 중첩 Entity를 찾아간다. 빈 경로면 진입점 자신이다 */
@@ -156,7 +174,7 @@ export function childNodes(entry: Entity): Entity[] {
  */
 export function addChild(
   submodel: Submodel,
-  input: NodeInput | { name: string; group: true },
+  input: NodeInput | { name: string; group: true; line?: boolean },
   iriBase: string,
   /** 어느 마디 밑에 넣을지 — 진입점부터의 이름 경로. 비우면 최상위다 */
   parentPath: readonly string[] = [],
@@ -166,12 +184,14 @@ export function addChild(
   if (!entry) throw new Error('계층 구조에 진입점(EntryNode)이 없습니다.');
   if (!input.name.trim()) throw new Error('이름이 비었습니다.');
   const isGroup = 'group' in input && input.group;
+  const isLine = isGroup && 'line' in input && input.line === true;
   if (!isGroup && !(input as NodeInput).globalAssetId.trim()) {
     throw new Error('설비의 Asset 주소가 비었습니다.');
   }
 
   const parent = findByPath(next, parentPath);
   if (!parent) throw new Error(`넣을 자리를 찾지 못했습니다: ${parentPath.join(' → ')}`);
+  if (isLine && parentPath.length > 0) throw new Error('라인은 맨 위(회사 바로 밑)에만 둡니다.');
 
   const holder = parent as unknown as { statements?: SubmodelElement[]; idShort: string };
   holder.statements ??= [];
@@ -193,7 +213,7 @@ export function addChild(
   const entryName = (entry as unknown as { idShort: string }).idShort;
   const fullParent = [entryName, ...parentPath];
   holder.statements.push(
-    isGroup ? buildGroupNode(input.name, iriBase) : buildNode(input as NodeInput, iriBase),
+    isGroup ? buildGroupNode(input.name, iriBase, isLine) : buildNode(input as NodeInput, iriBase),
   );
   holder.statements.push(
     buildHasPart(next.id, fullParent, [...fullParent, input.name], iriBase),
@@ -234,6 +254,8 @@ export interface HierarchyTreeNode {
   /** 파일을 가리키면 채워진다. 그룹(중간 마디)은 비어 있다 */
   globalAssetId?: string;
   bulkCount: number;
+  /** 라인 층이면 true(semanticId 로 판정). 공정 같은 보통 층은 빠진다 */
+  line?: true;
   children: HierarchyTreeNode[];
 }
 
@@ -250,6 +272,7 @@ export function hierarchyTree(entity: Entity): HierarchyTreeNode[] {
       name: raw.idShort ?? '',
       ...(raw.globalAssetId ? { globalAssetId: raw.globalAssetId } : {}),
       bulkCount: Number.isFinite(bulk) && bulk > 0 ? bulk : 1,
+      ...(isLineNode(child) ? { line: true as const } : {}),
       children: hierarchyTree(child),
     };
   });
@@ -287,6 +310,11 @@ function conceptDescription(idShort: string, ownIri: string, idtaIri: string, da
     // 이 자체 용어가 어느 IDTA 용어에 해당하는지 — 상호운용의 끈이다
     isCaseOf: [{ type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: idtaIri }] }],
   };
+}
+
+/** 라인 용어 — 라인을 처음 만들 때 그 파일에 없으면 함께 넣는다(뼈대에는 넣지 않는다: 쓰지 않는 용어가 된다) */
+export function lineConceptDescription(iriBase: string): Record<string, unknown> {
+  return conceptDescription('Line', lineSemanticId(iriBase), IDTA_HIERARCHY.node, 'STRING');
 }
 
 /** 계층 구조가 쓰는 용어 다섯 — 뼈대와 함께 넣는다 */

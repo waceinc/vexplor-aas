@@ -24,6 +24,8 @@ export interface LinkedInfo {
   bulkCount: number;
   /** 공정·라인(파일 없는 층) — 왼쪽 트리에서 ▦로 그린다 */
   group?: boolean;
+  /** 그 그룹이 라인 층인가(회사 → 라인 → 공정 → 설비) */
+  line?: boolean;
   /** 그 파일이 열려 있으면 채워진다 */
   packageId?: string;
   /** 그 파일이 공정(묶음)이면 — 밑은 다른 파일들이다. 아니면 밑은 그 설비의 부품(BoM)이다 */
@@ -93,6 +95,7 @@ export function buildLinkedAsset(
     node: { idShort: info.name, modelType: 'LinkedAsset' } as AasNode,
     ...(info.packageId ? { linkedPackageId: info.packageId } : {}),
     ...(info.group ? { linkedGroup: true } : {}),
+    ...(info.line ? { linkedLine: true, typeNote: tr('라인') } : {}),
     ...(opts.part ? { linkedPart: true } : {}),
   };
   /**

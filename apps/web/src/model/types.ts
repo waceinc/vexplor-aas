@@ -80,6 +80,8 @@ export interface TreeNode {
   linkedPackageId?: string;
   /** ⚙ 가지 중 공정·라인(파일 없는 층) — ▦로 그린다 */
   linkedGroup?: boolean;
+  /** ▦ 가지 중 라인 층 — 메뉴에 「＋ 공정」이 더 붙는다 */
+  linkedLine?: boolean;
   /** 설비의 부품(BoM) — 파일도 동작도 없다. 설비(⚙)와 헷갈리지 않게 흐리게, 종류는 Part */
   linkedPart?: boolean;
   /** 설비 밑 부품을 접어 두는 「BOM (n)」 줄 */

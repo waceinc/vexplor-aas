@@ -4,23 +4,15 @@
  * app.test.tsx 와 같이 fetch 를 진짜 API 핸들러(@aas/api + 인메모리 저장소)에 물려 돌린다.
  */
 import { readAasx } from '@aas/aasx';
-import { createApi, type ApiRequest } from '@aas/api';
 import { InMemoryStore } from '@aas/store';
-import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { App } from '../src/App.js';
-
-vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
-configure({ asyncUtilTimeout: 5000 });
+import { useScreenHarness, wireFetch } from './harness.js';
 
 const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
 type Json = Record<string, unknown>;
-
-class ResizeObserverStub {
-  observe(): void {}
-  disconnect(): void {}
-}
 
 /** 호기(pkg_1) · 형식(pkg_2) 두 파일. linked 면 호기를 형식에 연결해 둔다 */
 async function mount(linked: boolean) {
@@ -28,18 +20,7 @@ async function mount(linked: boolean) {
   await store.init();
   await store.importPackage({ name: '01-롤포밍기-1호기.aasx', package: readAasx(goldenBytes) });
   await store.importPackage({ name: '01-롤포밍기-형식.aasx', package: readAasx(goldenBytes) });
-  const handle = createApi(store);
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input), 'http://localhost');
-    const query: Record<string, string> = {};
-    for (const [key, value] of url.searchParams) query[key] = value;
-    const headers: Record<string, string> = {};
-    for (const [key, value] of Object.entries((init?.headers ?? {}) as Record<string, string>)) headers[key.toLowerCase()] = value;
-    const body = typeof init?.body === 'string' && headers['content-type']?.includes('json') ? (JSON.parse(init.body) as unknown) : undefined;
-    const response = await handle({ method: init?.method ?? 'GET', path: url.pathname, query, queryAll: {}, headers, ...(body === undefined ? {} : { body }) } as ApiRequest);
-    const payload = response.body instanceof Uint8Array ? response.body : response.body === undefined ? null : JSON.stringify(response.body);
-    return new Response(response.status === 204 ? null : (payload as BodyInit | null), { status: response.status, headers: response.headers });
-  }) as typeof fetch;
+  wireFetch(store);
   if (linked) await fetch('/packages/pkg_1/derivation', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sourcePackageId: 'pkg_2' }) });
   return store;
 }
@@ -62,15 +43,7 @@ const card = async (): Promise<HTMLElement> => {
   return document.querySelector('.derivation-card') as HTMLElement;
 };
 
-beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', ResizeObserverStub);
-  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { value: 900, configurable: true });
-});
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
+useScreenHarness();
 
 describe('형식 → 호기 반영 화면', () => {
   it('형식이 바뀌면 카드가 알리고, 창에서 고른 줄만 반영한다 — 현장에서 고친 줄은 고를 수 없다', async () => {

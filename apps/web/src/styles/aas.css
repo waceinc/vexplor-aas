@@ -1696,3 +1696,20 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .derivation-dialog .derivation-table .pick { width: 28px; }
 .derivation-dialog .derivation-table tr.skip td { color: var(--muted-foreground); }
 .derivation-dialog .derivation-table .reason { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--warn); margin-top: calc(var(--spacing) * 0.5); }
+
+/* CSV 에서 채우기(components/csvfill) — 형식 변경 확인 창과 같은 여백·표 */
+.csv-fill { padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4.5); }
+.csv-fill h3 { margin: 0 0 calc(var(--spacing) * 1); }
+.csv-fill .csv-input { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 3) 0; }
+.csv-fill .csv-input textarea { width: 100%; font-family: var(--aas-mono); font-size: var(--text-xs); }
+.csv-fill .csv-map { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.csv-fill .csv-map th { text-align: left; font-weight: 500; color: var(--muted-foreground); border-bottom: 1px solid var(--border); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2); }
+.csv-fill .csv-map td { border-bottom: 1px solid var(--border); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2); overflow-wrap: anywhere; }
+.csv-fill .csv-map select { width: 100%; }
+.csv-fill .csv-key { display: flex; align-items: center; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 3) 0; font-size: var(--text-sm); }
+.csv-fill .csv-preview ul { list-style: none; margin: 0; padding: 0; font-size: var(--text-sm); }
+.csv-fill .csv-preview li { padding: calc(var(--spacing) * 1.5) 0; border-bottom: 1px solid var(--border); }
+.csv-fill .csv-preview li.problem { color: var(--muted-foreground); }
+.csv-fill .csv-preview .change { font-size: var(--text-xs); margin-left: calc(var(--spacing) * 3); }
+.csv-fill .modal-actions { margin-top: calc(var(--spacing) * 4); }
+.bulk-values .pick-title .csv-open { margin-left: calc(var(--spacing) * 2); font-weight: normal; }

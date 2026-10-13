@@ -231,7 +231,7 @@ export function NewPackage({
             busy={busy}
             {...(adder ? { adder } : {})}
             onAdderChange={setAdder}
-            onAddGroup={(path, name) => addAt(path, { name, kind: 'group', count: 1, split: false, children: [] })}
+            onAddGroup={(path, name, line) => addAt(path, { name, kind: 'group', ...(line ? { line: true } : {}), count: 1, split: false, children: [] })}
             onAddFile={(path, packageId, count, split) => {
               const item = candidates.find((c) => c.packageId === packageId);
               addAt(path, {

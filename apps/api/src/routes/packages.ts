@@ -35,6 +35,7 @@ import {
   childNodes,
   findEntryNode,
   hierarchyTree,
+  lineConceptDescription,
   HIERARCHY_SUBMODEL_ID_SHORT,
   isValidAssetName,
   lint,
@@ -832,11 +833,13 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         //    그룹 속 그룹부터 키가 빠져 화면이 그룹을 설비로 착각했다(실측)
         const normalize = (
           nodes: ReturnType<typeof hierarchyTree>,
-        ): { name: string; globalAssetId: string; bulkCount: number; children: unknown[] }[] =>
+        ): { name: string; globalAssetId: string; bulkCount: number; line: boolean; children: unknown[] }[] =>
           nodes.map((node) => ({
             name: node.name,
             globalAssetId: node.globalAssetId ?? '',
             bulkCount: node.bulkCount,
+            // 라인 층 — 회사 → 라인 → 공정 → 설비. 공정과 같은 그룹이지만 화면이 단추를 달리 단다
+            line: node.line === true,
             children: normalize(node.children),
           }));
         return json(200, {
@@ -875,19 +878,24 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         // 그룹(중간 마디) — 파일 없이 층만 만든다. 회사 파일 안의 「용접공정」 같은 것
         if (body['group'] === true) {
           if (!name) throw new ApiError(400, 'BadRequest', '그룹 이름이 비었습니다.');
+          const line = body['line'] === true;
+          const iriBase = (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string;
           let grouped;
           try {
-            grouped = addChild(
-              submodel as never,
-              { name, group: true },
-              (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string,
-              parentPath,
-            );
+            grouped = addChild(submodel as never, { name, group: true, line }, iriBase, parentPath);
           } catch (error) {
             throw new ApiError(400, 'BadRequest', (error as Error).message);
           }
+          // 라인은 자체 IRI 를 쓰므로 용어(ConceptDescription)가 파일에 있어야 한다(KOSMO-SME-3) — 없을 때만 넣는다
+          if (line) {
+            const concept = lineConceptDescription(iriBase);
+            const concepts = await store.listIdentifiables(packageId, 'ConceptDescription');
+            if (!concepts.items.some((item) => String(item.content['id']) === concept['id'])) {
+              await store.createIdentifiable(packageId, concept);
+            }
+          }
           await store.updateIdentifiable(packageId, 'Submodel', String(submodel['id']), grouped as never);
-          return json(201, { name, group: true });
+          return json(201, { name, group: true, line });
         }
 
         const sourcePackageId = String(body['sourcePackageId'] ?? '').trim();

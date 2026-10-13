@@ -69,6 +69,7 @@ export function TreePane(props: Pick<Screen, 'adding' | 'busy' | 'expanded' | 'f
           };
           if (node.linkedGroup) {
             return [
+              ...(node.linkedLine ? [{ label: t('＋ 공정'), onClick: () => setHierAdder({ path, kind: 'group' }) }] : []),
               { label: fileUnit === 'equipment' ? t('＋ 부품') : t('＋ 설비'), onClick: () => setHierAdder({ path, kind: 'asset' }) },
               remove,
             ];

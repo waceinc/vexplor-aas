@@ -90,18 +90,23 @@ export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 
     );
   };
   /** 파일 없는 중간 마디 — 회사 파일 안의 「용접공정」. 이걸로 회사>공정>장비를 한 파일에 그린다 */
-  const onAddHierarchyGroup = async (name: string, parentPath: string[]): Promise<void> => {
+  const onAddHierarchyGroup = async (name: string, parentPath: string[], line = false): Promise<void> => {
     if (!packageId) return;
     const added = await run(() =>
       api.addHierarchyNode(packageId, {
         name,
         group: true,
+        ...(line ? { line: true } : {}),
         ...(parentPath.length > 0 ? { parentPath } : {}),
       }),
     );
     if (!added) return;
     await loadPackage(packageId);
-    setNotice(fill(tr('공정 「{0}」을(를) 만들었습니다. 그 줄의 「＋ 설비」로 설비를 넣으십시오.'), { 0: name }));
+    setNotice(
+      line
+        ? fill(tr('라인 「{0}」을(를) 만들었습니다. 그 줄의 「＋ 공정」으로 공정을 넣으십시오.'), { 0: name })
+        : fill(tr('공정 「{0}」을(를) 만들었습니다. 그 줄의 「＋ 설비」로 설비를 넣으십시오.'), { 0: name }),
+    );
   };
   const onAddHierarchyManual = async (
     name: string,

@@ -18,7 +18,7 @@ interface Props {
    * 🔴 묶음에서 「요소 8」은 공정 마디·연결선(HasPart)·설정값까지 합친 수라
    *    사람이 보는 구성(공정 2·설비 3)과 어긋난다(2026-08-26 사용자 제보).
    */
-  composition?: { groups: number; assets: number; units: number };
+  composition?: { lines?: number; groups: number; assets: number; units: number };
   /**
    * 담긴 내용 합계 — ⚙로 이어진 설비 파일들까지 합친 서브모델·요소·CD 총량.
    * 🔴 자체 파일의 원시 숫자를 다시 보여 주는 게 아니다(그건 혼란으로 판명 —
@@ -119,6 +119,12 @@ export function Summary({
       <div className="tiles">
         {composition ? (
           <>
+            {(composition.lines ?? 0) > 0 && (
+              <div className="tile">
+                <b>{composition.lines}</b>
+                <span>{t('라인')}</span>
+              </div>
+            )}
             <div className="tile">
               <b>{composition.groups}</b>
               <span>{t('공정·그룹')}</span>

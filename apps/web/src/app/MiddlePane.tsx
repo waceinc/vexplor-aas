@@ -50,7 +50,7 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
               onAddManual={(name, assetId, bulk, parent) =>
                 void onAddHierarchyManual(name, assetId, bulk, parent)
               }
-              onAddGroup={(name, parent) => void onAddHierarchyGroup(name, parent)}
+              onAddGroup={(name, parent, line) => void onAddHierarchyGroup(name, parent, line)}
               onRemove={(name, parent) => void onRemoveHierarchyNode(name, parent)}
               // ㉯ 자식 설비의 서브모델을 그 자리에서 읽어 온다 — 파일 구조는 그대로다
               fetchSubmodels={async (id) => (await api.submodels(id)).result}
@@ -227,6 +227,10 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
         onChangeValueType={(node, valueType) => void onChangeValueType(node, valueType)}
         onShowHistory={(node) => void onShowHistory(node)}
         onBulkSaveValues={(node, content) => void onBulkSaveValues(node, content)}
+        onCsvFilled={(notice) => {
+          setNotice(notice);
+          if (packageId) void loadPackage(packageId);
+        }}
         busy={busy}
         onSave={(node, value) => void onSave(node, value)}
         {...(selected && CONTAINER_TYPES.has(selected.modelType)

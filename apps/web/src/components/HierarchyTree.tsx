@@ -4,7 +4,9 @@
  * 🔴 규칙은 하나다: 회사 줄의 「＋ 공정」으로 공정을 만들고, **그 공정 줄의 「＋ 설비」**로 밑에 설비를 넣는다.
  *    누른 줄 바로 밑에 입력 줄이 열리고, 넣은 것은 그 밑에 붙는다.
  *    공정 줄에 「＋ 공정」(하위 공정)까지 두었더니 "공정을 두 번 고르나" 하고 헷갈렸다 — 뺐다(사용자 2026-09-08).
- *    서버는 중첩을 받지만 화면은 회사 → 공정 → 설비 세 층만 그린다.
+ *    서버는 중첩을 받지만 화면은 회사 → (라인 →) 공정 → 설비까지 그린다. 라인은 회사 줄의 「＋ 라인」으로만
+ *    만들고, 라인 줄에는 「＋ 공정」·「＋ 설비」가 붙는다(2026-10-14, digital-twin 5단계 개념 — 부품은 설비 파일 안 BoM).
+ *    공정 줄에는 여전히 「＋ 설비」만 둔다 — 「공정 밑 공정」이 헷갈렸던 이유는 그대로다.
  *    「넣을 자리」「여기에 넣기」「직접 적기」「그룹 만들기」 같은 별도 개념은 없다 —
  *    같은 것을 만들 때(초안)와 만든 뒤(즉시 저장)에 다른 모양으로 보여 초보자가 두 번 배웠다
  *    (2026-09-08, UX·AAS 전문가 검토 결론: 트리 하나로 통일).
@@ -39,7 +41,7 @@ interface Props {
   busy: boolean;
   adder?: Adder;
   onAdderChange: (adder?: Adder) => void;
-  onAddGroup: (parentPath: string[], name: string) => void;
+  onAddGroup: (parentPath: string[], name: string, line?: boolean) => void;
   onAddFile: (parentPath: string[], packageId: string, count: number, split: boolean) => void;
   onAddPlanned: (parentPath: string[], name: string) => void;
   onRemove: (path: string[], node: DraftNode) => void;
@@ -89,8 +91,8 @@ export function HierarchyTree({
   /** 열린 입력 줄 — 자리(adderKey)가 바뀌면 key 가 바뀌어 새로 그려지고 입력값도 비워진다 */
   const renderAdder = (path: string[]): React.JSX.Element => {
     const siblings = findChildren(path).map((node) => node.name);
-    return adder?.kind === 'group' ? (
-      <GroupAdder key={adderKey} path={path} siblings={siblings} terms={terms} busy={busy} onAddGroup={onAddGroup} close={close} t={t} />
+    return adder?.kind === 'group' || adder?.kind === 'line' ? (
+      <GroupAdder key={adderKey} path={path} siblings={siblings} terms={terms} line={adder.kind === 'line'} busy={busy} onAddGroup={onAddGroup} close={close} t={t} />
     ) : (
       <AssetAdder
         key={adderKey}
@@ -117,6 +119,17 @@ export function HierarchyTree({
           <span className="build-name">{rootName}</span>
           <span className="dim">{rootLabel}</span>
           {rootAssetId && <span className="mono dim pick-file">{rootAssetId}</span>}
+          {terms.line && (
+            <button
+              type="button"
+              className="act"
+              disabled={busy}
+              title={tr('공정을 묶는 층(라인)을 만듭니다 — 회사 → 라인 → 공정 → 설비')}
+              onClick={() => open([], 'line')}
+            >
+              ＋ {t(terms.line)}
+            </button>
+          )}
           <button
             type="button"
             className="act"

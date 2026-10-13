@@ -37,6 +37,7 @@ export function useLinkedFiles(c: Pick<Base, 'hierarchy' | 'packageId' | 'packag
             // 그룹(파일 없는 중간 마디) — 같은 파일 안의 자식을 그대로 내려간다.
             // 파일을 건너는 것이 아니라 depth는 늘지 않는다
             info.group = true;
+            if (child.line) info.line = true;
             info.children = await load(child.children, depth, visited);
           } else {
             const source = packages.find(

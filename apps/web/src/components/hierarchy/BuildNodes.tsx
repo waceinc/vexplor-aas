@@ -31,9 +31,20 @@ export function BuildNodes(props: Props): React.JSX.Element {
             <div className={`build-row${focus ? ' focus' : ''}`}>
               {node.kind === 'group' ? (
                 <>
-                  <span className="build-mark" title={t(terms.groupMark)}>▦</span>
+                  <span className="build-mark" title={t(node.line ? terms.lineMark : terms.groupMark)}>{node.line ? '▤' : '▦'}</span>
                   <span className="build-name">{node.name}</span>
-                  <span className="dim">{t(terms.group)}</span>
+                  <span className="dim">{t(node.line && terms.line ? terms.line : terms.group)}</span>
+                  {node.line && (
+                    <button
+                      type="button"
+                      className="act"
+                      disabled={busy}
+                      title={tr('이 라인 아래에 공정을 만듭니다')}
+                      onClick={() => open(here, 'group')}
+                    >
+                      ＋ {t(terms.group)}
+                    </button>
+                  )}
                   <button
                 type="button"
                 className="act"

@@ -93,6 +93,8 @@ export const modelApi = {
       bulkCount?: number;
       /** 파일 없는 중간 마디(공정·그룹)를 만들 때 */
       group?: boolean;
+      /** 그 그룹이 라인 층인가 — 맨 위(회사 바로 밑)에만 */
+      line?: boolean;
       /** 어느 마디 밑에 넣을지 — 진입점부터의 이름 경로 */
       parentPath?: string[];
     },

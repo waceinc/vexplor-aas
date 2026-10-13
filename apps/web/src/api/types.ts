@@ -44,6 +44,8 @@ export interface HierarchyNode {
   name: string;
   globalAssetId: string;
   bulkCount: number;
+  /** 라인 층(회사 → 라인 → 공정 → 설비). 옛 서버는 보내지 않는다 */
+  line?: boolean;
   children: HierarchyNode[];
 }
 

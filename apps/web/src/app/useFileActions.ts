@@ -181,7 +181,7 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
           const at = parentPath.length > 0 ? { parentPath } : {};
           if (node.kind === 'group') {
             try {
-              await api.addHierarchyNode(made.packageId, { name: node.name, group: true, ...at });
+              await api.addHierarchyNode(made.packageId, { name: node.name, group: true, ...(node.line ? { line: true } : {}), ...at });
               await put(node.children, [...parentPath, node.name]);
             } catch {
               failed.push(node.name);
