@@ -1560,3 +1560,27 @@ table.matrix thead .item-col { background: var(--navy); }
 
 /* 머리글 회사 표시 — 기준 셸처럼 격자 아이콘 + 굵은 이름 */
 header .brand svg { width: 1.15em; height: 1.15em; color: var(--foreground); }
+
+/* 머리글 드롭다운 — shadcn DropdownMenu 와 같은 모양(bg-popover · border · p-1 · shadow-md · 항목 px-2 py-1.5 text-sm · 올림 bg-accent).
+   동작은 예전 Menu 그대로 둔다 — Radix 메뉴는 pointerdown 으로 열려 기존 화면 테스트(click)와 맞지 않는다 */
+.menu-trigger .caret { width: 1em; height: 1em; margin-left: 2px; color: var(--muted-foreground); }
+.menu-trigger.on { background: var(--accent); border-color: var(--border); }
+.menu-pop, .tree-menu {
+  min-width: 8rem; padding: calc(var(--spacing) * 1);
+  background: var(--popover); color: var(--popover-foreground);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
+}
+.menu-pop button, .tree-menu button {
+  min-height: 0; box-shadow: none; border: 0; background: transparent; font-weight: 400;
+  padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2); border-radius: var(--radius); font-size: var(--text-sm);
+  justify-content: flex-start;
+}
+.menu-pop button:hover:not(:disabled), .tree-menu button:hover:not(:disabled) { background: var(--accent); color: var(--accent-foreground); }
+/* 묶음 사이 가는 선 — DropdownMenuSeparator(-mx-1 my-1 h-px bg-border) */
+.menu-pop button.sep, .tree-menu button.danger { border-top: 0; margin-top: calc(var(--spacing) * 2); padding-top: calc(var(--spacing) * 1.5); position: relative; border-radius: var(--radius); }
+.menu-pop button.sep::before, .tree-menu button.danger::before { content: ''; position: absolute; left: calc(var(--spacing) * -1); right: calc(var(--spacing) * -1); top: calc(var(--spacing) * -1); height: 1px; background: var(--border); }
+.tree-menu button.danger { color: var(--fail); }
+.tree-menu button.danger:hover:not(:disabled) { background: var(--failbg); color: var(--fail); }
+/* Tailwind preflight 가 svg 를 block 으로 둔다 — 글자와 한 줄에 서야 하는 아이콘 단추는 inline-flex 로 */
+.menu-trigger, header .brand { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1.5); }
