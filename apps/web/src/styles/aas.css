@@ -1713,3 +1713,29 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .csv-fill .csv-preview .change { font-size: var(--text-xs); margin-left: calc(var(--spacing) * 3); }
 .csv-fill .modal-actions { margin-top: calc(var(--spacing) * 4); }
 .bulk-values .pick-title .csv-open { margin-left: calc(var(--spacing) * 2); font-weight: normal; }
+
+/* 하루 상태(components/collection/DailyStates) — 설비마다 한 줄, 08시부터 24시간 막대 */
+.daily-states { margin-top: calc(var(--spacing) * 4); border-top: 1px solid var(--border); padding-top: calc(var(--spacing) * 3); }
+.daily-states .daily-head { display: flex; align-items: center; gap: calc(var(--spacing) * 2); font-size: var(--text-sm); }
+.daily-states .daily-head h4 { margin: 0 calc(var(--spacing) * 2) 0 0; font-size: var(--text-sm); }
+.daily-states .daily-head .spacer { flex: 1; }
+.daily-states .state-rules { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1.5); margin: calc(var(--spacing) * 2) 0; font-size: var(--text-xs); }
+.daily-states .state-rules label { display: grid; grid-template-columns: 88px 1fr; align-items: center; gap: calc(var(--spacing) * 2); }
+.daily-states .state-ticks { display: grid; grid-template-columns: repeat(6, 1fr); margin: calc(var(--spacing) * 2) 0 calc(var(--spacing) * 1); font-family: var(--aas-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
+.daily-states .state-row { margin-bottom: calc(var(--spacing) * 2.5); }
+.daily-states .state-name { display: flex; align-items: center; gap: calc(var(--spacing) * 2); font-size: var(--text-sm); margin-bottom: calc(var(--spacing) * 1); }
+.daily-states .state-name select { max-width: 60%; }
+.daily-states .state-bar { position: relative; height: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); overflow: hidden; }
+.daily-states .state-seg { position: absolute; top: 0; bottom: 0; }
+.daily-states .state-totals { font-size: var(--text-xs); margin-top: calc(var(--spacing) * 1); }
+.daily-states .state-legend { display: flex; flex-wrap: wrap; gap: calc(var(--spacing) * 2); font-size: var(--text-xs); margin-top: calc(var(--spacing) * 1); }
+.daily-states .state-chip { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); }
+.daily-states .state-chip::before { content: ''; width: 10px; height: 10px; border-radius: 2px; background: var(--state-color); border: 1px solid var(--border); }
+.daily-states .state-run { --state-color: var(--teal); background: var(--state-color); }
+.daily-states .state-stop { --state-color: var(--warn); background: var(--state-color); }
+.daily-states .state-alarm { --state-color: var(--fail); background: var(--state-color); }
+.daily-states .state-off { --state-color: var(--muted-foreground); background: var(--state-color); }
+.daily-states .state-unknown { --state-color: var(--cb); background: repeating-linear-gradient(45deg, var(--cb) 0 3px, transparent 3px 6px); }
+.daily-states .state-none { --state-color: var(--muted); background: var(--muted); }
+.daily-states .state-chip.state-run, .daily-states .state-chip.state-stop, .daily-states .state-chip.state-alarm,
+.daily-states .state-chip.state-off, .daily-states .state-chip.state-unknown, .daily-states .state-chip.state-none { background: none; }

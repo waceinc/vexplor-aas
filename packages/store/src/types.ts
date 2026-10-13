@@ -127,6 +127,12 @@ export interface ValueQuery {
   to?: string;
   /** 기본 1000 */
   limit?: number;
+  /**
+   * from · to · 정렬을 어느 시각으로 보나. 기본 observed(장비 시각 — 하이퍼테이블이 이 열로 나뉘어 빠르다).
+   * received = 수신 시각(없는 옛 기록은 장비 시각). 값이 일정한 태그는 장비 시각이 멈춰 있어
+   * 「오늘 받은 값」을 장비 시각으로 고르면 빠진다 — 하루 상태 막대처럼 받은 때가 중요한 곳이 쓴다(2026-10-14).
+   */
+  basis?: 'observed' | 'received';
 }
 
 export type HistoryOperation = 'update' | 'delete';

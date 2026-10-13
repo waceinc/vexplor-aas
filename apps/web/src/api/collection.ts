@@ -10,6 +10,15 @@ export const collectionApi = {
     request(`/packages/${packageId}/interfaces`),
   values: (packageId: string, limit = 200): Promise<{ result: CollectedValueView[] }> =>
     request(`/packages/${packageId}/values?limit=${limit}`),
+  /** 한 태그의 기간 값 — 하루 상태 막대가 쓴다. from 포함 · to 미포함(ISO), 수신 시각 기준(값이 일정한 태그도 잡힌다) */
+  valuesBetween: (
+    packageId: string,
+    query: { property: string; from: string; to: string; limit?: number },
+  ): Promise<{ result: CollectedValueView[] }> =>
+    request(
+      `/packages/${packageId}/values?property=${encodeURIComponent(query.property)}&from=${encodeURIComponent(query.from)}` +
+        `&to=${encodeURIComponent(query.to)}&limit=${query.limit ?? 20000}&basis=received`,
+    ),
   /**
    * 수집값이 모델의 어느 요소에 얹히는지 — 연결 상태 점검.
    * BaSyx DataBridge와 달리 우리는 모델에 되쓰지 않으므로, **이름이 맞는지**가 관건이다.

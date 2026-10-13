@@ -580,6 +580,37 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(old[0]!.receivedAt).toBeUndefined();
     });
 
+    it('기간을 수신 시각으로 고를 수 있다 — 값이 일정한 태그도 그날 받은 값으로 잡힌다', async () => {
+      const { store, packageId } = await seeded();
+      const base = { packageId, interfaceName: 'I', propertyName: 'State', valueText: 'run' };
+      await store.appendValues(packageId, [
+        // 장비 시각은 어제에 멈춰 있고, 오늘 두 번 받았다
+        { ...base, observedAt: '2026-10-12T23:00:00.000Z', receivedAt: '2026-10-13T08:10:00.000Z' },
+        { ...base, observedAt: '2026-10-12T23:00:00.000Z', receivedAt: '2026-10-13T08:20:00.000Z' },
+        // 옛 기록(수신 시각 없음) — 장비 시각으로 대신한다
+        { ...base, observedAt: '2026-10-13T08:15:00.000Z' },
+        { ...base, observedAt: '2026-10-12T22:00:00.000Z', receivedAt: '2026-10-12T22:00:01.000Z' },
+      ]);
+      const day = { propertyName: 'State', from: '2026-10-13T08:00:00.000Z', to: '2026-10-14T08:00:00.000Z' };
+      expect(await store.readValues(packageId, day)).toHaveLength(1); // 기본(장비 시각)은 옛 기록 하나만
+      const received = await store.readValues(packageId, { ...day, basis: 'received' });
+      expect(received.map((v) => v.receivedAt ?? v.observedAt)).toEqual([
+        '2026-10-13T08:20:00.000Z',
+        '2026-10-13T08:15:00.000Z',
+        '2026-10-13T08:10:00.000Z',
+      ]);
+    });
+
+    it('보존 기간은 수신 시각으로 지운다 — 장비 시각이 오래 멈춘 태그의 방금 받은 값은 남는다', async () => {
+      const { store, packageId } = await seeded();
+      await store.appendValues(packageId, [
+        { packageId, interfaceName: 'I', propertyName: 'Constant', observedAt: '2026-01-01T00:00:00.000Z', receivedAt: '2026-10-13T09:00:00.000Z', valueNumber: 7 },
+        { packageId, interfaceName: 'I', propertyName: 'Constant', observedAt: '2026-01-01T00:00:00.000Z', receivedAt: '2026-01-01T00:00:05.000Z', valueNumber: 7 },
+      ]);
+      expect(await store.pruneValues('2026-06-01T00:00:00.000Z')).toBe(1);
+      expect((await store.readValues(packageId)).map((v) => v.receivedAt)).toEqual(['2026-10-13T09:00:00.000Z']);
+    });
+
     it('보존 기간 — 기준 시각보다 오래된 수집값만 모든 패키지에서 지운다', async () => {
       const { store, packageId } = await seeded();
       const other = (await store.importPackage({ name: 'other.aasx', package: golden })).id;

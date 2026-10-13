@@ -343,13 +343,16 @@ export class PostgresStore implements AasStore {
     // SqlResult에 rowCount가 없으니 RETURNING으로 센다. 하이퍼테이블에서도 그대로 동작한다
     // (drop_chunks가 더 싸지만 TimescaleDB 없는 배포와 코드를 나누지 않는다)
     const { rows } = await this.client.query<{ n: number }>(
-      'DELETE FROM collected_value WHERE observed_at < $1::timestamptz RETURNING 1 AS n',
+      // 수신 시각으로 본다 — 값이 일정한 태그는 장비 시각이 멈춰 있어, 장비 시각으로 지우면 방금 받은 값까지 지운다
+      'DELETE FROM collected_value WHERE COALESCE(received_at, observed_at) < $1::timestamptz RETURNING 1 AS n',
       [before],
     );
     return rows.length;
   }
 
   async readValues(packageId: string, query: ValueQuery = {}): Promise<CollectedValue[]> {
+    // 열 이름은 고정 두 가지 중 하나라 문자열로 넣어도 주입이 없다
+    const at = query.basis === 'received' ? 'COALESCE(received_at, observed_at)' : 'observed_at';
     // 없는 패키지는 빈 목록이 아니라 NotFound다 — 인메모리 구현과 같아야 한다(적합성 시험)
     await this.requirePackage(packageId);
     const { rows } = await this.client.query<{
@@ -367,9 +370,9 @@ export class PostgresStore implements AasStore {
        WHERE package_id = $1
          AND ($2::text IS NULL OR interface_name = $2)
          AND ($3::text IS NULL OR property_name = $3)
-         AND ($4::timestamptz IS NULL OR observed_at >= $4)
-         AND ($5::timestamptz IS NULL OR observed_at < $5)
-       ORDER BY observed_at DESC
+         AND ($4::timestamptz IS NULL OR ${at} >= $4)
+         AND ($5::timestamptz IS NULL OR ${at} < $5)
+       ORDER BY ${at} DESC
        LIMIT $6`,
       [
         packageId,

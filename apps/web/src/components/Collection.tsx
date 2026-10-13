@@ -17,6 +17,7 @@ import { InterfaceCard } from './collection/InterfaceCard.js';
 import { LiveMap } from './collection/LiveMap.js';
 import { NoCollection } from './collection/NoCollection.js';
 import { ProcessEquipment } from './collection/ProcessEquipment.js';
+import { DailyStates } from './collection/DailyStates.js';
 import { connectionStatus, latestValues, tagOutcomes } from './collection/status.js';
 import { freshWindowMs } from './collection/freshness.js';
 
@@ -85,16 +86,21 @@ export function Collection({
   // 🔴 공정(묶음) 파일 — 공정 자체에는 읽어 올 값이 없다. 대신 **매달린 설비 목록**을 보여 주고
   //    여기서 바로 연결·수집한다. 예전엔 안내문뿐이라 설비를 골라 파일을 열고 나서야 연결할 수 있었다
   if (unit === 'composite' && interfaces.length === 0) {
+    // 하루 상태 — 수집 연결이 붙은 설비마다 한 줄(공정 전체의 하루가 한눈에)
+    const stateRows = (equipment ?? []).flatMap((row) => (row.packageId && row.connected ? [{ packageId: row.packageId, name: row.name }] : []));
     return (
-      <ProcessEquipment
-        rows={equipment ?? []}
-        busy={busy}
-        {...(onOpenEquipment ? { onOpenEquipment } : {})}
-        {...(onConnectEquipment ? { onConnectEquipment } : {})}
-        {...(onSimulateEquipment ? { onSimulateEquipment } : {})}
-        {...(onCollectEquipment ? { onCollectEquipment } : {})}
-        t={t}
-      />
+      <>
+        <ProcessEquipment
+          rows={equipment ?? []}
+          busy={busy}
+          {...(onOpenEquipment ? { onOpenEquipment } : {})}
+          {...(onConnectEquipment ? { onConnectEquipment } : {})}
+          {...(onSimulateEquipment ? { onSimulateEquipment } : {})}
+          {...(onCollectEquipment ? { onCollectEquipment } : {})}
+          t={t}
+        />
+        <DailyStates rows={stateRows} holdMs={freshWindowMs(auto?.intervalMs)} t={t} />
+      </>
     );
   }
   if (interfaces.length === 0) {
@@ -175,6 +181,8 @@ export function Collection({
            안 맞으면 값은 쌓이는데 밖에서는 안 보인다 — 그 사실을 여기서 알려 준다.
       */}
       {live && live.collected > 0 && <LiveMap live={live} />}
+
+      {packageId && <DailyStates rows={[{ packageId, name: tr('이 설비') }]} holdMs={freshWindowMs(auto?.intervalMs)} t={t} />}
 
         <p className="hint">
           {t('수집값은 시계열에만 쌓입니다. 모델(AASX)에는 되쓰지 않습니다 — 산출물이 형식(Type)이기 때문입니다.')}{' '}

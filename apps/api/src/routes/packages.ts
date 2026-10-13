@@ -1188,6 +1188,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         if (from) query.from = from;
         const to = request.query['to'];
         if (to) query.to = to;
+        // 기간을 수신 시각으로 — 값이 일정한 태그도 「그날 받은 값」으로 잡힌다(하루 상태 막대)
+        if (request.query['basis'] === 'received') query.basis = 'received';
         const limit = request.query['limit'];
         if (limit !== undefined) {
           const parsed = Number(limit);
