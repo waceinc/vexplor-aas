@@ -1647,8 +1647,13 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 }
 :where(select) option { background: var(--popover); color: var(--popover-foreground); }
 
-/* 설비 파일의 「부품 구성」 상자는 요약(.summary) 밖, 가운데 칸 바로 밑에 붙는다 — 요약 안쪽 여백(4단)만큼
-   좌우가 위 타일·판정 상자보다 넓게 그려졌다(대표 지적 2026-10-13). 같은 여백·같은 내용 폭으로 맞춘다 */
+/* 가운데 칸 바로 밑에 붙는 카드(부품 구성 · 파일 목록 · 이력 · 설비 컨텍스트)는 요약(.summary) 밖이라 요약 안쪽 여백(4단)만큼
+   좌우가 위 타일·판정 상자보다 넓게 그려졌다(대표 지적 2026-10-13 · 전 화면 정렬 점검 — 파일 목록 13px). 같은 여백·같은 내용 폭으로 맞춘다.
+   편집 칸·추가 양식의 안쪽 여백도 요약과 같은 4단으로 — 화면이 바뀌어도 글 시작선이 같은 자리에 온다 */
+.middle > :is(.file-list, .history-panel, .asset-context) { width: auto; max-width: calc(1040px - var(--spacing) * 8); margin: calc(var(--spacing) * 4) calc(var(--spacing) * 4) 0; }
+.middle > .inspector { padding-left: calc(var(--spacing) * 4); padding-right: calc(var(--spacing) * 4); }
+/* 추가 양식(요소 · 서브모델 · 가져오기 · 새로 만들기)도 칸 폭 띠가 아니라 같은 여백의 카드 — 띠로 두면 아래 카드보다 좌우 13px 넓었다(점검 실측) */
+.middle > .add-form { width: auto; max-width: calc(1040px - var(--spacing) * 8); margin: calc(var(--spacing) * 4) calc(var(--spacing) * 4) 0; border: 1px solid var(--border); border-radius: var(--radius); padding: calc(var(--spacing) * 4); }
 .middle > .hierarchy {
   width: auto;
   max-width: calc(1040px - var(--spacing) * 8);
