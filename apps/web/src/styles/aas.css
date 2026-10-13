@@ -1739,3 +1739,9 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .daily-states .state-none { --state-color: var(--muted); background: var(--muted); }
 .daily-states .state-chip.state-run, .daily-states .state-chip.state-stop, .daily-states .state-chip.state-alarm,
 .daily-states .state-chip.state-off, .daily-states .state-chip.state-unknown, .daily-states .state-chip.state-none { background: none; }
+
+/* 수집 연결 — 패턴으로 여러 개(components/aid/AidPattern) */
+.add-aid .aid-pattern { margin-top: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 3); border: 1px solid var(--border); border-radius: var(--radius); }
+.add-aid .aid-pattern-grid { display: grid; grid-template-columns: 1fr 1fr repeat(3, 72px); gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 2) 0; font-size: var(--text-xs); }
+.add-aid .aid-pattern-grid label { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
+@media (max-width: 640px) { .add-aid .aid-pattern-grid { grid-template-columns: 1fr 1fr; } }

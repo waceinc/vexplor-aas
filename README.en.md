@@ -50,7 +50,7 @@ exposed as a policy the user decides.
 | **Report** | A printable HTML validation report |
 | **Undo & history** | One-step undo, and restore a submodel to an earlier point |
 | **Process bundles** | Group several machines into a process and export a submission bundle |
-| **Data collection** | Read live values from OPC UA devices, addressed by the AID submodel inside the AAS |
+| **Data collection** | Read live values from OPC UA · Modbus TCP · MQTT devices, addressed by the AID submodel inside the AAS, with a daily status bar (running · stopped · alarm) per machine |
 | **Standard API** | IDTA Part 2 REST API, so other systems can read the AAS held here |
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 
@@ -93,6 +93,7 @@ A TypeScript monorepo.
 | `packages/store` | Storage port — in-memory, folder and PostgreSQL pass the same conformance suite |
 | `packages/collector` | Resolves AID and collects field values |
 | `packages/opcua` | OPC UA client and server ([node-opcua](https://github.com/node-opcua/node-opcua)) |
+| `packages/fieldbus` | Modbus TCP · MQTT collection adapters (no external dependencies — `node:net`) · test device and broker |
 | `apps/api` | REST API server |
 | `apps/web` | React front end |
 
@@ -103,7 +104,7 @@ A TypeScript monorepo.
 | AAS metamodel **V3.0** (IDTA-01001-3-0) | Pinned. Not auto-upgraded to 3.1 |
 | AASX package (IDTA-01005) | Reads JSON and XML, writes JSON |
 | **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · partial Registry and Discovery |
-| AID 1.1 (IDTA-02017) | OPC UA address resolution |
+| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT address resolution (Modbus · MQTT use the W3C WoT binding notation) |
 
 `node scripts/part2-coverage.mjs` compares the implementation against the specification's OpenAPI
 files and prints the exact coverage.

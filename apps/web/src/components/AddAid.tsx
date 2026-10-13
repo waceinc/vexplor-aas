@@ -32,6 +32,7 @@ interface Props {
 import { AidOptions } from './aid/AidOptions.js';
 import { BrowsedTags } from './aid/BrowsedTags.js';
 import { PickedTags } from './aid/PickedTags.js';
+import { AidPattern } from './aid/AidPattern.js';
 import { protocolOfEndpoint } from './aid/protocol.js';
 import { EMPTY, type TagRow } from './aid/types.js';
 
@@ -53,6 +54,8 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
   const [error, setError] = useState<string>();
   const [working, setWorking] = useState(false);
   const [manual, setManual] = useState(false);
+  /** 패턴으로 여러 개 — 같은 꼴의 태그 수십 개 */
+  const [patternOpen, setPatternOpen] = useState(false);
 
   /** 설비에서 훑어 온 태그 — NodeId를 손으로 치지 않게 하는 자리 */
   const [found, setFound] = useState<Awaited<ReturnType<typeof api.browseDevice>>>();
@@ -210,12 +213,33 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
             >
               {tr('+ 손으로 입력')}
             </button>
+            <button
+              className="link"
+              title={tr('이름 · 주소 틀과 번호 범위로 같은 꼴의 태그를 여러 개 만듭니다')}
+              onClick={() => setPatternOpen(true)}
+            >
+              {tr('+ 패턴으로 여러 개')}
+            </button>
             {misses > 0 && (
               <span className="hint warn"><T k={'⚠ {0}개는 모델에 없는 이름 — {1}'} v={[misses, makeElements ? tr('자리를 함께 만듭니다') : tr('값이 밖으로 안 나갑니다')]} />
               </span>
             )}
           </div>
         </section>
+
+        {patternOpen && (
+          <AidPattern
+            hrefExample={protocol === 'MODBUS' ? '{n}' : protocol === 'MQTT' ? 'plant/zone{n}/temp' : 'ns=1;s=Zone{n}.Temp'}
+            onClose={() => setPatternOpen(false)}
+            onAdd={(made) => {
+              const extra = protocol === 'MODBUS' ? { type: 'integer', entity: 'HoldingRegister', dataType: 'xsd:unsignedShort' } : {};
+              const kept = rows.filter((row) => row.name.trim() !== '' || row.href.trim() !== '');
+              setRows([...kept, ...made.map((row) => ({ ...EMPTY, ...extra, name: row.name, href: row.href }))]);
+              setManual(true);
+              setPatternOpen(false);
+            }}
+          />
+        )}
 
         {/* ── 자세히 — 기본값이 맞는 사람이 대부분이라 접어 둔다 ── */}
         <AidOptions makeElements={makeElements} setMakeElements={setMakeElements} group={group} setGroup={setGroup} subgroup={subgroup} setSubgroup={setSubgroup} />

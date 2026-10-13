@@ -66,3 +66,37 @@ describe('수집 연결 만들기 — Modbus', () => {
     expect(env).toContain('"value":"xsd:float"');
   });
 });
+
+describe('태그 패턴', () => {
+  it('{n} 은 번호 · {i} 는 몇 번째 · {n:2} 는 0 채움 — 간격과 범위를 지킨다', async () => {
+    const { expandPattern } = await import('../src/components/aid/pattern.js');
+    expect(expandPattern({ name: 'Zone{i}_Temp', href: 'ns=1;s=Zone{n:2}.Temp', from: 1, to: 3, step: 1 }).rows).toEqual([
+      { name: 'Zone1_Temp', href: 'ns=1;s=Zone01.Temp' },
+      { name: 'Zone2_Temp', href: 'ns=1;s=Zone02.Temp' },
+      { name: 'Zone3_Temp', href: 'ns=1;s=Zone03.Temp' },
+    ]);
+    expect(expandPattern({ name: 'Temp_{i}', href: '{n}', from: 100, to: 106, step: 2 }).rows.map((row) => row.href)).toEqual(['100', '102', '104', '106']);
+    expect(expandPattern({ name: 'Fixed', href: '{n}', from: 1, to: 2, step: 1 }).problem).toBe('name');
+    expect(expandPattern({ name: 'T{n}', href: '{n}', from: 5, to: 1, step: 1 }).problem).toBe('range');
+    expect(expandPattern({ name: 'T{n}', href: '{n}', from: 1, to: 9999, step: 1 }).problem).toBe('too-many');
+  });
+
+  it('창에서 패턴으로 담으면 줄이 그만큼 생긴다', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });
+    wireFetch(store);
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: '수집 연결 만들기' }));
+    const dialog = await screen.findByRole('dialog', { name: '수집 연결 만들기' });
+    fireEvent.change(within(dialog).getByLabelText('접속 주소'), { target: { value: 'modbus+tcp://10.0.0.5/1' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '+ 패턴으로 여러 개' }));
+    fireEvent.change(within(dialog).getByLabelText('이름 틀'), { target: { value: 'Temp_{i}' } });
+    fireEvent.change(within(dialog).getByLabelText('끝'), { target: { value: '6' } });
+    fireEvent.change(within(dialog).getByLabelText('간격'), { target: { value: '2' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '3개 담기' }));
+    expect((within(dialog).getByLabelText('태그 3 이름') as HTMLInputElement).value).toBe('Temp_3');
+    expect((within(dialog).getByLabelText('태그 3 주소') as HTMLInputElement).value).toBe('5');
+    expect((within(dialog).getByLabelText('태그 3 레지스터 종류') as HTMLSelectElement).value).toBe('HoldingRegister');
+  });
+});
