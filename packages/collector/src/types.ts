@@ -18,6 +18,14 @@ export interface ValueSample {
   source?: string;
   /** 관측 시각(ISO). 장비가 준 시각이 있으면 그것을 쓴다 */
   observedAt: string;
+  /**
+   * 이 도구가 **실제로 읽어 온 시각**(ISO). 2026-10-13 추가.
+   * 🔴 `observedAt`은 장비가 준 시각(OPC UA SourceTimestamp)이라 **값이 바뀔 때만** 움직인다 — 값이 일정한 태그는
+   *    매번 잘 읽어도 시각이 옛날에 멈춰 있어, 그걸로 「받는 중」을 판정하면 멀쩡한 태그가 끊긴 것으로 보인다.
+   *    값마다 수신 시각을 따로 남긴다(실운영 교훈 — digital-twin 점검에서 271행의 시각이 모두 같아 「받는 중」이
+   *    뜻을 잃은 사례). 옛 기록에는 없다 — 그때는 observedAt 으로 대신한다.
+   */
+  receivedAt?: string;
   /** 숫자로 읽히면 여기, 아니면 text */
   valueNumber?: number;
   valueText?: string;

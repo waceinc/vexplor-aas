@@ -6,6 +6,7 @@
  * 🔴 여기 보이는 값은 **모델이 아니다.** 값 동기화 A안에서 수집값은 시계열에만 쌓이고
  * 파일로 돌아가지 않는다 — 화면에서도 그 경계가 보이도록 트리·속성 칸과 섞지 않았다.
  */
+import { useEffect, useState } from 'react';
 import type { AidInterfaceView, CollectedValueView, CycleReportView, LiveMapping } from '../api.js';
 import { addressCsv, addressRows } from '../addressList.js';
 import { localTime } from '../model.js';
@@ -17,6 +18,7 @@ import { LiveMap } from './collection/LiveMap.js';
 import { NoCollection } from './collection/NoCollection.js';
 import { ProcessEquipment } from './collection/ProcessEquipment.js';
 import { connectionStatus, latestValues, tagOutcomes } from './collection/status.js';
+import { freshWindowMs } from './collection/freshness.js';
 
 export type { EquipmentRow } from './collection/helpers.js';
 
@@ -74,6 +76,12 @@ export function Collection({
   onCollectEquipment,
   t,
 }: Props): React.JSX.Element {
+  // 지금 시각 — 15초마다 다시 그려 「N분 전」과 끊김 판정이 저절로 따라가게 한다(값이 안 들어와도)
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
   // 🔴 공정(묶음) 파일 — 공정 자체에는 읽어 올 값이 없다. 대신 **매달린 설비 목록**을 보여 주고
   //    여기서 바로 연결·수집한다. 예전엔 안내문뿐이라 설비를 골라 파일을 열고 나서야 연결할 수 있었다
   if (unit === 'composite' && interfaces.length === 0) {
@@ -157,6 +165,8 @@ export function Collection({
           latest={latest}
           waitingTags={waitingTags}
           failedTags={failedTags}
+          nowMs={nowMs}
+          windowMs={freshWindowMs(auto?.intervalMs)}
         />
       ))}
 

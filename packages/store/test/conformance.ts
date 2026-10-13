@@ -553,6 +553,33 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(await store.readValues(packageId, { limit: 1 })).toHaveLength(1);
     });
 
+    it('수신 시각(receivedAt)은 장비 시각과 따로 남는다 — 없으면 없는 대로(옛 기록)', async () => {
+      const { store, packageId } = await seeded();
+      await store.appendValues(packageId, [
+        {
+          packageId,
+          interfaceName: 'InterfaceTemplateForOPCUA',
+          propertyName: 'Constant',
+          // 🔴 값이 일정한 태그 — 장비 시각은 옛날에 멈춰 있지만 방금 읽었다
+          observedAt: '2026-01-01T00:00:00.000Z',
+          receivedAt: '2026-10-13T09:00:00.000Z',
+          valueNumber: 7,
+        },
+        {
+          packageId,
+          interfaceName: 'InterfaceTemplateForOPCUA',
+          propertyName: 'Old',
+          observedAt: '2026-01-01T00:00:01.000Z',
+          valueNumber: 1,
+        },
+      ]);
+      const constant = await store.readValues(packageId, { propertyName: 'Constant' });
+      expect(constant[0]!.receivedAt).toBe('2026-10-13T09:00:00.000Z');
+      expect(constant[0]!.observedAt).toBe('2026-01-01T00:00:00.000Z');
+      const old = await store.readValues(packageId, { propertyName: 'Old' });
+      expect(old[0]!.receivedAt).toBeUndefined();
+    });
+
     it('보존 기간 — 기준 시각보다 오래된 수집값만 모든 패키지에서 지운다', async () => {
       const { store, packageId } = await seeded();
       const other = (await store.importPackage({ name: 'other.aasx', package: golden })).id;

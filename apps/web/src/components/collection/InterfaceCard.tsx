@@ -3,10 +3,11 @@
  * components/Collection.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석·판정은 옮기기 전 글자 그대로다.
  */
 import type { AidInterfaceView, CollectedValueView } from '../../api.js';
-import { tr } from '../../i18n.js';
+import { fill, tr } from '../../i18n.js';
 import { localTime } from '../../model.js';
 import { T } from '../T.js';
 import { displayValue, shortReason } from './helpers.js';
+import { ageLabel, arrivedAt, freshnessOf, tallyFreshness } from './freshness.js';
 import type { ConnectionStatus } from './status.js';
 
 interface Props {
@@ -15,9 +16,18 @@ interface Props {
   latest: Map<string, CollectedValueView>;
   waitingTags: Set<string>;
   failedTags: Map<string, string>;
+  /** 지금 시각(ms) — 몇 초마다 바뀌어 「N분 전」과 끊김 판정이 저절로 따라간다 */
+  nowMs: number;
+  /** 이 창 안에 들어온 값은 받는 중(freshness.ts) */
+  windowMs: number;
 }
 
-export function InterfaceCard({ descriptor, status, latest, waitingTags, failedTags }: Props): React.JSX.Element {
+export function InterfaceCard({ descriptor, status, latest, waitingTags, failedTags, nowMs, windowMs }: Props): React.JSX.Element {
+  // 항목마다 신선도 — 머리줄 합계와 줄 표시가 같은 판정을 쓴다
+  const fresh = new Map(
+    descriptor.properties.map((property) => [property.name, freshnessOf(latest.get(`${descriptor.name}/${property.name}`), nowMs, windowMs)]),
+  );
+  const sum = tallyFreshness([...fresh.values()].map((f) => f.kind));
   return (
     <div className="interface">
       <div className="interface-head">
@@ -27,6 +37,15 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
         <span className={`conn ${status.kind}`} title={tr('마지막 수집 시도의 결과입니다')}>
           <span className="dot" aria-hidden="true" />
           {status.label}
+        </span>
+        {/* 값 신선도 합계 — 무엇이 끊겼는지 표를 훑지 않아도 보인다. 색만으로 나누지 않는다(글자로 적는다) */}
+        <span
+          className="fresh-sum"
+          title={fill(tr('받는 중 = {0}분 안에 들어온 값 · 끊김 = 마지막 값은 있으나 그 뒤로 안 들어옴 · 값 없음 = 한 번도 안 들어옴'), { 0: Math.round(windowMs / 60_000) })}
+        >
+          <span className="fresh live">{fill(tr('받는 중 {0}'), { 0: sum.live })}</span>
+          {sum.stale > 0 && <span className="fresh stale">{fill(tr('끊김 {0}'), { 0: sum.stale })}</span>}
+          {sum.none > 0 && <span className="fresh none">{fill(tr('값 없음 {0}'), { 0: sum.none })}</span>}
         </span>
       </div>
       <div className="mono base">{descriptor.base ?? tr('주소 없음')}</div>
@@ -82,7 +101,21 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
                     '—'
                   )}
                 </td>
-                <td className="unit time-col">{value ? localTime(value.observedAt) : ''}</td>
+                <td
+                  className={`unit time-col${fresh.get(property.name)?.kind === 'stale' ? ' stale' : ''}`}
+                  {...(value
+                    ? { title: fill(tr('받은 시각 {0} · 장비 시각 {1}'), { 0: localTime(arrivedAt(value)), 1: localTime(value.observedAt) }) }
+                    : {})}
+                >
+                  {value && fresh.get(property.name)?.ageMs !== undefined ? (
+                    <>
+                      {fresh.get(property.name)?.kind === 'stale' && <span className="fresh stale">{tr('끊김')}</span>}{' '}
+                      {ageLabel(fresh.get(property.name)!.ageMs!)}
+                    </>
+                  ) : (
+                    ''
+                  )}
+                </td>
               </tr>
             );
           })}

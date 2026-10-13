@@ -768,6 +768,26 @@ describe('수집 화면 (M8)', () => {
     expect(await screen.findByText('연결됨')).toBeTruthy();
   });
 
+  it('값 신선도 — 수집 전에는 값 없음, 읽으면 받는 중(장비 시각이 옛날이어도 방금 읽었으면)', async () => {
+    await mountApi(undefined, { aid: true });
+    render(<App />);
+    await screen.findByText('DigitalNameplate');
+    const card = (): HTMLElement => document.querySelector('.collection .interface') as HTMLElement;
+    await waitFor(() => expect(card()).toBeTruthy());
+    // 아직 아무것도 안 들어왔다
+    expect(within(card()).getByText(/^값 없음 \d+$/)).toBeTruthy();
+    expect(within(card()).getByText('받는 중 0')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '수집' }));
+    await screen.findByText('연결됨');
+    // 🔴 가짜 어댑터의 장비 시각은 2026-08-24 로 멈춰 있다 — 그걸로 판정하면 전부 「끊김」이 된다.
+    //    수신 시각으로 판정하므로 전부 받는 중이고, 끊김·값 없음은 없다
+    await waitFor(() => expect(within(card()).queryByText(/^값 없음 \d+$/)).toBeNull());
+    expect(within(card()).getByText(/^받는 중 [1-9]\d*$/)).toBeTruthy();
+    expect(within(card()).queryByText(/^끊김 \d+$/)).toBeNull();
+    expect(within(card()).getAllByText('방금').length).toBeGreaterThan(0);
+  });
+
   it('연결을 지울 수 있다 — 만들기·바꾸기만 있고 지우기가 없으면 안 된다', async () => {
     const store = await mountApi(undefined, { aid: true });
     render(<App />);

@@ -322,8 +322,8 @@ export class PostgresStore implements AasStore {
     for (const value of values) {
       await this.client.query(
         `INSERT INTO collected_value
-           (package_id, interface_name, property_name, source, observed_at, value_number, value_text, quality)
-         VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8)`,
+           (package_id, interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at)
+         VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8, $9::timestamptz)`,
         [
           packageId,
           value.interfaceName,
@@ -333,6 +333,7 @@ export class PostgresStore implements AasStore {
           value.valueNumber ?? null,
           value.valueText ?? null,
           value.quality ?? null,
+          value.receivedAt ?? null,
         ],
       );
     }
@@ -359,8 +360,9 @@ export class PostgresStore implements AasStore {
       value_number: number | null;
       value_text: string | null;
       quality: string | null;
+      received_at: unknown;
     }>(
-      `SELECT interface_name, property_name, source, observed_at, value_number, value_text, quality
+      `SELECT interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at
        FROM collected_value
        WHERE package_id = $1
          AND ($2::text IS NULL OR interface_name = $2)
@@ -390,6 +392,7 @@ export class PostgresStore implements AasStore {
       if (row.value_number !== null) value.valueNumber = Number(row.value_number);
       if (row.value_text !== null) value.valueText = row.value_text;
       if (row.quality !== null) value.quality = row.quality;
+      if (row.received_at !== null && row.received_at !== undefined) value.receivedAt = toIso(row.received_at);
       return value;
     });
   }

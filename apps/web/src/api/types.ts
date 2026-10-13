@@ -82,6 +82,8 @@ export interface CollectedValueView {
   propertyName: string;
   source?: string;
   observedAt: string;
+  /** 이 도구가 실제로 읽어 온 시각 — 신선도(받는 중 · 끊김)의 근거. 옛 기록에는 없다(그때는 observedAt) */
+  receivedAt?: string;
   valueNumber?: number;
   valueText?: string;
   quality?: string;

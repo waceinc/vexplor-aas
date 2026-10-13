@@ -64,6 +64,7 @@ describe('수집 실행', () => {
       propertyName: 'MotorSpeed',
       source: 'ns=2;s=Speed',
       observedAt: '2026-08-24T00:00:00.000Z',
+      receivedAt: '2026-08-24T00:00:00.000Z',
       quality: 'Good',
       valueNumber: 1234.5,
     });
@@ -78,6 +79,8 @@ describe('수집 실행', () => {
       { packageId: 'pkg_1', now: () => '2026-08-24T00:00:00.000Z' },
     );
     expect(target.samples[0]!.observedAt).toBe('2026-01-01T00:00:00.000Z');
+    // 🔴 수신 시각은 이 도구의 시계다 — 장비 시각이 멈춰 있어도 「방금 읽었다」를 남긴다(신선도 판정)
+    expect(target.samples[0]!.receivedAt).toBe('2026-08-24T00:00:00.000Z');
   });
 
   it('읽지 못한 것은 숨기지 않고 사유와 함께 남긴다', async () => {
