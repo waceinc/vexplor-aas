@@ -18,5 +18,7 @@ export default defineConfig({
   test: {
     include: ['packages/**/test/**/*.test.{ts,tsx}', 'apps/**/test/**/*.test.{ts,tsx}'],
     environment: 'node',
+    // Node 25+ 의 내장 Web Storage 가 jsdom 의 localStorage 를 가리는 것을 되돌린다(tests/setup/web-storage.ts)
+    setupFiles: ['tests/setup/web-storage.ts'],
   },
 });
