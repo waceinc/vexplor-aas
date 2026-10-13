@@ -176,4 +176,16 @@ export interface UserView {
   demo?: boolean;
 }
 
+/**
+ * 템플릿 요구 수준 — 서브모델 하나의 요소마다 「필수 · 선택」(2026-10-13).
+ * 열쇠는 요소 경로(리스트 자식은 `[]`). 템플릿이 없는 서브모델은 아예 오지 않는다 — 화면은 「모름」으로 둔다.
+ */
+export interface SubmodelRequirement {
+  submodelId: string;
+  semanticId: string;
+  template?: string;
+  templateFile?: string;
+  elements: Record<string, { cardinality: 'One' | 'ZeroToOne' | 'ZeroToMany' | 'OneToMany'; required: boolean }>;
+}
+
 export * from './bundleDocTypes.js';

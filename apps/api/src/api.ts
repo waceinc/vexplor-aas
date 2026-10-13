@@ -31,6 +31,7 @@ import { compile, match, type Route } from './router.js';
 import { registryRoutes } from './routes/registry.js';
 import { packageRoutes, type PackageRouteOptions } from './routes/packages.js';
 import { bundleRoutes } from './routes/bundle.js';
+import { requirementRoutes } from './routes/requirements.js';
 import { AASX_FILE_SERVER_PROFILES, descriptionRoute, part2Routes } from './routes/part2.js';
 import { describeChange, UndoStack } from './undo.js';
 
@@ -135,6 +136,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
       ...(options.aasxLimits ? { aasxLimits: options.aasxLimits } : {}),
       ...(options.policy ? { policy: options.policy } : {}),
     }),
+    // 템플릿 요구 수준(필수 · 선택) — 값 표가 쓴다
+    ...requirementRoutes(store),
     // 루트는 AASX 파일 서버 인터페이스의 기저 주소다
     descriptionRoute('/description', AASX_FILE_SERVER_PROFILES),
     ...part2Routes(store),

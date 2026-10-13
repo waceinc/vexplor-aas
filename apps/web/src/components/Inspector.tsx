@@ -8,7 +8,7 @@
  * 2026-10-13 컴포넌트화 — 편집기마다 inspector/ 의 부품으로 나눴다. 여기는 무엇을 보일지만 정한다.
  */
 import { Fragment, useMemo } from 'react';
-import type { Policy } from '../api.js';
+import type { Policy, SubmodelRequirement } from '../api.js';
 import { EDITABLE_VALUE_TYPES, type TreeNode } from '../model.js';
 import { AssetInfoEditor } from './inspector/AssetInfoEditor.js';
 import { AttachmentEditor } from './inspector/AttachmentEditor.js';
@@ -70,6 +70,10 @@ interface Props {
    *    없었다(초보자 여정 실측, 2026-08-26). 서버 API는 처음부터 있었다.
    */
   onUploadThumbnail?: (file: File) => void;
+  /** 이 요소가 속한 서브모델의 템플릿 요구 수준 — 값 표의 「구분」(필수 · 선택). 없으면 모름 */
+  requirement?: SubmodelRequirement;
+  /** 이 파일의 수집 연결(AID) 항목 이름 — 값 표에서 「수집」으로 표시 */
+  collectedNames?: ReadonlySet<string>;
   /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
   t: (text: string) => string;
 }
@@ -123,7 +127,14 @@ export function Inspector(props: Props): React.JSX.Element {
         )}
 
         {node.modelType === 'Submodel' && onBulkSaveValues && (
-          <BulkValues node={node} busy={busy} onBulkSaveValues={onBulkSaveValues} t={t} />
+          <BulkValues
+            node={node}
+            busy={busy}
+            {...(props.requirement ? { requirement: props.requirement } : {})}
+            {...(props.collectedNames ? { collectedNames: props.collectedNames } : {})}
+            onBulkSaveValues={onBulkSaveValues}
+            t={t}
+          />
         )}
 
         {node.modelType === 'AssetInformation' && onSaveAssetInformation && (

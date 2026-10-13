@@ -34,6 +34,8 @@ const EXTENSIONS = [
   '/packages/:packageId/revisions',
   '/packages/:packageId/interfaces',
   '/packages/:packageId/values',
+  // 템플릿 요구 수준 — 값 표의 「구분」(필수 · 선택). 2026-10-13
+  '/packages/:packageId/requirements',
   '/packages/:packageId/collect',
   '/packages/:packageId/aid',
   // 저작 도구 자체 기능 — 규격에는 "새로 만들기"가 없다(AasxFileServer는 업로드만 다룬다)

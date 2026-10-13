@@ -8,19 +8,27 @@ import { useState } from 'react';
 import { fill, tr } from '../../i18n.js';
 import type { TreeNode } from '../../model.js';
 import { T } from '../T.js';
+import type { SubmodelRequirement } from '../../api.js';
+import { needOf, type Need } from './need.js';
 
 interface Props {
   node: TreeNode;
   busy: boolean;
+  /** 이 서브모델의 템플릿 요구 수준 — 없으면 「모름」 */
+  requirement?: SubmodelRequirement;
+  /** 수집 연결(AID)의 항목 이름 — 같은 이름의 칸은 수집으로 채워진다 */
+  collectedNames?: ReadonlySet<string>;
   onBulkSaveValues: (node: TreeNode, content: Record<string, unknown>) => void;
   t: (text: string) => string;
 }
 
-export function BulkValues({ node, busy, onBulkSaveValues, t }: Props): React.JSX.Element | null {
+export function BulkValues({ node, busy, requirement, collectedNames, onBulkSaveValues, t }: Props): React.JSX.Element | null {
   /** 값 표의 편집분 — idShortPath → 새 값. 저장 때 서브모델 JSON에 한꺼번에 얹는다 */
   const [bulk, setBulk] = useState<Record<string, string>>({});
+  /** 채울 것(필수 · 수집)만 보기 — 템플릿을 알 때만 켤 수 있다 */
+  const [onlyNeeded, setOnlyNeeded] = useState(false);
   // 잎 값들을 모은다 — Property(글), MLP(첫 언어), Range(min~max)
-  const rows: { path: string; label: string; kind: string; current: string }[] = [];
+  const rows: { path: string; label: string; kind: string; current: string; need: Need }[] = [];
   const collect = (children: readonly TreeNode[], prefix: string): void => {
     for (const child of children) {
       const label = prefix ? `${prefix} › ${child.label}` : child.label;
@@ -30,6 +38,7 @@ export function BulkValues({ node, busy, onBulkSaveValues, t }: Props): React.JS
           path: child.idShortPath,
           label,
           kind: 'Property',
+          need: needOf(child.idShortPath, child.label, requirement, collectedNames),
           current: String(rawChild['value'] ?? ''),
         });
       } else if (child.modelType === 'MultiLanguageProperty' && child.idShortPath) {
@@ -38,6 +47,7 @@ export function BulkValues({ node, busy, onBulkSaveValues, t }: Props): React.JS
           path: child.idShortPath,
           label: `${label} (${list[0]?.language ?? 'ko'})`,
           kind: 'MLP',
+          need: needOf(child.idShortPath, child.label, requirement, collectedNames),
           current: list[0]?.text ?? '',
         });
       } else if (child.modelType === 'Range' && child.idShortPath) {
@@ -45,6 +55,7 @@ export function BulkValues({ node, busy, onBulkSaveValues, t }: Props): React.JS
           path: child.idShortPath,
           label: `${label} (min~max)`,
           kind: 'Range',
+          need: needOf(child.idShortPath, child.label, requirement, collectedNames),
           current: `${String(rawChild['min'] ?? '')}~${String(rawChild['max'] ?? '')}`,
         });
       }
@@ -54,13 +65,33 @@ export function BulkValues({ node, busy, onBulkSaveValues, t }: Props): React.JS
   collect(node.children, '');
   if (rows.length === 0) return null;
   const dirty = Object.keys(bulk).length;
+  const count = (need: Need): number => rows.filter((row) => row.need === need).length;
+  const emptyRequired = rows.filter((row) => row.need === 'required' && (bulk[row.path] ?? row.current).trim() === '').length;
+  const shown = onlyNeeded ? rows.filter((row) => row.need === 'required' || row.need === 'collected') : rows;
   return (
     <div className="bulk-values">
       <p className="pick-title"><T k={'값 한꺼번에 입력 ({0}개)'} v={[rows.length]} /></p>
+      {/* 무엇을 채워야 하나 — 템플릿을 알면 필수 · 수집 · 선택을 센다. 모르면 그 사실을 말한다 */}
+      {requirement ? (
+        <div className="need-summary">
+          <span className="need required">{fill(tr('필수 {0}'), { 0: count('required') })}</span>
+          {emptyRequired > 0 && <span className="need missing">{fill(tr('빈 필수 {0}'), { 0: emptyRequired })}</span>}
+          <span className="need collected">{fill(tr('수집 {0}'), { 0: count('collected') })}</span>
+          <span className="need optional">{fill(tr('선택 {0}'), { 0: count('optional') })}</span>
+          <label className="check-line" title={tr('필수 항목과 수집으로 채워지는 항목만 보입니다 — 선택 항목은 숨깁니다')}>
+            <input type="checkbox" checked={onlyNeeded} onChange={(event) => setOnlyNeeded(event.target.checked)} />
+            {tr('채울 것만 보기')}
+          </label>
+          <span className="dim">{fill(tr('기준: 템플릿 {0}'), { 0: requirement.templateFile ?? requirement.template ?? requirement.semanticId })}</span>
+        </div>
+      ) : (
+        <p className="hint">{tr('이 서브모델의 IDTA 템플릿이 없어 필수 여부를 모릅니다 — 설치 폴더(AAS_TEMPLATES_DIR)에 템플릿을 두면 표시됩니다.')}</p>
+      )}
       <table>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.path}>
+          {shown.map((row) => (
+            <tr key={row.path} className={row.need === 'required' && (bulk[row.path] ?? row.current).trim() === '' ? 'missing' : ''}>
+              <td className="bulk-need">{needTag(row.need)}</td>
               <td className="bulk-label" title={row.path}>{row.label}</td>
               <td>
                 <input
@@ -112,4 +143,17 @@ export function BulkValues({ node, busy, onBulkSaveValues, t }: Props): React.JS
       </button>
     </div>
   );
+}
+
+/** 구분 표시 — 색만으로 나누지 않는다(글자로 적는다) */
+function needTag(need: Need): React.JSX.Element | null {
+  if (need === 'unknown') return null;
+  const text = need === 'required' ? tr('필수') : need === 'collected' ? tr('수집') : tr('선택');
+  const title =
+    need === 'required'
+      ? tr('템플릿이 요구하는 항목 — 비워 두면 템플릿을 어깁니다')
+      : need === 'collected'
+        ? tr('수집 연결(AID)에 같은 이름이 있어 현장 값으로 채워집니다 — 사람이 적지 않아도 됩니다')
+        : tr('템플릿에서 선택 — 비워 두어도 됩니다');
+  return <span className={`need ${need}`} title={title}>{text}</span>;
 }

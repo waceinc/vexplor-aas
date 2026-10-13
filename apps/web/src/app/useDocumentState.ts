@@ -3,7 +3,7 @@
  * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 선언과 주석은 옮기기 전 글자 그대로다.
  */
 import { useMemo, useRef, useState } from 'react';
-import { api, type AidInterfaceView, type HierarchyView, type UndoStatus, type CycleReportView, type LiveMapping, type CollectedValueView, type FixReport, type PackageDescription, type Policy } from '../api.js';
+import { api, type AidInterfaceView, type HierarchyView, type UndoStatus, type CycleReportView, type LiveMapping, type CollectedValueView, type FixReport, type PackageDescription, type Policy, type SubmodelRequirement } from '../api.js';
 import { type LinkedInfo, type Finding, type ConceptDescription, type Shell, type Submodel } from '../model.js';
 
 export function useDocumentState() {
@@ -64,6 +64,8 @@ export function useDocumentState() {
   const [shellRevisions, setShellRevisions] = useState<Record<string, number>>({});
   /** IRI 이관 대장(새 → 원본) — 파일 안 파트. 비어 있으면 요약에 아무것도 안 뜬다 */
   const [ledger, setLedger] = useState<Record<string, string>>({});
+  /** 템플릿 요구 수준 — 서브모델 id → 요소마다 필수 · 선택. 템플릿이 없는 서브모델은 없다(모름) */
+  const [requirements, setRequirements] = useState<Record<string, SubmodelRequirement>>({});
   /**
    * 미리보기가 "못 고친다"고 한 지적 수 — 단추 숫자와 팝업이 어긋나지 않게 하는 근거.
    * 🔴 규칙의 fixable 표시만 믿으면 단추는 「2건」인데 들어가면 "사람이 판단"이 된다(사용자 2026-09-11).
@@ -74,5 +76,5 @@ export function useDocumentState() {
   const [fixCount, setFixCount] = useState<number | undefined>();
   /** 마지막으로 연 파일. 같은 파일을 다시 읽을 때 펼침 상태를 지키는 데 쓴다 */
   const openedRef = useRef<string>(undefined);
-  return { packages, setPackages, packageId, setPackageId, submodels, setSubmodels, findings, setFindings, fixReport, setFixReport, policy, setPolicy, shells, setShells, concepts, setConcepts, shell, conceptIds, interfaces, setInterfaces, hierarchy, setHierarchy, linked, setLinked, linkedConceptIds, linkedRevisions, setLinkedRevisions, linkedFindings, setLinkedFindings, values, setValues, live, setLive, autoCollect, setAutoCollect, opcua, setOpcua, version, setVersion, lastCycle, setLastCycle, revisions, setRevisions, undoState, setUndoState, shellRevisions, setShellRevisions, ledger, setLedger, unfixable, setUnfixable, fixCount, setFixCount, openedRef };
+  return { packages, setPackages, packageId, setPackageId, submodels, setSubmodels, findings, setFindings, fixReport, setFixReport, policy, setPolicy, shells, setShells, concepts, setConcepts, shell, conceptIds, interfaces, setInterfaces, hierarchy, setHierarchy, linked, setLinked, linkedConceptIds, linkedRevisions, setLinkedRevisions, linkedFindings, setLinkedFindings, values, setValues, live, setLive, autoCollect, setAutoCollect, opcua, setOpcua, version, setVersion, lastCycle, setLastCycle, revisions, setRevisions, undoState, setUndoState, shellRevisions, setShellRevisions, ledger, setLedger, requirements, setRequirements, unfixable, setUnfixable, fixCount, setFixCount, openedRef };
 }

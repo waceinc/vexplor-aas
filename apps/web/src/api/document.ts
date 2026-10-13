@@ -2,7 +2,7 @@
  * API 클라이언트 — 파일 목록 · 올리기 · 검사 · 자동 고치기 · 되돌리기 · 이력 · 규칙과 규약
  * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
  */
-import type { PackageDescription, UndoStatus, HistoryEntry, LintReport, FixReport, RuleCatalog, Policy } from './types.js';
+import type { PackageDescription, UndoStatus, HistoryEntry, LintReport, FixReport, RuleCatalog, Policy, SubmodelRequirement } from './types.js';
 import { encodeIdentifier, request } from './http.js';
 import type { Submodel } from '../model.js';
 
@@ -31,6 +31,9 @@ export const documentApi = {
   /** 무엇을 어떻게 고칠지 — 저장하지 않고 계산만. 팝업이 항목별 전/후를 그린다 */
   fixPreview: (packageId: string): Promise<FixReport> => request(`/packages/${packageId}/fix-preview?includeWarnings=1`),
   /** IRI 이관 대장(새 IRI → 원본 IRI) — 파일 안 파트에 쌓인 것 */
+  /** 템플릿 요구 수준 — 서브모델마다 「필수 · 선택」(템플릿이 있는 것만) */
+  requirements: (packageId: string): Promise<{ result: SubmodelRequirement[]; templates: number }> =>
+    request(`/packages/${packageId}/requirements`),
   relocations: (packageId: string): Promise<{ relocations: Record<string, string> }> =>
     request(`/packages/${packageId}/relocations`),
   /** 원본 IRI로 되돌리기 — 규정 해석이 뒤집혔을 때 */

@@ -1668,3 +1668,14 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .collection .fresh.none { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
 .collection .interface-head .conn { margin-left: 0; }
 .collection td.time-col.stale { color: var(--warn); }
+
+/* 값 표의 구분(2026-10-13) — 필수 · 수집 · 선택. 빈 필수 칸은 줄째 짚는다. 색만으로 나누지 않는다(글자로 적는다) */
+.bulk-values .need-summary { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 1.5); margin: calc(var(--spacing) * 1) 0 calc(var(--spacing) * 2); font-size: var(--text-xs); }
+.bulk-values .need-summary .check-line { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); margin: 0 0 0 calc(var(--spacing) * 2); }
+.bulk-values .need { display: inline-block; padding: 0 calc(var(--spacing) * 1.5); border-radius: var(--radius); border: 1px solid transparent; font-size: var(--text-xs); white-space: nowrap; }
+.bulk-values .need.required { background: var(--failbg); color: var(--fail); border-color: color-mix(in oklab, var(--fail) 30%, transparent); }
+.bulk-values .need.missing { background: var(--fail); color: #fff; }
+.bulk-values .need.collected { background: var(--okbg); color: var(--teal); border-color: color-mix(in oklab, var(--teal) 30%, transparent); }
+.bulk-values .need.optional { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
+.bulk-values td.bulk-need { width: 1%; white-space: nowrap; padding-right: calc(var(--spacing) * 2); }
+.bulk-values tr.missing input { border-color: var(--fail); }

@@ -10,8 +10,8 @@ import { revealPath, type Finding, type TreeNode } from '../model.js';
 import type { Model } from './context.js';
 import { describeError } from './describeError.js';
 
-export function useCore(c: Pick<Model, 'expanded' | 'linkedRevisions' | 'openedRef' | 'packageId' | 'revisions' | 'roots' | 'setAdding' | 'setAuth' | 'setAutoCollect' | 'setBusy' | 'setConcepts' | 'setConflict' | 'setError' | 'setExpanded' | 'setFilesOpen' | 'setFindings' | 'setFixCount' | 'setFixReport' | 'setHierAdder' | 'setHierarchy' | 'setHistoryFor' | 'setInterfaces' | 'setLastCycle' | 'setLedger' | 'setLinked' | 'setLive' | 'setNeedsToken' | 'setNotice' | 'setOpcua' | 'setPackageId' | 'setPackages' | 'setPolicy' | 'setReveal' | 'setRevisions' | 'setSelectedKey' | 'setShellRevisions' | 'setShells' | 'setSubmodelTarget' | 'setSubmodels' | 'setUndoState' | 'setUnfixable' | 'setValues' | 'setVersion'>) {
-  const { expanded, linkedRevisions, openedRef, packageId, revisions, roots, setAdding, setAuth, setAutoCollect, setBusy, setConcepts, setConflict, setError, setExpanded, setFilesOpen, setFindings, setFixCount, setFixReport, setHierAdder, setHierarchy, setHistoryFor, setInterfaces, setLastCycle, setLedger, setLinked, setLive, setNeedsToken, setNotice, setOpcua, setPackageId, setPackages, setPolicy, setReveal, setRevisions, setSelectedKey, setShellRevisions, setShells, setSubmodelTarget, setSubmodels, setUndoState, setUnfixable, setValues, setVersion } = c;
+export function useCore(c: Pick<Model, 'expanded' | 'linkedRevisions' | 'openedRef' | 'packageId' | 'revisions' | 'roots' | 'setAdding' | 'setAuth' | 'setAutoCollect' | 'setBusy' | 'setConcepts' | 'setConflict' | 'setError' | 'setExpanded' | 'setFilesOpen' | 'setFindings' | 'setFixCount' | 'setFixReport' | 'setHierAdder' | 'setHierarchy' | 'setHistoryFor' | 'setInterfaces' | 'setLastCycle' | 'setLedger' | 'setLinked' | 'setLive' | 'setNeedsToken' | 'setNotice' | 'setOpcua' | 'setPackageId' | 'setPackages' | 'setPolicy' | 'setRequirements' | 'setReveal' | 'setRevisions' | 'setSelectedKey' | 'setShellRevisions' | 'setShells' | 'setSubmodelTarget' | 'setSubmodels' | 'setUndoState' | 'setUnfixable' | 'setValues' | 'setVersion'>) {
+  const { expanded, linkedRevisions, openedRef, packageId, revisions, roots, setAdding, setAuth, setAutoCollect, setBusy, setConcepts, setConflict, setError, setExpanded, setFilesOpen, setFindings, setFixCount, setFixReport, setHierAdder, setHierarchy, setHistoryFor, setInterfaces, setLastCycle, setLedger, setLinked, setLive, setNeedsToken, setNotice, setOpcua, setPackageId, setPackages, setPolicy, setRequirements, setReveal, setRevisions, setSelectedKey, setShellRevisions, setShells, setSubmodelTarget, setSubmodels, setUndoState, setUnfixable, setValues, setVersion } = c;
   const run = useCallback(async <T,>(work: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true);
     setError(undefined);
@@ -53,6 +53,13 @@ export function useCore(c: Pick<Model, 'expanded' | 'linkedRevisions' | 'openedR
         setAutoCollect(await api.collectStatus().catch(() => undefined));
         setOpcua(await api.opcuaStatus().catch(() => undefined));
         setLedger(await api.relocations(id).then((r) => r.relocations).catch(() => ({})));
+        // 템플릿 요구 수준 — 템플릿이 없거나 실패하면 비운다(값 표는 「모름」으로 둔다)
+        setRequirements(
+          await api
+            .requirements(id)
+            .then((r) => Object.fromEntries(r.result.map((entry) => [entry.submodelId, entry])))
+            .catch(() => ({})),
+        );
         setUndoState(await api.undoStatus(id).catch(() => ({ undo: [], redo: [] })));
         setSubmodels(tree.result);
         setFindings(
