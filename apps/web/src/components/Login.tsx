@@ -9,6 +9,9 @@
  *    고쳐 쓰면 서버가 일부러 가린 것(계정의 존재)이 도로 새어 나간다.
  */
 import { useState } from 'react';
+import { ConsentBox } from './login/ConsentBox.js';
+import { DemoCard } from './login/DemoCard.js';
+import { ProfileFields } from './login/ProfileFields.js';
 
 interface Props {
   /** 계정이 하나도 없다 — 로그인이 아니라 첫 관리자를 만든다 */
@@ -194,33 +197,7 @@ export function Login({
              (개인정보 보호법 제15조 — 수집 항목 · 목적 · 보유 기간 · 거부할 권리를 알린다).
           🔴 처리방침이 없는 서버는 이 칸들이 아예 없다 — 서버도 거절한다.
         */}
-        {profile && (
-          <>
-            <label>
-              {t('회사명')} <span className="dim">{t('(선택)')}</span>
-              <input
-                value={company}
-                autoComplete="organization"
-                maxLength={80}
-                onChange={(event) => setCompany(event.target.value)}
-              />
-            </label>
-            <label>
-              {t('이메일')}
-              {req}
-              <input
-                aria-required
-                type="email"
-                value={email}
-                autoComplete="email"
-                maxLength={120}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              {/* 🔴 확인하지 않는다는 사실을 적는다 — 확인된 주소인 양 두면 안 된다 */}
-              <span className="hint">{t('확인 메일은 보내지 않습니다.')}</span>
-            </label>
-          </>
-        )}
+        {profile && <ProfileFields company={company} setCompany={setCompany} email={email} setEmail={setEmail} req={req} t={t} />}
 
         <label>
           {t('비밀번호')}
@@ -251,33 +228,7 @@ export function Login({
           </>
         )}
 
-        {profile && (
-          <div className="consent">
-            <p className="consent-title">
-              {t('개인정보 수집·이용 동의 (필수)')}
-              {req}
-            </p>
-            <dl>
-              <dt>{t('항목')}</dt>
-              <dd>{t('아이디 · 이름 · 이메일 · 비밀번호(암호화 저장) · 회사명(선택)')}</dd>
-              <dt>{t('목적')}</dt>
-              <dd>{t('회원 식별 · 서비스 제공 · 문의 응대')}</dd>
-              <dt>{t('보유 기간')}</dt>
-              <dd>{t('탈퇴할 때까지 — 탈퇴하면 올린 파일과 함께 지웁니다')}</dd>
-            </dl>
-            <p className="hint">{t('동의하지 않을 수 있으나, 그 경우 가입할 수 없습니다. 가입 없이 데모 계정으로 써 볼 수 있습니다.')}</p>
-            <label className="agree">
-              <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
-              <span>
-                {t('위 내용과 ')}
-                <a href={privacyUrl} target="_blank" rel="noreferrer">
-                  {t('개인정보처리방침')}
-                </a>
-                {t('에 동의합니다.')}
-              </span>
-            </label>
-          </div>
-        )}
+        {profile && <ConsentBox agreed={agreed} setAgreed={setAgreed} privacyUrl={privacyUrl} req={req} t={t} />}
 
         {/* 🔴 role="alert" — 화면 낭독기가 실패를 바로 읽어 준다 */}
         {error && (
@@ -327,50 +278,19 @@ export function Login({
       </form>
 
       {demo && mode === 'login' && (
-        <div className="login-divider" role="separator">
-          <span>{t('가입 없이 먼저 써 보기')}</span>
-        </div>
-      )}
-
-      {/*
-        체험판 안내 — 로그인 **아래**에 카드 한 장으로 둔다(2026-10-06 사용자·디자인 검토).
-        🔴 위에 두었더니 다시 찾아온 회원도 체험 안내부터 지나야 했고, 파란 단추가 둘이라
-           주인공이 흐렸다. 로그인이 이 서버의 정식 입구다 — 체험 단추는 테두리 단추(보조)로 둔다.
-        🔴 처음에는 회색 잔글씨 두 줄이었다. 체험 서버에 온 사람이 **가장 먼저 알아야 하는 것**
-           (어떻게 들어가나 · 무엇이 되고 안 되나)인데 눈에 들어오지 않았다(사용자 2026-10-04).
-        🔴 아이디·비밀번호를 적어 두기만 하지 않고 **단추 하나로 들어가게** 한다 —
-           보고 베껴 치게 할 이유가 없다. 값은 그대로 보여 준다(무엇으로 들어가는지 숨기지 않는다).
-      */}
-      {demo && mode === 'login' && (
-        <section className="demo-card" aria-label={t('체험판 안내')}>
-          <h2>{t('데모 계정')}</h2>
-          <dl>
-            <dt>{t('아이디')}</dt>
-            <dd><code>{demo.login}</code></dd>
-            <dt>{t('비밀번호')}</dt>
-            <dd><code>{demo.password}</code></dd>
-          </dl>
-          <button
-            className="big demo-enter"
-            type="button"
-            disabled={busy || working}
-            onClick={() => {
-              setError(undefined);
-              setWorking(true);
-              void onLogin(demo.login, demo.password).then((failed) => {
-                setWorking(false);
-                if (failed) setError(failed);
-              });
-            }}
-          >
-            {t('데모 계정으로 들어가기')}
-          </button>
-          <ul>
-            <li>{t('열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다')}</li>
-            <li>{t('체험판은 일정 시간 후 초기화 됩니다')}</li>
-            <li className="locked">{t('파일 내려받기는 회원가입 후에 됩니다')}</li>
-          </ul>
-        </section>
+        <DemoCard
+          demo={demo}
+          disabled={busy || working}
+          onEnter={() => {
+            setError(undefined);
+            setWorking(true);
+            void onLogin(demo.login, demo.password).then((failed) => {
+              setWorking(false);
+              if (failed) setError(failed);
+            });
+          }}
+          t={t}
+        />
       )}
 
     </div>
