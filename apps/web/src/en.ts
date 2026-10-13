@@ -651,6 +651,9 @@ export const EN_MORE: Record<string, string> = {
   '이 도구가 다른 시스템에 값을 내주고 있습니다': 'This tool is serving values to other systems',
   '· 변수 {0}개': '· {0} variables',
   '언어 — {0}': 'Language — {0}',
+  '밝은 화면으로': 'Light screen',
+  '어두운 화면으로': 'Dark screen',
+  '화면 색을 밝게 · 어둡게 바꿉니다 — 이 브라우저에 기억합니다': 'Switches between a light and dark screen — remembered in this browser',
   '화면 글자의 언어를 고릅니다': 'Choose the language of the interface',
   '이 브라우저의 로그인을 끝냅니다': 'End the sign-in on this browser',
   '이 도구가 지키는 규칙 43종과 규약을 지금 도는 그대로 보여 줍니다':

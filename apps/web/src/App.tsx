@@ -78,6 +78,8 @@ import {
 } from './model.js';
 import { tr } from './i18n.js';
 import { T } from './components/T.js';
+import { useTheme } from './theme.js';
+import { LayoutGrid } from 'lucide-react';
 import { GettingStarted, type StartItem } from './components/GettingStarted.js';
 import { HelpPanel } from './components/HelpPanel.js';
 import { Tour } from './components/Tour.js';
@@ -103,6 +105,7 @@ export function describeError(caught: unknown): string {
 }
 
 export function App(): React.JSX.Element {
+  const theme = useTheme();
   const [packages, setPackages] = useState<PackageDescription[]>([]);
   const [packageId, setPackageId] = useState<string>();
   const [submodels, setSubmodels] = useState<Submodel[]>([]);
@@ -1854,13 +1857,13 @@ export function App(): React.JSX.Element {
        넣을 계정이 없어 아무도 들어갈 수 없게 된다(개발·설치판이 이 경우다).
     🔴 토큰(API 키)을 쥐고 있으면 그대로 쓴다 — 기존 사용자를 쫓아내지 않는다.
   */
-  if (auth === undefined) return <div className="app" />;
+  if (auth === undefined) return <div className="app" data-scale="content" />;
   if (
     (auth.authRequired && !auth.authenticated && currentToken() === undefined) ||
     (startAccounts && (auth.setupNeeded || auth.signupAllowed === true))
   ) {
     return (
-      <div className="app">
+      <div className="app" data-scale="content">
         <main className="login-wrap">
           {/* onCancel은 **스스로 들어온 사람에게만** 준다 — 갇힌 사람에게 「그만두기」는 뜻이 없다 */}
           <Login
@@ -1909,8 +1912,9 @@ export function App(): React.JSX.Element {
   }
 
   return (
-    <div className="app">
-      <header>
+    <div className="app" data-scale="content">
+      {/* 머리글은 셸 밀도(90%), 그 아래 본문은 80% — 로직스튜디오 셸과 같은 표(styles/drive.css) */}
+      <header data-scale="shell">
         {/*
           두 줄이다. 윗줄은 **어느 파일을 보는가**와 상태, 아랫줄은 **그 파일에 무엇을 하는가**.
           아랫줄은 파일이 열려야 나온다 — 처음 화면에 눌러도 안 되는 버튼을 줄지어 두지 않는다.
@@ -1933,6 +1937,7 @@ export function App(): React.JSX.Element {
                  글자는 해상도를 안 타고, 이름이 또 바뀌어도 여기 한 줄만 고치면 된다.
                  공식 로고 파일을 받으면 <img>로 되돌린다.
             */}
+            <LayoutGrid aria-hidden="true" />
             <span className="wordmark">VEXPLOR</span>
             <span className="product">AAS Studio</span>
             {/* 판 번호 — 배포처가 여럿이면 "어느 판인가"가 문의의 첫 질문이다 */}
@@ -2077,6 +2082,11 @@ export function App(): React.JSX.Element {
                 label: fill(tr('언어 — {0}'), { 0: lang === 'en' ? 'English' : tr('한국어') }),
                 title: tr('화면 글자의 언어를 고릅니다'),
                 onClick: () => setShowSettings(true),
+              },
+              {
+                label: theme.dark ? t('밝은 화면으로') : t('어두운 화면으로'),
+                title: tr('화면 색을 밝게 · 어둡게 바꿉니다 — 이 브라우저에 기억합니다'),
+                onClick: theme.toggle,
               },
               // 데모 계정으로 보고 있다 — 자기 계정을 만들면 내려받을 수 있다
               ...(auth?.demo !== undefined && auth.signupAllowed === true

@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -23,7 +25,9 @@ const API_PATHS =
 const API_PROXY = { [API_PATHS]: API_TARGET };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  // shadcn kit(src/drive)이 쓰는 경로 별칭 — 로직스튜디오와 같다(`@/lib/cn` · `@/ui/kit/…` · `@/hooks/…`)
+  resolve: { alias: { '@': fileURLToPath(new URL('./src/drive', import.meta.url)) } },
   server: { port: 5173, proxy: API_PROXY },
   preview: { port: 4173, proxy: API_PROXY },
 });

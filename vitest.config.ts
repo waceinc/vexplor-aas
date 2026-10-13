@@ -6,6 +6,8 @@ const pkg = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      // 저작 UI 의 shadcn kit 경로 별칭(apps/web/vite.config.ts 와 같다)
+      '@/': pkg('./apps/web/src/drive/'),
       '@aas/core': pkg('./packages/aas-core/src/index.ts'),
       '@aas/aasx': pkg('./packages/aasx/src/index.ts'),
       '@aas/linter': pkg('./packages/linter/src/index.ts'),

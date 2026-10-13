@@ -8,24 +8,29 @@
 
 ## 요약
 
-- 실행에 딸려 가는 것(런타임): **167개**
-- 개발·시험에만 쓰는 것: 151개 (배포물에 들어가지 않습니다)
+- 실행에 딸려 가는 것(런타임): **248개**
+- 개발·시험에만 쓰는 것: 184개 (배포물에 들어가지 않습니다)
 - 런타임의 카피레프트(GPL·LGPL·AGPL): **0개**
 
 | 런타임 라이선스 | 개수 |
 |---|---|
-| MIT | 156 |
-| ISC | 3 |
+| MIT | 234 |
+| ISC | 4 |
+| Apache-2.0 | 3 |
 | BSD-3-Clause | 2 |
-| Apache-2.0 | 2 |
 | 0BSD | 2 |
 | BSD-2-Clause | 1 |
+| OFL-1.1 | 1 |
 | Unlicense | 1 |
 
 ## 런타임
 
 | 이름 | 판 | 라이선스 |
 |---|---|---|
+| @floating-ui/core | 1.8.0 | MIT |
+| @floating-ui/dom | 1.8.0 | MIT |
+| @floating-ui/react-dom | 2.1.9 | MIT |
+| @floating-ui/utils | 0.2.12 | MIT |
 | @leichtgewicht/ip-codec | 2.0.5 | MIT |
 | @nodable/entities | 3.0.0 | MIT |
 | @peculiar/asn1-cms | 2.9.4 | MIT |
@@ -42,13 +47,76 @@
 | @peculiar/utils | 2.0.3 | MIT |
 | @peculiar/webcrypto | 1.7.1 | MIT |
 | @peculiar/x509 | 2.0.0 | MIT |
+| @radix-ui/number | 1.1.3 | MIT |
+| @radix-ui/primitive | 1.1.7 | MIT |
+| @radix-ui/react-accessible-icon | 1.1.16 | MIT |
+| @radix-ui/react-accordion | 1.2.21 | MIT |
+| @radix-ui/react-alert-dialog | 1.1.24 | MIT |
+| @radix-ui/react-arrow | 1.1.16 | MIT |
+| @radix-ui/react-aspect-ratio | 1.1.16 | MIT |
+| @radix-ui/react-avatar | 1.2.7 | MIT |
+| @radix-ui/react-checkbox | 1.3.12 | MIT |
+| @radix-ui/react-collapsible | 1.1.21 | MIT |
+| @radix-ui/react-collection | 1.1.16 | MIT |
+| @radix-ui/react-compose-refs | 1.1.5 | MIT |
+| @radix-ui/react-context | 1.2.2 | MIT |
+| @radix-ui/react-context-menu | 2.3.8 | MIT |
+| @radix-ui/react-dialog | 1.2.0 | MIT |
+| @radix-ui/react-direction | 1.1.5 | MIT |
+| @radix-ui/react-dismissable-layer | 1.1.20 | MIT |
+| @radix-ui/react-dropdown-menu | 2.1.25 | MIT |
+| @radix-ui/react-focus-guards | 1.1.6 | MIT |
+| @radix-ui/react-focus-scope | 1.2.0 | MIT |
+| @radix-ui/react-form | 0.2.0 | MIT |
+| @radix-ui/react-hover-card | 1.1.24 | MIT |
+| @radix-ui/react-id | 1.1.4 | MIT |
+| @radix-ui/react-label | 2.1.16 | MIT |
+| @radix-ui/react-menu | 2.1.25 | MIT |
+| @radix-ui/react-menubar | 1.1.25 | MIT |
+| @radix-ui/react-navigation-menu | 1.3.0 | MIT |
+| @radix-ui/react-one-time-password-field | 0.1.17 | MIT |
+| @radix-ui/react-password-toggle-field | 0.1.12 | MIT |
+| @radix-ui/react-popover | 1.2.0 | MIT |
+| @radix-ui/react-popper | 1.3.8 | MIT |
+| @radix-ui/react-portal | 1.1.18 | MIT |
+| @radix-ui/react-presence | 1.1.11 | MIT |
+| @radix-ui/react-primitive | 2.1.11 | MIT |
+| @radix-ui/react-progress | 1.1.17 | MIT |
+| @radix-ui/react-radio-group | 1.4.8 | MIT |
+| @radix-ui/react-roving-focus | 1.1.20 | MIT |
+| @radix-ui/react-scroll-area | 1.3.0 | MIT |
+| @radix-ui/react-select | 2.3.8 | MIT |
+| @radix-ui/react-separator | 1.1.16 | MIT |
+| @radix-ui/react-slider | 1.5.0 | MIT |
+| @radix-ui/react-slot | 1.4.0 | MIT |
+| @radix-ui/react-switch | 1.3.8 | MIT |
+| @radix-ui/react-tabs | 1.1.22 | MIT |
+| @radix-ui/react-toast | 1.2.24 | MIT |
+| @radix-ui/react-toggle | 1.1.19 | MIT |
+| @radix-ui/react-toggle-group | 1.1.20 | MIT |
+| @radix-ui/react-toolbar | 1.1.20 | MIT |
+| @radix-ui/react-tooltip | 1.3.0 | MIT |
+| @radix-ui/react-use-callback-ref | 1.1.4 | MIT |
+| @radix-ui/react-use-controllable-state | 1.2.6 | MIT |
+| @radix-ui/react-use-effect-event | 0.0.5 | MIT |
+| @radix-ui/react-use-escape-keydown | 1.1.5 | MIT |
+| @radix-ui/react-use-is-hydrated | 0.1.3 | MIT |
+| @radix-ui/react-use-layout-effect | 1.1.4 | MIT |
+| @radix-ui/react-use-previous | 1.1.4 | MIT |
+| @radix-ui/react-use-rect | 1.1.4 | MIT |
+| @radix-ui/react-use-size | 1.1.5 | MIT |
+| @radix-ui/react-visually-hidden | 1.2.12 | MIT |
+| @radix-ui/rect | 1.1.3 | MIT |
 | @ster5/global-mutex | 3.3.0 | MIT |
 | @types/dns-packet | 5.6.5 | MIT |
 | @types/multicast-dns | 7.2.4 | MIT |
 | @types/node | 26.2.0 | MIT |
+| @types/react | 19.2.18 | MIT |
+| @types/react-dom | 19.2.4 | MIT |
 | @types/semver | 7.8.0 | MIT |
 | ansi-styles | 4.3.0 | MIT |
 | anynum | 1.0.1 | MIT |
+| aria-hidden | 1.2.6 | MIT |
 | array-back | 6.2.3 | MIT |
 | array-flatten | 2.1.2 | MIT |
 | asn1 | 0.2.6 | MIT |
@@ -60,12 +128,16 @@
 | chalk | 4.1.2 | MIT |
 | chalk-template | 0.4.0 | MIT |
 | chokidar | 4.0.3 | MIT |
+| class-variance-authority | 0.7.1 | Apache-2.0 |
+| clsx | 2.1.1 | MIT |
 | color-convert | 2.0.1 | MIT |
 | color-name | 1.1.4 | MIT |
 | command-line-args | 6.0.2 | MIT |
 | command-line-usage | 7.0.4 | MIT |
+| csstype | 3.2.3 | MIT |
 | dashdash | 1.14.1 | MIT |
 | dequeue | 1.0.5 | BSD-2-Clause |
+| detect-node-es | 1.1.0 | MIT |
 | dns-equal | 1.0.0 | MIT |
 | dns-packet | 5.6.1 | MIT |
 | ecc-jsbn | 0.1.2 | MIT |
@@ -75,6 +147,7 @@
 | fast-xml-parser | 5.11.0 | MIT |
 | fflate | 0.8.3 | MIT |
 | find-replace | 5.0.2 | MIT |
+| get-nonce | 1.0.1 | MIT |
 | getpass | 0.1.7 | MIT |
 | has-flag | 4.0.0 | MIT |
 | hexy | 0.4.0 | MIT |
@@ -85,6 +158,7 @@
 | lodash.partition | 4.6.0 | MIT |
 | lodash.sortby | 4.7.0 | MIT |
 | long | 5.3.2 | Apache-2.0 |
+| lucide-react | 1.52.0 | ISC |
 | multicast-dns | 7.2.5 | MIT |
 | node-opcua | 2.178.0 | MIT |
 | node-opcua-address-space | 2.178.0 | MIT |
@@ -164,10 +238,15 @@
 | postgres-date | 1.0.7 | MIT |
 | postgres-interval | 1.2.0 | MIT |
 | precond | 0.2.3 | MIT |
+| pretendard | 1.3.9 | OFL-1.1 |
 | pvtsutils | 1.3.6 | MIT |
 | pvutils | 1.2.0 | MIT |
+| radix-ui | 1.7.0 | MIT |
 | react | 19.2.8 | MIT |
 | react-dom | 19.2.8 | MIT |
+| react-remove-scroll | 2.7.2 | MIT |
+| react-remove-scroll-bar | 2.3.8 | MIT |
+| react-style-singleton | 2.2.3 | MIT |
 | readdirp | 4.1.2 | MIT |
 | reflect-metadata | 0.2.2 | Apache-2.0 |
 | safer-buffer | 2.1.2 | MIT |
@@ -179,6 +258,7 @@
 | strnum | 2.4.2 | MIT |
 | supports-color | 7.2.0 | MIT |
 | table-layout | 4.1.1 | MIT |
+| tailwind-merge | 3.7.0 | MIT |
 | thenify-ex | 4.4.0 | MIT |
 | thunky | 1.1.0 | MIT |
 | tslib | 2.8.1 | 0BSD |
@@ -187,6 +267,8 @@
 | tweetnacl | 0.14.5 | Unlicense |
 | typical | 7.3.0 | MIT |
 | undici-types | 8.3.0 | MIT |
+| use-callback-ref | 1.3.3 | MIT |
+| use-sidecar | 1.1.3 | MIT |
 | webcrypto-core | 1.9.2 | MIT |
 | wordwrapjs | 5.1.1 | MIT |
 | xml-naming | 0.3.0 | MIT |
@@ -225,7 +307,11 @@
 | @csstools/css-tokenizer | 4.0.0 | MIT |
 | @electric-sql/pglite | 0.5.5 | Apache-2.0 |
 | @exodus/bytes | 1.15.1 | MIT |
+| @jridgewell/gen-mapping | 0.3.13 | MIT |
+| @jridgewell/remapping | 2.3.5 | MIT |
+| @jridgewell/resolve-uri | 3.1.2 | MIT |
 | @jridgewell/sourcemap-codec | 1.5.5 | MIT |
+| @jridgewell/trace-mapping | 0.3.31 | MIT |
 | @oxc-project/types | 0.146.0 | MIT |
 | @rolldown/binding-android-arm-eabi | 1.2.5 | MIT |
 | @rolldown/binding-android-arm64 | 1.2.5 | MIT |
@@ -244,6 +330,21 @@
 | @rolldown/binding-win32-x64-msvc | 1.2.5 | MIT |
 | @rolldown/pluginutils | 1.0.1 | MIT |
 | @standard-schema/spec | 1.1.0 | MIT |
+| @tailwindcss/node | 4.3.3 | MIT |
+| @tailwindcss/oxide | 4.3.3 | MIT |
+| @tailwindcss/oxide-android-arm64 | 4.3.3 | MIT |
+| @tailwindcss/oxide-darwin-arm64 | 4.3.3 | MIT |
+| @tailwindcss/oxide-darwin-x64 | 4.3.3 | MIT |
+| @tailwindcss/oxide-freebsd-x64 | 4.3.3 | MIT |
+| @tailwindcss/oxide-linux-arm-gnueabihf | 4.3.3 | MIT |
+| @tailwindcss/oxide-linux-arm64-gnu | 4.3.3 | MIT |
+| @tailwindcss/oxide-linux-arm64-musl | 4.3.3 | MIT |
+| @tailwindcss/oxide-linux-x64-gnu | 4.3.3 | MIT |
+| @tailwindcss/oxide-linux-x64-musl | 4.3.3 | MIT |
+| @tailwindcss/oxide-wasm32-wasi | 4.3.3 | MIT |
+| @tailwindcss/oxide-win32-arm64-msvc | 4.3.3 | MIT |
+| @tailwindcss/oxide-win32-x64-msvc | 4.3.3 | MIT |
+| @tailwindcss/vite | 4.3.3 | MIT |
 | @testing-library/dom | 10.4.1 | MIT |
 | @testing-library/react | 16.3.2 | MIT |
 | @types/aria-query | 5.0.4 | MIT |
@@ -251,8 +352,6 @@
 | @types/deep-eql | 4.0.2 | MIT |
 | @types/estree | 1.0.9 | MIT |
 | @types/pg | 8.23.1 | MIT |
-| @types/react | 19.2.18 | MIT |
-| @types/react-dom | 19.2.4 | MIT |
 | @typescript/typescript-aix-ppc64 | 7.0.2 | Apache-2.0 |
 | @typescript/typescript-darwin-arm64 | 7.0.2 | Apache-2.0 |
 | @typescript/typescript-darwin-x64 | 7.0.2 | Apache-2.0 |
@@ -289,33 +388,47 @@
 | chai | 6.2.2 | MIT |
 | convert-source-map | 2.0.0 | MIT |
 | css-tree | 3.2.1 | MIT |
-| csstype | 3.2.3 | MIT |
 | data-urls | 7.0.0 | MIT |
 | decimal.js | 10.6.0 | MIT |
 | dequal | 2.0.3 | MIT |
 | detect-libc | 2.1.2 | Apache-2.0 |
 | dom-accessibility-api | 0.5.16 | MIT |
+| enhanced-resolve | 5.26.0 | MIT |
 | entities | 8.0.0 | BSD-2-Clause |
 | es-module-lexer | 2.3.2 | MIT |
 | estree-walker | 3.0.3 | MIT |
 | expect-type | 1.4.0 | Apache-2.0 |
 | fdir | 6.5.0 | MIT |
 | fsevents | 2.3.3 | MIT |
+| graceful-fs | 4.2.11 | ISC |
 | html-encoding-sniffer | 6.0.0 | MIT |
 | is-potential-custom-element-name | 1.0.1 | MIT |
+| jiti | 2.7.0 | MIT |
 | js-tokens | 4.0.0 | MIT |
 | jsdom | 30.0.1 | MIT |
+| lightningcss | 1.32.0 | MPL-2.0 |
 | lightningcss | 1.33.0 | MPL-2.0 |
+| lightningcss-android-arm64 | 1.32.0 | MPL-2.0 |
 | lightningcss-android-arm64 | 1.33.0 | MPL-2.0 |
+| lightningcss-darwin-arm64 | 1.32.0 | MPL-2.0 |
 | lightningcss-darwin-arm64 | 1.33.0 | MPL-2.0 |
+| lightningcss-darwin-x64 | 1.32.0 | MPL-2.0 |
 | lightningcss-darwin-x64 | 1.33.0 | MPL-2.0 |
+| lightningcss-freebsd-x64 | 1.32.0 | MPL-2.0 |
 | lightningcss-freebsd-x64 | 1.33.0 | MPL-2.0 |
+| lightningcss-linux-arm-gnueabihf | 1.32.0 | MPL-2.0 |
 | lightningcss-linux-arm-gnueabihf | 1.33.0 | MPL-2.0 |
+| lightningcss-linux-arm64-gnu | 1.32.0 | MPL-2.0 |
 | lightningcss-linux-arm64-gnu | 1.33.0 | MPL-2.0 |
+| lightningcss-linux-arm64-musl | 1.32.0 | MPL-2.0 |
 | lightningcss-linux-arm64-musl | 1.33.0 | MPL-2.0 |
+| lightningcss-linux-x64-gnu | 1.32.0 | MPL-2.0 |
 | lightningcss-linux-x64-gnu | 1.33.0 | MPL-2.0 |
+| lightningcss-linux-x64-musl | 1.32.0 | MPL-2.0 |
 | lightningcss-linux-x64-musl | 1.33.0 | MPL-2.0 |
+| lightningcss-win32-arm64-msvc | 1.32.0 | MPL-2.0 |
 | lightningcss-win32-arm64-msvc | 1.33.0 | MPL-2.0 |
+| lightningcss-win32-x64-msvc | 1.32.0 | MPL-2.0 |
 | lightningcss-win32-x64-msvc | 1.33.0 | MPL-2.0 |
 | lru-cache | 11.5.2 | BlueOak-1.0.0 |
 | lz-string | 1.5.0 | MIT |
@@ -335,10 +448,12 @@
 | rolldown | 1.2.5 | MIT |
 | saxes | 6.0.0 | ISC |
 | siginfo | 2.0.0 | ISC |
-| source-map-js | 1.2.1 | BSD-3-Clause |
+| source-map-js | 1.2.2 | BSD-3-Clause |
 | stackback | 0.0.2 | MIT |
 | std-env | 4.2.0 | MIT |
 | symbol-tree | 3.2.4 | MIT |
+| tailwindcss | 4.3.3 | MIT |
+| tapable | 2.3.3 | MIT |
 | tinybench | 2.9.0 | MIT |
 | tinyexec | 1.3.0 | MIT |
 | tinyglobby | 0.2.17 | MIT |
@@ -348,7 +463,7 @@
 | tough-cookie | 6.0.2 | BSD-3-Clause |
 | tr46 | 6.0.0 | MIT |
 | typescript | 7.0.2 | Apache-2.0 |
-| undici | 8.10.0 | MIT |
+| undici | 8.11.2 | MIT |
 | vite | 8.2.2 | MIT |
 | vitest | 4.1.11 | MIT |
 | w3c-xmlserializer | 5.0.0 | MIT |
