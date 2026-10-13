@@ -1646,3 +1646,11 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
   background-size: 1em;
 }
 :where(select) option { background: var(--popover); color: var(--popover-foreground); }
+
+/* 설비 파일의 「부품 구성」 상자는 요약(.summary) 밖, 가운데 칸 바로 밑에 붙는다 — 요약 안쪽 여백(4단)만큼
+   좌우가 위 타일·판정 상자보다 넓게 그려졌다(대표 지적 2026-10-13). 같은 여백·같은 내용 폭으로 맞춘다 */
+.middle > .hierarchy {
+  width: auto;
+  max-width: calc(1040px - var(--spacing) * 8);
+  margin: 0 calc(var(--spacing) * 4) calc(var(--spacing) * 4);
+}
