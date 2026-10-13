@@ -79,6 +79,16 @@ import {
 import { tr } from './i18n.js';
 import { T } from './components/T.js';
 import { useTheme } from './theme.js';
+import { Welcome } from './app/Welcome.js';
+import type { Adding } from './app/types.js';
+import { FileListPanel } from './app/FileListPanel.js';
+import { HistoryPanel } from './app/HistoryPanel.js';
+import { AssetContext } from './app/AssetContext.js';
+import { StatusBanners } from './app/StatusBanners.js';
+import { OpcuaDialog } from './app/OpcuaDialog.js';
+import { Dialog } from './ui/Dialog.js';
+import { AppHeader } from './app/AppHeader.js';
+import { exportMenuItems, fileMenuItems, settingsMenuItems, submodelMenuItems } from './app/headerMenus.js';
 import { LayoutGrid } from 'lucide-react';
 import { GettingStarted, type StartItem } from './components/GettingStarted.js';
 import { HelpPanel } from './components/HelpPanel.js';
@@ -192,7 +202,7 @@ export function App(): React.JSX.Element {
   const [shellRevisions, setShellRevisions] = useState<Record<string, number>>({});
   const [conflict, setConflict] = useState<string>();
   /** 열려 있는 추가 폼 — 'submodel'이거나 부모 노드 */
-  const [adding, setAdding] = useState<'submodel' | 'import' | 'new' | 'docs' | 'aid' | 'bundle' | TreeNode>();
+  const [adding, setAdding] = useState<Adding>();
   /** 규칙·규약 화면 — 판정 근거를 보여 준다 */
   const [showRules, setShowRules] = useState(false);
   /**
@@ -1914,558 +1924,81 @@ export function App(): React.JSX.Element {
   return (
     <div className="app" data-scale="content">
       {/* 머리글은 셸 밀도(90%), 그 아래 본문은 80% — 로직스튜디오 셸과 같은 표(styles/drive.css) */}
-      <header data-scale="shell">
-        {/*
-          두 줄이다. 윗줄은 **어느 파일을 보는가**와 상태, 아랫줄은 **그 파일에 무엇을 하는가**.
-          아랫줄은 파일이 열려야 나온다 — 처음 화면에 눌러도 안 되는 버튼을 줄지어 두지 않는다.
-        */}
-        <div className="bar">
-          {/* 회사 표시 — 화면·결과서·문서에 같은 로고가 들어간다 */}
-          <span
-            className="brand"
-            title={tr('처음 화면으로')}
-            onClick={goHome}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') goHome();
-            }}
-          >
-            {/*
-              🔴 글자로 그린다(2026-10-02). 이름이 WACE → VEXPLOR로 바뀌었는데 **VEXPLOR 로고
-                 그림이 없다.** 옛 그림을 그대로 두면 제목은 VEXPLOR인데 그림은 WACE라 어긋난다.
-                 글자는 해상도를 안 타고, 이름이 또 바뀌어도 여기 한 줄만 고치면 된다.
-                 공식 로고 파일을 받으면 <img>로 되돌린다.
-            */}
-            <LayoutGrid aria-hidden="true" />
-            <span className="wordmark">VEXPLOR</span>
-            <span className="product">AAS Studio</span>
-            {/* 판 번호 — 배포처가 여럿이면 "어느 판인가"가 문의의 첫 질문이다 */}
-            {version && <span className="version" title={tr('제품 판 번호')}>v{version}</span>}
-          </span>
+      <AppHeader
+        t={t}
+        lang={lang}
+        version={version}
+        packages={packages}
+        packageId={packageId}
+        busy={busy}
+        demoLocked={demoLocked}
+        errors={errors}
+        warnings={warnings}
+        fixable={fixable}
+        unfixable={unfixable}
+        linkedFixable={linkedFixable}
+        opcua={opcua}
+        undoState={undoState}
+        showHelp={showHelp}
+        fileInput={fileInput}
+        bundleInput={bundleInput}
+        fileMenu={fileMenuItems({ t, busy, demoLocked, packages, fileInput, bundleInput, setAdding, setFilesOpen, setPickedFiles, onOpenSample })}
+        settingsMenu={settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules })}
+        submodelMenu={submodelMenuItems({ t, busy, shell, setAdding })}
+        exportMenu={packageId ? exportMenuItems({ t, busy, packageId, fileUnit, run, setAdding }) : []}
+        goHome={goHome}
+        loadPackage={loadPackage}
+        onUpload={onUpload}
+        onOpenBundle={onOpenBundle}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        onFix={onFix}
+        onDownload={onDownload}
+        setShowFindings={setShowFindings}
+        setShowHelp={setShowHelp}
+        setShowOpcua={setShowOpcua}
+        setStartAccounts={setStartAccounts}
+      />
 
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".aasx"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void onUpload(file);
-              event.target.value = '';
-            }}
-          />
-          {/*
-            🔴 파일 관련 네 가지를 한 메뉴로(2026-10-02). 전에는 「파일」 라벨 + 버튼 셋이
-               펼쳐져 윗줄이 길었다. 파일을 여는 일은 **한 번 하고 마는 일**이라 접어도 된다 —
-               자주 쓰는 것은 그 옆의 파일 고르개다.
-          */}
-          <Menu
-            label={t('파일')}
-            title={tr('열기 · 새로 만들기 · 번들 열기 · 파일 목록')}
-            disabled={busy}
-            items={[
-              {
-                label: t('AASX 열기'),
-                title: tr('이 PC의 .aasx 파일을 올려 엽니다'),
-                onClick: () => fileInput.current?.click(),
-                disabled: busy,
-              },
-              {
-                label: t('새로 만들기'),
-                title: tr('빈 설비 또는 회사·공정 묶음을 새로 만듭니다'),
-                onClick: () => setAdding('new'),
-                disabled: busy,
-              },
-              {
-                label: t('번들 열기'),
-                title: tr('이 도구로 내보낸 레퍼런스 번들(.zip)을 엽니다 — 공정과 설비가 한 번에 올라옵니다'),
-                onClick: () => bundleInput.current?.click(),
-                disabled: busy,
-              },
-              {
-                // 첫 화면에만 두면 파일이 하나라도 생긴 뒤에는 다시 못 연다 — 지운 견본을 되살릴 길도 여기다
-                label: demoLocked ? `🔒 ${t('견본 열기')}` : t('견본 열기'),
-                title: tr('다 채워진 설비 1종과 공정 구성을 열어 둘러봅니다 — 고쳐도 되는 연습용입니다'),
-                onClick: () => void onOpenSample(),
-                disabled: busy,
-              },
-              {
-                label: t('파일 목록'),
-                title: tr('올려 둔 파일을 한눈에 보고 지웁니다'),
-                onClick: () => {
-                  setFilesOpen((current) => !current);
-                  setPickedFiles(new Set());
-                },
-                disabled: busy || packages.length === 0,
-                separated: true,
-              },
-            ]}
-          />
-          <input
-            ref={bundleInput}
-            type="file"
-            accept=".zip"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void onOpenBundle(file);
-              event.target.value = '';
-            }}
-          />
-          <select
-            value={packageId ?? ''}
-            disabled={busy || packages.length === 0}
-            onChange={(event) => void loadPackage(event.target.value)}
-          >
-            {packages.length === 0 && <option value="">{t('열린 파일 없음')}</option>}
-            {packages.length > 0 && !packageId && <option value="">{t('— 파일 고르기 —')}</option>}
-            {packages.map((item) => (
-              <option key={item.packageId} value={item.packageId}>
-                {item.name ?? item.packageId}
-              </option>
-            ))}
-          </select>
-
-          {/* 오른쪽 — 상태 */}
-          <span className="spacer" />
-          {busy && <span className="busy">{t('처리 중…')}</span>}
-          {packageId && (
-            /* 눌러서 목록을 연다. 색만으로 나누지 않는다 — 점 + 글자 (색각 이상 대비) */
-            <button
-              className={`status chip ${errors === 0 ? 'ok' : 'bad'}`}
-              onClick={() => setShowFindings(true)}
-              title={tr('눌러서 지적 목록을 봅니다')}
-            >
-              <span className="dot" aria-hidden="true" />
-              {t('위반')} {errors}{lang === 'ko' ? tr('건') : ''}
-              <span className="sub"> · {t('경고')} {warnings}{lang === 'ko' ? tr('건') : ''}</span>
-            </button>
-          )}
-          {/*
-            🔴 **내주기**는 수집과 반대 방향이다. 전에는 수집 패널 안에 나란히 뒀는데,
-               내보내기 주소가 수집 조작부 바로 옆에 떠 있어 사용자가 그 주소를
-               「설비 주소」에 넣는 사고가 났다. 방향이 다른 것은 자리도 달라야 한다.
-               처음 화면에서는 숨긴다 — 파일도 없는데 「내주는 중」은 무슨 뜻인지 물어 왔다.
-          */}
-          {packageId && opcua?.running && (
-            <button
-              className="status chip out"
-              onClick={() => setShowOpcua(true)}
-              title={tr('이 도구가 다른 시스템에 값을 내주고 있습니다')}
-            >
-              {t('→ 내주는 중')}
-              <span className="sub">{' '}<T k={'· 변수 {0}개'} v={[opcua.variables]} /></span>
-            </button>
-          )}
-          {/* 도움말 — 매뉴얼 대신 화면 안에서(2026-10-08). 글자로 둔다 — 「?」 하나로는 무엇인지 모른다 */}
-          <button
-            className={`help-trigger${showHelp ? ' on' : ''}`}
-            aria-expanded={showHelp}
-            title={tr('이 화면에서 할 수 있는 일과 쓰는 법을 봅니다 (F1)')}
-            onClick={() => setShowHelp((open) => !open)}
-          >
-            {t('? 도움말')}
-          </button>
-          {/*
-            🔴 설정(2026-10-02) — 늘 쓰는 것이 아닌데 헤더 자리를 차지하던 것들을 모았다.
-               「규칙」은 하루에 한 번 볼까 말까고, 「토큰 지우기」는 자리를 뜰 때만 쓴다.
-          */}
-          <Menu
-            // 🔴 톱니(⚙)를 쓰지 않는다 — 이 화면에서 ⚙는 트리의 **「설비」** 표시다.
-            //    한 기호가 두 뜻이면 둘 다 흐려진다. 글자로 적는다(사용자 2026-10-04)
-            label={t('설정')}
-            align="right"
-            title={t('설정 — 언어 · 계정 · 규칙')}
-            items={[
-              {
-                label: fill(tr('언어 — {0}'), { 0: lang === 'en' ? 'English' : tr('한국어') }),
-                title: tr('화면 글자의 언어를 고릅니다'),
-                onClick: () => setShowSettings(true),
-              },
-              {
-                label: theme.dark ? t('밝은 화면으로') : t('어두운 화면으로'),
-                title: tr('화면 색을 밝게 · 어둡게 바꿉니다 — 이 브라우저에 기억합니다'),
-                onClick: theme.toggle,
-              },
-              // 데모 계정으로 보고 있다 — 자기 계정을 만들면 내려받을 수 있다
-              ...(auth?.demo !== undefined && auth.signupAllowed === true
-                ? [
-                    {
-                      label: t('회원가입'),
-                      title: t('계정을 만들면 작업한 파일을 내려받을 수 있습니다.'),
-                      onClick: () => setStartAccounts(true),
-                      separated: true,
-                    },
-                  ]
-                : []),
-              // 계정을 아직 안 쓰는 서버 — 여기서 시작한다
-              ...(auth?.setupNeeded && !auth.authenticated
-                ? [
-                    {
-                      label: t('첫 관리자 만들기'),
-                      title: t('계정과 로그인을 쓰기 시작합니다 — 지금은 누구나 들어올 수 있습니다'),
-                      onClick: () => setStartAccounts(true),
-                      separated: true,
-                    },
-                  ]
-                : []),
-              // 계정 — 🔴 데모 계정에는 없다(여럿이 쓰는 공용 입구라 바꿀 수 없다)
-              //    관리자는 「계정 관리」(사람들)와 「내 계정 설정」(내 것)을 따로 본다(2026-10-08)
-              ...(auth?.user && auth.demo === undefined
-                ? [
-                    ...(auth.user.role === 'admin'
-                      ? [
-                          {
-                            label: t('계정 관리'),
-                            title: t('사람을 더하고, 역할을 바꾸고, 잠급니다'),
-                            onClick: () => setShowAccounts('people'),
-                            separated: true,
-                          },
-                        ]
-                      : []),
-                    {
-                      label: t('내 계정 설정'),
-                      title: t('내 이름 · 회사명 · 이메일 · 비밀번호를 바꿉니다'),
-                      onClick: () => setShowAccounts('mine'),
-                      separated: auth.user.role !== 'admin',
-                    },
-                  ]
-                : []),
-              // 로그인한 사람 — 이름과 로그아웃을 같은 자리에
-              ...(auth?.user
-                ? [
-                    {
-                      label: `${demoLocked ? t('데모 계정') : auth.user.displayName} · ${t('로그아웃')}`,
-                      title: tr('이 브라우저의 로그인을 끝냅니다'),
-                      onClick: () => {
-                        void api
-                          .logout()
-                          .catch(() => undefined)
-                          .then(() => bootstrap());
-                      },
-                      separated: true,
-                    },
-                  ]
-                : []),
-              /*
-               * 탈퇴 — 🔴 데모 계정에는 보이지 않는다(여럿이 쓰는 계정이라 서버도 거절한다).
-               * 되돌릴 수 없으므로 한 번 묻는다. 지워도 **누가 고쳤나는 남는다** —
-               * 그 이름은 사람 표를 참조하지 않고 그때 베껴 둔 값이다.
-               */
-              ...(auth?.user && auth.demo === undefined
-                ? [
-                    {
-                      label: t('탈퇴 — 계정 지우기'),
-                      title: t('이 계정을 지웁니다. 되돌릴 수 없습니다.'),
-                      onClick: () => setConfirmQuit(true),
-                    },
-                  ]
-                : []),
-              {
-                label: t('규칙과 규약 보기'),
-                title: tr('이 도구가 지키는 규칙 43종과 규약을 지금 도는 그대로 보여 줍니다'),
-                onClick: () => setShowRules(true),
-                disabled: busy,
-                separated: true,
-              },
-              ...(currentToken() !== undefined
-                ? [
-                    {
-                      label: t('토큰 지우기'),
-                      title: tr('이 브라우저에 저장된 접근 토큰을 지웁니다 — 공용 PC에서 자리를 뜰 때'),
-                      onClick: () => {
-                        setToken(undefined);
-                        void bootstrap(); // 토큰이 사라졌으니 서버가 다시 물어 올 것이다
-                      },
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        </div>
-
-        {packageId && (
-          <div className="bar work">
-            {/* 🔴 묶음마다 <span class="group"> — 좁은 창(1024px)에서 「AASX 내려받기」 하나만 셋째 줄로
-                떨어져 ③ 제출이 흩어졌다(2026-09-09 실측). 묶음은 통째로 줄을 바꾼다 */}
-            {/* 편집 — 파일 안을 바꾸는 동작들. 맨 앞은 뒤로가기 — 실수를 한 번에 되돌린다 */}
-            {/*
-              🔴 「① 편집 ② 검사 ③ 제출」 라벨을 걷었다(2026-10-02 사용자 요청). 라벨이 자리를
-                 먹었고, 번호가 "순서대로 해야 한다"는 오해를 줬다 — 실제로는 고치고 검사하고
-                 또 고치며 왔다 갔다 한다. 묶음은 **구분선**으로만 가른다.
-              🔴 접는 기준은 **쓰는 빈도**다. 매번 누르는 것(되돌리기·자동 고치기·내려받기)은
-                 밖에 두고, 가끔 쓰는 것만 메뉴로 넣는다. 한 번 더 누르게 만드는 것은
-                 그만한 값을 해야 한다.
-            */}
-            <span className="group">
-            <button
-              className="undo"
-              onClick={() => void onUndo()}
-              disabled={busy || undoState.undo.length === 0}
-              aria-label={tr('되돌리기')}
-              title={
-                undoState.undo[0]
-                  ? fill(tr('되돌리기: {0} (Ctrl+Z){1}'), { 0: undoState.undo[0], 1: undoState.undo.length > 1 ? fill(tr(' · {0}단계 남음'), { 0: undoState.undo.length }) : '' })
-                  : tr('되돌릴 변경이 없습니다')
-              }
-            >
-              {t('↶ 되돌리기')}
-            </button>
-            <button
-              className="undo"
-              onClick={() => void onRedo()}
-              disabled={busy || undoState.redo.length === 0}
-              aria-label={tr('다시 하기')}
-              title={undoState.redo[0] ? fill(tr('다시 하기: {0} (Ctrl+Shift+Z)'), { 0: undoState.redo[0] }) : tr('다시 할 변경이 없습니다')}
-            >
-              ↷
-            </button>
-            <span className="sep-line" aria-hidden="true" />
-            {/* 🔴 이름을 「서브모델」로 — 「추가」는 요소 추가 폼의 버튼과 겹쳐 무엇을 더하는지 모호했다 */}
-            <Menu
-              label={t('서브모델')}
-              title={tr('이 파일에 서브모델을 넣습니다')}
-              disabled={busy}
-              items={[
-                {
-                  label: t('서브모델 추가'),
-                  title: tr('이 설비에 새 서브모델을 만듭니다 — id는 규약대로 지어집니다'),
-                  onClick: () => setAdding('submodel'),
-                  disabled: busy || !shell,
-                },
-                {
-                  label: t('다른 파일에서 가져오기'),
-                  title: tr('다른 AASX의 서브모델을 통째로 복사합니다 — 용어(CD)도 함께 옵니다'),
-                  onClick: () => setAdding('import'),
-                  disabled: busy,
-                },
-              ]}
-            />
-            <span className="sep-line" aria-hidden="true" />
-            {/*
-              🔴 한 화면에 파란 버튼은 하나다 — 그것이 「다음에 누를 것」이다.
-                 고칠 것이 있으면 자동 고치기, 다 고쳤으면 내려받기.
-            */}
-            <button
-              className={fixable > 0 ? 'primary' : ''}
-              onClick={() => void onFix()}
-              disabled={busy || fixable === 0}
-              title={
-                fixable === 0
-                  ? unfixable > 0
-                    ? fill(tr('자동으로 고칠 지적이 없습니다 — {0}건은 사람이 판단할 몫입니다(지적 목록 참조)'), { 0: unfixable })
-                    : tr('자동으로 고칠 지적이 없습니다')
-                  : linkedFixable > 0
-                    ? tr('고칠 수 있는 지적을 규약대로 교정합니다 — 설비 파일 것은 그 설비 파일에 저장됩니다')
-                    : tr('고칠 수 있는 지적(경고 포함)을 규약대로 자동 교정합니다')
-              }
-            >
-              {t('자동 고치기')}{fixable > 0 ? ` ${fixable}${lang === 'ko' ? tr('건') : ''}` : ''}
-            </button>
-            </span>
-
-            {/* 마지막 단계는 오른쪽 끝에 — 끝내는 동작은 늘 같은 자리에 있어야 손이 기억한다 */}
-            <span className="spacer" />
-            <span className="group submit">
-            <Menu
-              label={t('내보내기')}
-              align="right"
-              title={tr('검증 결과서 · 문서용 자료 · 번들을 내보냅니다')}
-              disabled={busy}
-              items={[
-                {
-                  label: t('검증 결과서'),
-                  title: tr('검사 결과를 인쇄용으로 엽니다 — 인쇄하면 그대로 PDF로 저장할 수 있습니다'),
-                  onClick: () => void run(() => api.openReport(packageId)),
-                },
-                {
-                  label: t('문서용 자료'),
-                  title: tr('가이던스에 붙일 UML 그림과 표를 뽑습니다'),
-                  onClick: () => setAdding('docs'),
-                  disabled: busy,
-                },
-                ...(fileUnit === 'composite'
-                  ? [
-                      {
-                        label: t('레퍼런스 번들'),
-                        title: tr('이 공정을 ZIP 묶음으로 봅니다 — 구성·준비 상태·데이터 연계'),
-                        onClick: () => setAdding('bundle'),
-                        disabled: busy,
-                        separated: true,
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            {/* 🔴 데모 계정은 눌러도 403이다. 눌러 보고 알게 하는 것보다 **왜 안 되는지**를
-                먼저 말하는 편이 낫다 — 단추는 남겨 두고 설명을 바꾼다(없으면 「받는 기능이
-                없는 도구」로 보인다) */}
-            <button
-              className={!demoLocked && fixable === 0 && errors === 0 ? 'primary' : ''}
-              onClick={() => (demoLocked ? setStartAccounts(true) : void onDownload())}
-              disabled={busy}
-              title={
-                demoLocked
-                  ? t('데모 계정으로는 내려받을 수 없습니다 — 눌러서 계정을 만드십시오.')
-                  : errors > 0
-                    ? fill(tr('위반 {0}건이 남아 있습니다 — 받을 수는 있지만 KOSMO 규칙을 아직 다 지키지 못했습니다'), { 0: errors })
-                    : tr('지금 파일을 .aasx로 내려받습니다')
-              }
-            >
-              {demoLocked ? `🔒 ${t('AASX 내려받기')}` : t('AASX 내려받기')}
-            </button>
-            </span>
-          </div>
-        )}
-      </header>
-
-      {/* 탈퇴 확인 — 되돌릴 수 없다. 무엇이 남고 무엇이 사라지는지 적는다 */}
-      {confirmQuit && (
-        <div className="demo-bar" role="alertdialog">
-          ⚠️ <b>{t('정말 탈퇴하시겠습니까?')}</b>{' '}
-          {t('계정과 연락처가 지워집니다. 올린 파일과 변경 이력은 서버에 그대로 남습니다.')}{' '}
-          <button
-            className="link"
-            onClick={() => {
-              setConfirmQuit(false);
-              void api
-                .deleteMe()
-                .then(() => bootstrap())
-                .catch((caught: unknown) => setError(describeError(caught)));
-            }}
-          >
-            {t('탈퇴합니다')}
-          </button>{' '}
-          <button className="link" onClick={() => setConfirmQuit(false)}>
-            {t('그만두기')}
-          </button>
-        </div>
-      )}
-
-      {/*
-        체험판 띠 — 무엇이 막혀 있고 올린 것이 어떻게 되는지를 먼저 말한다.
-        🔴 처음에는 「다른 사람에게도 보입니다」였다. 작업 공간을 로그인마다 가른 뒤로는
-           사실이 아니다(2026-10-04). 대신 **로그인을 새로 하면 빈 칸에서 시작한다**는 것을
-           적는다 — 데모 계정은 로그인이 곧 작업 공간이라, 모르면 「파일이 사라졌다」가 된다.
-      */}
-      {demoLocked && (
-        <div className="demo-bar">
-          🧪 <b>{t('체험판입니다')}</b> —{' '}
-          {t('올린 파일은 다른 방문자에게 보이지 않습니다. 한동안 쓰지 않으면 지워지고, 로그인을 새로 하면 빈 칸에서 시작합니다.')}{' '}
-          <button className="link" onClick={() => setStartAccounts(true)}>
-            {t('회원가입하면 내려받을 수 있습니다')}
-          </button>
-        </div>
-      )}
-
-      {sampleLocked && (
-        <div className="demo-bar" role="alertdialog">
-          🔒 <b>{t('견본은 회원가입 후 사용할 수 있습니다.')}</b>{' '}
-          {auth?.signupAllowed === true && (
-            <button
-              className="link"
-              onClick={() => {
-                setSampleLocked(false);
-                setStartAccounts(true);
-              }}
-            >
-              {t('회원가입')}
-            </button>
-          )}{' '}
-          <button className="link" onClick={() => setSampleLocked(false)}>
-            {t('닫기')}
-          </button>
-        </div>
-      )}
-
-      {/* 오류는 헤더 안이 아니라 아래 띠로 — 헤더 안에 있으면 버튼을 밀어내며 줄이 꺾였다 */}
-      {error && (
-        <div className="error-bar" role="alert">
-          {error}
-          <button className="link" onClick={() => setError(undefined)}>
-            {tr('닫기')}
-          </button>
-        </div>
-      )}
-
-      {needsToken !== undefined && (
-        <form
-          className="token-bar"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const input = new FormData(event.currentTarget).get('token');
-            setToken(typeof input === 'string' ? input : undefined);
-            setNeedsToken(undefined);
-            // 새로고침하지 않는다 — 편집하다 토큰이 만료된 경우 화면을 잃지 않아야 한다
-            void bootstrap();
-          }}
-        >
-          <b>{tr('접근 토큰이 필요합니다.')}</b> {tr('관리자에게 받은 토큰을 넣어 주세요.')} {needsToken}
-          <input
-            name="token"
-            type="password"
-            placeholder={tr('토큰')}
-            autoComplete="off"
-            autoFocus
-          />
-          <button className="primary" type="submit">
-            {tr('확인')}
-          </button>
-        </form>
-      )}
-
-      {conflict && (
-        <div className="conflict">
-          {/* 화면의 값을 밀어 넣지 않는다 — 남의 편집을 덮어쓰는 게 가장 나쁜 결과다 */}
-          {tr('다른 곳에서 이 서브모델이 먼저 바뀌었습니다.')} <b>{tr('내 수정은 저장하지 않았습니다.')}</b>{' '}
-          {conflict}
-          <button
-            className="link"
-            title={tr('서버에 저장된 최신 내용을 다시 읽어 옵니다 — 내가 고치던 것은 사라집니다')}
-            onClick={() => {
-              if (packageId) void loadPackage(packageId);
-            }}
-          >
-            {tr('다시 읽기')}
-          </button>
-        </div>
-      )}
-
-      {notice && (
-        <div className="notice">
-          {notice}
-          <button className="link" onClick={() => setNotice(undefined)}>
-            {tr('닫기')}
-          </button>
-        </div>
-      )}
-
-      {fixReport && (
-        <div className="fix-report">
-          <T k={'교정 {0}건({1}바퀴) · 남은 위반 {2}건'} v={[fixReport.applied.length, fixReport.rounds, fixReport.after.countBySeverity.error]} />
-          {Object.keys(fixReport.relocations).length > 0 && (
-            <>{' '}<T k={'· 이관 대장 {0}건'} v={[Object.keys(fixReport.relocations).length]} /></>
-          )}
-          <button className="link" onClick={() => setFixReport(undefined)}>
-            {tr('닫기')}
-          </button>
-        </div>
-      )}
+      <StatusBanners
+        t={t}
+        confirmQuit={confirmQuit}
+        onQuit={() => {
+          setConfirmQuit(false);
+          void api
+            .deleteMe()
+            .then(() => bootstrap())
+            .catch((caught: unknown) => setError(describeError(caught)));
+        }}
+        onCancelQuit={() => setConfirmQuit(false)}
+        demoLocked={demoLocked}
+        sampleLocked={sampleLocked}
+        signupAllowed={auth?.signupAllowed === true}
+        onSignup={() => setStartAccounts(true)}
+        onCloseSampleLocked={() => setSampleLocked(false)}
+        {...(error ? { error } : {})}
+        onCloseError={() => setError(undefined)}
+        {...(needsToken !== undefined ? { needsToken } : {})}
+        onToken={(token) => {
+          setToken(token);
+          setNeedsToken(undefined);
+          void bootstrap();
+        }}
+        {...(conflict ? { conflict } : {})}
+        onReload={() => {
+          if (packageId) void loadPackage(packageId);
+        }}
+        {...(notice ? { notice } : {})}
+        onCloseNotice={() => setNotice(undefined)}
+        {...(fixReport ? { fixReport } : {})}
+        onCloseFixReport={() => setFixReport(undefined)}
+      />
 
       {/* 규칙·규약 — 지적 목록·내주기와 같은 팝업. 예전엔 헤더 밑 띠로 끼어들어 본문을 밀어냈다(2026-09-09 디자인 검토) */}
       {showRules && (
-        <div className="modal-back" role="presentation" onClick={() => setShowRules(false)}>
-          <div
-            className="modal rules-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label={tr('규칙과 규약')}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Rules onClose={() => setShowRules(false)} />
-          </div>
-        </div>
+        <Dialog className="rules-modal" label={tr('규칙과 규약')} onClose={() => setShowRules(false)}>
+          <Rules onClose={() => setShowRules(false)} />
+        </Dialog>
       )}
 
       {/*
@@ -2482,104 +2015,25 @@ export function App(): React.JSX.Element {
         {(packages.length === 0 || !packageId) && (!busy || adding === 'new') ? (
           /* 첫 화면 — 열린 파일이 없거나, 로고로 나왔을 때(보는 파일 없음).
              빈 세 칸만 띄워 두면 처음 쓰는 사람은 손댈 곳을 찾지 못한다 */
-          <div className="welcome">
-            <span className="wordmark big">VEXPLOR</span>
-            <h1>AAS Studio</h1>
-            <p>
-              {packages.length > 0
-                ? t('서버에 올려 둔 파일이 있습니다 — 아래에서 골라 이어서 작업하거나, 새 파일을 엽니다.')
-                : t('AASX 파일을 열면 계층 트리·규칙 지적·수집이 한 화면에 뜹니다.')}
-            </p>
-            {/*
-              🔴 이어서 작업하기 — 로고로 나왔거나 다시 들어온 사람이 처음 보는 자리다.
-                 전에는 「AASX 파일 열기」만 커서 **같은 파일을 또 올려** 목록에 사본이 쌓였다(2026-09-09 검토).
-                 올려 둔 것이 있으면 그 목록이 먼저다. 파란 버튼도 이쪽으로 넘긴다
-            */}
-            {packages.length > 0 && adding !== 'new' && (
-              /*
-                🔴 접어 둔다(2026-10-01 사용자 요청) — 파일이 16건 쌓이자 첫 화면을 목록이 덮었다.
-                   `details`를 쓰는 이유: 펼침·접힘, 키보드(Enter·Space), 화면 낭독기 안내가
-                   브라우저에 이미 들어 있다. 직접 만들면 그걸 전부 다시 해야 한다.
-                   건수를 제목에 남겨 접혀 있어도 "여기 있다"가 보이게 한다.
-              */
-              <details className="welcome-files">
-                <summary className="welcome-files-title">
-                  {t('이어서 작업하기')} — {t('올려 둔 파일')} {packages.length}
-                  {lang === 'ko' ? tr('건') : ''}
-                </summary>
-                <ul>
-                  {packages.map((item) => (
-                    <li key={item.packageId}>
-                      <button
-                        className="welcome-file"
-                        disabled={busy}
-                        onClick={() => void loadPackage(item.packageId)}
-                        title={t('이 파일을 엽니다')}
-                      >
-                        <b>{item.name ?? item.packageId}</b>
-                        {item.assetName && <span className="dim">{item.assetName}</span>}
-                        {item.updatedAt && <span className="dim file-date">{item.updatedAt.slice(0, 10)}</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <p className="hint">
-                  {t('같은 파일을 다시 올리면 사본이 하나 더 생깁니다 — 하던 파일은 여기서 고르십시오.')}
-                </p>
-              </details>
-            )}
-            <div className="row-buttons">
-              {/* 파란 배경은 "지금 하는 일"을 따라간다 — 새로 만들기를 누르면 그쪽이 파랗다.
-                  올려 둔 파일이 있으면 위 목록이 주인공이라 둘 다 보통 버튼이다 */}
-              <button
-                className={adding === 'new' || packages.length > 0 ? 'big' : 'primary big'}
-                onClick={() => {
-                  setAdding(undefined);
-                  fileInput.current?.click();
-                }}
-              >
-                {t('AASX 파일 열기')}
-              </button>
-              <button
-                className={adding === 'new' ? 'primary big' : 'big'}
-                onClick={() => setAdding('new')}
-              >
-                {t('새로 만들기')}
-              </button>
-              {/*
-                🔴 번들 열기 — 헤더와 같은 세 갈래를 첫 화면에도 둔다(2026-10-01 사용자 요청).
-                   첫 화면에 둘뿐이라 "번들은 어디서 여나"를 헤더에서 찾아야 했다.
-                   헤더의 것과 **같은 파일 고르개**(bundleInput)를 쓴다 — 두 개를 두면 갈라진다.
-              */}
-              <button className="big" disabled={busy} onClick={() => bundleInput.current?.click()}>
-                {t('번들 열기')}
-              </button>
-            </div>
-            {packages.length === 0 && adding !== 'new' && (
-              <p className="welcome-sample">
-                {tr('AASX 파일이 아직 없다면 — ')}
-                <button
-                  className="link"
-                  disabled={busy}
-                  title={tr('다 채워진 설비 1종과 공정 구성을 열어 둘러봅니다 — 고쳐도 되는 연습용입니다')}
-                  onClick={() => void onOpenSample()}
-                >
-                  {tr('견본으로 시작하기')}
-                </button>
-              </p>
-            )}
-          {adding === 'new' && (
-              <NewPackage
-                t={t}
-                {...(policy ? { policy } : {})}
-                busy={busy}
-                onCancel={() => setAdding(undefined)}
-                candidates={packages}
-                onImportFile={onImportForTree}
-                onCreate={(name, extras, unit, tree) => void onCreatePackage(name, extras, unit, tree)}
-              />
-            )}
-          </div>
+          <Welcome
+            t={t}
+            lang={lang}
+            packages={packages}
+            creating={adding === 'new'}
+            busy={busy}
+            {...(policy ? { policy } : {})}
+            onOpenPackage={(id) => void loadPackage(id)}
+            onPickFile={() => {
+              setAdding(undefined);
+              fileInput.current?.click();
+            }}
+            onPickBundle={() => bundleInput.current?.click()}
+            onStartNew={() => setAdding('new')}
+            onCancelNew={() => setAdding(undefined)}
+            onOpenSample={() => void onOpenSample()}
+            onImportFile={onImportForTree}
+            onCreate={(name, extras, unit, tree) => void onCreatePackage(name, extras, unit, tree)}
+          />
         ) : (
         <>
         <div className="tree-pane">
@@ -2756,119 +2210,26 @@ export function App(): React.JSX.Element {
         />
         <div className="middle">
           {filesOpen && (
-            <div className="file-list">
-              <div className="file-list-head">
-                <h3><T k={'열린 파일 {0}건'} v={[packages.length]} /></h3>
-                <button className="link" onClick={() => setFilesOpen(false)}>
-                  {tr('닫기')}
-                </button>
-              </div>
-              {/* 여러 개를 한 번에 — 시험 잔재를 하나씩 지우던 손이 지쳤다(사용자 2026-09-09) */}
-              <label className="file-pick-all">
-                <input
-                  type="checkbox"
-                  aria-label={tr('전체 고르기')}
-                  checked={packages.length > 0 && packages.every((item) => pickedFiles.has(item.packageId))}
-                  onChange={(event) =>
-                    setPickedFiles(event.target.checked ? new Set(packages.map((item) => item.packageId)) : new Set())
-                  }
-                />
-                <span className="dim">{tr('전체 고르기')}</span>
-              </label>
-              <ul>
-                {packages.map((item) => (
-                  <li key={item.packageId}>
-                    <input
-                      type="checkbox"
-                      aria-label={fill(tr('{0} 고르기'), { 0: item.name ?? item.packageId })}
-                      checked={pickedFiles.has(item.packageId)}
-                      disabled={busy}
-                      onChange={(event) =>
-                        setPickedFiles((current) => {
-                          const next = new Set(current);
-                          if (event.target.checked) next.add(item.packageId);
-                          else next.delete(item.packageId);
-                          return next;
-                        })
-                      }
-                    />
-                    <button
-                      className={`link file-name${item.packageId === packageId ? ' current' : ''}`}
-                      disabled={busy}
-                      onClick={() => void loadPackage(item.packageId)}
-                      title={tr('이 파일 열기')}
-                    >
-                      {item.name ?? item.packageId}
-                    </button>
-                    {item.assetName && <span className="dim">{item.assetName}</span>}
-                    {item.updatedAt && (
-                      <span className="dim file-date">{item.updatedAt.slice(0, 10)}</span>
-                    )}
-                    <button
-                      className="link danger"
-                      disabled={busy}
-                      title={tr('서버에서 이 파일을 지웁니다 — 되돌릴 수 없습니다. 내려받아 둔 .aasx는 남습니다')}
-                      onClick={() => void onDeletePackage(item.packageId)}
-                    >
-                      {tr('지우기')}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="file-bulk">
-                <button
-                  className="danger"
-                  disabled={busy || pickedFiles.size === 0}
-                  onClick={() => void deletePackages([...pickedFiles])}
-                  title={tr('체크한 파일을 한 번에 지웁니다')}
-                ><T k={'고른 {0}건 지우기'} v={[pickedFiles.size]} /></button>
-                <span className="hint">{tr('지우면 되돌릴 수 없습니다. 내려받아 둔 .aasx 파일은 남습니다.')}</span>
-              </div>
-            </div>
+            <FileListPanel
+              packages={packages}
+              {...(packageId ? { packageId } : {})}
+              picked={pickedFiles}
+              busy={busy}
+              onPick={setPickedFiles}
+              onOpen={(id) => void loadPackage(id)}
+              onDelete={(ids) => void deletePackages(ids)}
+              onClose={() => setFilesOpen(false)}
+            />
           )}
           {historyFor && (
-            <div className="history-panel">
-              <div className="file-list-head">
-                <h3>
-                  {historyFor.label} — {fill(t('변경 이력 {n}건'), { n: historyEntries.length })}
-                </h3>
-                <button className="link" onClick={() => setHistoryFor(undefined)}>
-                  {t('닫기')}
-                </button>
-              </div>
-              {historyEntries.length === 0 ? (
-                <p className="hint">{t('아직 변경한 적이 없습니다 — 처음 만든 그대로입니다.')}</p>
-              ) : (
-                <ul>
-                  {historyEntries.map((entry) => (
-                    <li key={entry.changedAt}>
-                      <span className="mono">{localTime(entry.changedAt)}</span>
-                      <span className="dim">
-                        {entry.operation === 'delete'
-                          ? t('지워지기 전')
-                          : fill(t('고치기 전 (요소 {n}개)'), { n: entry.elementCount })}
-                      </span>
-                      {/* 「누가」 — 로그인을 쓰지 않는 서버와 옛 기록에는 없다. 없으면 아예 안 보인다:
-                          「기록 없음」이라고 적으면 빈 칸이 줄마다 늘어서 눈이 피로하다 */}
-                      {entry.actorName && (
-                        <span className="who" title={entry.actorName}>
-                          {entry.actorName}
-                        </span>
-                      )}
-                      <button
-                        className="link"
-                        disabled={busy}
-                        title={t('이 시점의 내용으로 되돌립니다 — 그 뒤에 고친 것은 사라집니다')}
-                        onClick={() => void onRestore(entry.changedAt)}
-                      >
-                        {t('이 판으로 되돌리기')}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="hint">{t('되돌리기 자체도 이력에 남습니다 — 되돌린 것을 또 되돌릴 수 있습니다.')}</p>
-            </div>
+            <HistoryPanel
+              t={t}
+              label={historyFor.label}
+              entries={historyEntries}
+              busy={busy}
+              onRestore={(changedAt) => void onRestore(changedAt)}
+              onClose={() => setHistoryFor(undefined)}
+            />
           )}
           {adding === 'aid' && packageId && (
             <AddAid
@@ -3019,45 +2380,19 @@ export function App(): React.JSX.Element {
           {!selected && !adding && packageId && fileUnit === 'equipment' && hierarchyPanel}
           {/* ⚙ 설비 컨텍스트 — 고른 장비에 맞는 동작이 그 자리에 나온다(초보자 원칙) */}
           {selected && selected.modelType === 'LinkedAsset' && selected.linkedPackageId && (
-            <div className="asset-context">
-              <button className="link inspector-close" onClick={() => setSelectedKey(undefined)}>
-                {tr('닫기 ✕')}
-              </button>
-              <h2>⚙ {selected.label}</h2>
-              <p className="hint"><T k={'파일: {0}'} v={[<span className="mono">
-                  {packages.find((item) => item.packageId === selected.linkedPackageId)?.name ??
-                    selected.linkedPackageId}
-                </span>]} />
-              </p>
-              <div className="row-buttons asset-actions">
-                <button
-                  className="primary"
-                  disabled={busy}
-                  title={tr('이 설비 파일에 서브모델을 만듭니다 — 지금 보는 공정 파일이 아니라 그 설비 파일에 저장됩니다')}
-                  onClick={() => {
-                    // 이 설비 파일에 만들어진다 — onCreateSubmodel이 대상을 보고 라우팅한다
-                    setSubmodelTarget({
-                      pid: selected.linkedPackageId!,
-                      assetName: selected.node.idShort ?? selected.label,
-                    });
-                    setAdding('submodel');
-                    setSelectedKey(undefined);
-                  }}
-                >
-                  {tr('이 설비에 서브모델 추가')}
-                </button>
-                <button
-                  disabled={busy}
-                  title={tr('이 설비 파일을 엽니다 — 지금 보는 공정 파일 대신 그 파일로 바뀝니다')}
-                  onClick={() => void loadPackage(selected.linkedPackageId!)}
-                >
-                  {tr('이 설비 파일 열기 →')}
-                </button>
-              </div>
-              <p className="hint">
-                {tr('밑에 펼쳐진 서브모델·요소는 여기서 바로 고칠 수 있습니다 — 저장하면 이 설비 파일이 바뀝니다.')}
-              </p>
-            </div>
+            <AssetContext
+              label={selected.label}
+              fileName={packages.find((item) => item.packageId === selected.linkedPackageId)?.name ?? selected.linkedPackageId}
+              busy={busy}
+              onAddSubmodel={() => {
+                // 이 설비 파일에 만들어진다 — onCreateSubmodel이 대상을 보고 라우팅한다
+                setSubmodelTarget({ pid: selected.linkedPackageId!, assetName: selected.node.idShort ?? selected.label });
+                setAdding('submodel');
+                setSelectedKey(undefined);
+              }}
+              onOpenFile={() => void loadPackage(selected.linkedPackageId!)}
+              onClose={() => setSelectedKey(undefined)}
+            />
           )}
           {selected && selected.modelType !== 'LinkedAsset' && (
           <Inspector
@@ -3167,35 +2502,12 @@ export function App(): React.JSX.Element {
         🔴 사고의 원인이 「주소가 두 개인데 둘 다 그냥 '주소'로 보인 것」이었다.
       */}
       {showOpcua && opcua?.running && (
-        <div className="modal-back" role="presentation" onClick={() => setShowOpcua(false)}>
-          <div
-            className="modal opcua-out"
-            role="dialog"
-            aria-modal="true"
-            aria-label={tr('내주는 중')}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className="link modal-close"
-              aria-label={tr('내주기 창 닫기')}
-              onClick={() => setShowOpcua(false)}
-            >
-              {tr('닫기 ✕')}
-            </button>
-            <h3>{tr('→ 다른 시스템에 값 내주는 중')}</h3>
-            <p className="flow"><T k={'[설비·PLC] ──▶ <b>[이 도구]</b> ──▶ [MES·SCADA]'} /></p>
-            <p className="hint"><T k={'작성한 AAS를 OPC UA 서버로 내주고 있습니다. 상위 앱이 <b>구독</b>으로 값을 받아 갑니다 — 값이 바뀌면 이쪽에서 먼저 알립니다.'} /></p>
-            <dl>
-              <dt>{tr('상위 앱에 알려 줄 주소')}</dt>
-              <dd className="mono">{opcua.endpoint}</dd>
-              <dt>{tr('내주는 파일')}</dt>
-              <dd>
-                <T k={'{0}개 · 변수 {1}개'} v={[opcua.packages, opcua.variables]} /></dd>
-            </dl>
-            <p className="note warn"><T k={'주의 — 이 주소는 <b>남이 접속해 올 주소</b>입니다. 수집 연결의 「설비 주소」 칸에 넣는 주소가 아닙니다 — 거기 넣으면 우리가 내준 값을 우리가 다시 읽게 됩니다.'} /></p>
-            <p className="hint">{tr('전부 읽기 전용입니다. 밖에서 값을 바꿀 수 없습니다.')}</p>
-          </div>
-        </div>
+        <OpcuaDialog
+          {...(opcua.endpoint ? { endpoint: opcua.endpoint } : {})}
+          packages={opcua.packages}
+          variables={opcua.variables}
+          onClose={() => setShowOpcua(false)}
+        />
       )}
 
       {/*
@@ -3205,33 +2517,22 @@ export function App(): React.JSX.Element {
       */}
       {/* 자동 고치기 미리보기 — 파일별로 묶어 항목별 전/후, 체크한 것만 반영 */}
       {fixPlans && (
-        <div className="modal-back" role="presentation" onClick={() => setFixPlans(undefined)}>
-          <div
-            className="modal fix-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label={tr('자동 고치기 미리보기')}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <FixPreview
-              plans={fixPlans}
-              busy={busy}
-              onApply={(select) => void onApplyFix(select)}
-              onCancel={() => setFixPlans(undefined)}
-            />
-          </div>
-        </div>
+        <Dialog className="fix-modal" label={tr('자동 고치기 미리보기')} onClose={() => setFixPlans(undefined)}>
+          <FixPreview
+            plans={fixPlans}
+            busy={busy}
+            onApply={(select) => void onApplyFix(select)}
+            onCancel={() => setFixPlans(undefined)}
+          />
+        </Dialog>
       )}
 
       {showAccounts && auth?.user && (
-        <div className="modal-back" role="presentation" onClick={() => setShowAccounts(undefined)}>
-          <div
-            className={showAccounts === 'people' ? 'modal accounts-modal' : 'modal accounts-modal mine-modal'}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('계정')}
-            onClick={(event) => event.stopPropagation()}
-          >
+        <Dialog
+          className={showAccounts === 'people' ? 'accounts-modal' : 'accounts-modal mine-modal'}
+          label={t('계정')}
+          onClose={() => setShowAccounts(undefined)}
+        >
             <Accounts
               key={showAccounts}
               me={auth.user}
@@ -3242,20 +2543,12 @@ export function App(): React.JSX.Element {
               onChanged={() => void bootstrap()}
               onClose={() => setShowAccounts(undefined)}
             />
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* 설정 — 지금은 언어 하나. 고르면 바로 적용되고 이 브라우저에 남는다 */}
       {showSettings && (
-        <div className="modal-back" role="presentation" onClick={() => setShowSettings(false)}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label={tr('설정')}
-            onClick={(event) => event.stopPropagation()}
-          >
+        <Dialog label={tr('설정')} onClose={() => setShowSettings(false)}>
             <Settings
               lang={lang}
               t={t}
@@ -3268,31 +2561,16 @@ export function App(): React.JSX.Element {
               }}
               onClose={() => setShowSettings(false)}
             />
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {showFindings && (
-        <div
-          className="modal-back"
-          role="presentation"
-          onClick={() => setShowFindings(false)}
+        // 속성 칸에도 「닫기 ✕」가 있다 — 무엇을 닫는지 읽어 주는 이름을 따로 준다
+        <Dialog
+          label={tr('지적 목록')}
+          onClose={() => setShowFindings(false)}
+          close={{ text: tr('닫기 ✕'), label: tr('지적 목록 닫기') }}
         >
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label={tr('지적 목록')}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* 속성 칸에도 「닫기 ✕」가 있다 — 무엇을 닫는지 읽어 주는 이름을 따로 준다 */}
-            <button
-              className="link modal-close"
-              aria-label={tr('지적 목록 닫기')}
-              onClick={() => setShowFindings(false)}
-            >
-              {tr('닫기 ✕')}
-            </button>
             <FindingsPanel
               findings={allFindings}
               {...(fixReport ? { skipped: fixReport.skipped } : {})}
@@ -3302,8 +2580,7 @@ export function App(): React.JSX.Element {
                 onSelectFinding(finding);
               }}
             />
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {showHelp && (

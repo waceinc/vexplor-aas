@@ -10,6 +10,7 @@
  * 🔴 팝업으로 띄운다. 오른쪽 칸에 끼워 넣으면 폭이 모자라 형태가 무너진다(실측).
  */
 import { useState } from 'react';
+import { Dialog } from '../ui/Dialog.js';
 import { api } from '../api.js';
 import { tr, fill } from '../i18n.js';
 import { T } from './T.js';
@@ -122,17 +123,12 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
   };
 
   return (
-    <div className="modal-back" role="presentation" onClick={onCancel}>
-      <div
-        className="modal add-aid"
-        role="dialog"
-        aria-modal="true"
-        aria-label={tr('수집 연결 만들기')}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button className="link modal-close" aria-label={tr('수집 연결 닫기')} onClick={onCancel}>
-          {tr('닫기 ✕')}
-        </button>
+    <Dialog
+      className="add-aid"
+      label={tr('수집 연결 만들기')}
+      onClose={onCancel}
+      close={{ text: tr('닫기 ✕'), label: tr('수집 연결 닫기') }}
+    >
         <h3>{tr('← 수집 연결 만들기 — 설비에서 받아 오기')}</h3>
         {/* 🔴 방향 그림. 「주소」가 두 종류라 무엇을 설정하는 중인지 못박아야 한다 */}
         <p className="flow">
@@ -344,7 +340,6 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
             {tr('취소')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

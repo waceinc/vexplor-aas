@@ -16,6 +16,7 @@
  *    읽히게 쓰지 않는다(사용자 2026-09-30 지적).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Dialog } from '../ui/Dialog.js';
 import { api, type BundleMemberView, type BundleView, type LinkageItemView } from '../api.js';
 import { tr, fill } from '../i18n.js';
 import { T } from './T.js';
@@ -117,15 +118,12 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
 
   if (error) {
     return (
-      <div className="modal-back" onClick={onClose}>
-        <div className="modal" onClick={(event) => event.stopPropagation()}>
-          <button className="link modal-close" onClick={onClose}>{tr('닫기')}</button>
-          <div className="bundle-body">
-            <h2>{tr('레퍼런스 번들')}</h2>
-            <p className="error-text">{error}</p>
-          </div>
+      <Dialog label={tr('레퍼런스 번들')} onClose={onClose} close={{ text: tr('닫기') }}>
+        <div className="bundle-body">
+          <h2>{tr('레퍼런스 번들')}</h2>
+          <p className="error-text">{error}</p>
         </div>
-      </div>
+      </Dialog>
     );
   }
 
@@ -192,9 +190,7 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
   };
 
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal wide" onClick={(event) => event.stopPropagation()}>
-        <button className="link modal-close" onClick={onClose}>{tr('닫기')}</button>
+    <Dialog className="wide" label={tr('레퍼런스 번들')} onClose={onClose} close={{ text: tr('닫기') }}>
         <div className="bundle-body">
           <h2><T k={'레퍼런스 번들 {0}'} v={[<span className="dim">— {view?.process.name ?? tr('읽는 중…')}</span>]} />
           </h2>
@@ -570,7 +566,6 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
 
           <p className="dim small bundle-foot"><T k={'내보낸 ZIP: <code>00_공정구성 · 01_UseCase문서 · 02_참조모델 · 03_가이던스 · 04_데이터연계정의 · 05_샘플데이터 · 06_검증결과</code>+ <code>bundle-manifest.json</code>(파일마다 SHA256) + <code>README.md</code>. 문서는 작성 안내만 들어갑니다.<br/>✓ 사전 점검은 번들에 넣은 모델을 이 도구가 <b>다시 확인한 참고 표시</b>입니다. 모델의 공식 검증(KOSMO Validator)은 장비별 AASX를 만들 때 받는 것이라 번들에서 따로 하지 않습니다 — 번들 자체의 확인은 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 합니다.'} /></p>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }
