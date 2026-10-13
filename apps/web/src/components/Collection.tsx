@@ -23,6 +23,15 @@ import { freshWindowMs } from './collection/freshness.js';
 
 export type { EquipmentRow } from './collection/helpers.js';
 
+/** 수집값이 바뀌었는지 — 개수와 가장 늦은 수신 시각, 자동 수집의 마지막 회차. 하루 상태 막대가 이것으로 다시 읽는다 */
+function valuesVersion(values: readonly CollectedValueView[], sweep?: string): string {
+  const latest = values.reduce((max, value) => {
+    const at = value.receivedAt ?? value.observedAt;
+    return at > max ? at : max;
+  }, '');
+  return `${values.length}|${latest}|${sweep ?? ''}`;
+}
+
 interface Props {
   interfaces: AidInterfaceView[];
   values: CollectedValueView[];
@@ -99,7 +108,7 @@ export function Collection({
           {...(onCollectEquipment ? { onCollectEquipment } : {})}
           t={t}
         />
-        <DailyStates rows={stateRows} holdMs={freshWindowMs(auto?.intervalMs)} t={t} />
+        <DailyStates rows={stateRows} holdMs={freshWindowMs(auto?.intervalMs)} version={auto?.lastSweep?.startedAt ?? ''} t={t} />
       </>
     );
   }
@@ -182,7 +191,9 @@ export function Collection({
       */}
       {live && live.collected > 0 && <LiveMap live={live} />}
 
-      {packageId && <DailyStates rows={[{ packageId, name: tr('이 설비') }]} holdMs={freshWindowMs(auto?.intervalMs)} t={t} />}
+      {packageId && (
+        <DailyStates rows={[{ packageId, name: tr('이 설비') }]} holdMs={freshWindowMs(auto?.intervalMs)} version={valuesVersion(values, auto?.lastSweep?.startedAt)} t={t} />
+      )}
 
         <p className="hint">
           {t('수집값은 시계열에만 쌓입니다. 모델(AASX)에는 되쓰지 않습니다 — 산출물이 형식(Type)이기 때문입니다.')}{' '}

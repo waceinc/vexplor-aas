@@ -31,7 +31,11 @@ export function AssetAdder({ path, siblings, terms, candidates, onImportFile, bu
   const adderRef = useRef<HTMLDivElement>(null);
   const diskRef = useRef<HTMLInputElement>(null);
   // 그 자리로 스크롤한다(입력 줄이 다른 자리로 옮겨 가면 Hierarchy 가 key 를 바꿔 새로 그린다 — 값도 비워진다)
-  useEffect(() => adderRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), []); // jsdom엔 없다
+  // 중괄호로 감싸 아무것도 돌려주지 않는다 — 요즘 크롬은 scrollIntoView 가 Promise 를 돌려줘, 그대로 돌려주면
+  // React 가 그것을 정리 함수로 알고 줄이 닫힐 때 불러 화면 전체가 멈췄다(2026-10-14 실측). jsdom 에는 scrollIntoView 가 없다
+  useEffect(() => {
+    void adderRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, []);
   const countN = Math.max(1, Number(count) || 1);
   // 설비 — 올려 둔 파일에서 고르거나, 이름만
   const picked = candidates.find((c) => c.packageId === file);

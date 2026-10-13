@@ -1745,3 +1745,10 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .add-aid .aid-pattern-grid { display: grid; grid-template-columns: 1fr 1fr repeat(3, 72px); gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 2) 0; font-size: var(--text-xs); }
 .add-aid .aid-pattern-grid label { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
 @media (max-width: 640px) { .add-aid .aid-pattern-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Modbus 태그 줄 — 종류 · 자료형 고르개가 더 붙는다. 관례 주소 바꾸기는 줄 아래로 내린다 */
+.picked-list li.modbus { flex-wrap: wrap; }
+.picked-list li.modbus select { width: 128px; }
+.picked-list li.modbus .modicon { order: 10; flex-basis: 100%; text-align: left; padding-left: calc(30% + var(--spacing) * 1); font-size: var(--text-xs); }
+.daily-states .state-rules > .link { align-self: flex-start; }
+.csv-fill .csv-input input[type='file'] { width: auto; border: none; padding: 0; background: none; box-shadow: none; font-size: var(--text-xs); color: var(--muted-foreground); }

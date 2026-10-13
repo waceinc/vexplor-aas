@@ -91,4 +91,26 @@ describe('라인 층 화면', () => {
       expect(made!.children[0]!.children[0]!.name).toBe('SprayRobot');
     });
   });
+
+  it('입력 줄을 바꿔 열어도 화면이 멈추지 않는다 — scrollIntoView 가 Promise 를 돌려주는 브라우저에서도', async () => {
+    // 요즘 크롬처럼 Promise 를 돌려준다. 효과가 그것을 돌려주면 React 가 정리 함수로 불러 화면 전체가 멈췄다(2026-10-14)
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: () => Promise.resolve(), configurable: true });
+    try {
+      const store = new InMemoryStore();
+      await store.init();
+      wireFetch(store);
+      await fetch('/packages/new', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ assetName: 'WaceFactory', unit: 'composite' }) });
+      render(<App />);
+      const panel = (await screen.findByText('공정·설비 구성')).closest('.hierarchy') as HTMLElement;
+      fireEvent.click(within(panel).getByRole('button', { name: '＋ 라인' }));
+      typeName(/^라인 이름$/, 'BodyLine'); // 라인 줄은 열린 채로 남는다
+      const lineRow = (await within(panel).findByText('BodyLine')).closest('.build-row') as HTMLElement;
+      fireEvent.click(within(lineRow).getByRole('button', { name: '＋ 공정' })); // 라인 입력 줄이 닫히고 공정 입력 줄이 열린다
+      fireEvent.click(within(lineRow).getByRole('button', { name: '＋ 설비' }));
+      expect(await screen.findByText('공정·설비 구성')).toBeTruthy();
+      expect(screen.getByPlaceholderText(/이름만/)).toBeTruthy();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    }
+  });
 });

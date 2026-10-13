@@ -65,4 +65,28 @@ describe('하루 상태', () => {
     expect(bar.querySelectorAll('.state-run')).toHaveLength(1);
     expect(bar.querySelectorAll('.state-alarm')).toHaveLength(1);
   });
+
+  it('막대가 먼저 그려진 뒤 「수집」으로 값이 들어오면 다시 읽는다 — 화면을 다시 열지 않아도', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    await store.importPackage({ name: 'm.aasx', package: readAasx(bytes) });
+    // 가짜 수집 어댑터 — 상태 태그는 언제나 「가동」
+    wireFetch(store, {
+      openReader: async (descriptor) => ({
+        base: descriptor.base ?? '',
+        read: async (sources) => sources.map((source) => ({ source, value: '가동', quality: 'Good' })),
+        close: async () => {},
+      }),
+    });
+    await fetch('/packages/pkg_1/aid', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ endpoint: 'opc.tcp://10.0.0.5:4840', tags: [{ name: 'MachineStatus', href: 'ns=1;s=Status' }] }),
+    });
+    render(<App />);
+    const section = (await screen.findByText('하루 상태')).closest('.daily-states') as HTMLElement;
+    await waitFor(() => expect(section.querySelector('.state-totals')?.textContent).toBe('이날 받은 값 없음'));
+    fireEvent.click(screen.getByRole('button', { name: '수집' }));
+    await waitFor(() => expect(section.querySelector('.state-totals')?.textContent).toMatch(/^가동 (\d+분|1분 미만)$/)); // 방금 받은 값이라 대개 1분 미만이다
+  });
 });

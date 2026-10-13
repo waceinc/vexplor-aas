@@ -66,3 +66,12 @@ describe('설비 상태', () => {
     expect(end - start).toBe(24 * 3600_000);
   });
 });
+
+describe('상태 시간 표기', () => {
+  it('1분이 안 되는 시간은 「0분」이 아니라 「1분 미만」', async () => {
+    const { duration } = await import('../src/components/collection/DailyStates.js');
+    expect(duration(20_000)).toBe('1분 미만');
+    expect(duration(90 * 60_000)).toBe('1시간 30분');
+    expect(duration(5 * 60_000)).toBe('5분');
+  });
+});

@@ -18,6 +18,11 @@ interface Props {
   rows: readonly StateRow[];
   /** 값 하나가 이어지는 최대 시간 — 신선도 창과 같다(이 시간 넘게 값이 없으면 데이터 없음) */
   holdMs: number;
+  /**
+   * 수집값이 새로 들어올 때마다 바뀌는 값 — 바뀌면 막대를 다시 읽는다. 없으면 처음 한 번만 읽어
+   * 방금 수집한 값이 막대에 안 나왔다(2026-10-14 화면 실측)
+   */
+  version?: string;
   t: (text: string) => string;
 }
 
@@ -50,13 +55,14 @@ function shiftDay(now: Date): Date {
 }
 
 export function duration(ms: number): string {
+  if (ms > 0 && ms < 60_000) return tr('1분 미만'); // 「0분」이라 쓰면 없었던 것으로 읽힌다
   const minutes = Math.round(ms / 60_000);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? fill(tr('{0}시간 {1}분'), { 0: h, 1: m }) : fill(tr('{0}분'), { 0: m });
 }
 
-export function DailyStates({ rows, holdMs, t }: Props): React.JSX.Element | null {
+export function DailyStates({ rows, holdMs, version = '', t }: Props): React.JSX.Element | null {
   const [day, setDay] = useState(() => shiftDay(new Date()));
   const [rules, setRules] = useState<StateRules>(loadRules);
   const [editing, setEditing] = useState(false);
@@ -101,7 +107,7 @@ export function DailyStates({ rows, holdMs, t }: Props): React.JSX.Element | nul
         ))}
       </div>
       {rows.map((row) => (
-        <StateLine key={`${row.packageId}-${day.getTime()}-${JSON.stringify(rules)}`} row={row} day={day} rules={rules} holdMs={holdMs} />
+        <StateLine key={`${row.packageId}-${day.getTime()}-${JSON.stringify(rules)}`} row={row} day={day} rules={rules} holdMs={holdMs} version={version} />
       ))}
       <div className="state-legend">
         {(['run', 'stop', 'alarm', 'off', 'unknown', 'none'] as const).map((state) => (
@@ -112,7 +118,7 @@ export function DailyStates({ rows, holdMs, t }: Props): React.JSX.Element | nul
   );
 }
 
-function StateLine({ row, day, rules, holdMs }: { row: StateRow; day: Date; rules: StateRules; holdMs: number }): React.JSX.Element {
+function StateLine({ row, day, rules, holdMs, version }: { row: StateRow; day: Date; rules: StateRules; holdMs: number; version: string }): React.JSX.Element {
   const [names, setNames] = useState<string[]>();
   const [tag, setTag] = useState<string>();
   const [segments, setSegments] = useState<Segment[]>();
@@ -148,7 +154,7 @@ function StateLine({ row, day, rules, holdMs }: { row: StateRow; day: Date; rule
     return () => {
       alive = false;
     };
-  }, [row.packageId, tag, start, end, holdMs, rules]);
+  }, [row.packageId, tag, start, end, holdMs, rules, version]);
 
   const span = end - start;
   const totals = segments ? stateTotals(segments) : undefined;

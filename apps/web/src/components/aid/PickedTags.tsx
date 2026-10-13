@@ -27,7 +27,7 @@ export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Pro
   return (
     <ul className="picked-list">
       {rows.map((row, index) => (
-        <li key={index}>
+        <li key={index} className={modbus ? 'modbus' : undefined}>
           <input
             value={row.name}
             list="leaf-names"
@@ -63,7 +63,7 @@ export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Pro
                 </select>
                 {modicon && (
                   <button
-                    className="link"
+                    className="link modicon"
                     title={tr('관례 주소(앞자리가 종류)를 레지스터 종류와 0 기준 주소로 바꿉니다')}
                     onClick={() => update(index, { entity: modicon.entity, href: String(modicon.address) })}
                   >
