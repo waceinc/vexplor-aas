@@ -71,7 +71,7 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
 
       {/* 🔴 위반과 경고를 칸으로 가른다 — 한 목록에 섞여 있으니 「경고 9건」도 제출을 막는 것처럼 읽혔다
           (사용자 2026-09-30). 위반은 제출 전에 반드시 고칠 것, 경고는 제출을 막지 않지만 확인할 것 */}
-      <section className="findings-section error">
+      <section className={`findings-section error${errors.length === 0 ? ' empty' : ''}`}>
         <h3>
           <T k={'{0} {1}건{2}'} v={[<span className="level error">{tr('위반')}</span>, count(errors), <span className="sub"> {tr('— 반드시 고칩니다(KOSMO 규칙)')}</span>]} />
         </h3>
@@ -82,7 +82,7 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
         )}
       </section>
 
-      <section className="findings-section warning">
+      <section className={`findings-section warning${warnings.length === 0 ? ' empty' : ''}`}>
         <h3>
           <T k={'{0} {1}건{2}'} v={[<span className="level warning">{tr('경고')}</span>, count(warnings), <span className="sub"> {tr('— 확인하고 필요하면 「자동 고치기」')}</span>]} />
         </h3>
