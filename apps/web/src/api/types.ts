@@ -189,3 +189,26 @@ export interface SubmodelRequirement {
 }
 
 export * from './bundleDocTypes.js';
+
+/** 형식 → 호기 반영 — 형식 파일이 바뀐 곳 한 줄(서버 packages/linter/src/derivation.ts 와 같은 모양) */
+export interface DerivationChange {
+  key: string;
+  submodel: string;
+  path: string;
+  kind: 'changed' | 'added' | 'removed';
+  action: 'apply' | 'skip' | 'same';
+  reason?: 'edited-here' | 'parent-missing' | 'submodel-missing';
+  base?: string;
+  theirs?: string;
+  mine?: string;
+}
+
+export interface DerivationView {
+  linked: boolean;
+  sourcePackageId?: string;
+  sourceName?: string;
+  appliedAt?: string;
+  sourceMissing?: boolean;
+  changes?: DerivationChange[];
+  counts?: { apply: number; skip: number };
+}

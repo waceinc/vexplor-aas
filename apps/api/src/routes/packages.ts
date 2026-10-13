@@ -69,6 +69,7 @@ import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest } from
 import { fieldValues, fileOf, MultipartError, parseMultipart } from '../multipart.js';
 import type { Route } from '../router.js';
 import { originalFile } from './bundle-files.js';
+import { derivationFile, newDerivation } from './derivation.js';
 
 /** AASX 패키지의 미디어 타입 (규격 AasxFileServer §GetAASXByPackageId) */
 export const AASX_MEDIA_TYPE = 'application/asset-administration-shell-package';
@@ -655,6 +656,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const record = await store.importPackage({
           name: `${assetName}.aasx`,
           package: { ...exported, environment },
+          // 형식 사본 — 나중에 형식을 고치면 이 호기로 내려보낼 기준(routes/derivation.ts). AASX 에는 안 들어간다
+          keep: [derivationFile(newDerivation(packageId, source.name, exported.environment))],
         });
         return json(201, await packageDescription(store, record));
       },

@@ -45,11 +45,14 @@ interface Props {
   /** IRI 이관 대장 건수 — 「자동 고치기」가 IDTA 공식 IRI를 자체 IRI로 옮긴 것. 0이면 안 그린다 */
   ledgerCount?: number;
   onRevertLedger?: () => void;
+  /** 형식 파일 카드(components/derivation) — 호기 파일이 형식의 변경을 받아 오는 자리. 판정 줄 바로 아래 */
+  derivation?: React.ReactNode;
   /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
   t: (text: string) => string;
 }
 
 export function Summary({
+  derivation,
   fileName,
   composition,
   totals,
@@ -197,7 +200,7 @@ export function Summary({
           </>
         )}
       </div>
-
+      {derivation}
 
       {/* 이관 대장 — "옮기고 끝"이 아니라는 것을 보이는 자리. 되돌리기는 규정 해석이 바뀌었을 때(사용자 2026-09-11) */}
       {ledgerCount > 0 && (

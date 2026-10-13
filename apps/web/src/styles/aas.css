@@ -1679,3 +1679,20 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .bulk-values .need.optional { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
 .bulk-values td.bulk-need { width: 1%; white-space: nowrap; padding-right: calc(var(--spacing) * 2); }
 .bulk-values tr.missing input { border-color: var(--fail); }
+
+/* 형식 파일 카드(components/derivation) — 판정 줄 아래 한 줄. 반영할 것이 있으면 왼쪽 선을 푸른색으로 */
+.summary .derivation-card { display: flex; align-items: center; flex-wrap: wrap; gap: calc(var(--spacing) * 2); margin-top: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--text-sm); }
+.summary .derivation-card.off { border-style: dashed; padding-block: calc(var(--spacing) * 1.5); }
+.summary .derivation-card.pending { border-left: 3px solid var(--cb); }
+.summary .derivation-card.missing { border-left: 3px solid var(--warn); }
+.summary .derivation-card .state { color: var(--muted-foreground); }
+.summary .derivation-card.missing .state { color: var(--foreground); }
+.summary .derivation-link { display: flex; align-items: center; gap: calc(var(--spacing) * 2); flex-wrap: wrap; }
+.derivation-dialog { padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4.5); }
+.derivation-dialog h3 { margin: 0 0 calc(var(--spacing) * 1); }
+.derivation-dialog .derivation-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin: calc(var(--spacing) * 3) 0; }
+.derivation-dialog .derivation-table th { text-align: left; font-weight: 500; color: var(--muted-foreground); border-bottom: 1px solid var(--border); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2); }
+.derivation-dialog .derivation-table td { border-bottom: 1px solid var(--border); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2); vertical-align: top; overflow-wrap: anywhere; }
+.derivation-dialog .derivation-table .pick { width: 28px; }
+.derivation-dialog .derivation-table tr.skip td { color: var(--muted-foreground); }
+.derivation-dialog .derivation-table .reason { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--warn); margin-top: calc(var(--spacing) * 0.5); }

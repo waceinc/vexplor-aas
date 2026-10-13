@@ -32,6 +32,7 @@ import { registryRoutes } from './routes/registry.js';
 import { packageRoutes, type PackageRouteOptions } from './routes/packages.js';
 import { bundleRoutes } from './routes/bundle.js';
 import { requirementRoutes } from './routes/requirements.js';
+import { DERIVATION_PART, derivationRoutes } from './routes/derivation.js';
 import { AASX_FILE_SERVER_PROFILES, descriptionRoute, part2Routes } from './routes/part2.js';
 import { describeChange, UndoStack } from './undo.js';
 
@@ -138,6 +139,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
     }),
     // 템플릿 요구 수준(필수 · 선택) — 값 표가 쓴다
     ...requirementRoutes(store),
+    // 형식 → 호기 반영(호기별로 나누기로 만든 파일)
+    ...derivationRoutes(store),
     // 루트는 AASX 파일 서버 인터페이스의 기저 주소다
     descriptionRoute('/description', AASX_FILE_SERVER_PROFILES),
     ...part2Routes(store),
@@ -164,6 +167,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
 /** 모델을 바꿀 수 있는 요청인가 — 되돌리기 스냅샷을 찍을지 정한다 */
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const UNDO_PATTERNS = new Set(['/packages/:packageId/undo', '/packages/:packageId/redo']);
+/** 모델과 함께 곁 파일도 바꾸는 요청 — 되돌리기가 곁 파일까지 찍는다(undo.ts) */
+const SIDECAR_PATTERNS = new Set(['/packages/:packageId/derivation/apply']);
 
 export function createApi(base: AasStore, options: ApiOptions = {}): (request: ApiRequest) => Promise<ApiResponse> {
   // 🔴 저장소에 작업 공간 겹을 씌운다. 라우트는 **이 겹만** 본다 — 날것의 저장소를 쥔
@@ -173,7 +178,8 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   const privateWorkspaces = options.privateWorkspaces === true || options.demo !== undefined;
   const quota = options.maxPackagesPerOwner ?? 50;
   const store = scopeStore(base, privateWorkspaces && quota > 0 ? { maxPackagesPerOwner: quota } : {});
-  const undo = new UndoStack(store);
+  // 형식 반영은 형식 사본(곁 파일)도 함께 바꾼다 — 되돌릴 때 함께 돌아가야 한다(undo.ts)
+  const undo = new UndoStack(store, undefined, [DERIVATION_PART]);
   // 🔴 라우트와 요청 처리가 **같은 세션 표**를 봐야 한다 — 따로 만들면 로그인해도 안 통한다
   const sessions = options.sessions ?? new SessionStore();
   const routes = compile(buildRoutes(store, { ...options, sessions, undo }));
@@ -234,7 +240,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
         }
         const snapshot =
           packageId !== undefined && MUTATING.has(request.method) && !UNDO_PATTERNS.has(found.route.pattern)
-            ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name)
+            ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name, SIDECAR_PATTERNS.has(found.route.pattern))
             : undefined;
         const response = await found.route.handle({ request: inbound, params: found.params });
         // 🔴 데모 계정은 **파일을 가지고 나가지 못한다.** 경로가 아니라 나가는 응답을

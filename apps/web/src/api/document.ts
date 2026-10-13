@@ -30,10 +30,10 @@ export const documentApi = {
     ),
   /** 무엇을 어떻게 고칠지 — 저장하지 않고 계산만. 팝업이 항목별 전/후를 그린다 */
   fixPreview: (packageId: string): Promise<FixReport> => request(`/packages/${packageId}/fix-preview?includeWarnings=1`),
-  /** IRI 이관 대장(새 IRI → 원본 IRI) — 파일 안 파트에 쌓인 것 */
   /** 템플릿 요구 수준 — 서브모델마다 「필수 · 선택」(템플릿이 있는 것만) */
   requirements: (packageId: string): Promise<{ result: SubmodelRequirement[]; templates: number }> =>
     request(`/packages/${packageId}/requirements`),
+  /** IRI 이관 대장(새 IRI → 원본 IRI) — 파일 안 파트에 쌓인 것 */
   relocations: (packageId: string): Promise<{ relocations: Record<string, string> }> =>
     request(`/packages/${packageId}/relocations`),
   /** 원본 IRI로 되돌리기 — 규정 해석이 뒤집혔을 때 */

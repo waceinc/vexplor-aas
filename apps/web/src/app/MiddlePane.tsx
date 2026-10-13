@@ -13,16 +13,18 @@ import { BundlePanel } from '../components/BundlePanel.js';
 import { ImportSubmodel } from '../components/ImportSubmodel.js';
 import { Hierarchy } from '../components/Hierarchy.js';
 import { Summary } from '../components/Summary.js';
+import { DerivationCard } from '../components/derivation/DerivationCard.js';
 import { Inspector } from '../components/Inspector.js';
-import { countElements, type LinkedInfo, type TreeNode } from '../model.js';
+import type { TreeNode } from '../model.js';
 import { tr } from '../i18n.js';
 import { FileListPanel } from './FileListPanel.js';
 import { HistoryPanel } from './HistoryPanel.js';
 import { AssetContext } from './AssetContext.js';
+import { summaryComposition, summaryTotals } from './summaryCounts.js';
 import type { Screen } from './context.js';
 
-export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy' | 'conceptIds' | 'concepts' | 'deletePackages' | 'fileUnit' | 'filesOpen' | 'hierAdder' | 'hierarchy' | 'historyEntries' | 'historyFor' | 'leafNames' | 'ledger' | 'linked' | 'linkedConceptIds' | 'loadPackage' | 'onAddHierarchyGroup' | 'onAddHierarchyManual' | 'onAddHierarchyNode' | 'onAddHierarchySplit' | 'onBulkSaveValues' | 'onChangeValueType' | 'onCreateElement' | 'onCreatePackage' | 'onCreateSubmodel' | 'onDelete' | 'onDeleteAttachment' | 'onDownloadAttachment' | 'onDuplicate' | 'onImport' | 'onImportForTree' | 'onRemoveHierarchyNode' | 'onRename' | 'onRestore' | 'onRevertLedger' | 'onSave' | 'onSaveAssetInformation' | 'onSaveConcept' | 'onSaveSemanticId' | 'onShowHistory' | 'onUploadAttachment' | 'onUploadThumbnail' | 'opcua' | 'packageId' | 'packages' | 'pickedFiles' | 'policy' | 'selected' | 'selectedTrail' | 'setAdding' | 'setFilesOpen' | 'setHierAdder' | 'setHistoryFor' | 'setNotice' | 'setPickedFiles' | 'setSelectedKey' | 'setSubmodelTarget' | 'shell' | 'shells' | 'submodelTarget' | 'submodels' | 't' | 'requirements' | 'interfaces'>): React.JSX.Element {
-  const { adding, allFindings, busy, conceptIds, concepts, deletePackages, fileUnit, filesOpen, hierAdder, hierarchy, historyEntries, historyFor, leafNames, ledger, linked, linkedConceptIds, loadPackage, onAddHierarchyGroup, onAddHierarchyManual, onAddHierarchyNode, onAddHierarchySplit, onBulkSaveValues, onChangeValueType, onCreateElement, onCreatePackage, onCreateSubmodel, onDelete, onDeleteAttachment, onDownloadAttachment, onDuplicate, onImport, onImportForTree, onRemoveHierarchyNode, onRename, onRestore, onRevertLedger, onSave, onSaveAssetInformation, onSaveConcept, onSaveSemanticId, onShowHistory, onUploadAttachment, onUploadThumbnail, opcua, packageId, packages, pickedFiles, policy, selected, selectedTrail, setAdding, setFilesOpen, setHierAdder, setHistoryFor, setNotice, setPickedFiles, setSelectedKey, setSubmodelTarget, shell, shells, submodelTarget, submodels, t, requirements, interfaces } = props;
+export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy' | 'conceptIds' | 'concepts' | 'deletePackages' | 'fileUnit' | 'filesOpen' | 'hierAdder' | 'hierarchy' | 'historyEntries' | 'historyFor' | 'leafNames' | 'ledger' | 'linked' | 'linkedConceptIds' | 'loadPackage' | 'onAddHierarchyGroup' | 'onAddHierarchyManual' | 'onAddHierarchyNode' | 'onAddHierarchySplit' | 'onBulkSaveValues' | 'onChangeValueType' | 'onCreateElement' | 'onCreatePackage' | 'onCreateSubmodel' | 'onDelete' | 'onDeleteAttachment' | 'onDownloadAttachment' | 'onDuplicate' | 'onImport' | 'onImportForTree' | 'onRemoveHierarchyNode' | 'onRename' | 'onRestore' | 'onRevertLedger' | 'onSave' | 'onSaveAssetInformation' | 'onSaveConcept' | 'onSaveSemanticId' | 'onShowHistory' | 'onUploadAttachment' | 'onUploadThumbnail' | 'opcua' | 'packageId' | 'packages' | 'pickedFiles' | 'policy' | 'selected' | 'selectedTrail' | 'setAdding' | 'setFilesOpen' | 'setHierAdder' | 'setHistoryFor' | 'setNotice' | 'setPickedFiles' | 'setSelectedKey' | 'setSubmodelTarget' | 'shell' | 'shells' | 'submodelTarget' | 'submodels' | 't' | 'requirements' | 'interfaces' | 'run' | 'revisions'>): React.JSX.Element {
+  const { adding, allFindings, busy, conceptIds, concepts, deletePackages, fileUnit, filesOpen, hierAdder, hierarchy, historyEntries, historyFor, leafNames, ledger, linked, linkedConceptIds, loadPackage, onAddHierarchyGroup, onAddHierarchyManual, onAddHierarchyNode, onAddHierarchySplit, onBulkSaveValues, onChangeValueType, onCreateElement, onCreatePackage, onCreateSubmodel, onDelete, onDeleteAttachment, onDownloadAttachment, onDuplicate, onImport, onImportForTree, onRemoveHierarchyNode, onRename, onRestore, onRevertLedger, onSave, onSaveAssetInformation, onSaveConcept, onSaveSemanticId, onShowHistory, onUploadAttachment, onUploadThumbnail, opcua, packageId, packages, pickedFiles, policy, selected, selectedTrail, setAdding, setFilesOpen, setHierAdder, setHistoryFor, setNotice, setPickedFiles, setSelectedKey, setSubmodelTarget, shell, shells, submodelTarget, submodels, t, requirements, interfaces, run, revisions } = props;
   /**
    * 구성 패널 — 공정 파일에서는 **요약 머리 바로 밑**에 온다(사용자 2026-09-08: "공정 만들고 하위에 설비
    * 등록하려면 안 되는데" — 폼이 타일·판정 아래 화면 밖에 있어 보이지 않았다). 공정 파일의 정체는 구성이다.
@@ -158,6 +160,7 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
           onAddSubmodel={() => setAdding('submodel')}
           onAddAsset={() => setHierAdder({ path: [], kind: 'asset' })}
           onAddGroup={() => setHierAdder({ path: [], kind: 'group' })}
+          derivation={<DerivationCard packageId={packageId} packages={packages} busy={busy} run={run} loadPackage={loadPackage} setNotice={setNotice} revisions={revisions} />}
           ledgerCount={Object.keys(ledger).length}
           onRevertLedger={() => void onRevertLedger()}
           thumbnailPlaceholder={
@@ -167,48 +170,8 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
           {...(String(shells[0]?.assetInformation?.['assetType'] ?? '').includes('/type/') &&
           hierarchy?.entryNode
             ? {
-                totals: (() => {
-                  let subCount = submodels.length;
-                  let elementCount = countElements(submodels);
-                  let conceptCount = concepts.length;
-                  let unopened = 0;
-                  const walk = (nodes: LinkedInfo[]): void => {
-                    for (const node of nodes) {
-                      if (node.submodels) {
-                        subCount += node.submodels.length;
-                        elementCount += countElements(node.submodels);
-                        conceptCount += node.concepts?.length ?? 0;
-                        // 🔴 열린 설비 밑의 부품(BoM)은 그 설비 파일 안에 이미 셈해졌다 — 파일이 따로 있는 것이
-                        //    아니다. 예전엔 롤포밍기의 부품 3개를 「안 열린 설비 3건」으로 셌다(2026-09-30 검증).
-                        //    다만 열린 파일이 묶음(공정)이면 그 밑은 다른 파일이라 계속 센다
-                        if (!node.composite) continue;
-                      } else if (node.children.length === 0 && !node.group) {
-                        unopened += 1; // 파일이 안 열려 내용을 모른다 — 숨기지 말고 알린다
-                      }
-                      walk(node.children);
-                    }
-                  };
-                  walk(linked);
-                  return { submodels: subCount, elements: elementCount, concepts: conceptCount, unopened };
-                })(),
-                composition: (() => {
-                  // 사람이 보는 구성으로 센다 — 그룹(공정·층)과 설비(참조), 대수 합
-                  let groups = 0;
-                  let assets = 0;
-                  let units = 0;
-                  const walk = (nodes: HierarchyNode[]): void => {
-                    for (const node of nodes) {
-                      if (node.globalAssetId === '') groups += 1;
-                      else {
-                        assets += 1;
-                        units += node.bulkCount;
-                      }
-                      walk(node.children);
-                    }
-                  };
-                  walk(hierarchy.children);
-                  return { groups, assets, units };
-                })(),
+                totals: summaryTotals(submodels, concepts, linked),
+                composition: summaryComposition(hierarchy),
               }
             : {})}
           shells={shells}
