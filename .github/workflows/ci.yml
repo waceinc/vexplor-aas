@@ -7,11 +7,15 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    # 24 = 현역 LTS(운영 이미지와 같은 판), 22 = 최소 지원판(package.json engines) — 둘 다 통과해야 한다
+    strategy:
+      matrix:
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - run: bash scripts/ci.sh

@@ -1050,4 +1050,5 @@ export const EN_MORE: Record<string, string> = {
   '{0}개 — {1} ({2}) … {3} ({4})': '{0} tags — {1} ({2}) … {3} ({4})',
   '{0}개 담기': 'Add {0}',
   '1분 미만': 'under 1 min',
+  ' ← 보는 중': ' ← viewing',
 };

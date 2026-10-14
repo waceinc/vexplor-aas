@@ -53,6 +53,7 @@ services:
       AAS_WORKSPACE: ${AAS_WORKSPACE:-}
       AAS_SIGNUP: ${AAS_SIGNUP:-}
       AAS_SIGNUP_ROLE: ${AAS_SIGNUP_ROLE:-}
+      AAS_LANG: ${AAS_LANG:-}
       # 비우면 연락처를 받지 않는다 — 처리방침 선행 강제
       AAS_PRIVACY_URL: ${AAS_PRIVACY_URL:-}
       # 다른 주소의 웹 앱이 브라우저에서 부를 때만. 비우면 교차 출처를 막는다

@@ -144,13 +144,14 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
   align-items: flex-start; justify-content: center; padding: calc(var(--spacing) * 12) calc(var(--spacing) * 4); z-index: 50; }
 .modal { position: relative; background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius); width: min(680px, 100%); max-height: 80vh; overflow: auto;
+  /* 여백은 틀이 준다 — shadcn Dialog 와 같은 24px. 창마다 따로 주면 어떤 창은 글자가 테두리에 붙는다(2026-10-14 실측: 설정 1px) */
+  padding: calc(var(--spacing) * 6);
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1); }
 .modal-close { position: absolute; top: 8px; right: 10px; z-index: 1; }
 .modal .findings { border: 0; }
 /* 내주기 — 수집(받기)과 방향이 다르다는 것이 색·화살표로 보여야 한다 */
 .status.chip.out { border-color: var(--aas-line-strong); color: var(--muted-foreground); }
 .status.chip.out .sub { color: var(--muted-foreground); }
-.opcua-out { padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4.5); }
 .opcua-out h3 { margin: 0 0 calc(var(--spacing) * 2); }
 .opcua-out .flow { font-family: var(--aas-mono); font-size: var(--text-sm); color: var(--muted-foreground);
   background: var(--muted); border-radius: var(--radius); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 2.5); margin: 0 0 calc(var(--spacing) * 2.5); }
@@ -477,7 +478,6 @@ header select { max-width: 260px; }
 /* ── 수집 연결 만들기 ──────────────────────────────────────── */
 .add-aid input.miss { border-color: var(--warn); }
 /* ── 수집 연결 만들기 — 두 걸음(주소 → 태그) ─────────────── */
-.add-aid { padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4.5); }
 .add-aid h3 { margin: 0 0 calc(var(--spacing) * 1); }
 .add-aid .step { margin-top: calc(var(--spacing) * 3.5); }
 .add-aid .step h4 { display: flex; align-items: center; gap: calc(var(--spacing) * 1.5); margin: 0 0 calc(var(--spacing) * 1.5); font-size: var(--text-sm); }
@@ -842,7 +842,7 @@ p.pick-title {
   text-align: left;
 }
 .file-name.current::after {
-  content: ' ← 보는 중';
+  content: attr(data-current-label);
   font-weight: 400;
   font-size: var(--text-xs);
   color: var(--cb);
@@ -1688,7 +1688,6 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .summary .derivation-card .state { color: var(--muted-foreground); }
 .summary .derivation-card.missing .state { color: var(--foreground); }
 .summary .derivation-link { display: flex; align-items: center; gap: calc(var(--spacing) * 2); flex-wrap: wrap; }
-.derivation-dialog { padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4.5); }
 .derivation-dialog h3 { margin: 0 0 calc(var(--spacing) * 1); }
 .derivation-dialog .derivation-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin: calc(var(--spacing) * 3) 0; }
 .derivation-dialog .derivation-table th { text-align: left; font-weight: 500; color: var(--muted-foreground); border-bottom: 1px solid var(--border); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2); }
@@ -1698,7 +1697,6 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .derivation-dialog .derivation-table .reason { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--warn); margin-top: calc(var(--spacing) * 0.5); }
 
 /* CSV 에서 채우기(components/csvfill) — 형식 변경 확인 창과 같은 여백·표 */
-.csv-fill { padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4.5); }
 .csv-fill h3 { margin: 0 0 calc(var(--spacing) * 1); }
 .csv-fill .csv-input { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 3) 0; }
 .csv-fill .csv-input textarea { width: 100%; font-family: var(--aas-mono); font-size: var(--text-xs); }
@@ -1752,3 +1750,12 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .picked-list li.modbus .modicon { order: 10; flex-basis: 100%; text-align: left; padding-left: calc(30% + var(--spacing) * 1); font-size: var(--text-xs); }
 .daily-states .state-rules > .link { align-self: flex-start; }
 .csv-fill .csv-input input[type='file'] { width: auto; border: none; padding: 0; background: none; box-shadow: none; font-size: var(--text-xs); color: var(--muted-foreground); }
+
+/* ── 대화상자 여백은 .modal 한 곳 (2026-10-14) ──────────────────────────────
+   창 안 감싸개가 따로 주던 여백을 창 안에서는 걷는다. 여기 없는 새 감싸개를 만들면 여백을 주지 말고 틀에 맡긴다 */
+.modal .findings,
+.modal .rules,
+.modal .fix-preview,
+.modal .bundle-body,
+.modal.accounts-modal .accounts { padding: 0; }
+

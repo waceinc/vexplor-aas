@@ -108,7 +108,10 @@ export function Collection({
           {...(onCollectEquipment ? { onCollectEquipment } : {})}
           t={t}
         />
-        <DailyStates rows={stateRows} holdMs={freshWindowMs(auto?.intervalMs)} version={auto?.lastSweep?.startedAt ?? ''} t={t} />
+        {/* 위 설비 목록과 같은 좌우 여백 — 칸 밖에 두면 하루 상태만 테두리에 붙는다(2026-10-14 실측 0px) */}
+        <div className="collection">
+          <DailyStates rows={stateRows} holdMs={freshWindowMs(auto?.intervalMs)} version={auto?.lastSweep?.startedAt ?? ''} t={t} />
+        </div>
       </>
     );
   }
