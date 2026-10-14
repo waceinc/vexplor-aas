@@ -25,7 +25,7 @@ import {
   unitCopy,
   type Json,
 } from './helpers/integration-fixtures.js';
-import { schemaErrors } from './helpers/schema-subset.js';
+import { checkSchema, type JsonSchema } from '../src/integration/schema-check.js';
 
 async function setup(packages = [unitCopy()]) {
   const store = createIntegrationStore();
@@ -64,7 +64,7 @@ describe('equipment master', () => {
     const { call } = await setup();
     const asJson = await call('GET', '/integrations/exports/equipment');
     expect(asJson.status).toBe(200);
-    expect(schemaErrors(EXPORT_SCHEMAS['vexplor.equipmentMaster/1']!, asJson.body)).toEqual([]);
+    expect(checkSchema(EXPORT_SCHEMAS['vexplor.equipmentMaster/1']! as JsonSchema, asJson.body)).toEqual([]);
     expectGolden('equipment.json', `${JSON.stringify(normalized(asJson.body), null, 2)}\n`);
     const asCsv = await call('GET', '/integrations/exports/equipment', { query: { format: 'csv' } });
     expect(asCsv.headers['content-disposition']).toBe('attachment; filename="vexplor.equipmentMaster-1-2026-10-14.csv"');
@@ -176,7 +176,7 @@ describe('BOM', () => {
     const { call, ids } = await setup();
     const asJson = await call('GET', '/integrations/exports/bom', { query: { packageId: ids[0]! } });
     expect(asJson.status).toBe(200);
-    expect(schemaErrors(EXPORT_SCHEMAS['vexplor.bom/1']!, asJson.body)).toEqual([]);
+    expect(checkSchema(EXPORT_SCHEMAS['vexplor.bom/1']! as JsonSchema, asJson.body)).toEqual([]);
     expectGolden('bom.json', `${JSON.stringify(normalized(asJson.body), null, 2)}\n`);
     const asCsv = await call('GET', '/integrations/exports/bom', { query: { packageId: ids[0]!, format: 'csv' } });
     expectGolden('bom.csv', text(asCsv.body));

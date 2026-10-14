@@ -34,6 +34,12 @@ describe('signature vectors', () => {
     expect(independent(SECRET, ID, TS, BODY)).toBe(FROZEN);
   });
 
+  it('the vector printed in docs/integration.md and docs/연동.md', () => {
+    const secret = 'whsec_dmV4cGxvci1hYXMtdGVzdC12ZWN0b3Ita2V5LTMyYiE=';
+    const body = '{"specversion":"1.0","type":"kr.vexplor.aas.integration.ping.v1"}';
+    expect(signature(secret, 'evt_3K7Q9ZB2M4XH8V0TQW5N6R1JPC', 1791942067, body)).toBe('v1,oMzirs96Lr/DagsIw2/eRtl0GRxBE78Ohcay8i9L7MQ=');
+  });
+
   it('the Standard Webhooks published example', () => {
     const secret = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
     expect(signature(secret, 'msg_p5jXN8AQM9LWM0D4loKWxJek', 1614265330, '{"test": 2432232314}')).toBe(

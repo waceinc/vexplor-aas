@@ -167,7 +167,7 @@ export class Dispatcher {
       cursor = page.oldestSeq - 1;
       page = await store.readEvents({ after: cursor, limit: FANOUT_BATCH, includeAudit: true });
     }
-    // Only PostgreSQL can show a later seq before an earlier one commits (§2.4)
+    // Only PostgreSQL can show a later seq before an earlier one commits (§2.4); a crash-voided folder seq never appears
     const rows = this.options.storeKind === 'postgres' ? settledPrefix(page.items, cursor, this.now()) : page.items;
     this.lastFanoutAt = this.iso();
     if (rows.length === 0) {

@@ -92,6 +92,12 @@ export interface IntegrationRouteDeps {
   runtime?: IntegrationRuntimeDeps;
   /** WP3 — see IntegrationServices. Other route builders may ignore it */
   services?: IntegrationServices;
+  /**
+   * Where audit events are written: the base (unscoped) store. In a private workspace the scoped store refuses event
+   * writes (server-only log), so an editor's change of their own package config would otherwise leave no audit trail.
+   * Absent in tests calling a route builder directly — then the route's own store is used.
+   */
+  auditStore?: Pick<IntegrationStore, 'appendEvents'>;
   publicBaseUrl?: string;
   collectIntervalMs?: number;
   demo: boolean;

@@ -77,7 +77,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
             ...(credentials === undefined ? {} : { credentialsSealed: box.seal(credentials) }),
           },
         });
-        await audit(store, request, 'subscription.created', subscription.id, { name: subscription.name, kind, url, types: subscription.types, packageIds: subscription.packageIds }, services.now());
+        await audit(deps.auditStore ?? store, request, 'subscription.created', subscription.id, { name: subscription.name, kind, url, types: subscription.types, packageIds: subscription.packageIds }, services.now());
         deps.runtime?.wakeDispatcher?.();
         return json(201, { subscription, secret });
       }),
@@ -133,7 +133,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         }
         const updated = await store.updateSubscription(id, patch);
         if (!updated) throw notFound(id);
-        await audit(store, request, 'subscription.updated', id, { changed: Object.keys(input).sort(), url: updated.url }, services.now());
+        await audit(deps.auditStore ?? store, request, 'subscription.updated', id, { changed: Object.keys(input).sort(), url: updated.url }, services.now());
         deps.runtime?.subscriptionChanged?.(id);
         deps.runtime?.wakeDispatcher?.();
         return json(200, updated);
@@ -147,7 +147,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         const id = params['id']!;
         const current = await store.getSubscription(id);
         if (!current || !(await store.deleteSubscription(id))) throw notFound(id);
-        await audit(store, request, 'subscription.deleted', id, { name: current.name, url: current.url }, servicesOf(deps).now());
+        await audit(deps.auditStore ?? store, request, 'subscription.deleted', id, { name: current.name, url: current.url }, servicesOf(deps).now());
         deps.runtime?.subscriptionChanged?.(id);
         return noContent();
       }),
@@ -168,7 +168,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
           secretHint: secretHint(secret),
           secrets: { ...current.secrets, keyId: box.keyId, secretSealed: box.seal(secret), previousSealed: current.secrets.secretSealed, previousUntil: previousValidUntil },
         });
-        await audit(store, request, 'subscription.secret-rotated', id, { previousValidUntil }, services.now());
+        await audit(deps.auditStore ?? store, request, 'subscription.secret-rotated', id, { previousValidUntil }, services.now());
         return json(200, { secret, previousValidUntil });
       }),
     },
@@ -194,7 +194,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         const subscription = await store.getSubscription(id);
         if (!subscription) throw notFound(id);
         const { enqueued, echo } = await replay(store, subscription, request.body, services.now());
-        await audit(store, request, 'subscription.replayed', id, { ...echo, enqueued }, services.now());
+        await audit(deps.auditStore ?? store, request, 'subscription.replayed', id, { ...echo, enqueued }, services.now());
         deps.runtime?.wakeDispatcher?.();
         return json(200, { enqueued });
       }),
@@ -236,7 +236,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
           throw new ApiError(404, 'NotFound', fill(tr('전송 기록을 찾을 수 없습니다: {0}'), { 0: id }));
         }
         const delivery = (await store.getDelivery(id))!;
-        await audit(store, request, 'delivery.redelivered', id, { subscriptionId: delivery.subscriptionId, eventId: delivery.eventId }, services.now());
+        await audit(deps.auditStore ?? store, request, 'delivery.redelivered', id, { subscriptionId: delivery.subscriptionId, eventId: delivery.eventId }, services.now());
         deps.runtime?.wakeDispatcher?.();
         return json(200, delivery);
       }),

@@ -4,13 +4,14 @@
  * The client here is a fake with the `MqttPublisher` surface — the wire, PUBACK and broker behaviour are WP2's tests
  * (`packages/fieldbus/test/mqtt-publisher.test.ts`). This file pins what the sink publishes where, and how failures
  * flow into the delivery retry schedule.
- * MERGE: once WP2's MqttPublisher exists, a case against the test broker can be added here (wildcard subscriber,
- * retained state for a late subscriber, will on abrupt close).
+ * The last block runs the sink with the real composed client (WP2's MqttPublisher) against the test broker.
  */
 import { EVENT_TYPES } from '@aas/core';
+import { MqttTestBroker } from '@aas/fieldbus';
 import { describe, expect, it } from 'vitest';
 
 import { toCloudEvent, cloudEventBody } from '../src/integration/cloudevents.js';
+import { integrationComposition } from '../src/integration/compose.js';
 import { Dispatcher } from '../src/integration/dispatcher.js';
 import { pinnedLookup } from '../src/integration/egress.js';
 import { MqttSink, type MqttConnect, type MqttSinkClient, type MqttSinkConnectOptions } from '../src/integration/mqtt-sink.js';
@@ -151,5 +152,48 @@ describe('MQTT deliveries through the dispatcher', () => {
       await dispatcher.runOnce();
     }
     expect((await store.listDeliveries(subscription.id)).items[0]).toMatchObject({ status: 'dead', attempts: 12 });
+  });
+});
+
+describe('with the real MQTT client (WP2 MqttPublisher) and the test broker', () => {
+  async function broker() {
+    const server = new MqttTestBroker({ username: 'plant', password: 'secret' });
+    const port = await server.listen(0);
+    return { server, port };
+  }
+  const connect = integrationComposition().mqttConnect!;
+
+  it('publishes at QoS 1, keeps the state and the online status retained, goes offline on close', async () => {
+    const { server, port } = await broker();
+    try {
+      const sink = new MqttSink(connect, () => '9f2c4e1a7b3d');
+      const event = toCloudEvent(sampleRow(EVENT_TYPES.equipmentStateChanged), ctx);
+      // The host name never resolves — the connection goes to the pinned address (egress)
+      await sink.deliver(target({ url: `mqtt://broker.invalid:${port}`, lookup: pinnedLookup('127.0.0.1'), servername: 'broker.invalid', retainState: true }), event, cloudEventBody(event));
+      const published = server.received.find((message) => message.topic.endsWith('/events/equipment.state.changed.v1'))!;
+      expect(published).toMatchObject({ qos: 1, retain: false });
+      expect(published.payload.toString()).toBe(cloudEventBody(event).toString());
+      const stateTopic = `vexplor/aas/9f2c4e1a7b3d/equipment/${Buffer.from('https://example.com/ids/asset/press-03').toString('base64url')}/state`;
+      expect(JSON.parse(server.retainedOf(stateTopic)!.toString())).toMatchObject({ state: 'alarm', eventId: event.id });
+      expect(JSON.parse(server.retainedOf('vexplor/aas/9f2c4e1a7b3d/status')!.toString())).toMatchObject({ online: true });
+      await sink.close();
+      expect(JSON.parse(server.retainedOf('vexplor/aas/9f2c4e1a7b3d/status')!.toString())).toEqual({ online: false });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('wrong credentials are refused — the delivery fails (and is retried by the dispatcher)', async () => {
+    const { server, port } = await broker();
+    try {
+      const sink = new MqttSink(connect, () => 'x');
+      const event = toCloudEvent(sampleRow(EVENT_TYPES.equipmentAlarmRaised), ctx);
+      await expect(
+        sink.deliver(target({ url: `mqtt://broker.invalid:${port}`, password: 'wrong', lookup: pinnedLookup('127.0.0.1'), servername: 'broker.invalid' }), event, cloudEventBody(event)),
+      ).rejects.toThrow();
+      expect(server.received.filter((message) => message.topic.includes('/events/'))).toEqual([]);
+    } finally {
+      await server.close();
+    }
   });
 });

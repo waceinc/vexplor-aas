@@ -40,6 +40,8 @@ async function harness(options: { pki?: OpcUaPki; keys?: boolean } = {}) {
     ...(options.pki ? { runtime: { status: () => ({ enabled: true, running: [] }), opcuaPki: () => options.pki } } : {}),
   };
   const api = createApi(store, {
+    // These tests mount the equipment routes themselves (fixed clock, own deps) — not the built-in ones
+    integrationRouteBuilders: {},
     routes: [...equipmentRoutes(store, deps, { now: () => NOW }), ...opcuaRoutes(store, deps)],
     ...(options.keys ? { auth: { tokens: [FULL_KEY], readOnlyTokens: [] } } : {}),
   });

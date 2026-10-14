@@ -13,7 +13,7 @@ import { fill, tr } from '@aas/core';
 import type { AasStore } from '@aas/store';
 
 import type { IntegrationComposition, JoinWithInvalidate, ProjectorLike, DetectorLike } from './compose.js';
-import type { IntegrationRuntimeDeps, IntegrationServices, IntegrationStatus } from './deps.js';
+import type { IntegrationRuntimeDeps, IntegrationServices, IntegrationStatus, OpcUaPki } from './deps.js';
 import { Dispatcher, type DispatcherOptions, type TimerHost } from './dispatcher.js';
 import { egressPolicyFromEnv, type EgressPolicy } from './egress.js';
 import { MqttSink } from './mqtt-sink.js';
@@ -29,8 +29,11 @@ export type PackageCycleHook = (cycle: unknown) => Promise<void>;
 
 export interface IntegrationBoot {
   enabled: boolean;
-  /** Passed to createApi → routes. Undefined when the workers are off */
-  runtimeDeps: IntegrationRuntimeDeps | undefined;
+  /**
+   * Passed to createApi → routes. Always present: `status` and `opcuaPki` (the OPC UA trust store must be reachable
+   * also with INTEGRATIONS off); the worker members (`wakeDispatcher`, `testSubscription`, …) only when the workers run
+   */
+  runtimeDeps: IntegrationRuntimeDeps;
   /** Passed to createApi → routes, also when the workers are off */
   services: IntegrationServices;
   /** Passed to CollectSupervisor (WP2 hook). Undefined when off or no detector is composed */
@@ -57,6 +60,8 @@ export interface StartIntegrationsOptions {
   /** Injected in tests to reach a local receiver (loopback is never an allowed target) */
   send?: DispatcherOptions['send'];
   log?: (line: string) => void;
+  /** The OPC UA trust store while the OPC UA server runs in secure mode (server.ts) */
+  opcuaPki?: () => OpcUaPki | undefined;
 }
 
 function positiveNumber(value: string | undefined, fallback: number): number {
@@ -138,7 +143,7 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
     timers.handle.unref();
   }
 
-  let runtimeDeps: IntegrationRuntimeDeps | undefined;
+  let runtimeDeps: IntegrationRuntimeDeps = { status, ...(options.opcuaPki ? { opcuaPki: options.opcuaPki } : {}) };
   let onPackageCycle: PackageCycleHook | undefined;
   if (enabled) {
     const store = options.store as Parameters<typeof ensureInstanceId>[0];
@@ -184,7 +189,7 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
 
     const active = dispatcher;
     runtimeDeps = {
-      status,
+      ...runtimeDeps,
       ...(join ? { join } : {}),
       wakeDispatcher: () => active.wake(),
       ...(detector?.reloadPackageConfig ? { reloadPackageConfig: (packageId: string) => detector?.reloadPackageConfig?.(packageId) } : {}),
@@ -205,6 +210,8 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
       if (timers.handle) clearInterval(timers.handle);
       await projector?.stop().catch(() => undefined);
       await dispatcher?.stop(5_000).catch(() => undefined);
+      // The folder store coalesces runtime-state writes — write the last cursors before the process ends
+      await (options.store as { flush?: () => Promise<void> }).flush?.().catch(() => undefined);
       running.length = 0;
     },
   };

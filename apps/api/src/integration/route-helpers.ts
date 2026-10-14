@@ -55,7 +55,7 @@ export function newEventId(): string {
  * credentials — callers pass stripped URLs only.
  */
 export async function audit(
-  store: IntegrationAasStore,
+  store: Pick<IntegrationAasStore, 'appendEvents'>,
   request: ApiRequest,
   action: AuditAction,
   target: string,
@@ -103,6 +103,7 @@ export function servicesOf(deps: IntegrationRouteDeps): IntegrationServices {
 
 /** Workers that send need `INTEGRATIONS=on` — answered as 503 with the hint */
 export function requireRuntime(deps: IntegrationRouteDeps): NonNullable<IntegrationRouteDeps['runtime']> {
-  if (deps.runtime) return deps.runtime;
+  // `runtime` itself is present also when the workers are off (status, OPC UA trust store) — ask for a worker member
+  if (deps.runtime?.testSubscription) return deps.runtime;
   throw new ApiError(503, 'IntegrationsOff', tr('연동이 꺼져 있습니다 — 서버를 INTEGRATIONS=on으로 띄우십시오.'));
 }

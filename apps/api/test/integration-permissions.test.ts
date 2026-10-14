@@ -6,13 +6,12 @@
  *    accounts all get 403. The secret is shown only in the create / rotate responses and nowhere else.
  */
 import { EVENT_TYPES } from '@aas/core';
-import { InMemoryStore, scopeStore } from '@aas/store';
+import { InMemoryStore } from '@aas/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApi } from '../src/api.js';
 import type { ApiRequest } from '../src/http.js';
 import { hashPassword } from '../src/password.js';
-import { supportsIntegration } from '../src/integration/store-port.js';
 import { ADMIN, EDITOR, memoryStore, routeCaller, testServices, VIEWER, type Principal } from './helpers/integration-scenarios.js';
 
 const PUBLIC = { 'mes.example.com': ['93.184.216.34'] };
@@ -146,8 +145,7 @@ describe('through createApi (authentication happens before the routes)', () => {
     expect((await call('POST', '/integrations/subscriptions', { authorization: 'Bearer full-key' }, WEBHOOK)).status).toBe(403);
   });
 
-  // Needs the store port on the workspace layer (WP1) — runs once WP1 is merged
-  it.runIf(supportsIntegration(scopeStore(new InMemoryStore())))('read-only key reads the feed', async () => {
+  it('read-only key reads the feed (through the workspace layer)', async () => {
     const call = await server();
     expect((await call('GET', '/integrations/events', { authorization: 'Bearer read-key' })).status).toBe(200);
   });

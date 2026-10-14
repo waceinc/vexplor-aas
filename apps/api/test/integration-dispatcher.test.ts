@@ -20,7 +20,7 @@ import { newSigningSecret, SecretBox } from '../src/integration/secrets.js';
 import { verifySignature } from '../src/integration/signing.js';
 import { sendWebhook, type WebhookAttempt, type WebhookOutcome } from '../src/integration/webhook.js';
 import type { IntegrationAasStore } from '../src/integration/deps.js';
-import { clock, KEY, memoryStore, startReceiver, storeRecordsModelEvents, testServices, withIntegrationPort } from './helpers/integration-scenarios.js';
+import { clock, KEY, memoryStore, startReceiver, testServices } from './helpers/integration-scenarios.js';
 
 const HOST = 'mes.example.com';
 const closers: (() => Promise<void>)[] = [];
@@ -372,10 +372,10 @@ describe('test ping', () => {
 
 const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 
-describe.runIf(storeRecordsModelEvents())('commit then crash (folder store, platform 7.2) — runs once WP1 is merged', () => {
+describe('commit then crash (folder store, platform 7.2)', () => {
   it('a model change written by store A is delivered exactly once by a dispatcher on store B (reopened folder)', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'aas-crash-'));
-    const a = withIntegrationPort(new FolderStore(dir));
+    const a = new FolderStore(dir);
     await a.init();
     const box = new SecretBox(KEY);
     const secret = newSigningSecret();
@@ -388,7 +388,7 @@ describe.runIf(storeRecordsModelEvents())('commit then crash (folder store, plat
     await a.putRuntimeState('dispatcher:cursor', 0);
     await a.importPackage({ name: '01.aasx', package: readAasx(goldenBytes) });
     // "crash": store A is abandoned without any further call; store B reopens the folder
-    const b = withIntegrationPort(new FolderStore(dir));
+    const b = new FolderStore(dir);
     await b.init();
     const services = testServices({ allow: HOST, resolve: { [HOST]: ['93.184.216.34'] } });
     const dispatcher = new Dispatcher({

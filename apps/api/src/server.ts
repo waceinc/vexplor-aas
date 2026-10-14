@@ -35,6 +35,8 @@ import { fill, tr } from '@aas/core';
 import { bootLang, langOfRaw, runInLang } from './lang.js';
 import { startIntegrations, type IntegrationBoot, type StartIntegrationsOptions } from './integration/boot.js';
 import { integrationComposition } from './integration/compose.js';
+import { opcuaModeFromEnv, opcuaPkiDirFromEnv } from './integration/opcua-env.js';
+import { LoginThrottle } from './session.js';
 import type { StoreKind } from './integration/secrets.js';
 
 /** Upload cap — guards against zip bombs (spec Ⅷ, security). Default 512MB */
@@ -245,6 +247,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
    */
   const storeKind = options.storeKind ?? storeKindOf(store);
   const dataDir = options.dataDir ?? (storeKind === 'folder' ? process.env['AAS_DATA_DIR'] : undefined);
+  // One login attempt limit for the web login and the OPC UA account check
+  const loginThrottle = new LoginThrottle();
   const overrides = options.integrationOverrides;
   const integrations = startIntegrations({
     store,
@@ -257,19 +261,20 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     ...(publicBaseUrl ? { publicBaseUrl } : {}),
     ...(collectIntervalMs ? { collectIntervalMs } : {}),
     compose: integrationComposition(),
+    // The OPC UA trust store must be reachable also with INTEGRATIONS off (certificate routes)
+    opcuaPki: () => publisher?.pki(),
     log: (line) => console.log(`  ${line}`),
   });
 
   let supervisor: CollectSupervisor | undefined;
   if (collectIntervalMs !== undefined) {
-    // MERGE (WP2): SupervisorOptions gains `onPackageCycle` — passed through a variable so this compiles before and after
-    const supervisorOptions = {
+    // Each package's cycle also goes to the detector (runtime events) when integrations run
+    supervisor = new CollectSupervisor({
       store,
       openReader,
       intervalMs: collectIntervalMs,
       ...(integrations.onPackageCycle ? { onPackageCycle: integrations.onPackageCycle } : {}),
-    };
-    supervisor = new CollectSupervisor(supervisorOptions);
+    });
     supervisor.start();
   }
 
@@ -291,17 +296,26 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   let publisher: OpcUaPublisher | undefined;
   if (publishing) {
     // Authoring must keep working even if this server fails to start — log the reason and continue
-    // MERGE (WP2): pass `security` (secure by default, OPCUA_ALLOW_INSECURE=on for the old behaviour) and
-    //   `verifyUser` (existing accounts: store.findUser + verifyPassword) — design §7
+    // Secure by default (design §7, D16): no None policy, no anonymous, user names = this server's accounts
+    const mode = opcuaModeFromEnv(process.env);
     void import('./publisher.js')
-      .then(({ OpcUaPublisher: Publisher }) => {
+      .then(async ({ OpcUaPublisher: Publisher, accountVerifier }) => {
+        // Important: secure mode with no account would be a port nobody can log in to — say so instead of starting it
+        if (mode === 'secure' && (await store.countUsers()) === 0) {
+          console.error('  ⚠️  ' + tr('OPC UA 서버를 띄우지 않았습니다 — 보안 모드에는 로그인할 계정이 필요합니다. 계정을 만든 뒤 다시 띄우거나, 예전처럼 인증 없이 열려면 OPCUA_ALLOW_INSECURE=on.'));
+          return;
+        }
         publisher = new Publisher({
           store,
           port: Number(process.env['OPCUA_PORT'] ?? 4840),
           refreshMs: Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5)) * 1000,
           ...(process.env['OPCUA_HOST'] ? { hostname: process.env['OPCUA_HOST'] } : {}),
+          security:
+            mode === 'secure'
+              ? { mode, verifyUser: accountVerifier(store, loginThrottle), pkiDir: opcuaPkiDirFromEnv(process.env) }
+              : { mode },
         });
-        return publisher.start();
+        await publisher.start();
       })
       .catch((error: unknown) => {
       console.error(
@@ -342,6 +356,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     ...(publicBaseUrl ? { publicBaseUrl } : {}),
     ...(integrations.runtimeDeps ? { integration: integrations.runtimeDeps } : {}),
     integrationServices: integrations.services,
+    loginThrottle,
     ...(collectIntervalMs ? { collectIntervalMs } : {}),
     routes: [
       {
@@ -643,8 +658,12 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
       console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: uaPort, 1: every }));
       console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
-      // Important: this must be said at least once — HTTP may be token-protected, but this port is not
-      console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다. 사내망 밖으로 열지 마십시오.'));
+      if (opcuaModeFromEnv(process.env) === 'secure') {
+        console.log('     ' + fill(tr('보안 모드 — 이 서버의 계정으로 로그인 · 처음 접속한 클라이언트 인증서는 관리자가 신뢰해야 합니다 (인증서 저장소: {0})'), { 0: opcuaPkiDirFromEnv(process.env) }));
+      } else {
+        // Important: this must be said at least once — HTTP may be token-protected, but this port is not
+        console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다(OPCUA_ALLOW_INSECURE=on). 사내망 밖으로 열지 마십시오.'));
+      }
     }
 
     // Integration — say whether events only get recorded or also go out, and where secrets are kept
@@ -688,7 +707,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     if (process.env['AAS_WORKSPACE'] === 'private' && !bootDemo) {
       console.log('  🗂  ' + tr('작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 저마다 자기가 올린 것만 봅니다.'));
       console.log('     ' + tr('관리자와 API 키는 전부 봅니다. 그 전에 올려 둔 파일은 모두에게 읽기 전용으로 보입니다.'));
-      if (process.env['OPCUA_SERVER'] === 'on') {
+      if (process.env['OPCUA_SERVER'] === 'on' && opcuaModeFromEnv(process.env) === 'insecure') {
         // Important: the OPC UA port has no auth — values kept separate per workspace go out to **anyone** through it
         console.log('     ⚠️  ' + tr('OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.'));
       }

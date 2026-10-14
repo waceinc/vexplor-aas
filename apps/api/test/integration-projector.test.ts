@@ -1,8 +1,6 @@
 /**
  * Projection events (design §2.3, §13.4; ERP E-19, E-20, E-22): debounce, digests, deterministic ids, removal.
- *
- * `projectionScenario()` is exported for WP3's schema test (design §12, `integration-schemas.test.ts`): it returns the
- * projection events of a created → edited → deleted unit.
+ * The schema test validates the events of `projectionScenario()` (helpers/integration-projection.ts).
  */
 import { describe, expect, it } from 'vitest';
 import type { StoredEvent } from '@aas/store';
@@ -10,19 +8,13 @@ import { createJoinResolver } from '../src/integration/exports/join.js';
 import { IntegrationProjector, PROJECTOR_CURSOR_KEY } from '../src/integration/projector.js';
 import { createIntegrationStore, type IntegrationTestStore } from './helpers/integration-store.js';
 import { element, plantFile, shell, submodel, unitAsset, unitCopy, type Json } from './helpers/integration-fixtures.js';
+import { editSerial } from './helpers/integration-projection.js';
 
 const MASTER = 'kr.vexplor.aas.equipment.master.changed.v1';
 
 function clock(start = Date.parse('2026-10-14T00:00:00Z')) {
   let now = start;
   return { now: () => now, advance: (ms: number) => void (now += ms) };
-}
-
-async function editSerial(store: IntegrationTestStore, packageId: string, serial: string): Promise<void> {
-  const env = await store.getEnvironment(packageId);
-  const plate = submodel(env, 'DigitalNameplate');
-  element(plate, 'SerialNumber')['value'] = serial;
-  await store.updateIdentifiable(packageId, 'Submodel', String(plate['id']), plate);
 }
 
 /** A store with one unit, and a projector that has already taken its silent baseline */
@@ -44,19 +36,6 @@ async function settle(projector: IntegrationProjector, time: ReturnType<typeof c
   return projector.runOnce();
 }
 
-export async function projectionScenario(): Promise<StoredEvent[]> {
-  const store = createIntegrationStore();
-  const time = clock();
-  const projector = new IntegrationProjector({ store, now: time.now });
-  await projector.runOnce();
-  const pkg = await store.importPackage({ name: 'unit.aasx', package: unitCopy(1) });
-  const created = await projector.flushNow();
-  await editSerial(store, pkg.id, 'SN-NEW');
-  const updated = await projector.flushNow();
-  await store.deletePackage(pkg.id);
-  const removed = await projector.flushNow();
-  return [...created, ...updated, ...removed];
-}
 
 describe('IntegrationProjector', () => {
   it('emits exactly one master event with changedKeys after the 5 s debounce (E-19)', async () => {

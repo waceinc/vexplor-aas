@@ -3,7 +3,7 @@ export const EN_INTEGRATION_API: Record<string, string> = {
   // Boot and status
   'INTEGRATIONS=on이 아닙니다 — 이벤트 기록과 피드만 동작합니다.': 'INTEGRATIONS=on is not set — only event recording and the feed work.',
   '체험판(DEMO_MODE=on)에서는 연동을 켜지 않습니다.': 'Integrations are not started in trial mode (DEMO_MODE=on).',
-  '이 저장소는 연동 기능을 지원하지 않습니다.': 'This store does not support integrations.',
+  // '이 저장소는 연동 기능을 지원하지 않습니다.' is in integration-exports.ts (one key, one dictionary)
   '웹훅 비밀값을 잠그는 키: {0} — 데이터 폴더 백업에 이 키도 들어갑니다.':
     'Key that seals webhook secrets: {0} — backups of the data folder contain this key too.',
   '연동 기록 정리 실패: {0}': 'Integration log cleanup failed: {0}',
@@ -75,6 +75,14 @@ export const EN_INTEGRATION_API: Record<string, string> = {
   'fromSeq 또는 from 중 하나만 주십시오.': 'Give exactly one of fromSeq or from.',
   'fromSeq는 1 이상의 정수여야 합니다.': 'fromSeq must be an integer of at least 1.',
   '시각을 읽지 못했습니다: {0}': 'Could not read the time: {0}',
+
+  // OPC UA security (server.ts)
+  'OPC UA 서버를 띄우지 않았습니다 — 보안 모드에는 로그인할 계정이 필요합니다. 계정을 만든 뒤 다시 띄우거나, 예전처럼 인증 없이 열려면 OPCUA_ALLOW_INSECURE=on.':
+    'The OPC UA server was not started — secure mode needs an account to log in with. Create an account and restart, or set OPCUA_ALLOW_INSECURE=on for the old unauthenticated port.',
+  '보안 모드 — 이 서버의 계정으로 로그인 · 처음 접속한 클라이언트 인증서는 관리자가 신뢰해야 합니다 (인증서 저장소: {0})':
+    'Secure mode — log in with this server\'s accounts · an administrator must trust a client certificate on its first connection (certificate store: {0})',
+  '이 포트에는 인증이 없습니다(OPCUA_ALLOW_INSECURE=on). 사내망 밖으로 열지 마십시오.':
+    'This port has no authentication (OPCUA_ALLOW_INSECURE=on). Do not expose it outside the plant network.',
 
   // Discovery fix (routes/registry.ts)
   'SpecificAssetId.name이 필요합니다.': 'SpecificAssetId.name is required.',

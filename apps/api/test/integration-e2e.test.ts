@@ -2,8 +2,6 @@
  * Boot / lifecycle of the integration subsystem (design §5.1, D15) and the end-to-end path (platform 7.8):
  * upload → edit a submodel over Part 2 → undo, seen by the pull feed and by a webhook receiver, in revision order.
  *
- * The end-to-end block needs every package (the store records model events — WP1) and runs once they are merged;
- * before that it is skipped, not faked.
  */
 import { mkdtempSync, readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
@@ -20,7 +18,7 @@ import { startIntegrations } from '../src/integration/boot.js';
 import { hashPassword } from '../src/password.js';
 import { verifySignature } from '../src/integration/signing.js';
 import { sendWebhook } from '../src/integration/webhook.js';
-import { clock, KEY, memoryStore, startReceiver, storeRecordsModelEvents, withIntegrationPort } from './helpers/integration-scenarios.js';
+import { clock, KEY, memoryStore, startReceiver } from './helpers/integration-scenarios.js';
 
 const closers: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -32,7 +30,9 @@ describe('startIntegrations', () => {
     const boot = startIntegrations({ store: await memoryStore(), env: {}, demo: false, storeKind: 'memory' });
     closers.push(() => boot.stop());
     expect(boot.enabled).toBe(false);
-    expect(boot.runtimeDeps).toBeUndefined();
+    // runtime is present (status, OPC UA trust store) but has no worker members
+    expect(boot.runtimeDeps.testSubscription).toBeUndefined();
+    expect(boot.runtimeDeps.wakeDispatcher).toBeUndefined();
     expect(boot.onPackageCycle).toBeUndefined();
     expect(boot.status()).toMatchObject({ enabled: false, running: [] });
     expect(boot.status().reason).toContain('INTEGRATIONS=on');
@@ -90,7 +90,7 @@ describe('startIntegrations', () => {
   });
 
   it('createHttpServer boots it and closing the server stops it', async () => {
-    const server = createHttpServer({ store: withIntegrationPort(new InMemoryStore()) });
+    const server = createHttpServer({ store: new InMemoryStore() });
     const boot = integrationsOf(server)!;
     expect(boot).toBeDefined();
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -102,7 +102,7 @@ describe('startIntegrations', () => {
 const goldenBytes = readFileSync('tests/fixtures/01-roll-forming-machine.aasx');
 const PASSWORD = '열자가넘는비밀번호입니다';
 
-describe.runIf(storeRecordsModelEvents())('end to end — runs once all work packages are merged', () => {
+describe('end to end', () => {
   it('upload → edit → undo reach the feed and the webhook in revision order, with the right causes', async () => {
     const receiver = await startReceiver(() => ({ status: 204 }));
     closers.push(receiver.close);

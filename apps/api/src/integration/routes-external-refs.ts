@@ -8,7 +8,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { EVENT_TYPES, fill, tr, type IntegrationAuditData } from '@aas/core';
-import { ConflictError, currentActor, ExternalRefConflictError, ForbiddenError, type AasStore } from '@aas/store';
+import { ConflictError, currentActor, ExternalRefConflictError, ForbiddenError, type AasStore, type IntegrationStore } from '@aas/store';
 import { ApiError, errorResponse, json, type ApiRequest, type ApiResponse } from '../http.js';
 import type { Route } from '../router.js';
 import type { IntegrationRouteDeps } from './deps.js';
@@ -56,7 +56,7 @@ async function afterChange(deps: IntegrationRouteDeps, packageIds: readonly stri
 }
 
 /** `integration.audit` row. A workspace user may not append to the server log (ScopedStore) — the audit is then skipped */
-async function audit(store: AasStore, target: string, details: Record<string, unknown>): Promise<void> {
+async function audit(writer: Pick<IntegrationStore, 'appendEvents'>, target: string, details: Record<string, unknown>): Promise<void> {
   const actor = currentActor();
   const data: IntegrationAuditData = {
     action: 'external-refs.imported',
@@ -65,7 +65,7 @@ async function audit(store: AasStore, target: string, details: Record<string, un
     details,
   };
   try {
-    await integrationStore(store).appendEvents([
+    await writer.appendEvents([
       {
         id: randomUUID(),
         type: EVENT_TYPES.integrationAudit,
@@ -136,7 +136,7 @@ export function externalRefRoutes(store: AasStore, deps: IntegrationRouteDeps): 
         }
         const packageIds = Object.keys(revisions);
         if (packageIds.length > 0) {
-          await audit(store, packageIds.join(','), {
+          await audit(deps.auditStore ?? integrationStore(store), packageIds.join(','), {
             packages: packageIds.length,
             added: plan.changes.reduce((sum, change) => sum + change.add.length, 0),
             replaced: plan.changes.reduce((sum, change) => sum + change.remove.length, 0),

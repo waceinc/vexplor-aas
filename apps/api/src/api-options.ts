@@ -8,10 +8,12 @@ import type { LinterPolicy } from '@aas/linter';
 import type { AuthConfig } from './auth.js';
 import type { ApiRequest } from './http.js';
 import type { DemoConfig } from './demo.js';
+import type { IntegrationStore } from '@aas/store';
+import type { IntegrationRouteBuilders } from './integration/compose.js';
 import type { IntegrationRuntimeDeps, IntegrationServices } from './integration/deps.js';
 import type { Route } from './router.js';
 import type { PackageRouteOptions } from './routes/packages.js';
-import type { SessionStore, SignupThrottle } from './session.js';
+import type { LoginThrottle, SessionStore, SignupThrottle } from './session.js';
 import type { UndoStack } from './undo.js';
 
 export interface ApiOptions {
@@ -87,4 +89,10 @@ export interface ApiOptions {
   integrationServices?: IntegrationServices;
   /** Collection interval (ms) — the detection resolution the integration routes report */
   collectIntervalMs?: number;
+  /** Login attempt limit — server.ts shares it with the OPC UA account check. createApi creates one if absent */
+  loginThrottle?: LoginThrottle;
+  /** The unscoped store audit events are written to — createApi sets it (integration/deps.ts `auditStore`) */
+  integrationAuditStore?: Pick<IntegrationStore, 'appendEvents'>;
+  /** Which WP2 / WP4 integration route builders to mount (default: all). Tests that mount their own pass `{}` */
+  integrationRouteBuilders?: IntegrationRouteBuilders;
 }

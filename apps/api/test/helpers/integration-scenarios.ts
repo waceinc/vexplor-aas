@@ -1,19 +1,12 @@
 /**
- * Test helpers for the integration API (WP3) — stores with the integration port, injected services, a route-level
- * caller with a chosen principal, a local receiver, and scenario event builders.
- *
- * Owned by WP3. WP2 / WP4 export scenario builders from their own test files; the schema test imports them here at
- * merge (see `SCENARIO_BUILDERS` below).
- *
- * Before WP1 merges, `InMemoryStore` has no integration methods: `withIntegrationPort` then composes a
- * `MemoryIntegrationLog` onto it (no model events are recorded in that mode). After WP1 merges the store already has
- * the port and this is the identity.
+ * Test helpers for the integration API (WP3) — stores, injected services, a route-level caller with a chosen
+ * principal, a local receiver, and the scenario event builders the schema test validates (`SCENARIO_BUILDERS`).
  */
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { EVENT_TYPES, type EventType } from '@aas/core';
-import { InMemoryStore, MemoryIntegrationLog, type AasStore, type StoredEvent } from '@aas/store';
+import { InMemoryStore, type AasStore, type StoredEvent } from '@aas/store';
 
 import { toErrorResponse } from '../../src/api.js';
 import type { ApiRequest } from '../../src/http.js';
@@ -22,31 +15,15 @@ import type { IntegrationAasStore, IntegrationRouteDeps, IntegrationServices } f
 import { egressPolicyFromEnv } from '../../src/integration/egress.js';
 import { integrationRoutes } from '../../src/integration/routes.js';
 import { SecretBox } from '../../src/integration/secrets.js';
-import { supportsIntegration } from '../../src/integration/store-port.js';
+import { projectionScenario } from './integration-projection.js';
+import { runtimeEventScenario } from './integration-runtime.js';
 
 export const KEY = Buffer.alloc(32, 7);
-
-/** Adds the integration port to a store that lacks it (pre-WP1); identity otherwise */
-export function withIntegrationPort<T extends AasStore>(store: T, now?: () => string): T & IntegrationAasStore {
-  if (supportsIntegration(store)) return store as T & IntegrationAasStore;
-  const log = new MemoryIntegrationLog(() => undefined, now ? { now } : {});
-  const target = store as unknown as Record<string, unknown>;
-  for (const name of Object.getOwnPropertyNames(MemoryIntegrationLog.prototype)) {
-    const member = (log as unknown as Record<string, unknown>)[name];
-    if (name !== 'constructor' && typeof member === 'function') target[name] = member.bind(log);
-  }
-  return store as T & IntegrationAasStore;
-}
-
-/** Whether model events are recorded by the store itself — true once WP1 is merged */
-export function storeRecordsModelEvents(): boolean {
-  return supportsIntegration(new InMemoryStore());
-}
 
 export async function memoryStore(now?: () => string): Promise<InMemoryStore & IntegrationAasStore> {
   const store = new InMemoryStore(now);
   await store.init();
-  return withIntegrationPort(store, now);
+  return store;
 }
 
 /** A controllable clock in epoch ms */
@@ -275,8 +252,10 @@ export function sampleRow(type: EventType, seq = 1): StoredEvent {
 }
 
 /**
- * Scenario builders of the other work packages — each returns the stored events its scenarios produce.
- * MERGE: add WP2's (`detectorScenarioEvents` in integration-detector.test.ts) and WP4's
- * (`projectorScenarioEvents` in integration-projector.test.ts) builders here; the schema test validates them all.
+ * Scenario builders of the other work packages — each returns the stored events its scenarios produce; the schema
+ * test validates every one against the published schema.
  */
-export const SCENARIO_BUILDERS: (() => Promise<StoredEvent[]>)[] = [];
+export const SCENARIO_BUILDERS: { name: string; build: () => Promise<StoredEvent[]> }[] = [
+  { name: 'runtime (detector)', build: runtimeEventScenario },
+  { name: 'projection (projector)', build: projectionScenario },
+];

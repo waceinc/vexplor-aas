@@ -5,12 +5,13 @@
  * WP2 / WP4 scenarios produce (`SCENARIO_BUILDERS`). The validator itself is checked to fail on what it must catch;
  * a validator that accepts everything would make this whole file green for nothing.
  */
-import { ALL_EVENT_TYPES, EVENT_TYPES, isEventType } from '@aas/core';
+import { ALL_EVENT_TYPES, EVENT_TYPES, isEventType, type EventType } from '@aas/core';
 import { describe, expect, it } from 'vitest';
 
 import { toCloudEvent } from '../src/integration/cloudevents.js';
 import { checkSchema, type JsonSchema } from '../src/integration/schema-check.js';
 import { envelopeSchema, eventSchema } from '../src/integration/schemas.js';
+import { EXPORT_SCHEMAS } from '../src/integration/exports/export-schemas.js';
 import { sampleRow, SCENARIO_BUILDERS } from './helpers/integration-scenarios.js';
 
 const ctx = { instanceId: '9f2c4e1a7b3d', publicBaseUrl: 'https://aas.plant.local' };
@@ -22,13 +23,29 @@ describe('every type validates', () => {
     expect(checkSchema(envelopeSchema(), event)).toEqual([]);
   });
 
-  it('events produced by the other work packages’ scenarios (filled at merge)', async () => {
-    for (const build of SCENARIO_BUILDERS) {
-      for (const row of await build()) {
-        expect(isEventType(row.type), row.type).toBe(true);
-        expect(checkSchema(eventSchema(row.type as (typeof ALL_EVENT_TYPES)[number]), toCloudEvent(row, ctx)), row.type).toEqual([]);
-      }
+  it.each(SCENARIO_BUILDERS)('events of the $name scenario', async ({ build }) => {
+    const rows = await build();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(isEventType(row.type), row.type).toBe(true);
+      expect(checkSchema(eventSchema(row.type as EventType), toCloudEvent(row, ctx)), row.type).toEqual([]);
     }
+  });
+
+  it('the scenarios cover every runtime and projection type', async () => {
+    const seen = new Set<string>();
+    for (const { build } of SCENARIO_BUILDERS) for (const row of await build()) seen.add(row.type);
+    const expected = ALL_EVENT_TYPES.filter((type) => /\.equipment\.|\.collection\./.test(type));
+    expect(expected.filter((type) => !seen.has(type))).toEqual([]);
+  });
+});
+
+describe('export schemas (ERP E-3) are inside the checker subset', () => {
+  it.each(Object.keys(EXPORT_SCHEMAS))('%s', (name) => {
+    // An empty object must fail (required fields) — and the schema itself must use only supported keywords
+    const errors = checkSchema(EXPORT_SCHEMAS[name] as JsonSchema, {});
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.filter((error) => error.message.startsWith('schema uses'))).toEqual([]);
   });
 });
 

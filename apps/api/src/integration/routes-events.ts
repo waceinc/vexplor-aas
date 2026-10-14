@@ -57,8 +57,8 @@ export function eventRoutes(rawStore: AasStore, deps: IntegrationRouteDeps): Rou
             { oldestSeq: String(page.oldestSeq) },
           );
         }
-        // Only PostgreSQL can make a later seq visible before an earlier one commits (§2.4). Elsewhere gaps are
-        // filtered-out rows, and holding them back would only delay the feed
+        // Only PostgreSQL can make a later seq visible before an earlier one commits (§2.4). The other gaps — filtered-out
+        // rows, a crash-voided folder event — are permanent; holding the feed back for them would only delay it
         const now = services.now();
         const rows = services.storeKind === 'postgres' ? settledPrefix(page.items, after, now) : page.items;
         const instanceId = await services.instanceId();

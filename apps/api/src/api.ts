@@ -52,7 +52,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
   return [
     ...buildAuthRoutes(store, {
       sessions: options.sessions ?? new SessionStore(),
-      throttle: new LoginThrottle(),
+      // Shared with the OPC UA account check when the server passes one (server.ts) — one guessing cap per account
+      throttle: options.loginThrottle ?? new LoginThrottle(),
       // Look at X-Forwarded-Proto set by the proxy. Attaching Secure for someone connecting over plain HTTP
       // makes the browser drop the cookie, so login fails entirely
       secureCookie: options.secureCookie ?? ((request) => isHttps(request.headers, false)),
@@ -90,7 +91,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
       ...(options.integrationServices ? { services: options.integrationServices } : {}),
       ...(options.publicBaseUrl ? { publicBaseUrl: options.publicBaseUrl } : {}),
       ...(options.collectIntervalMs ? { collectIntervalMs: options.collectIntervalMs } : {}),
-    }),
+      ...(options.integrationAuditStore ? { auditStore: options.integrationAuditStore } : {}),
+    }, options.integrationRouteBuilders),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
     {
@@ -127,7 +129,8 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   const undo = new UndoStack(store, undefined, [DERIVATION_PART]);
   // Important: routes and request handling must see **the same session table** — separate ones mean login won't work
   const sessions = options.sessions ?? new SessionStore();
-  const routes = compile(buildRoutes(store, { ...options, sessions, undo }));
+  // Audit events go to the unscoped store — a workspace may not write the server log itself (integration/deps.ts)
+  const routes = compile(buildRoutes(store, { ...options, sessions, undo, integrationAuditStore: base }));
 
   const auth = options.auth ?? OPEN_ACCESS;
   /**
