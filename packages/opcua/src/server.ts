@@ -11,21 +11,34 @@
  *
  * Important: everything is **read-only**. Value sync option A (the file is the source of truth) — if values written via
  *    OPC UA leak into the model, option A breaks at that moment. Package Explorer falls into exactly that trap.
- * Important: off by default. Turning it on **opens a port without authentication** — different in nature from the
- *    HTTP-side token auth, so enabling it must be an explicit decision by the deployer (`OPCUA_SERVER=on`).
+ * Important: off by default (`OPCUA_SERVER=on`). When on, it is **secure by default** (docs/design/integration-v1.md §7,
+ *    D16): no `None` security policy, no anonymous sessions, user name and password checked through `verifyUser`, client
+ *    certificates trusted only after an administrator trusts them. The old unauthenticated behaviour (node-opcua
+ *    defaults) needs the explicit `insecure` mode — "never point an MES at an unauthenticated port".
  */
+import { createHash } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import {
   DataType,
+  MessageSecurityMode,
+  OPCUACertificateManager,
   OPCUAServer,
+  SecurityPolicy,
   StatusCodes,
+  UserTokenType,
   Variant,
   type Namespace,
+  type OPCUAServerOptions,
   type StatusCode,
   type UAObject,
   type UAVariable,
 } from 'node-opcua';
 import { tr } from '@aas/core';
 import { flattenVariables, type OpcDataType, type PublishNode, type PublishPlan } from './publish.js';
+import { trustStoreOf, type OpcUaTrustStore } from './trust-store.js';
+
+export type { OpcUaCertificateInfo, OpcUaTrustStore } from './trust-store.js';
 
 /**
  * Important: a marker that announces, **at the protocol level**, that this server was started by this tool.
@@ -48,7 +61,35 @@ export interface AasOpcUaServerOptions {
   refreshMs?: number;
   /** Host to advertise. Empty means the node-opcua default */
   hostname?: string;
+  /**
+   * Absent = **secure** (fail-closed, review H2): a caller that forgets the option gets the locked-down server and a
+   * start error asking for `verifyUser`, never an open port. The unauthenticated behaviour needs `{ mode: 'insecure' }`.
+   */
+  security?: OpcUaSecurityOptions;
 }
+
+/** Who is asking, as far as the secure channel tells — the key a password-guessing throttle counts by */
+export interface OpcUaClientInfo {
+  /** Peer IP address of the secure channel */
+  address?: string;
+  /** SHA-1 of the client application certificate (DER), lowercase hex — stable across NAT, unlike the address */
+  certificateThumbprint?: string;
+}
+
+export interface OpcUaSecurityOptions {
+  mode: 'secure' | 'insecure';
+  /** Required for 'secure'. Any account may read (the address space is read-only); a disabled account must answer false */
+  verifyUser?: (username: string, password: string, client: OpcUaClientInfo) => Promise<boolean>;
+  /** Root folder of the certificate store (own certificate, trusted and rejected client certificates). Default ./opcua-pki */
+  pkiDir?: string;
+}
+
+/** Policies offered in secure mode — all three are current (Basic128Rsa15 and Basic256 are deprecated by the OPC Foundation) */
+export const SECURE_POLICIES: readonly SecurityPolicy[] = [
+  SecurityPolicy.Basic256Sha256,
+  SecurityPolicy.Aes128_Sha256_RsaOaep,
+  SecurityPolicy.Aes256_Sha256_RsaPss,
+];
 
 export interface ServerStatus {
   running: boolean;
@@ -61,6 +102,9 @@ export interface ServerStatus {
   variables: number;
   lastRefresh?: string;
   lastError?: string;
+  security: 'secure' | 'insecure';
+  /** Certificate store folder (secure mode) */
+  pki?: string;
 }
 
 /**
@@ -141,11 +185,68 @@ export class AasOpcUaServer {
   private shape = '';
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = true;
-  private status: ServerStatus = { running: false, packages: 0, variables: 0 };
+  private status: ServerStatus;
+  private certificates: OPCUACertificateManager | undefined;
+  /** User-certificate store of secure mode — kept empty and closed; it exists so node-opcua never uses its home default */
+  private userCertificates: OPCUACertificateManager | undefined;
   /** Identity of this process — regenerated on every start */
   private readonly instanceUri = `urn:aas-authoring-tool:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 
-  constructor(private readonly options: AasOpcUaServerOptions) {}
+  constructor(private readonly options: AasOpcUaServerOptions) {
+    this.status = { running: false, packages: 0, variables: 0, security: options.security?.mode ?? 'secure' };
+  }
+
+  /** The certificate trust store — undefined unless the server runs in secure mode */
+  pki(): OpcUaTrustStore | undefined {
+    if (!this.certificates || !this.server) return undefined;
+    return trustStoreOf(this.certificates);
+  }
+
+  /** node-opcua options for the configured security mode */
+  private async securityOptions(): Promise<Partial<OPCUAServerOptions>> {
+    const security = this.options.security ?? { mode: 'secure' };
+    if (security.mode === 'insecure') return {};
+    const verifyUser = security.verifyUser;
+    if (!verifyUser) throw new Error(tr('보안 모드 OPC UA 서버에는 사용자 확인 함수가 필요합니다.'));
+    const pkiDir = resolve(security.pkiDir ?? 'opcua-pki');
+    // 0700: the folder holds the server's private key
+    mkdirSync(pkiDir, { recursive: true, mode: 0o700 });
+    const manager = new OPCUACertificateManager({ rootFolder: pkiDir, automaticallyAcceptUnknownCertificate: false });
+    await manager.initialize();
+    this.certificates = manager;
+    // Important: X509 user tokens are not offered (only user name + password, below). This store is defence in depth:
+    //    without it node-opcua falls back to a default user PKI in the home folder that trusts every unknown
+    //    certificate — a self-signed user certificate would then open a session without an account (live E2E, D3).
+    // Its own folder: `rootFolder` is the store itself (node-opcua ignores `name`), and sharing the application trust
+    // list would let a trusted MES application certificate double as a user identity
+    const users = new OPCUACertificateManager({ rootFolder: join(pkiDir, 'user'), automaticallyAcceptUnknownCertificate: false });
+    await users.initialize();
+    this.userCertificates = users;
+    this.status = { ...this.status, pki: pkiDir };
+    return {
+      securityPolicies: [...SECURE_POLICIES],
+      securityModes: [MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt],
+      allowAnonymous: false,
+      serverCertificateManager: manager,
+      userCertificateManager: users,
+      userManager: {
+        isValidUserAsync(username, password, callback) {
+          // `this` is the server session; its secure channel knows the peer address and the client certificate
+          const channel = this.channel;
+          const certificate = channel?.clientCertificate;
+          const client: OpcUaClientInfo = {
+            ...(channel?.remoteAddress ? { address: channel.remoteAddress } : {}),
+            ...(certificate ? { certificateThumbprint: createHash('sha1').update(certificate).digest('hex') } : {}),
+          };
+          // Important: a throwing or rejecting verifier must deny, never crash the session handshake
+          verifyUser(username, password, client).then(
+            (ok) => callback(null, ok === true),
+            () => callback(null, false),
+          );
+        },
+      },
+    };
+  }
 
   currentStatus(): ServerStatus {
     return { ...this.status };
@@ -154,7 +255,9 @@ export class AasOpcUaServer {
   async start(): Promise<void> {
     const port = this.options.port ?? 4840;
     const resourcePath = this.options.resourcePath ?? '/UA/AAS';
+    const security = await this.securityOptions();
     this.server = new OPCUAServer({
+      ...security,
       port,
       resourcePath,
       /*
@@ -179,6 +282,7 @@ export class AasOpcUaServer {
       ...(this.options.hostname ? { alternateHostname: [this.options.hostname] } : {}),
     });
     await this.server.initialize();
+    if ((this.options.security?.mode ?? 'secure') === 'secure') onlyUserNameTokens(this.server);
 
     const addressSpace = this.server.engine.addressSpace;
     if (!addressSpace) throw new Error(tr('주소공간을 만들지 못했습니다.'));
@@ -198,6 +302,8 @@ export class AasOpcUaServer {
       endpoint: `opc.tcp://${this.options.hostname ?? '127.0.0.1'}:${port}${resourcePath}`,
       packages: 0,
       variables: 0,
+      security: this.status.security,
+      ...(this.status.pki === undefined ? {} : { pki: this.status.pki }),
     };
 
     await this.refresh();
@@ -213,6 +319,11 @@ export class AasOpcUaServer {
     this.status = { ...this.status, running: false };
     if (this.server) await this.server.shutdown();
     this.server = undefined;
+    // The manager watches its folders — leaving it open keeps file watchers (and the process) alive
+    await this.certificates?.dispose().catch(() => undefined);
+    await this.userCertificates?.dispose().catch(() => undefined);
+    this.certificates = undefined;
+    this.userCertificates = undefined;
   }
 
   /**
@@ -312,5 +423,19 @@ export class AasOpcUaServer {
     if (!variable) return;
     const { variant, status } = toVariant(node.dataType ?? 'String', node.value);
     variable.setValueFromSource(variant, status);
+  }
+}
+
+/**
+ * Leaves only the user-name token on every endpoint (D3). node-opcua offers UserName and Certificate tokens and has no
+ * working option to restrict them (its `userTokenTypes` is not passed through in 2.178), so the endpoint descriptions
+ * are trimmed after `initialize()`, which builds them. The same descriptions decide what a session may use: a token
+ * type without a policy on the endpoint is answered BadIdentityTokenInvalid.
+ */
+function onlyUserNameTokens(server: OPCUAServer): void {
+  for (const endpoint of server.endpoints) {
+    for (const description of endpoint.endpointDescriptions()) {
+      description.userIdentityTokens = (description.userIdentityTokens ?? []).filter((token) => token.tokenType === UserTokenType.UserName);
+    }
   }
 }

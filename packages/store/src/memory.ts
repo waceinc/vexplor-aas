@@ -15,6 +15,34 @@ import {
   toEnvironment,
 } from './convert.js';
 import { actorFields } from './actor.js';
+import { MemoryIntegrationLog } from './integration-memory.js';
+import type {
+  DeliveryRecord,
+  DeliveryResult,
+  DeliveryStats,
+  DeliveryStatus,
+  EventPage,
+  EventQuery,
+  ExternalRefsBatchItem,
+  ExternalRefsDoc,
+  IntegrationStore,
+  NewEvent,
+  NewSubscription,
+  StoredEvent,
+  SubscriptionPatch,
+  SubscriptionRecord,
+  SubscriptionSecrets,
+  Versioned,
+} from './integration-types.js';
+import {
+  firstShellFacts,
+  identifiableEvent,
+  packageCreatedEvent,
+  packageDeletedEvent,
+  packageFileEvent,
+  type ModelEvent,
+  type PackageFacts,
+} from './model-events.js';
 import {
   type CollectedValue,
   type NewUser,
@@ -54,14 +82,33 @@ interface PackageState {
   nextOrdinal: number;
 }
 
-export class InMemoryStore implements AasStore {
+export class InMemoryStore implements AasStore, IntegrationStore {
   private readonly packages = new Map<string, PackageState>();
   private nextPackageId = 1;
   /** Users — id → record. login is lowercased for lookup */
   private readonly users = new Map<string, UserRecord>();
   private nextUserId = 1;
+  /**
+   * Integration part of the port (events, subscriptions, deliveries, configs, refs, runtime state).
+   * Important: composed, not reimplemented — the folder store persists this same object, so the stores cannot drift.
+   */
+  protected readonly integration: MemoryIntegrationLog;
+
   /** Clock injection — left open so tests can run deterministically */
-  constructor(private readonly now: () => string = () => new Date().toISOString()) {}
+  constructor(private readonly now: () => string = () => new Date().toISOString()) {
+    this.integration = new MemoryIntegrationLog(
+      (packageId) => {
+        const state = this.packages.get(packageId);
+        return state === undefined ? null : state.record.owner;
+      },
+      { now, onEvent: (row) => this.eventRecorded(row) },
+    );
+  }
+
+  /** Every row the integration log inserts, synchronously — the folder store queues its events.jsonl line here */
+  protected eventRecorded(_row: StoredEvent): void {
+    // Nothing to do in memory
+  }
 
   async init(): Promise<void> {
     // Nothing to prepare for the in-memory store
@@ -76,6 +123,29 @@ export class InMemoryStore implements AasStore {
   private touch(state: PackageState): void {
     state.record.revision += 1;
     state.record.updatedAt = this.now();
+  }
+
+  /** Package facts for a model event, read after the change. `revisionDelta` is 1 for a deletion (see PackageFacts) */
+  private facts(state: PackageState, revisionDelta = 0): PackageFacts {
+    const firstShell = [...state.identifiables.values()]
+      .filter((r) => r.modelType === 'AssetAdministrationShell')
+      .sort((a, b) => a.ordinal - b.ordinal)[0];
+    const facts: PackageFacts = {
+      packageId: state.record.id,
+      packageRevision: state.record.revision + revisionDelta,
+      ...firstShellFacts(firstShell?.content),
+    };
+    if (state.record.owner !== undefined) facts.owner = state.record.owner;
+    return facts;
+  }
+
+  /**
+   * Records a model event in the same synchronous step as the mutation it describes — nothing can interleave between
+   * the two in this single-threaded store, which is the in-memory meaning of "same transaction".
+   * The folder store overrides it to also queue the line for events.jsonl.
+   */
+  protected recordModelEvent(event: ModelEvent): StoredEvent | undefined {
+    return this.integration.recordModelEvent(event);
   }
 
   private find(
@@ -138,6 +208,9 @@ export class InMemoryStore implements AasStore {
     }
 
     this.packages.set(id, state);
+    const counts = { AssetAdministrationShell: 0, Submodel: 0, ConceptDescription: 0 };
+    for (const r of state.identifiables.values()) counts[r.modelType] += 1;
+    this.recordModelEvent(packageCreatedEvent(this.facts(state), record.name, counts, at));
     return clone(record);
   }
 
@@ -166,7 +239,11 @@ export class InMemoryStore implements AasStore {
   }
 
   async deletePackage(packageId: string): Promise<void> {
-    if (!this.packages.delete(packageId)) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
+    const state = this.state(packageId);
+    this.recordModelEvent(packageDeletedEvent(this.facts(state, 1), state.record.name, this.now()));
+    this.packages.delete(packageId);
+    // Config, external refs (and their uniqueness keys) and runtime state go with the package; events stay
+    this.integration.forgetPackage(packageId);
   }
 
   async getEnvironment(packageId: string): Promise<Environment> {
@@ -215,14 +292,16 @@ export class InMemoryStore implements AasStore {
     if (index >= 0) state.files[index] = stored;
     else state.files.push(stored);
     this.touch(state);
+    this.recordModelEvent(packageFileEvent(this.facts(state), file.part, file.role, 'put', state.record.updatedAt));
   }
 
   async deletePackageFile(packageId: string, part: string): Promise<void> {
     const state = this.state(packageId);
     const index = state.files.findIndex((f) => f.part === part);
     if (index < 0) throw new NotFoundError(fill(tr('파트 {0}'), { 0: part }));
-    state.files.splice(index, 1);
+    const [removed] = state.files.splice(index, 1);
     this.touch(state);
+    this.recordModelEvent(packageFileEvent(this.facts(state), part, removed!.role, 'delete', state.record.updatedAt));
   }
 
   async listIdentifiables(
@@ -274,6 +353,7 @@ export class InMemoryStore implements AasStore {
     };
     state.identifiables.set(uid, record);
     this.touch(state);
+    this.recordModelEvent(identifiableEvent(this.facts(state), record, 'create', record.revision, state.record.updatedAt));
     return clone(record);
   }
 
@@ -320,6 +400,7 @@ export class InMemoryStore implements AasStore {
     };
     state.identifiables.set(current.uid, updated);
     this.touch(state);
+    this.recordModelEvent(identifiableEvent(this.facts(state), updated, 'update', updated.revision, state.record.updatedAt, options.actor));
     return clone(updated);
   }
 
@@ -347,6 +428,7 @@ export class InMemoryStore implements AasStore {
     });
     state.identifiables.delete(current.uid);
     this.touch(state);
+    this.recordModelEvent(identifiableEvent(this.facts(state), current, 'delete', current.revision, state.record.updatedAt, options.actor));
   }
 
   async history(
@@ -435,6 +517,36 @@ export class InMemoryStore implements AasStore {
   async countUsers(): Promise<number> {
     return this.users.size;
   }
+
+  // ── Integration (docs/design/integration-v1.md §3) — delegated to the composed log ──
+  appendEvents(events: readonly NewEvent[]): Promise<StoredEvent[]> { return this.integration.appendEvents(events); }
+  readEvents(query: EventQuery, scope?: PackageScope): Promise<EventPage> { return this.integration.readEvents(query, scope); }
+  pruneEvents(before: string): Promise<number> { return this.integration.pruneEvents(before); }
+  listSubscriptions(): Promise<SubscriptionRecord[]> { return this.integration.listSubscriptions(); }
+  getSubscription(id: string): Promise<(SubscriptionRecord & { secrets: SubscriptionSecrets }) | undefined> { return this.integration.getSubscription(id); }
+  createSubscription(input: NewSubscription): Promise<SubscriptionRecord> { return this.integration.createSubscription(input); }
+  updateSubscription(id: string, patch: SubscriptionPatch): Promise<SubscriptionRecord | undefined> { return this.integration.updateSubscription(id, patch); }
+  deleteSubscription(id: string): Promise<boolean> { return this.integration.deleteSubscription(id); }
+  enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number> { return this.integration.enqueueDeliveries(rows, now); }
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> { return this.integration.claimDeliveries(now, limit, leaseMs, subscriptionId); }
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean> { return this.integration.completeDelivery(id, result); }
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> { return this.integration.extendLease(id, attempt, leaseUntil); }
+  getDelivery(id: string): Promise<DeliveryRecord | undefined> { return this.integration.getDelivery(id); }
+  listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>> { return this.integration.listDeliveries(subscriptionId, query); }
+  redeliver(id: string, now: string): Promise<boolean> { return this.integration.redeliver(id, now); }
+  deliveryStats(): Promise<DeliveryStats[]> { return this.integration.deliveryStats(); }
+  pruneDeliveries(succeededBefore: string, deadBefore: string): Promise<number> { return this.integration.pruneDeliveries(succeededBefore, deadBefore); }
+  getServerIntegrationConfig(): Promise<Versioned<unknown> | undefined> { return this.integration.getServerIntegrationConfig(); }
+  putServerIntegrationConfig(value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> { return this.integration.putServerIntegrationConfig(value, expectedRevision); }
+  getPackageIntegrationConfig(packageId: string): Promise<Versioned<unknown> | undefined> { return this.integration.getPackageIntegrationConfig(packageId); }
+  putPackageIntegrationConfig(packageId: string, value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> { return this.integration.putPackageIntegrationConfig(packageId, value, expectedRevision); }
+  getExternalRefs(packageId: string): Promise<Versioned<ExternalRefsDoc> | undefined> { return this.integration.getExternalRefs(packageId); }
+  putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> { return this.integration.putExternalRefs(packageId, doc, expectedRevision); }
+  putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> { return this.integration.putExternalRefsBatch(items); }
+  findExternalRef(system: string, type: string, id: string): Promise<{ packageId: string; subject: string }[]> { return this.integration.findExternalRef(system, type, id); }
+  listExternalRefs(): Promise<{ packageId: string; refs: Versioned<ExternalRefsDoc> }[]> { return this.integration.listExternalRefs(); }
+  getRuntimeState(key: string): Promise<unknown | undefined> { return this.integration.getRuntimeState(key); }
+  putRuntimeState(key: string, value: unknown, packageId?: string): Promise<void> { return this.integration.putRuntimeState(key, value, packageId); }
 
   // ── Access points used by the folder store ─────────────────────────────────
   // FolderStore (the store that keeps files in a folder) saves and restores this state as-is.

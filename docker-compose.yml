@@ -70,11 +70,23 @@ services:
       # Template folder — .aasx files in ./templates are loaded at startup (the source for "Import from another file")
       AAS_TEMPLATES_DIR: /templates
       # OPC UA exposure (M6·M7) — when on, upper-level apps (MES, SCADA) receive values via subscriptions.
-      # Important: this port has no authentication. Open the 4840 line under ports only when turning it on
+      # Secure by default: account login + Sign / SignAndEncrypt. OPCUA_ALLOW_INSECURE=on restores the unauthenticated port
       OPCUA_SERVER: ${OPCUA_SERVER:-off}
       OPCUA_PORT: ${OPCUA_PORT:-4840}
       OPCUA_REFRESH: ${OPCUA_REFRESH:-5}
       OPCUA_HOST: ${OPCUA_HOST:-}
+      OPCUA_ALLOW_INSECURE: ${OPCUA_ALLOW_INSECURE:-}
+      # OPC UA certificate store: ./opcua-pki inside the container, which a rebuild discards (trust clients again).
+      #   To keep it, mount a folder the `node` user can write to and add OPCUA_PKI_DIR: <that folder> here
+      # MES / ERP / CMMS integration — docs/integration.md. The pull feed works even when off
+      INTEGRATIONS: ${INTEGRATIONS:-off}
+      AAS_INTEGRATION_ALLOW: ${AAS_INTEGRATION_ALLOW:-}
+      # Required with PostgreSQL to create subscriptions (seals webhook secrets and MQTT passwords)
+      AAS_SECRET_KEY: ${AAS_SECRET_KEY:-}
+      INTEGRATION_RETENTION_DAYS: ${INTEGRATION_RETENTION_DAYS:-30}
+      INTEGRATION_TIMEOUT_MS: ${INTEGRATION_TIMEOUT_MS:-10000}
+      # Public address — event links, dataschema and export document URLs become absolute when set
+      AAS_PUBLIC_URL: ${AAS_PUBLIC_URL:-}
     ports:
       - '${APP_PORT:-8080}:8080'
       # Only meaningful when OPCUA_SERVER=on. When off, it is an empty port nobody listens on

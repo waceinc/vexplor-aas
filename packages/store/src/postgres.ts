@@ -42,6 +42,26 @@ import {
   type Actor,
   type PackageScope } from './types.js';
 import { resolveActor } from './actor.js';
+import type {
+  DeliveryRecord,
+  DeliveryResult,
+  DeliveryStats,
+  DeliveryStatus,
+  EventPage,
+  EventQuery,
+  ExternalRefsBatchItem,
+  ExternalRefsDoc,
+  IntegrationStore,
+  NewEvent,
+  NewSubscription,
+  StoredEvent,
+  SubscriptionPatch,
+  SubscriptionRecord,
+  SubscriptionSecrets,
+  Versioned,
+} from './integration-types.js';
+import { identifiableEvent, packageCreatedEvent, packageDeletedEvent, packageFileEvent } from './model-events.js';
+import { PostgresIntegration, packageFacts, recordModelEvent, toIso, withTransaction } from './postgres-integration.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -74,19 +94,6 @@ export class SchemaVersionError extends Error {
   }
 }
 
-async function withTransaction<T>(client: SqlClient, fn: (tx: SqlClient) => Promise<T>): Promise<T> {
-  if (client.transaction) return client.transaction(fn);
-  await client.query('BEGIN');
-  try {
-    const result = await fn(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  }
-}
-
 const HEX = '0123456789abcdef';
 
 function toHex(data: Uint8Array): string {
@@ -101,11 +108,6 @@ function fromHex(value: string): Uint8Array {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
-}
-
-function toIso(value: unknown): string {
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
 }
 
 function optional(value: unknown): string | undefined {
@@ -176,8 +178,13 @@ function toIdentifiableRecord(row: IdentifiableRow): IdentifiableRecord {
 const IDENTIFIABLE_COLUMNS =
   'uid, package_id, model_type, id, id_short, semantic_id, asset_kind, kind, ordinal, content, revision, updated_at';
 
-export class PostgresStore implements AasStore {
-  constructor(private readonly client: SqlClient) {}
+export class PostgresStore implements AasStore, IntegrationStore {
+  /** Integration part of the port (postgres-integration.ts). Model events are written by the methods below instead */
+  private readonly integration: PostgresIntegration;
+
+  constructor(private readonly client: SqlClient) {
+    this.integration = new PostgresIntegration(client);
+  }
 
   /** The DB schema version confirmed at startup. undefined before init() */
   schemaVersion: number | undefined;
@@ -308,6 +315,10 @@ export class PostgresStore implements AasStore {
         );
       }
 
+      const counts = { AssetAdministrationShell: 0, Submodel: 0, ConceptDescription: 0 };
+      for (const { content } of flattenEnvironment(input.package.environment)) counts[deriveColumns(content).modelType] += 1;
+      const { facts } = await packageFacts(tx, row.id);
+      await recordModelEvent(tx, packageCreatedEvent(facts, row.name, counts, new Date().toISOString()));
       return toPackageRecord(row);
     });
   }
@@ -424,24 +435,33 @@ export class PostgresStore implements AasStore {
   }
 
   async putPackageFile(packageId: string, file: PackageFileRecord): Promise<void> {
-    await this.requirePackage(packageId);
-    await this.client.query(
-      `INSERT INTO aas_package_file (package_id, part, role, content_type, data)
-       VALUES ($1, $2, $3, $4, decode($5, 'hex'))
-       ON CONFLICT (package_id, part)
-       DO UPDATE SET role = EXCLUDED.role, content_type = EXCLUDED.content_type, data = EXCLUDED.data`,
-      [packageId, file.part, file.role, file.contentType, toHex(file.data)],
-    );
-    await this.touch(this.client, packageId);
+    // A transaction now (2026-10-14): the file, the revision bump and the model event commit together
+    await withTransaction(this.client, async (tx) => {
+      await this.requirePackage(packageId, tx);
+      await tx.query(
+        `INSERT INTO aas_package_file (package_id, part, role, content_type, data)
+         VALUES ($1, $2, $3, $4, decode($5, 'hex'))
+         ON CONFLICT (package_id, part)
+         DO UPDATE SET role = EXCLUDED.role, content_type = EXCLUDED.content_type, data = EXCLUDED.data`,
+        [packageId, file.part, file.role, file.contentType, toHex(file.data)],
+      );
+      await this.touch(tx, packageId);
+      const { facts } = await packageFacts(tx, packageId);
+      await recordModelEvent(tx, packageFileEvent(facts, file.part, file.role, 'put', new Date().toISOString()));
+    });
   }
 
   async deletePackageFile(packageId: string, part: string): Promise<void> {
-    const { rows } = await this.client.query<{ part: string }>(
-      'DELETE FROM aas_package_file WHERE package_id = $1 AND part = $2 RETURNING part',
-      [packageId, part],
-    );
-    if (rows.length === 0) throw new NotFoundError(fill(tr('파트 {0}'), { 0: part }));
-    await this.touch(this.client, packageId);
+    await withTransaction(this.client, async (tx) => {
+      const { rows } = await tx.query<{ role: string }>(
+        'DELETE FROM aas_package_file WHERE package_id = $1 AND part = $2 RETURNING role',
+        [packageId, part],
+      );
+      if (rows.length === 0) throw new NotFoundError(fill(tr('파트 {0}'), { 0: part }));
+      await this.touch(tx, packageId);
+      const { facts } = await packageFacts(tx, packageId);
+      await recordModelEvent(tx, packageFileEvent(facts, part, rows[0]!.role, 'delete', new Date().toISOString()));
+    });
   }
 
   async getPackage(packageId: string): Promise<PackageRecord | undefined> {
@@ -467,11 +487,12 @@ export class PostgresStore implements AasStore {
   }
 
   async deletePackage(packageId: string): Promise<void> {
-    const { rows } = await this.client.query<{ id: string }>(
-      'DELETE FROM aas_package WHERE id = $1 RETURNING id',
-      [packageId],
-    );
-    if (rows.length === 0) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
+    await withTransaction(this.client, async (tx) => {
+      // Facts before the rows go. Config, refs, keys and runtime state cascade (ON DELETE CASCADE); events stay
+      const before = await packageFacts(tx, packageId, 1);
+      await tx.query('DELETE FROM aas_package WHERE id = $1', [packageId]);
+      await recordModelEvent(tx, packageDeletedEvent(before.facts, before.name, new Date().toISOString()));
+    });
   }
 
   async getEnvironment(packageId: string): Promise<Environment> {
@@ -553,7 +574,10 @@ export class PostgresStore implements AasStore {
         ],
       );
       await this.touch(tx, packageId);
-      return toIdentifiableRecord(rows[0]!);
+      const record = toIdentifiableRecord(rows[0]!);
+      const { facts } = await packageFacts(tx, packageId);
+      await recordModelEvent(tx, identifiableEvent(facts, record, 'create', record.revision, new Date().toISOString()));
+      return record;
     });
   }
 
@@ -597,7 +621,10 @@ export class PostgresStore implements AasStore {
         ],
       );
       await this.touch(tx, packageId);
-      return toIdentifiableRecord(rows[0]!);
+      const record = toIdentifiableRecord(rows[0]!);
+      const { facts } = await packageFacts(tx, packageId);
+      await recordModelEvent(tx, identifiableEvent(facts, record, 'update', record.revision, new Date().toISOString(), options.actor));
+      return record;
     });
   }
 
@@ -616,6 +643,9 @@ export class PostgresStore implements AasStore {
       await this.pushHistory(tx, current, 'delete', options.actor);
       await tx.query('DELETE FROM identifiable WHERE uid = $1', [current.uid]);
       await this.touch(tx, packageId);
+      const record = toIdentifiableRecord(current);
+      const { facts } = await packageFacts(tx, packageId);
+      await recordModelEvent(tx, identifiableEvent(facts, record, 'delete', record.revision, new Date().toISOString(), options.actor));
     });
   }
 
@@ -683,6 +713,36 @@ export class PostgresStore implements AasStore {
       ...(r.actor_name === null ? {} : { actorName: r.actor_name }),
     }));
   }
+
+  // ── Integration (docs/design/integration-v1.md §3) — postgres-integration.ts ──
+  appendEvents(events: readonly NewEvent[]): Promise<StoredEvent[]> { return this.integration.appendEvents(events); }
+  readEvents(query: EventQuery, scope?: PackageScope): Promise<EventPage> { return this.integration.readEvents(query, scope); }
+  pruneEvents(before: string): Promise<number> { return this.integration.pruneEvents(before); }
+  listSubscriptions(): Promise<SubscriptionRecord[]> { return this.integration.listSubscriptions(); }
+  getSubscription(id: string): Promise<(SubscriptionRecord & { secrets: SubscriptionSecrets }) | undefined> { return this.integration.getSubscription(id); }
+  createSubscription(input: NewSubscription): Promise<SubscriptionRecord> { return this.integration.createSubscription(input); }
+  updateSubscription(id: string, patch: SubscriptionPatch): Promise<SubscriptionRecord | undefined> { return this.integration.updateSubscription(id, patch); }
+  deleteSubscription(id: string): Promise<boolean> { return this.integration.deleteSubscription(id); }
+  enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number> { return this.integration.enqueueDeliveries(rows, now); }
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> { return this.integration.claimDeliveries(now, limit, leaseMs, subscriptionId); }
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean> { return this.integration.completeDelivery(id, result); }
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> { return this.integration.extendLease(id, attempt, leaseUntil); }
+  getDelivery(id: string): Promise<DeliveryRecord | undefined> { return this.integration.getDelivery(id); }
+  listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>> { return this.integration.listDeliveries(subscriptionId, query); }
+  redeliver(id: string, now: string): Promise<boolean> { return this.integration.redeliver(id, now); }
+  deliveryStats(): Promise<DeliveryStats[]> { return this.integration.deliveryStats(); }
+  pruneDeliveries(succeededBefore: string, deadBefore: string): Promise<number> { return this.integration.pruneDeliveries(succeededBefore, deadBefore); }
+  getServerIntegrationConfig(): Promise<Versioned<unknown> | undefined> { return this.integration.getServerIntegrationConfig(); }
+  putServerIntegrationConfig(value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> { return this.integration.putServerIntegrationConfig(value, expectedRevision); }
+  getPackageIntegrationConfig(packageId: string): Promise<Versioned<unknown> | undefined> { return this.integration.getPackageIntegrationConfig(packageId); }
+  putPackageIntegrationConfig(packageId: string, value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> { return this.integration.putPackageIntegrationConfig(packageId, value, expectedRevision); }
+  getExternalRefs(packageId: string): Promise<Versioned<ExternalRefsDoc> | undefined> { return this.integration.getExternalRefs(packageId); }
+  putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> { return this.integration.putExternalRefs(packageId, doc, expectedRevision); }
+  putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> { return this.integration.putExternalRefsBatch(items); }
+  findExternalRef(system: string, type: string, id: string): Promise<{ packageId: string; subject: string }[]> { return this.integration.findExternalRef(system, type, id); }
+  listExternalRefs(): Promise<{ packageId: string; refs: Versioned<ExternalRefsDoc> }[]> { return this.integration.listExternalRefs(); }
+  getRuntimeState(key: string): Promise<unknown | undefined> { return this.integration.getRuntimeState(key); }
+  putRuntimeState(key: string, value: unknown, packageId?: string): Promise<void> { return this.integration.putRuntimeState(key, value, packageId); }
 
   // ── Users (2026-10-02) ────────────────────────────────────────────────────
   // Important: login is stored and looked up lowercased — because the table's UNIQUE is case-sensitive.

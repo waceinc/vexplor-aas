@@ -7,11 +7,13 @@
 import { fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
   ConflictError,
+  ExternalRefConflictError,
   ForbiddenError,
   InvalidContentError,
   NotFoundError,
   runAsActor,
   runInWorkspace,
+  runWithChange,
   scopeStore,
   type AasStore,
   type Actor,
@@ -34,6 +36,8 @@ import { DERIVATION_PART, derivationRoutes } from './routes/derivation.js';
 import { AASX_FILE_SERVER_PROFILES, descriptionRoute, part2Routes } from './routes/part2.js';
 import { describeChange, UndoStack } from './undo.js';
 import { langOf, runInLang } from './lang.js';
+import { integrationRoutes } from './integration/routes.js';
+import { changeContextFor } from './integration/change-context.js';
 
 export type { ApiOptions } from './api-options.js';
 import type { ApiOptions } from './api-options.js';
@@ -48,7 +52,8 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
   return [
     ...buildAuthRoutes(store, {
       sessions: options.sessions ?? new SessionStore(),
-      throttle: new LoginThrottle(),
+      // Shared with the OPC UA account check when the server passes one (server.ts) — one guessing cap per account
+      throttle: options.loginThrottle ?? new LoginThrottle(),
       // Look at X-Forwarded-Proto set by the proxy. Attaching Secure for someone connecting over plain HTTP
       // makes the browser drop the cookie, so login fails entirely
       secureCookie: options.secureCookie ?? ((request) => isHttps(request.headers, false)),
@@ -79,6 +84,15 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
     ...part2Routes(store),
     // Registry and discovery — server-wide (everything this server holds, not a single file)
     ...registryRoutes(store, options.publicBaseUrl ? { publicBaseUrl: options.publicBaseUrl } : {}),
+    // MES / ERP / CMMS integration — event feed, subscriptions, exports, runtime data (integration/routes.ts)
+    ...integrationRoutes(store, {
+      demo: options.demo !== undefined,
+      ...(options.integration ? { runtime: options.integration } : {}),
+      ...(options.integrationServices ? { services: options.integrationServices } : {}),
+      ...(options.publicBaseUrl ? { publicBaseUrl: options.publicBaseUrl } : {}),
+      ...(options.collectIntervalMs ? { collectIntervalMs: options.collectIntervalMs } : {}),
+      ...(options.integrationAuditStore ? { auditStore: options.integrationAuditStore } : {}),
+    }, options.integrationRouteBuilders),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
     {
@@ -102,6 +116,13 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const UNDO_PATTERNS = new Set(['/packages/:packageId/undo', '/packages/:packageId/redo']);
 /** Requests that change sidecar files along with the model — undo snapshots the sidecar files too (undo.ts) */
 const SIDECAR_PATTERNS = new Set(['/packages/:packageId/derivation/apply']);
+/**
+ * Requests that are not undoable and end the package's undo history.
+ * External refs live in a store document the snapshot does not hold, while their projection changes the shell: undoing
+ * would restore the shell and leave the document saying `publish: true`. Older snapshots predate the projection, so
+ * they are dropped too — otherwise undoing an earlier edit would silently remove published ids (review L9).
+ */
+const UNDO_BARRIER_PATTERNS = new Set(['/packages/:packageId/external-refs']);
 
 export function createApi(base: AasStore, options: ApiOptions = {}): (request: ApiRequest) => Promise<ApiResponse> {
   // Important: wrap the store in a workspace layer. Routes see **only this layer** — if even one route held
@@ -115,7 +136,8 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   const undo = new UndoStack(store, undefined, [DERIVATION_PART]);
   // Important: routes and request handling must see **the same session table** — separate ones mean login won't work
   const sessions = options.sessions ?? new SessionStore();
-  const routes = compile(buildRoutes(store, { ...options, sessions, undo }));
+  // Audit events go to the unscoped store — a workspace may not write the server log itself (integration/deps.ts)
+  const routes = compile(buildRoutes(store, { ...options, sessions, undo, integrationAuditStore: base }));
 
   const auth = options.auth ?? OPEN_ACCESS;
   /**
@@ -161,7 +183,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     const actor = actorOf(principal, allowed);
     // "Through whose eyes the store is viewed" is also set only once, here. Servers that don't partition don't set it
     const workspace = privateWorkspaces ? workspaceOf(principal, allowed, options.demo) : undefined;
-    return runInWorkspace(workspace, () => runAsActor(actor, async () => {
+    // "Why it changed" (edit, undo, fix, import …) is set here too, once — model events carry it (integration/change-context.ts)
+    const change = changeContextFor(request.method, found.route.pattern);
+    return runInWorkspace(workspace, () => runWithChange(change, () => runAsActor(actor, async () => {
       try {
         // Undo — requests that can change the model snapshot the prior state, and push it only when something actually changed.
         // Undo requests themselves are exempt (they move the stack themselves). Deleting a package discards the stack
@@ -175,7 +199,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
           return errorResponse(404, 'NotFound', fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: packageId }));
         }
         const snapshot =
-          packageId !== undefined && MUTATING.has(request.method) && !UNDO_PATTERNS.has(found.route.pattern)
+          packageId !== undefined &&
+          MUTATING.has(request.method) &&
+          !UNDO_PATTERNS.has(found.route.pattern) &&
+          !UNDO_BARRIER_PATTERNS.has(found.route.pattern)
             ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name, SIDECAR_PATTERNS.has(found.route.pattern))
             : undefined;
         const response = await found.route.handle({ request: inbound, params: found.params });
@@ -188,6 +215,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
             tr('데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.'),
           );
         }
+        if (packageId !== undefined && response.status < 300 && MUTATING.has(request.method) && UNDO_BARRIER_PATTERNS.has(found.route.pattern)) {
+          undo.forget(packageId);
+        }
         if (snapshot && packageId !== undefined && response.status < 300) {
           if (request.method === 'DELETE' && found.route.pattern === '/packages/:packageId') undo.forget(packageId);
           else await undo.commit(packageId, snapshot);
@@ -196,7 +226,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       } catch (error) {
         return toErrorResponse(error);
       }
-    }));
+    })));
   }
 }
 
@@ -291,6 +321,10 @@ export function toErrorResponse(error: unknown): ApiResponse {
   if (error instanceof NotFoundError) return errorResponse(404, 'NotFound', error.message);
   if (error instanceof ForbiddenError) return errorResponse(403, 'Forbidden', error.message);
   if (error instanceof ConflictError) return errorResponse(409, 'Conflict', error.message);
+  if (error instanceof ExternalRefConflictError) {
+    const base = errorResponse(409, 'ExternalRefConflict', error.message);
+    return { ...base, body: { ...(base.body as Record<string, unknown>), claims: error.claims } };
+  }
   if (error instanceof InvalidContentError) return errorResponse(400, 'BadRequest', error.message);
   if (error instanceof ValueNotSupportedError) return errorResponse(400, 'BadRequest', error.message);
   // Exceeding a limit is not a format error but means "too large" — 413 is correct (spec VIII Zip Bomb)

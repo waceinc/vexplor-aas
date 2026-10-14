@@ -45,6 +45,24 @@ import {
   type ValueQuery,
   type WriteOptions,
 } from './types.js';
+import {
+  ExternalRefConflictError,
+  type DeliveryRecord,
+  type DeliveryResult,
+  type DeliveryStats,
+  type DeliveryStatus,
+  type EventPage,
+  type EventQuery,
+  type ExternalRefsBatchItem,
+  type ExternalRefsDoc,
+  type NewEvent,
+  type NewSubscription,
+  type StoredEvent,
+  type SubscriptionPatch,
+  type SubscriptionRecord,
+  type SubscriptionSecrets,
+  type Versioned,
+} from './integration-types.js';
 
 export interface Workspace {
   /** Workspace key — becomes the owner of newly uploaded packages */
@@ -288,6 +306,178 @@ class ScopedStore implements AasStore {
   async history(packageId: string, modelType: IdentifiableModelType, id: string): Promise<HistoryRecord[]> {
     await this.readable(packageId);
     return this.base.history(packageId, modelType, id);
+  }
+
+  // ── Integration (docs/design/integration-v1.md §3.6) ─────────────────────
+  // Important: decided method by method. Subscriptions, deliveries and runtime state are server-wide (D18) — a workspace
+  //    visitor must not even list them (a webhook URL tells where the plant's MES lives). Events are filtered to
+  //    own + shared rows; per-package config and refs follow the package's read/write rules.
+
+  /** Server-only operations — refused inside a workspace that does not see everything (same rule as pruneValues) */
+  private serverOnly(): void {
+    const workspace = currentWorkspace();
+    if (workspace && !workspace.seesAll) throw new ForbiddenError(tr('연동 구독·전달·이벤트 기록은 서버 관리 쪽에서만 다룰 수 있습니다.'));
+  }
+
+  /** Keeps only rows of packages visible in the current workspace */
+  private async visibleRows<T extends { packageId: string }>(rows: T[]): Promise<T[]> {
+    const workspace = currentWorkspace();
+    if (!workspace || workspace.seesAll) return rows;
+    const kept: T[] = [];
+    for (const row of rows) if (visibleInWorkspace(await this.base.getPackage(row.packageId))) kept.push(row);
+    return kept;
+  }
+
+  readEvents(query: EventQuery, scope?: PackageScope): Promise<EventPage> {
+    const workspace = currentWorkspace();
+    if (!workspace || workspace.seesAll) return this.base.readEvents(query, scope);
+    // Important: the caller's scope and includeAudit are **ignored** — audit rows are admin-only (D11) and a route
+    //    must not be able to read another workspace by passing its key
+    return this.base.readEvents({ ...query, includeAudit: false }, { owner: workspace.key });
+  }
+  appendEvents(events: readonly NewEvent[]): Promise<StoredEvent[]> {
+    this.serverOnly();
+    return this.base.appendEvents(events);
+  }
+  pruneEvents(before: string): Promise<number> {
+    this.serverOnly();
+    return this.base.pruneEvents(before);
+  }
+
+  listSubscriptions(): Promise<SubscriptionRecord[]> {
+    this.serverOnly();
+    return this.base.listSubscriptions();
+  }
+  getSubscription(id: string): Promise<(SubscriptionRecord & { secrets: SubscriptionSecrets }) | undefined> {
+    this.serverOnly();
+    return this.base.getSubscription(id);
+  }
+  createSubscription(input: NewSubscription): Promise<SubscriptionRecord> {
+    this.serverOnly();
+    return this.base.createSubscription(input);
+  }
+  updateSubscription(id: string, patch: SubscriptionPatch): Promise<SubscriptionRecord | undefined> {
+    this.serverOnly();
+    return this.base.updateSubscription(id, patch);
+  }
+  deleteSubscription(id: string): Promise<boolean> {
+    this.serverOnly();
+    return this.base.deleteSubscription(id);
+  }
+
+  enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number> {
+    this.serverOnly();
+    return this.base.enqueueDeliveries(rows, now);
+  }
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
+    this.serverOnly();
+    return this.base.claimDeliveries(now, limit, leaseMs, subscriptionId);
+  }
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
+    this.serverOnly();
+    return this.base.completeDelivery(id, result);
+  }
+  getDelivery(id: string): Promise<DeliveryRecord | undefined> {
+    this.serverOnly();
+    return this.base.getDelivery(id);
+  }
+  listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>> {
+    this.serverOnly();
+    return this.base.listDeliveries(subscriptionId, query);
+  }
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    this.serverOnly();
+    return this.base.extendLease(id, attempt, leaseUntil);
+  }
+  redeliver(id: string, now: string): Promise<boolean> {
+    this.serverOnly();
+    return this.base.redeliver(id, now);
+  }
+  deliveryStats(): Promise<DeliveryStats[]> {
+    this.serverOnly();
+    return this.base.deliveryStats();
+  }
+  pruneDeliveries(succeededBefore: string, deadBefore: string): Promise<number> {
+    this.serverOnly();
+    return this.base.pruneDeliveries(succeededBefore, deadBefore);
+  }
+
+  /** Read by everyone — the state rules and calendar drive what every workspace's screens show */
+  getServerIntegrationConfig(): Promise<Versioned<unknown> | undefined> {
+    return this.base.getServerIntegrationConfig();
+  }
+  putServerIntegrationConfig(value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> {
+    this.serverOnly();
+    return this.base.putServerIntegrationConfig(value, expectedRevision);
+  }
+  async getPackageIntegrationConfig(packageId: string): Promise<Versioned<unknown> | undefined> {
+    await this.readable(packageId);
+    return this.base.getPackageIntegrationConfig(packageId);
+  }
+  async putPackageIntegrationConfig(packageId: string, value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> {
+    await this.writable(packageId);
+    return this.base.putPackageIntegrationConfig(packageId, value, expectedRevision);
+  }
+
+  async getExternalRefs(packageId: string): Promise<Versioned<ExternalRefsDoc> | undefined> {
+    await this.readable(packageId);
+    return this.base.getExternalRefs(packageId);
+  }
+  /**
+   * Important: uniqueness is server-wide, so a conflict can name a package of another workspace. That claim's package
+   *    and subject (which carries its globalAssetId) are masked — the visitor learns the number is taken, not by what.
+   */
+  async putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> {
+    await this.writable(packageId);
+    try {
+      return await this.base.putExternalRefs(packageId, doc, expectedRevision);
+    } catch (error) {
+      throw await this.maskConflict(error);
+    }
+  }
+  async putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> {
+    // Every package must be writable before anything is written — the batch is all-or-nothing
+    for (const item of items) await this.writable(item.packageId);
+    try {
+      return await this.base.putExternalRefsBatch(items);
+    } catch (error) {
+      throw await this.maskConflict(error);
+    }
+  }
+  /**
+   * Every holder, from the server-wide claim table — a dry run inside a workspace must see that a key is already taken
+   * in another workspace, or it promises an import that the write then refuses. Holders the workspace cannot see are
+   * masked like conflict claims: the visitor learns the key is taken, not where.
+   */
+  async findExternalRef(system: string, type: string, id: string): Promise<{ packageId: string; subject: string }[]> {
+    const holders = await this.base.findExternalRef(system, type, id);
+    return Promise.all(holders.map((holder) => this.maskHolder(holder)));
+  }
+
+  /** A holder in a package the current workspace cannot see — package and subject (it carries the asset id) hidden */
+  private async maskHolder<T extends { packageId: string; subject: string }>(holder: T): Promise<T> {
+    const workspace = currentWorkspace();
+    if (!workspace || workspace.seesAll || visibleInWorkspace(await this.base.getPackage(holder.packageId))) return holder;
+    return { ...holder, packageId: tr('다른 작업 공간의 파일'), subject: '' };
+  }
+
+  private async maskConflict(error: unknown): Promise<unknown> {
+    if (!(error instanceof ExternalRefConflictError)) return error;
+    const workspace = currentWorkspace();
+    if (!workspace || workspace.seesAll) return error;
+    return new ExternalRefConflictError(await Promise.all(error.claims.map((claim) => this.maskHolder(claim))));
+  }
+  async listExternalRefs(): Promise<{ packageId: string; refs: Versioned<ExternalRefsDoc> }[]> {
+    return this.visibleRows(await this.base.listExternalRefs());
+  }
+
+  getRuntimeState(key: string): Promise<unknown | undefined> {
+    this.serverOnly();
+    return this.base.getRuntimeState(key);
+  }
+  putRuntimeState(key: string, value: unknown, packageId?: string): Promise<void> {
+    this.serverOnly();
+    return this.base.putRuntimeState(key, value, packageId);
   }
 
   // ── Users — independent of workspaces. Who may manage accounts is decided by the routes (roles) ──

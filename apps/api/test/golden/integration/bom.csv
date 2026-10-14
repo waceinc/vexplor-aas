@@ -1,0 +1,6 @@
+rootKey,parentPath,childPath,childName,childGlobalAssetId,quantity,level,entityType,erpMaterial,mapped
+https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0,RollFormingMachine,RollFormingMachine/CutOffPress,CutOffPress,https://www.smart-factory.kr/ids/asset/CutOffPress/1/0,1,1,SelfManagedEntity,,false
+https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0,RollFormingMachine,RollFormingMachine/RollStandUnit,RollStandUnit,https://www.smart-factory.kr/ids/asset/RollStandUnit/1/0,12,1,SelfManagedEntity,,false
+https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0,RollFormingMachine/RollStandUnit,RollFormingMachine/RollStandUnit/DriveMotor,DriveMotor,https://www.smart-factory.kr/ids/asset/DriveMotor/1/0,1,2,SelfManagedEntity,,false
+https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0,RollFormingMachine/RollStandUnit,RollFormingMachine/RollStandUnit/FormingRoll,FormingRoll,https://www.smart-factory.kr/ids/asset/FormingRoll/1/0,1,2,SelfManagedEntity,,false
+https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0,RollFormingMachine,RollFormingMachine/Uncoiler,Uncoiler,https://www.smart-factory.kr/ids/asset/Uncoiler/1/0,1,1,SelfManagedEntity,,false

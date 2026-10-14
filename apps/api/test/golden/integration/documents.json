@@ -1,0 +1,32 @@
+{
+  "schema": "vexplor.documents/1",
+  "exportedAt": "2026-10-14T00:00:00.000Z",
+  "source": {
+    "tool": "VEXPLOR AAS Studio",
+    "version": "<version>",
+    "instanceId": null
+  },
+  "packageId": "pkg_1",
+  "revision": 2,
+  "items": [
+    {
+      "documentId": "DOC-03-01-0001",
+      "documentDomainId": "03",
+      "classId": "03-01",
+      "className": "설치 매뉴얼 (Install Manual)",
+      "classificationSystem": "VDI2770:2020",
+      "version": "V1.0",
+      "language": "ko",
+      "title": "롤 스탠드 설치 매뉴얼",
+      "status": "Released",
+      "statusDate": "2026-04-01",
+      "issuer": "Example Machinery Inc.",
+      "fileName": "file:///EXM_RFL_InstallManual_V1.0.pdf",
+      "contentType": "application/pdf",
+      "size": 23,
+      "sha256": "57f348b07a6959f8cbb899042630bbb3a7e8cbe79ad521c1a2bf04877fb8eb98",
+      "available": true,
+      "url": "/packages/pkg_1/api/v3.0/submodels/aHR0cHM6Ly93d3cuc21hcnQtZmFjdG9yeS5rci9pZHMvc20vUm9sbEZvcm1pbmdNYWNoaW5lL0hhbmRvdmVyRG9jdW1lbnRhdGlvbi8yLzE/submodel-elements/Documents%5B0%5D.DocumentVersions%5B0%5D.DigitalFiles%5B0%5D/attachment"
+    }
+  ]
+}

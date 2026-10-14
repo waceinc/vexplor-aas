@@ -1,5 +1,5 @@
 /**
- * Overlays — serving dialog · auto-fix preview · account · settings · findings list · help · tour · getting-started checklist.
+ * Overlays — serving dialog · auto-fix preview · account · settings · integrations · findings list · help · tour · getting-started checklist.
  * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
  * and the state and actions it uses arrive as props with the same names.
  */
@@ -7,6 +7,7 @@ import { FindingsPanel } from '../components/FindingsPanel.js';
 import { FixPreview } from '../components/FixPreview.js';
 import { Accounts } from '../components/Accounts.js';
 import { Settings } from '../components/Settings.js';
+import { Integrations } from '../components/integrations/Integrations.js';
 import { writeLang, tr } from '../i18n.js';
 import { describeError } from './describeError.js';
 import { OpcuaDialog } from './OpcuaDialog.js';
@@ -17,8 +18,8 @@ import { Tour } from '../components/Tour.js';
 import { markTourSeen, START_STEPS, writeStart } from '../help.js';
 import type { Screen } from './context.js';
 
-export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap' | 'busy' | 'fixPlans' | 'fixReport' | 'helpContext' | 'inside' | 'lang' | 'onApplyFix' | 'onSelectFinding' | 'opcua' | 'packageId' | 'selected' | 'setFixPlans' | 'setShowAccounts' | 'setShowFindings' | 'setShowHelp' | 'setShowOpcua' | 'setShowSettings' | 'setStart' | 'setTour' | 'showAccounts' | 'showFindings' | 'showHelp' | 'showOpcua' | 'showSettings' | 'start' | 'startItems' | 'startTour' | 't' | 'tour'>): React.JSX.Element {
-  const { allFindings, auth, bootstrap, busy, fixPlans, fixReport, helpContext, inside, lang, onApplyFix, onSelectFinding, opcua, packageId, selected, setFixPlans, setShowAccounts, setShowFindings, setShowHelp, setShowOpcua, setShowSettings, setStart, setTour, showAccounts, showFindings, showHelp, showOpcua, showSettings, start, startItems, startTour, t, tour } = props;
+export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap' | 'busy' | 'fixPlans' | 'fixReport' | 'helpContext' | 'inside' | 'lang' | 'onApplyFix' | 'onSelectFinding' | 'opcua' | 'packageId' | 'packages' | 'selected' | 'setFixPlans' | 'setShowAccounts' | 'setShowFindings' | 'setShowHelp' | 'setShowIntegrations' | 'setShowOpcua' | 'setShowSettings' | 'setStart' | 'setTour' | 'showAccounts' | 'showFindings' | 'showHelp' | 'showIntegrations' | 'showOpcua' | 'showSettings' | 'start' | 'startItems' | 'startTour' | 't' | 'tour'>): React.JSX.Element {
+  const { allFindings, auth, bootstrap, busy, fixPlans, fixReport, helpContext, inside, lang, onApplyFix, onSelectFinding, opcua, packageId, packages, selected, setFixPlans, setShowAccounts, setShowFindings, setShowHelp, setShowIntegrations, setShowOpcua, setShowSettings, setStart, setTour, showAccounts, showFindings, showHelp, showIntegrations, showOpcua, showSettings, start, startItems, startTour, t, tour } = props;
 
   return (
     <>
@@ -86,6 +87,13 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
               }}
               onClose={() => setShowSettings(false)}
             />
+        </Dialog>
+      )}
+
+      {/* Integrations — MES / ERP / CMMS. The window decides per role which tabs exist (components/integrations) */}
+      {showIntegrations && (
+        <Dialog className="integrations-modal" label={tr('연동')} onClose={() => setShowIntegrations(false)}>
+          <Integrations auth={auth} packages={packages} onClose={() => setShowIntegrations(false)} />
         </Dialog>
       )}
 

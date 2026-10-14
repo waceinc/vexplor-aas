@@ -29,7 +29,7 @@ The interface and everything the server writes are available in **English and Ko
 | [5](#5-editing-operations) | Editing operations — context menu · order · rename · undo · history |
 | [6](#6-parts-structure-bom) | Parts structure (BoM) |
 | [7](#7-grouping-a-company-or-process) | **Grouping a company or process** |
-| [8](#8-collecting-live-values-opc-ua--modbus-tcp--mqtt) | Collecting live values (OPC UA · Modbus TCP · MQTT) · value freshness · daily status · serving |
+| [8](#8-collecting-live-values-opc-ua--modbus-tcp--mqtt) | Collecting live values (OPC UA · Modbus TCP · MQTT) · value freshness · daily status · serving · connecting MES / ERP / CMMS |
 | [9](#9-file-management) | File management — list · bulk delete · continue working |
 | [10](#10-rules-and-the-validation-report) · [11](#11-document-assets) | Rules and the report · document assets |
 | [12](#12-sharing-on-the-company-network--accounts-and-api-keys) · [13](#13-troubleshooting) · [14](#14-known-limits) | Sharing · troubleshooting · limits |
@@ -801,7 +801,7 @@ It is colored Running (green) · Stopped · Alarm · Power off · Undetermined (
 ![Daily status](images/manual/en/m36-daily-states.png)
 
 - The status tag is picked by name (Status · State · MachineState · OperatingState and their Korean equivalents …); if no single tag matches, choose it in the row with "Choose status tag"
-- The value → status mapping is changed in **"Status rules"**. A value equal to one of the words counts as that status (comma-separated, case and spaces ignored). Example: if the customer's machine sends alarms as `3`, add `3` to Alarm. "Reset to default rules" goes back. Values not in the rules are not guessed — they are "Undetermined". The rules are kept in this browser only
+- The value → status mapping is changed in **"Status rules"**. A value equal to one of the words counts as that status (comma-separated, case and spaces ignored). Example: if the customer's machine sends alarms as `3`, add `3` to Alarm. "Reset to default rules" goes back. Values not in the rules are not guessed — they are "Undetermined". The rules are kept **on the server** and only administrators change them: every screen and the state events sent to MES use the same rules ([integration.md](integration.md) chapter 8). Rules saved in a browser by an older version are offered to an administrator once ("Move browser rules to the server"). The state tag you choose is saved for the file too. A server without the integration features keeps the old behaviour (rules in this browser only)
 
 | Status | Default rule (these values) |
 |---|---|
@@ -843,8 +843,24 @@ OPCUA_SERVER=on OPCUA_PORT=4841 OPCUA_HOST=<this machine's IP> node apps/api/dis
 | Port | Machines usually use 4840, so a **different port such as 4841** is recommended |
 
 - **This address is for others to connect to.** Entering it as the machine endpoint in collection would make the tool read its own served values — the tool blocks that
-- **This port has no authentication.** It is separate from the HTTP token (chapter 12). Use it only inside the company network
+- **Clients sign in.** The server is secure by default: a web account (UserName token only — no anonymous session, no
+  X.509 user certificate) over `Sign` or `SignAndEncrypt`. A client's certificate is trusted once in **Settings → Integrations → OPC UA certificates**. With no account
+  yet the OPC UA server does not start. `OPCUA_ALLOW_INSECURE=on` restores the old unauthenticated port — isolated test
+  networks only ([integration.md](integration.md) chapter 9)
 - Everything is **read only.** Empty values are not an error (`BadWaitingForInitialData`)
+
+### 8-7. Connecting MES · ERP · CMMS
+
+For other systems to **receive changes and runtime events** instead of polling values, use **Settings → Integrations**:
+
+| | |
+|---|---|
+| Pull feed | `GET /integrations/events?after=<last number>` — every model change and runtime event in order; works even with integrations off |
+| Webhook · MQTT | Pushes state, alarm, counter, threshold and master-data events to the MES / ERP (administrators, `INTEGRATIONS=on`) |
+| Exports | Equipment master, BOM, process hierarchy, maintenance plan, documents — JSON or CSV for ERP / CMMS import |
+| External references | ERP / MES / CMMS numbers of a machine, kept next to the AASX (not inside it) |
+
+Settings, signatures, CSV columns and the acceptance checklist: **[integration.md](integration.md)**.
 
 ---
 
@@ -1097,7 +1113,7 @@ For several users, run it on a server with Docker (chapter 1).
 
 - **Authentication applies only when turned on.** Started without settings, anyone who knows the address can read and delete (chapter 12).
   If you expose a server without accounts, **anyone could become the first administrator**, which the setup code prevents (12-1)
-- **The OPC UA serving port has no authentication** (section 8-6). Company network only
+- **The OPC UA serving port requires sign-in and encryption** (section 8-6) — unless `OPCUA_ALLOW_INSECURE=on`, which is for isolated test networks only
 - XML can only be read. Files are always saved as JSON
 - The undo list lasts only while the server runs. History is kept
 - Undo **does not distinguish between people** — with several users, someone else's change can be undone too.

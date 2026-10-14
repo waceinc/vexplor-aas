@@ -18,10 +18,11 @@ import { defineConfig } from 'vite';
  *    so the dev API sometimes has to run on another port (2026-09-30 — the dev screen attached to the installed build and data got mixed).
  * Important: `bundles` (open reference bundle) was added — without it, opening a bundle returns 404 only in the dev build.
  * Important: `auth` (login, sign-up, account) was added — without it the dev build's welcome screen falls back to token entry instead of account login (2026-10-13).
+ * Important: `integrations` (MES / ERP / CMMS feed, subscriptions, exports) was added — the per-package paths live under `packages` already.
  */
 const API_TARGET = process.env['AAS_API_URL'] ?? 'http://127.0.0.1:8080';
 const API_PATHS =
-  '^/(packages|bundles|description|health|auth|rules|policy|opcua|opcua-status|collect-status|registry-conflicts)(?=/|$|\\?)';
+  '^/(packages|bundles|description|health|auth|rules|policy|opcua|opcua-status|collect-status|registry-conflicts|integrations)(?=/|$|\\?)';
 const API_PROXY = { [API_PATHS]: API_TARGET };
 
 export default defineConfig({

@@ -35,8 +35,10 @@ The defaults assume **a single user on one computer**. Check the following befor
 
 Please read these before you deploy.
 
-1. **The OPC UA publishing port (default 4840) has no authentication.** It is off by default (`OPCUA_SERVER=on` turns it on).
-   If you enable it, use it only inside a trusted network. It never starts on the public demo (`DEMO_MODE=on`).
+1. **The OPC UA publishing port (default 4840) is off by default** (`OPCUA_SERVER=on` turns it on). When on, it is
+   secure: clients sign in with a server account over `Sign` or `SignAndEncrypt`, and an administrator trusts each
+   client certificate once. `OPCUA_ALLOW_INSECURE=on` brings back the old port **without authentication** — use that only
+   inside a trusted network while clients are migrated. It never starts on the public demo (`DEMO_MODE=on`).
 2. **Shared by default.** Everyone who signs in sees the same files. Roles (admin, editor, viewer) decide *who may edit*,
    not *whose file it is* — the intended use is a team that trusts each other.
    To separate users, set `AAS_WORKSPACE=private` — each person sees only what they uploaded, and other people's files
@@ -49,6 +51,9 @@ Please read these before you deploy.
 4. **Sessions live in server memory.** Restarting the server signs everyone out. One server instance is assumed.
 5. **No e-mail is sent.** If someone forgets a password, an administrator resets it. Contact details entered at sign-up
    are not verified.
+6. **Integration subscriptions cover the whole server.** An administrator's webhook or MQTT subscription receives events
+   from every workspace, also with `AAS_WORKSPACE=private`. Narrow a subscription to its files when one customer's
+   data must not reach another system. See [integration.md](docs/integration.md).
 
 ## Already mitigated
 
@@ -62,3 +67,5 @@ Please read these before you deploy.
 | Password guessing | Five failures lock the account for five minutes |
 | Framing · script injection | CSP · `frame-ancestors 'none'` · `nosniff` |
 | Concurrent edits | ETags detect conflicts instead of overwriting |
+| Outbound connections (webhooks, MQTT) | DNS answer pinned for the connect; loopback, link-local and metadata addresses always refused; private networks and plain http/mqtt only when listed in `AAS_INTEGRATION_ALLOW`; redirects not followed |
+| Integration secrets | Webhook signing secrets and broker passwords sealed with AES-256-GCM; shown once on creation |

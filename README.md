@@ -55,6 +55,7 @@ exposed as a policy the user decides.
 | **Process bundles** | Company → line → process → equipment → part. Group machines into a process and export a submission bundle |
 | **Data collection** | Read live values from OPC UA · Modbus TCP · MQTT devices, addressed by the AID submodel inside the AAS. Each value shows whether it is live, stale or missing, and each machine gets a daily status bar (running · stopped · alarm). Add dozens of tags from one pattern |
 | **Standard API** | IDTA Part 2 REST API, so other systems can read the AAS held here |
+| **MES · ERP · CMMS integration** | A pull feed of every change and runtime event (CloudEvents), signed webhooks and MQTT, equipment / BOM / hierarchy / maintenance / document exports in JSON or CSV, ERP numbers kept next to the AASX, and server-side state, alarm, counter and threshold rules. A secure OPC UA server (accounts + encryption). See [docs/integration.md](docs/integration.md) |
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
@@ -124,8 +125,8 @@ files and prints the exact coverage.
 
 - **Authentication is opt-in.** With neither accounts nor an API key the server only listens on
   the local machine.
-- **The OPC UA server port (4840) has no authentication.** It is off by default; if you enable it,
-  keep it inside a trusted network.
+- **The OPC UA server (port 4840) requires an account and encryption** (Sign / SignAndEncrypt). It is off by default;
+  `OPCUA_ALLOW_INSECURE=on` restores the old unauthenticated port for isolated test networks only.
 - Once people sign in, **put HTTPS in front** — see [`Caddyfile.example`](Caddyfile.example).
 - In English, what stays as it was written is what comes from your own files (names, values) and the
   folder names of the submission bundle, which the submission format fixes.

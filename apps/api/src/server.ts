@@ -18,7 +18,7 @@ import type { SimulatorServer } from '@aas/opcua';
 const opcua = () => import('@aas/opcua');
 // Modbus TCP · MQTT — adapters with no external dependencies (@aas/fieldbus). Like OPC UA, loaded only on use
 const fieldbus = () => import('@aas/fieldbus');
-import { InMemoryStore, visibleInWorkspace, type AasStore } from '@aas/store';
+import { FolderStore, InMemoryStore, PostgresStore, visibleInWorkspace, type AasStore } from '@aas/store';
 import { createApi, toErrorResponse } from './api.js';
 import type { OpcUaPublisher } from './publisher.js';
 import { CollectSupervisor } from './supervisor.js';
@@ -33,6 +33,11 @@ import { demoFromEnv, seedDemoUser, startDemoReset } from './demo.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { fill, tr } from '@aas/core';
 import { bootLang, langOfRaw, runInLang } from './lang.js';
+import { startIntegrations, type IntegrationBoot, type StartIntegrationsOptions } from './integration/boot.js';
+import { integrationComposition } from './integration/compose.js';
+import { opcuaModeFromEnv, opcuaPkiDirFromEnv } from './integration/opcua-env.js';
+import { LoginThrottle } from './session.js';
+import type { StoreKind } from './integration/secrets.js';
 
 /** Upload cap — guards against zip bombs (spec Ⅷ, security). Default 512MB */
 const DEFAULT_MAX_BODY = 512 * 1024 * 1024;
@@ -57,6 +62,25 @@ export interface ServerOptions {
    * If omitted, enabled only when `apps/web/dist` exists — so it does not get in the way during development (vite 5173).
    */
   webRoot?: string;
+  /** Which store this is — decides where the integration master key comes from. Derived from the store when omitted */
+  storeKind?: StoreKind;
+  /** Data folder of a folder store (`AAS_DATA_DIR`) — holds `secret.key` */
+  dataDir?: string;
+  /** Tests only — environment on top of process.env, injected DNS and sender for the integration subsystem */
+  integrationOverrides?: Pick<StartIntegrationsOptions, 'resolve' | 'send'> & { env?: Record<string, string> };
+}
+
+/** The integration subsystem of each server — the entry block stops it on SIGTERM / SIGINT */
+const integrationBoots = new WeakMap<Server, IntegrationBoot>();
+
+export function integrationsOf(server: Server): IntegrationBoot | undefined {
+  return integrationBoots.get(server);
+}
+
+function storeKindOf(store: AasStore): StoreKind {
+  if (store instanceof PostgresStore) return 'postgres';
+  if (store instanceof FolderStore) return 'folder';
+  return 'memory';
 }
 
 /**
@@ -215,9 +239,48 @@ export function createHttpServer(options: ServerOptions = {}): Server {
    * an authoring-only deployment has no reason to poll equipment periodically.
    */
   const intervalSeconds = Number(process.env['COLLECT_INTERVAL']);
+  const collectIntervalMs = collect && Number.isFinite(intervalSeconds) && intervalSeconds > 0 ? intervalSeconds * 1000 : undefined;
+
+  /**
+   * MES / ERP / CMMS integration (integration/boot.ts). Started **before** the supervisor — the supervisor hands each
+   * package's cycle to the detector. Event recording and the pull feed work regardless; INTEGRATIONS=on starts the workers.
+   */
+  const storeKind = options.storeKind ?? storeKindOf(store);
+  const dataDir = options.dataDir ?? (storeKind === 'folder' ? process.env['AAS_DATA_DIR'] : undefined);
+  // One login attempt limit for the web login and the OPC UA account check
+  const loginThrottle = new LoginThrottle();
+  const overrides = options.integrationOverrides;
+  const integrations = startIntegrations({
+    store,
+    env: overrides?.env ? { ...process.env, ...overrides.env } : process.env,
+    ...(overrides?.resolve ? { resolve: overrides.resolve } : {}),
+    ...(overrides?.send ? { send: overrides.send } : {}),
+    demo: demo !== undefined,
+    storeKind,
+    ...(dataDir ? { dataDir } : {}),
+    ...(publicBaseUrl ? { publicBaseUrl } : {}),
+    ...(collectIntervalMs ? { collectIntervalMs } : {}),
+    compose: integrationComposition(),
+    // The OPC UA trust store must be reachable also with INTEGRATIONS off (certificate routes)
+    opcuaPki: () => publisher?.pki(),
+    opcuaStatus: () => {
+      const status = publisher?.status();
+      // The configured store is shown also before (or instead of) a start — that is where a client certificate will land
+      const pki = status?.pki ?? (opcuaModeFromEnv(process.env) === 'secure' ? opcuaPkiDirFromEnv(process.env) : undefined);
+      return { running: status?.running ?? false, ...(pki ? { pki } : {}) };
+    },
+    log: (line) => console.log(`  ${line}`),
+  });
+
   let supervisor: CollectSupervisor | undefined;
-  if (collect && Number.isFinite(intervalSeconds) && intervalSeconds > 0) {
-    supervisor = new CollectSupervisor({ store, openReader, intervalMs: intervalSeconds * 1000 });
+  if (collectIntervalMs !== undefined) {
+    // Each package's cycle also goes to the detector (runtime events) when integrations run
+    supervisor = new CollectSupervisor({
+      store,
+      openReader,
+      intervalMs: collectIntervalMs,
+      ...(integrations.onPackageCycle ? { onPackageCycle: integrations.onPackageCycle } : {}),
+    });
     supervisor.start();
   }
 
@@ -239,15 +302,36 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   let publisher: OpcUaPublisher | undefined;
   if (publishing) {
     // Authoring must keep working even if this server fails to start — log the reason and continue
+    // Secure by default (design §7, D16): no None policy, no anonymous, user names = this server's accounts
+    const mode = opcuaModeFromEnv(process.env);
     void import('./publisher.js')
-      .then(({ OpcUaPublisher: Publisher }) => {
+      .then(async ({ OpcUaPublisher: Publisher, accountVerifier }) => {
+        // Important: secure mode with no account would be a port nobody can log in to — say so instead of starting it
+        if (mode === 'secure' && (await store.countUsers()) === 0) {
+          console.error('  ⚠️  ' + tr('OPC UA 서버를 띄우지 않았습니다 — 보안 모드에는 로그인할 계정이 필요합니다. 계정을 만든 뒤 다시 띄우거나, 예전처럼 인증 없이 열려면 OPCUA_ALLOW_INSECURE=on.'));
+          return;
+        }
         publisher = new Publisher({
           store,
           port: Number(process.env['OPCUA_PORT'] ?? 4840),
           refreshMs: Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5)) * 1000,
           ...(process.env['OPCUA_HOST'] ? { hostname: process.env['OPCUA_HOST'] } : {}),
+          security:
+            mode === 'secure'
+              ? { mode, verifyUser: accountVerifier(store, loginThrottle), pkiDir: opcuaPkiDirFromEnv(process.env) }
+              : { mode },
         });
-        return publisher.start();
+        await publisher.start();
+        // Said only once it really runs — a refused start must not be logged as "on" (live E2E, D4)
+        const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
+        console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: Number(process.env['OPCUA_PORT'] ?? 4840), 1: every }));
+        console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
+        if (mode === 'secure') {
+          console.log('     ' + fill(tr('보안 모드 — 이 서버의 계정으로 로그인 · 처음 접속한 클라이언트 인증서는 관리자가 신뢰해야 합니다 (인증서 저장소: {0})'), { 0: opcuaPkiDirFromEnv(process.env) }));
+        } else {
+          // Important: this must be said at least once — HTTP may be token-protected, but this port is not
+          console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다(OPCUA_ALLOW_INSECURE=on). 사내망 밖으로 열지 마십시오.'));
+        }
       })
       .catch((error: unknown) => {
       console.error(
@@ -286,6 +370,10 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     // Writes arriving via a cookie session have their origin checked (security.ts). Allowed cross origins pass
     corsOrigins: cors.origins,
     ...(publicBaseUrl ? { publicBaseUrl } : {}),
+    ...(integrations.runtimeDeps ? { integration: integrations.runtimeDeps } : {}),
+    integrationServices: integrations.services,
+    loginThrottle,
+    ...(collectIntervalMs ? { collectIntervalMs } : {}),
     routes: [
       {
         /** What is being exposed externally — where the UI and operators check */
@@ -361,7 +449,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   const webRoot = webRootFrom(options.webRoot);
   let ready: Promise<void> | undefined;
 
-  return createServer((request: IncomingMessage, response: ServerResponse) => {
+  const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     // Important: set the language once more here — errors sent before reaching createApi, like the body cap (413),
     //    must also be in the request's language. It also keeps the startup log language (AAS_LANG) from leaking into requests
     void runInLang(langOfRaw(request.url, request.headers['accept-language']), async () => {
@@ -417,6 +505,14 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       }
     });
   });
+  integrationBoots.set(server, integrations);
+  // Closing the server (tests, embedding) also stops the integration loops — no timers left behind
+  server.on('close', () => {
+    void integrations.stop();
+    // The OPC UA port belongs to this server's lifetime too (tests open and close servers in one process)
+    void publisher?.stop();
+  });
+  return server;
 }
 
 /** Stream files instead of reading them whole — to avoid doubling memory use on large files */
@@ -513,6 +609,16 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
   const bind = resolveBindHost(process.env, bootAuth);
   const app = createHttpServer({ port, store: bootStore });
 
+  // Important: only this entry block takes over the process signals — a library user (tests) must keep its own.
+  //    Stopping lets deliveries in flight finish (≤ 5 s) and closes MQTT connections cleanly; rows still in flight
+  //    come back after their lease anyway (at-least-once)
+  const shutdown = (signal: string): void => {
+    console.log('  ' + fill(tr('{0} — 연동 작업을 정리하고 끕니다.'), { 0: signal }));
+    void (integrationsOf(app)?.stop() ?? Promise.resolve()).finally(() => process.exit(0));
+  };
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
+
   // Important: on Windows, `localhost` resolves to IPv6 (::1) first. Protected mode binds only to IPv4 (127.0.0.1),
   //    so the browser reports "can't connect" (observed: the page did not load in the Windows app build).
   //    Bind the same handler to the IPv6 loopback as well — this does not expose anything externally.
@@ -567,13 +673,26 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     // Important: it was refused in demo mode, so **we must not say it is on** (a false log caught in testing)
     if (process.env['OPCUA_SERVER'] === 'on' && bootDemo) {
       console.log('  ' + tr('OPC UA 노출(M6·M7) — 🔴 **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
-    } else if (process.env['OPCUA_SERVER'] === 'on') {
-      const uaPort = Number(process.env['OPCUA_PORT'] ?? 4840);
-      const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
-      console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: uaPort, 1: every }));
-      console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
-      // Important: this must be said at least once — HTTP may be token-protected, but this port is not
-      console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다. 사내망 밖으로 열지 마십시오.'));
+    }
+    // When OPC UA is on, its lines are printed by the start itself (above) — only once it really runs
+
+    // Integration — say whether events only get recorded or also go out, and where secrets are kept
+    const integration = integrationsOf(app);
+    if (integration) {
+      const services = integration.services;
+      if (integration.enabled) {
+        console.log('  ' + tr('연동(INTEGRATIONS=on) 켜짐 — 구독한 곳으로 웹훅·MQTT 이벤트를 보냅니다 · GET /integrations/status'));
+        const allow = services.egress.allow.map((entry) => entry.text);
+        console.log('     ' + (allow.length > 0 ? fill(tr('사내 대상 허용(AAS_INTEGRATION_ALLOW): {0}'), { 0: allow.join(', ') }) : tr('사내 주소로는 보내지 않습니다 — 허용하려면 AAS_INTEGRATION_ALLOW=<CIDR·호스트>')));
+      } else {
+        console.log('  ' + tr('연동 이벤트는 기록됩니다 · GET /integrations/events — 웹훅·MQTT 전송은 INTEGRATIONS=on'));
+        if (process.env['INTEGRATIONS'] === 'on' && bootDemo) console.log('     ' + tr('체험판(DEMO_MODE=on)에서는 연동을 켜지 않습니다.'));
+      }
+      if (services.masterKey === 'missing') {
+        console.log('     ⚠️  ' + tr('AAS_SECRET_KEY가 없어 웹훅 구독을 만들 수 없습니다 (PostgreSQL). openssl rand -base64 32로 만든 값을 주십시오.'));
+      } else if (services.masterKey === 'ephemeral') {
+        console.log('     ' + tr('메모리 저장소 — 구독의 서명 비밀값은 서버를 끄면 쓸 수 없게 됩니다.'));
+      }
     }
 
     // Demo mode — the operator must know at startup what is blocked and what gets deleted
@@ -598,7 +717,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     if (process.env['AAS_WORKSPACE'] === 'private' && !bootDemo) {
       console.log('  🗂  ' + tr('작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 저마다 자기가 올린 것만 봅니다.'));
       console.log('     ' + tr('관리자와 API 키는 전부 봅니다. 그 전에 올려 둔 파일은 모두에게 읽기 전용으로 보입니다.'));
-      if (process.env['OPCUA_SERVER'] === 'on') {
+      if (process.env['OPCUA_SERVER'] === 'on' && opcuaModeFromEnv(process.env) === 'insecure') {
         // Important: the OPC UA port has no auth — values kept separate per workspace go out to **anyone** through it
         console.log('     ⚠️  ' + tr('OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.'));
       }

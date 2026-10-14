@@ -1,0 +1,6 @@
+id,parentId,equipmentLevel,name,globalAssetId,aasId,packageId,serialNumber,quantity,specificAssetIds,warnings
+SampleFactory,,Enterprise,SampleFactory,https://www.smart-factory.kr/ids/asset/SampleFactory/1/0,https://www.smart-factory.kr/ids/aas/SampleFactory/1/0,pkg_3,,1,,
+SampleFactory/PressLine,SampleFactory,Area,PressLine,,,,,1,,
+SampleFactory/PressLine/Forming,SampleFactory/PressLine,WorkCenter,Forming,,,,,1,,
+SampleFactory/PressLine/Forming/RollForming_1,SampleFactory/PressLine/Forming,WorkUnit,RollForming_1,https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0,https://www.smart-factory.kr/ids/aas/RollFormingMachine_1/1/0,pkg_1,EXM-RFL-2026-00127,1,,
+SampleFactory/PressLine/Forming/RollForming_2,SampleFactory/PressLine/Forming,WorkUnit,RollForming_2,https://www.smart-factory.kr/ids/asset/RollFormingMachine_2/1/0,https://www.smart-factory.kr/ids/aas/RollFormingMachine_2/1/0,pkg_2,EXM-RFL-2026-00128,3,,INT-4: 수량이 1보다 큰 계층 노드가 globalAssetId 하나를 가리킵니다 — 설비 행으로 늘리지 않습니다. (SampleFactory/PressLine/Forming/RollForming_2 ×3)

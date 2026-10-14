@@ -40,6 +40,8 @@ async function startOurs(port: number): Promise<void> {
     port,
     hostname: '127.0.0.1',
     load: async () => [planForPackage(environment, { packageId: 'pkg-1' })],
+    // The browse test connects without credentials — the unauthenticated mode must be asked for explicitly
+    security: { mode: 'insecure' },
   });
   await ours.start();
   ourEndpoint = `opc.tcp://127.0.0.1:${port}/UA/AAS`;

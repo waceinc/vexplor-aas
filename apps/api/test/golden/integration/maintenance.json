@@ -1,0 +1,108 @@
+{
+  "schema": "vexplor.maintenancePlan/1",
+  "exportedAt": "2026-10-14T00:00:00.000Z",
+  "source": {
+    "tool": "VEXPLOR AAS Studio",
+    "version": "<version>",
+    "instanceId": null
+  },
+  "packageId": "pkg_1",
+  "revision": 1,
+  "items": [
+    {
+      "maintenanceId": "MI-RollForming-01",
+      "taskName": "롤 교체 및 정렬 작업",
+      "source": "롤포밍기 제조사 유지보수 매뉴얼 (Example Machinery)",
+      "safety": "KOSHA GUIDE M-29-2020, ISO 12100",
+      "interval": null,
+      "intervalStatus": "missing",
+      "technicians": 1,
+      "qualification": "산업안전보건법 정비 자격자",
+      "steps": [
+        {
+          "seq": 1,
+          "stepId": "RollStep01",
+          "name": "롤 마모 상태 점검",
+          "instruction": "롤 표면 마모 깊이 측정",
+          "duration": {
+            "value": 15,
+            "unit": "min"
+          },
+          "toolIds": [
+            "TOOL-01"
+          ],
+          "consumableIds": [],
+          "documents": [],
+          "signatureRequired": null,
+          "isLast": false
+        },
+        {
+          "seq": 2,
+          "stepId": "RollStep02",
+          "name": "롤 교체 및 정렬",
+          "instruction": "롤 분리 후 신품 장착, 갭 게이지 정렬",
+          "duration": {
+            "value": 60,
+            "unit": "min"
+          },
+          "toolIds": [
+            "TOOL-02"
+          ],
+          "consumableIds": [
+            "CONS-01"
+          ],
+          "documents": [],
+          "signatureRequired": null,
+          "isLast": false
+        },
+        {
+          "seq": 3,
+          "stepId": "RollStep03",
+          "name": "작업 기록 및 종료",
+          "instruction": "롤 교체 결과 및 치수 측정값 기록",
+          "duration": {
+            "value": 5,
+            "unit": "min"
+          },
+          "toolIds": [],
+          "consumableIds": [],
+          "documents": [
+            {
+              "fileName": "file:///RollReplace_Record_V1.pdf",
+              "contentType": "application/pdf",
+              "size": null,
+              "sha256": null,
+              "available": false,
+              "url": null
+            }
+          ],
+          "signatureRequired": true,
+          "isLast": true
+        }
+      ],
+      "tools": [
+        {
+          "id": "TOOL-01",
+          "name": "표면 조도계·마이크로미터"
+        },
+        {
+          "id": "TOOL-02",
+          "name": "롤 탈착 지그·갭 게이지"
+        }
+      ],
+      "consumables": [
+        {
+          "id": "CONS-01",
+          "name": "교체용 성형 롤"
+        }
+      ],
+      "unresolved": [],
+      "sourceRef": {
+        "submodelId": "https://www.smart-factory.kr/ids/sm/RollFormingMachine/MaintenanceInstructions/1/0",
+        "idShortPath": "MaintenanceInstructionsForSpecificInterval_0"
+      },
+      "revision": 1,
+      "contentHash": "sha256:24edfa8938859bf7f4a23ed9377a67517690372cc57e1cacff49bd9ec55fe8c9"
+    }
+  ]
+}

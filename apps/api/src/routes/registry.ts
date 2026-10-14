@@ -201,14 +201,21 @@ function parseAssetIds(request: ApiRequest): { name: string; value: string }[] {
     } catch {
       throw new ApiError(400, 'BadRequest', fill(tr('assetIds를 해석하지 못했습니다: {0}'), { 0: raw }));
     }
+    let parsed: { name?: unknown; value?: unknown };
     try {
-      const parsed = JSON.parse(text) as { name?: string; value?: string };
+      parsed = JSON.parse(text) as { name?: unknown; value?: unknown };
       // i18n-ignore — an internal signal swallowed by the catch right below, never sent out
       if (typeof parsed.value !== 'string') throw new Error('value 없음');
-      out.push({ name: parsed.name ?? 'globalAssetId', value: parsed.value });
     } catch {
       throw new ApiError(400, 'BadRequest', fill(tr('assetIds가 SpecificAssetId 모양이 아닙니다: {0}'), { 0: text }));
     }
+    // Important: a missing name used to default to globalAssetId, and a globalAssetId query matched **any** link with
+    //    that value — asking for globalAssetId "EQ-07" also found an AAS whose serial number was "EQ-07" (§4.7).
+    //    The name is required (SpecificAssetId.name), so say so instead of guessing
+    if (typeof parsed.name !== 'string' || parsed.name === '') {
+      throw new ApiError(400, 'BadRequest', tr('SpecificAssetId.name이 필요합니다.'));
+    }
+    out.push({ name: parsed.name, value: parsed.value as string });
   }
   return out;
 }
@@ -319,7 +326,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
           const links = assetLinksOf(descriptor);
           // If several are given, **all** must match (spec: AND)
           return wanted.every((want) =>
-            links.some((link) => link.value === want.value && (want.name === 'globalAssetId' || link.name === want.name)),
+            links.some((link) => link.name === want.name && link.value === want.value),
           );
         });
         return pagedResponse(matches.map((descriptor) => descriptor.id));

@@ -16,6 +16,8 @@
  *     pkg_1/model.json      package, elements, attachments, history (rewritten whole on every change)
  *     pkg_1/values.jsonl    collected values (appended one per line)
  *     users.json            accounts (passwords as hashes only) — rewritten whole on every change
+ *     events.jsonl · deliveries.jsonl · integration.json · integration-state.json
+ *                           integration (events, subscriptions, deliveries, configs, refs, state) — folder-integration.ts
  *
  * Important: accounts were once left out (2026-10-06, measured by a user). Only packages were written and accounts stayed in memory,
  *    so after creating an admin and restarting the server, the accounts vanished and it went back to "create the first admin".
@@ -24,11 +26,24 @@
  * Important: why collected values are not put into model.json: collection runs every few seconds.
  *    Rewriting a multi-MB file including attachments each time grinds the disk. So they were split into appends.
  */
-import { mkdir, readFile, readdir, rename, rm, writeFile, appendFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename as fsRename, rm, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fill, tr } from '@aas/core';
 import type { AasxPackage } from '@aas/aasx';
 import { InMemoryStore, type PackageSnapshot, type UserSnapshot } from './memory.js';
+import { FolderIntegrationFiles, type RenameFn } from './folder-integration.js';
+import type {
+  DeliveryRecord,
+  DeliveryResult,
+  ExternalRefsBatchItem,
+  ExternalRefsDoc,
+  NewEvent,
+  NewSubscription,
+  StoredEvent,
+  SubscriptionPatch,
+  SubscriptionRecord,
+  Versioned,
+} from './integration-types.js';
 import type {
   CollectedValue,
   IdentifiableModelType,
@@ -43,12 +58,23 @@ const MODEL_FILE = 'model.json';
 const USERS_FILE = 'users.json';
 const VALUES_FILE = 'values.jsonl';
 
+/** Test seams — a failing rename is how a torn write (power loss between two files) is reproduced */
+export interface FolderStoreOptions {
+  rename?: RenameFn;
+}
+
 export class FolderStore extends InMemoryStore {
+  private readonly rename: RenameFn;
+  private readonly files: FolderIntegrationFiles;
+
   constructor(
     private readonly dir: string,
     now: () => string = () => new Date().toISOString(),
+    options: FolderStoreOptions = {},
   ) {
     super(now);
+    this.rename = options.rename ?? fsRename;
+    this.files = new FolderIntegrationFiles(dir, this.integration, this.rename, () => this.packageIds(), now);
   }
 
   /** Loads the folder. Creates it if it does not exist */
@@ -69,6 +95,15 @@ export class FolderStore extends InMemoryStore {
       }
       this.restore(snapshot, await this.readValueFile(entry.name));
     }
+    // After the packages: voiding an event needs the revision that actually reached disk
+    const revisions = new Map<string, number>();
+    for (const packageId of this.packageIds()) revisions.set(packageId, (await this.getPackage(packageId))!.revision);
+    await this.files.load((packageId) => revisions.get(packageId));
+  }
+
+  /** Writes the coalesced runtime-state file now — for shutdown and tests (every other write is already on disk) */
+  async flush(): Promise<void> {
+    await this.files.flushState();
   }
 
   private async readUsers(): Promise<void> {
@@ -97,7 +132,7 @@ export class FolderStore extends InMemoryStore {
       const target = join(this.dir, USERS_FILE);
       const temp = `${target}.tmp`;
       await writeFile(temp, JSON.stringify(this.userSnapshot()), 'utf8');
-      await rename(temp, target);
+      await this.rename(temp, target);
     });
     this.userWrites = next;
     await next;
@@ -185,7 +220,18 @@ export class FolderStore extends InMemoryStore {
     const target = join(folder, MODEL_FILE);
     const temp = `${target}.tmp`;
     await writeFile(temp, JSON.stringify(this.snapshot(packageId)), 'utf8');
-    await rename(temp, target);
+    await this.rename(temp, target);
+  }
+
+  /** Queues the event line of every recorded row; `persistChange` appends it before the model (crash protocol) */
+  protected override eventRecorded(row: StoredEvent): void {
+    this.files.queueEvent(row);
+  }
+
+  /** Event line first, then the model — never the other way round, or a crash could leave a change without its event */
+  private async persistChange(packageId: string): Promise<void> {
+    await this.files.flushEvents();
+    await this.persist(packageId);
   }
 
   // ── Everything below is "do the usual, then write to the folder" ───────────
@@ -198,23 +244,25 @@ export class FolderStore extends InMemoryStore {
     owner?: string | null;
   }): Promise<PackageRecord> {
     const record = await super.importPackage(input);
-    await this.persist(record.id);
+    await this.persistChange(record.id);
     return record;
   }
 
   override async deletePackage(packageId: string): Promise<void> {
     await super.deletePackage(packageId);
+    await this.files.flushEvents();
     await rm(join(this.dir, packageId), { recursive: true, force: true });
+    await this.files.packageDeleted(packageId);
   }
 
   override async putPackageFile(packageId: string, file: PackageFileRecord): Promise<void> {
     await super.putPackageFile(packageId, file);
-    await this.persist(packageId);
+    await this.persistChange(packageId);
   }
 
   override async deletePackageFile(packageId: string, part: string): Promise<void> {
     await super.deletePackageFile(packageId, part);
-    await this.persist(packageId);
+    await this.persistChange(packageId);
   }
 
   override async createIdentifiable(
@@ -223,7 +271,7 @@ export class FolderStore extends InMemoryStore {
     options?: CreateOptions,
   ): Promise<IdentifiableRecord> {
     const record = await super.createIdentifiable(packageId, content, options);
-    await this.persist(packageId);
+    await this.persistChange(packageId);
     return record;
   }
 
@@ -235,7 +283,7 @@ export class FolderStore extends InMemoryStore {
     options?: WriteOptions,
   ): Promise<IdentifiableRecord> {
     const record = await super.updateIdentifiable(packageId, modelType, id, content, options);
-    await this.persist(packageId);
+    await this.persistChange(packageId);
     return record;
   }
 
@@ -246,7 +294,7 @@ export class FolderStore extends InMemoryStore {
     options?: WriteOptions,
   ): Promise<void> {
     await super.deleteIdentifiable(packageId, modelType, id, options);
-    await this.persist(packageId);
+    await this.persistChange(packageId);
   }
 
   override async appendValues(
@@ -272,6 +320,112 @@ export class FolderStore extends InMemoryStore {
       cursor = page.cursor;
     } while (cursor !== undefined);
     return removed;
+  }
+
+  // ── Integration — "do the usual, then write the integration file it touches" ──
+
+  override async appendEvents(events: readonly NewEvent[]): Promise<StoredEvent[]> {
+    const rows = await super.appendEvents(events);
+    await this.files.flushEvents();
+    return rows;
+  }
+
+  override async pruneEvents(before: string): Promise<number> {
+    const removed = await super.pruneEvents(before);
+    if (removed > 0) await this.files.compactEvents();
+    return removed;
+  }
+
+  override async createSubscription(input: NewSubscription): Promise<SubscriptionRecord> {
+    const record = await super.createSubscription(input);
+    await this.files.writeConfig();
+    return record;
+  }
+
+  override async updateSubscription(id: string, patch: SubscriptionPatch): Promise<SubscriptionRecord | undefined> {
+    const record = await super.updateSubscription(id, patch);
+    if (record) await this.files.writeConfig();
+    return record;
+  }
+
+  override async deleteSubscription(id: string): Promise<boolean> {
+    const removed = await super.deleteSubscription(id);
+    if (removed) {
+      await this.files.writeConfig();
+      await this.files.compactDeliveries();
+    }
+    return removed;
+  }
+
+  override async enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number> {
+    const inserted = await super.enqueueDeliveries(rows, now);
+    if (inserted > 0) await this.files.appendNewDeliveries();
+    return inserted;
+  }
+
+  override async claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
+    const claimed = await super.claimDeliveries(now, limit, leaseMs, subscriptionId);
+    await this.files.appendDeliveries(claimed);
+    return claimed;
+  }
+
+  override async completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
+    const applied = await super.completeDelivery(id, result);
+    const row = applied ? await super.getDelivery(id) : undefined;
+    if (row) await this.files.appendDeliveries([row]);
+    return applied;
+  }
+
+  override async extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    const extended = await super.extendLease(id, attempt, leaseUntil);
+    const row = extended ? await super.getDelivery(id) : undefined;
+    if (row) await this.files.appendDeliveries([row]);
+    return extended;
+  }
+
+  override async redeliver(id: string, now: string): Promise<boolean> {
+    const done = await super.redeliver(id, now);
+    const row = done ? await super.getDelivery(id) : undefined;
+    if (row) await this.files.appendDeliveries([row]);
+    return done;
+  }
+
+  override async pruneDeliveries(succeededBefore: string, deadBefore: string): Promise<number> {
+    const removed = await super.pruneDeliveries(succeededBefore, deadBefore);
+    if (removed > 0) await this.files.compactDeliveries();
+    return removed;
+  }
+
+  override async putServerIntegrationConfig(value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> {
+    const saved = await super.putServerIntegrationConfig(value, expectedRevision);
+    await this.files.writeConfig();
+    return saved;
+  }
+
+  override async putPackageIntegrationConfig(packageId: string, value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> {
+    const saved = await super.putPackageIntegrationConfig(packageId, value, expectedRevision);
+    await this.files.writeConfig();
+    return saved;
+  }
+
+  /** Event line first, then integration.json: a crash in between leaves a harmless "re-read" event, never a silent change */
+  override async putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> {
+    const saved = await super.putExternalRefs(packageId, doc, expectedRevision);
+    await this.files.flushEvents();
+    await this.files.writeConfig();
+    return saved;
+  }
+
+  override async putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> {
+    const saved = await super.putExternalRefsBatch(items);
+    await this.files.flushEvents();
+    await this.files.writeConfig();
+    return saved;
+  }
+
+  override async putRuntimeState(key: string, value: unknown, packageId?: string): Promise<void> {
+    await super.putRuntimeState(key, value, packageId);
+    this.files.stateChanged(key, packageId);
   }
 
   private async rewriteValueFile(packageId: string): Promise<void> {

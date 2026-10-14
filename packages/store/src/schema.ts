@@ -1,4 +1,112 @@
 /**
+ * Version 9 (2026-10-14) — integration: event log (outbox), subscriptions, deliveries, configuration, external
+ * references and runtime state (docs/design/integration-v1.md §3.4). The same text is the v9 migration and the tail
+ * of `SCHEMA_SQL`, so the two cannot drift.
+ *
+ * Important: no semicolon inside a comment or a string literal here — `runStatements` splits the script on it.
+ * Important: `integration_event.package_id` has **no** foreign key. Events outlive their package (a consumer must still
+ *    receive `model.package.deleted` and replay history after the package is gone).
+ */
+export const INTEGRATION_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS integration_event (
+  seq              bigserial PRIMARY KEY,
+  id               text NOT NULL UNIQUE,
+  type             text NOT NULL,
+  occurred_at      timestamptz NOT NULL,
+  recorded_at      timestamptz NOT NULL DEFAULT now(),
+  package_id       text,
+  subject          text,
+  package_revision integer,
+  owner            text,
+  actor_id         text,
+  actor_name       text,
+  cause            text,
+  change_set_id    text,
+  data             jsonb NOT NULL
+);
+CREATE INDEX IF NOT EXISTS integration_event_recorded_idx ON integration_event (recorded_at);
+CREATE INDEX IF NOT EXISTS integration_event_pkg_idx ON integration_event (package_id, seq);
+CREATE INDEX IF NOT EXISTS integration_event_type_idx ON integration_event (type, seq);
+
+CREATE TABLE IF NOT EXISTS integration_subscription (
+  id                 text PRIMARY KEY,
+  name               text NOT NULL,
+  kind               text NOT NULL CHECK (kind IN ('webhook', 'mqtt')),
+  url                text NOT NULL,
+  types              jsonb NOT NULL DEFAULT '[]'::jsonb,
+  package_ids        jsonb NOT NULL DEFAULT '[]'::jsonb,
+  enabled            boolean NOT NULL DEFAULT true,
+  disabled_reason    text,
+  options            jsonb NOT NULL DEFAULT '{}'::jsonb,
+  key_id             text NOT NULL,
+  secret_sealed      text NOT NULL,
+  previous_sealed    text,
+  previous_until     timestamptz,
+  credentials_sealed text,
+  secret_hint        text NOT NULL,
+  consecutive_dead   integer NOT NULL DEFAULT 0,
+  last_success_at    timestamptz,
+  created_by         text,
+  created_at         timestamptz NOT NULL,
+  updated_at         timestamptz NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS integration_delivery (
+  id               bigserial PRIMARY KEY,
+  subscription_id  text NOT NULL REFERENCES integration_subscription(id) ON DELETE CASCADE,
+  event_seq        bigint NOT NULL,
+  event_id         text NOT NULL,
+  status           text NOT NULL CHECK (status IN ('pending', 'in-flight', 'succeeded', 'dead')),
+  attempts         integer NOT NULL DEFAULT 0,
+  next_attempt_at  timestamptz NOT NULL,
+  lease_until      timestamptz,
+  last_status_code integer,
+  last_error       text,
+  last_duration_ms integer,
+  last_address     text,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  UNIQUE (subscription_id, event_seq)
+);
+CREATE INDEX IF NOT EXISTS integration_delivery_due_idx ON integration_delivery (status, next_attempt_at);
+
+CREATE TABLE IF NOT EXISTS integration_config (
+  scope       text PRIMARY KEY,
+  package_id  text REFERENCES aas_package(id) ON DELETE CASCADE,
+  value       jsonb NOT NULL,
+  revision    integer NOT NULL DEFAULT 1,
+  updated_at  timestamptz NOT NULL,
+  actor_id    text,
+  actor_name  text
+);
+
+CREATE TABLE IF NOT EXISTS external_ref_doc (
+  package_id  text PRIMARY KEY REFERENCES aas_package(id) ON DELETE CASCADE,
+  doc         jsonb NOT NULL,
+  revision    integer NOT NULL DEFAULT 1,
+  updated_at  timestamptz NOT NULL,
+  actor_id    text,
+  actor_name  text
+);
+
+CREATE TABLE IF NOT EXISTS external_ref_key (
+  system      text NOT NULL,
+  type        text NOT NULL,
+  ref_id      text NOT NULL,
+  package_id  text NOT NULL REFERENCES aas_package(id) ON DELETE CASCADE,
+  subject     text NOT NULL,
+  PRIMARY KEY (system, type, ref_id)
+);
+
+CREATE TABLE IF NOT EXISTS integration_state (
+  key         text PRIMARY KEY,
+  package_id  text REFERENCES aas_package(id) ON DELETE CASCADE,
+  value       jsonb NOT NULL,
+  updated_at  timestamptz NOT NULL
+);
+`;
+
+/**
  * PostgreSQL schema (spec M1 · value sync Option A).
  *
  * The DDL is kept as a string rather than a file because file paths shift depending on the deployment
@@ -102,7 +210,7 @@ CREATE TABLE IF NOT EXISTS collected_value (
 );
 
 CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, property_name, observed_at DESC);
-`;
+${INTEGRATION_SCHEMA_SQL}`;
 
 /**
  * Schema version number.
@@ -117,7 +225,7 @@ CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, p
  *    ③ bump `SCHEMA_VERSION`. A migration must turn the previous version's tables into the new version and must be idempotent.
  *  - An existing DB without `schema_version` is treated as version 1 (the tables as of 2026-09-04, when version numbers were introduced, are version 1).
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const SCHEMA_VERSION_SQL = `
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -236,6 +344,8 @@ ALTER TABLE app_user ADD COLUMN IF NOT EXISTS consent_at timestamptz;
 ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS received_at timestamptz;
 `,
   },
+  // Version 9 (2026-10-14) — integration tables, see INTEGRATION_SCHEMA_SQL above (CREATE ... IF NOT EXISTS, so idempotent)
+  { version: 9, sql: INTEGRATION_SCHEMA_SQL },
 ];
 
 /**

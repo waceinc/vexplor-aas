@@ -6,3 +6,4 @@ export * from './modbus-server.js';
 export * from './mqtt-wire.js';
 export * from './mqtt-reader.js';
 export * from './mqtt-broker.js';
+export * from './mqtt-publisher.js';

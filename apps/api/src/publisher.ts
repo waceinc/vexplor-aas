@@ -9,8 +9,11 @@
  * Important: never written back to the model. Overlays are applied only to a copy — value sync option A.
  */
 import { overlayEnvironment, type ValueSample } from '@aas/collector';
-import { AasOpcUaServer, planForPackage, type PublishPlan, type ServerStatus } from '@aas/opcua';
+import { AasOpcUaServer, planForPackage, type OpcUaClientInfo, type OpcUaSecurityOptions, type OpcUaTrustStore, type PublishPlan, type ServerStatus } from '@aas/opcua';
 import type { AasStore } from '@aas/store';
+import { randomBytes } from 'node:crypto';
+import { hashPassword, verifyPassword } from './password.js';
+import { LoginThrottle } from './session.js';
 
 export interface PublisherOptions {
   store: AasStore;
@@ -20,6 +23,47 @@ export interface PublisherOptions {
   hostname?: string;
   /** How many values to scan per file — only the latest is used, so a generous number is fine */
   valueLimit?: number;
+  /**
+   * OPC UA security (docs/design/integration-v1.md §7). server.ts sets it from OPCUA_ALLOW_INSECURE / OPCUA_PKI_DIR.
+   * Absent = secure, which needs `verifyUser` — the server refuses to start rather than open an unauthenticated port
+   */
+  security?: OpcUaSecurityOptions;
+}
+
+/** A hash nobody's password matches — checked for unknown logins so the answer takes as long as for real ones */
+let dummyHash: Promise<string> | undefined;
+
+/** The throttle slot of one OPC UA client: its certificate, else its address, else one shared slot */
+function clientSlot(client: OpcUaClientInfo | undefined): string {
+  if (client?.certificateThumbprint) return `opcua-cert:${client.certificateThumbprint}`;
+  if (client?.address) return `opcua-addr:${client.address}`;
+  return 'opcua';
+}
+
+/**
+ * The OPC UA user check for secure mode: the server's own accounts, any role (the address space is read-only),
+ * disabled accounts refused, guessing slowed by the same `LoginThrottle` the web login uses.
+ * Important: the throttle counts per account **and client** (certificate thumbprint, else peer address — review L5).
+ *    With one shared slot, five wrong passwords from anyone would lock the account for every MES. The throttle's
+ *    account-wide cap still stops guessing from many clients. Pass the web login's throttle to share that cap.
+ * Important: an unknown login still runs a full password check against a dummy hash, so the response time does not
+ *    tell which logins exist.
+ */
+export function accountVerifier(
+  store: Pick<AasStore, 'findUserByLogin'>,
+  throttle: LoginThrottle = new LoginThrottle(),
+): (username: string, password: string, client?: OpcUaClientInfo) => Promise<boolean> {
+  return async (username, password, client) => {
+    const login = username.trim();
+    const slot = clientSlot(client);
+    if (login === '' || throttle.blocked(login, slot)) return false;
+    const user = await store.findUserByLogin(login);
+    const matches = await verifyPassword(password, user?.passwordHash ?? (await (dummyHash ??= hashPassword(randomBytes(24).toString('base64')))));
+    const ok = user !== undefined && !user.disabled && matches;
+    if (ok) throttle.pass(login, slot);
+    else throttle.fail(login, slot);
+    return ok;
+  };
 }
 
 export class OpcUaPublisher {
@@ -31,7 +75,13 @@ export class OpcUaPublisher {
       ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
       refreshMs: options.refreshMs ?? 5000,
       load: () => this.plans(),
+      ...(options.security ? { security: options.security } : {}),
     });
+  }
+
+  /** Client certificate trust store — undefined unless the server runs in secure mode (routes-opcua.ts) */
+  pki(): OpcUaTrustStore | undefined {
+    return this.server.pki();
   }
 
   start(): Promise<void> {

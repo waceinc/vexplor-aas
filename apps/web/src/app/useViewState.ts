@@ -58,7 +58,9 @@ export function useViewState() {
   const [fixPlans, setFixPlans] = useState<FixPlan[] | undefined>();
   /** When the "Serving" chip is clicked — only here do we explain what the address means */
   const [showOpcua, setShowOpcua] = useState(false);
+  /** MES / ERP / CMMS integration window (Settings → Integrations) — what it shows depends on the role */
+  const [showIntegrations, setShowIntegrations] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const bundleInput = useRef<HTMLInputElement>(null);
-  return { expanded, setExpanded, selectedKey, setSelectedKey, query, setQuery, reveal, setReveal, filesOpen, setFilesOpen, pickedFiles, setPickedFiles, submodelTarget, setSubmodelTarget, hierAdder, setHierAdder, historyFor, setHistoryFor, historyEntries, setHistoryEntries, adding, setAdding, showRules, setShowRules, showFindings, setShowFindings, showSettings, setShowSettings, showAccounts, setShowAccounts, fixPlans, setFixPlans, showOpcua, setShowOpcua, fileInput, bundleInput };
+  return { expanded, setExpanded, selectedKey, setSelectedKey, query, setQuery, reveal, setReveal, filesOpen, setFilesOpen, pickedFiles, setPickedFiles, submodelTarget, setSubmodelTarget, hierAdder, setHierAdder, historyFor, setHistoryFor, historyEntries, setHistoryEntries, adding, setAdding, showRules, setShowRules, showFindings, setShowFindings, showSettings, setShowSettings, showAccounts, setShowAccounts, fixPlans, setFixPlans, showOpcua, setShowOpcua, showIntegrations, setShowIntegrations, fileInput, bundleInput };
 }
