@@ -610,7 +610,7 @@ All exports: `format=json|csv` (default json); CSV: RFC 4180 via existing `csvCe
 |---|---|---|---|
 | GET | `/integrations/exports/equipment` | `packageId` (optional: all visible), `includeTypes=1`, `trace=1`, `profile=sap-pm` | `vexplor.equipmentMaster/1` (below) |
 | GET | `/integrations/exports/bom` | `packageId` (required) | `vexplor.bom/1`; **422** `BomRootMismatch` when INT-2 fails |
-| GET | `/integrations/exports/hierarchy` | `packageId` (required, a process file) | `kr.vexplor.aas.hierarchy.v1` |
+| GET | `/integrations/exports/hierarchy` | `packageId` (required; any file with `HierarchicalStructures` — 422 `NoHierarchy` only without one) | `kr.vexplor.aas.hierarchy.v1` |
 | GET | `/integrations/exports/maintenance` | `packageId` (required) | `vexplor.maintenancePlan/1` (CSV = one row per step) |
 | GET | `/integrations/exports/documents` | `packageId` (required) | `vexplor.documents/1` |
 | GET | `/integrations/readiness` | `packageId` (optional) | `200 { "items": [ { "packageId", "checks": [ { "id": "INT-1", "severity": "warning\|error", "message", "pointer"? } ] } ] }` |
@@ -633,7 +633,7 @@ Envelope: `{ "schema": "vexplor.equipmentMaster/1", "exportedAt", "source": { "t
 Frozen CSV columns (`apps/api/src/integration/exports/columns.ts`; adding only at the end; changing = schema `/2`):
 - `EQUIPMENT_V1_COLUMNS`: `key, aasId, assetKind, typeAasId, packageId, revision, nameplate.manufacturer, nameplate.productDesignation, nameplate.productFamily, nameplate.modelNumber, nameplate.orderCode, nameplate.serialNumber, nameplate.yearOfConstruction, nameplate.dateOfManufacture, nameplate.productUri, nameplate.markings, physical.weight.value, physical.weight.unit, location.path, location.isa95.site, location.isa95.area, location.isa95.workCenter, specificAssetIds, externalRefs, missing, warnings` (`specificAssetIds` = `name=value;…`, `externalRefs` = `system|type|id;…`, `location.path` = `/`-joined).
 - `BOM_V1_COLUMNS`: `rootKey, parentPath, childPath, childName, childGlobalAssetId, quantity, level, entityType, erpMaterial, mapped` (quantity = child `BulkCount`, default 1, "per parent"; `erpMaterial` from refs subject `bomChild` type `material`; unmapped rows kept with `mapped=false`).
-- `HIERARCHY_V1_COLUMNS`: `id, parentId, equipmentLevel, name, globalAssetId, aasId, packageId, serialNumber, quantity, specificAssetIds, warnings` (flat list; `id` = `/`-joined path; quantity > 1 → warning INT-4, never multiplied into rows).
+- `HIERARCHY_V1_COLUMNS`: `id, parentId, equipmentLevel, name, globalAssetId, aasId, packageId, serialNumber, quantity, specificAssetIds, warnings` (flat list; `id` = `/`-joined path; quantity > 1 → warning INT-4 in process files only — in an equipment BOM tree it is a part count; never multiplied into rows).
 - `MAINTENANCE_V1_COLUMNS`: `maintenanceId, taskName, interval, intervalStatus, technicians, qualification, safety, stepSeq, stepId, stepName, instruction, durationValue, durationUnit, toolIds, consumableIds, documents, signatureRequired, sourceRef`.
 - `DOCUMENTS_V1_COLUMNS`: `documentId, documentDomainId, classId, className, classificationSystem, version, language, title, status, statusDate, issuer, fileName, contentType, size, sha256, available, url`.
 
@@ -858,7 +858,7 @@ security?: {
 | INT-1 | warning | shell `assetKind: Type` with a non-empty DigitalNameplate `SerialNumber` | excluded from equipment export (listed in `excluded`) unless `includeTypes=1` |
 | INT-2 | error | hierarchy entry node `globalAssetId` ≠ the shell's `assetInformation.globalAssetId` | BOM export refused with 422 `BomRootMismatch` naming both ids |
 | INT-3 | warning | a `MaintenanceInstructions…` collection has no explicit interval value + unit | maintenance export `intervalStatus: "missing"` |
-| INT-4 | warning | hierarchy node with `BulkCount > 1` pointing at one `globalAssetId` | hierarchy export warning; never expanded into invented rows |
+| INT-4 | warning | process-file hierarchy node with `BulkCount > 1` pointing at one `globalAssetId` | hierarchy export warning; never expanded into invented rows |
 | INT-5 | warning | Instance shell without `SerialNumber` | equipment export `missing` includes `nameplate.serialNumber` |
 
 Shown in the Integrations screen "Readiness" tab. The sample `RollFormingMachine_sample.aasx` triggers INT-1 and INT-2 (golden test).
