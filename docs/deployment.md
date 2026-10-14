@@ -219,7 +219,7 @@ not legal advice.
 
 Already covered (checked 2026-10-04):
 - **Workspaces are separated per sign-in** — people signed in with the same demo account cannot see each other's files
-- OPC UA publishing **does not start at all in demo mode** (the port has no authentication, which does not fit a public server)
+- OPC UA publishing **does not start at all in demo mode** (a public demo server is no place for a plant data port, secure or not)
 - The demo account **cannot change its own password or delete itself** — before this, one visitor changing it locked everyone else out
 - Sign-up rate limits (5 per hour per address · 30 per hour overall)
 - Account deletion — removes the account and contact details while keeping the audit records
