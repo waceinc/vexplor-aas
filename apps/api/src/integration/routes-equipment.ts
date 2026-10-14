@@ -88,7 +88,9 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
       pattern: '/integrations/config',
       async handle() {
         const { value, revision } = await readServerConfig(store);
-        return withEtag(json(200, { value, revision }), revision);
+        // Never saved: show the instance id the server already uses for event sources
+        const shown = value.instanceId === '' && deps.services ? { ...value, instanceId: await deps.services.instanceId() } : value;
+        return withEtag(json(200, { value: shown, revision }), revision);
       },
     },
     {
@@ -101,7 +103,7 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
         if (!parsed.ok) return invalid(parsed.errors);
         const current = await store.getServerIntegrationConfig();
         // instanceId is server-owned: whatever the body says, the stored one stays (or is created once, here)
-        const value: ServerIntegrationConfig = { ...parsed.value, instanceId: instanceIdOf(current?.value) || randomBytes(6).toString('hex') };
+        const value: ServerIntegrationConfig = { ...parsed.value, instanceId: instanceIdOf(current?.value) || (deps.services ? await deps.services.instanceId() : randomBytes(6).toString('hex')) };
         let saved;
         try {
           saved = await store.putServerIntegrationConfig(value, expected);
@@ -109,7 +111,7 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
           if (error instanceof ConflictError) throw new ApiError(412, 'PreconditionFailed', tr('그사이에 다른 사람이 설정을 바꿨습니다. 다시 읽은 뒤 고치십시오.'));
           throw error;
         }
-        await recordAudit(store, request, 'config.updated', 'server', { revision: saved.revision, ruleSetHash: ruleSetHash(value.stateRules) });
+        await recordAudit(deps.auditStore ?? store, request, 'config.updated', 'server', { revision: saved.revision, ruleSetHash: ruleSetHash(value.stateRules) });
         return withEtag(json(200, { value, revision: saved.revision }), saved.revision);
       },
     },
@@ -140,7 +142,7 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
           throw error;
         }
         deps.runtime?.reloadPackageConfig?.(packageId);
-        await recordAudit(store, request, 'config.updated', `packages/${packageId}`, { revision: saved.revision }, packageId);
+        await recordAudit(deps.auditStore ?? store, request, 'config.updated', `packages/${packageId}`, { revision: saved.revision }, packageId);
         return withEtag(json(200, { value: parsed.value, revision: saved.revision }), saved.revision);
       },
     },

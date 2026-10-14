@@ -62,8 +62,10 @@ interface Envelope {
   source: ExportSource;
 }
 
-async function envelope(store: AasStore, schema: string, now: () => string): Promise<Envelope> {
-  return { schema, exportedAt: now(), source: exportSource(await instanceIdOf(store)) };
+async function envelope(store: AasStore, schema: string, now: () => string, deps?: IntegrationRouteDeps): Promise<Envelope> {
+  // The server's instance id (the same one events carry as `source`) — the stored config only as a fallback
+  const instanceId = deps?.services ? await deps.services.instanceId() : await instanceIdOf(store);
+  return { schema, exportedAt: now(), source: exportSource(instanceId) };
 }
 
 function respond(format: Format, request: ApiRequest, head: Envelope, body: Record<string, unknown>, columns: readonly string[], rows: () => CsvRow[]): ApiResponse {
@@ -103,7 +105,7 @@ export function exportRoutes(store: AasStore, deps: IntegrationRouteDeps, option
         }
         out.items.sort(compareItems);
         out.excluded.sort((a, b) => a.packageId.localeCompare(b.packageId, 'en', { numeric: true }) || (a.aasId ?? '').localeCompare(b.aasId ?? ''));
-        const head = await envelope(store, EQUIPMENT_SCHEMA, now);
+        const head = await envelope(store, EQUIPMENT_SCHEMA, now, deps);
         return respond(format, request, head, { language: lang, ...out }, EQUIPMENT_V1_COLUMNS, () => out.items.map(equipmentRow));
       },
     },
@@ -128,7 +130,7 @@ export function exportRoutes(store: AasStore, deps: IntegrationRouteDeps, option
                 : tr('이 패키지에 HierarchicalStructures가 없습니다.');
           throw new ApiError(422, 'NoBom', reason);
         }
-        const head = await envelope(store, BOM_SCHEMA, now);
+        const head = await envelope(store, BOM_SCHEMA, now, deps);
         const body = { packageId: record.id, revision: record.revision, rootKey: bom.rootKey, items: bom.rows };
         return respond(format, request, head, body, BOM_V1_COLUMNS, () => bom.rows.map(bomRow));
       },
@@ -142,7 +144,7 @@ export function exportRoutes(store: AasStore, deps: IntegrationRouteDeps, option
         const config = await packageConfigOf(store, record.id);
         const read = readHierarchyItems(await store.getEnvironment(record.id), config, await buildAssetDirectory(store), record.id);
         if (!read) throw new ApiError(422, 'NoHierarchy', tr('이 패키지에 HierarchicalStructures가 없습니다.'));
-        const head = await envelope(store, HIERARCHY_SCHEMA, now);
+        const head = await envelope(store, HIERARCHY_SCHEMA, now, deps);
         const body = { packageId: record.id, revision: record.revision, site: config?.isa95.site ?? null, items: read.items, warnings: read.warnings };
         return respond(format, request, head, body, HIERARCHY_V1_COLUMNS, () => read.items.map(hierarchyRow));
       },
@@ -155,7 +157,7 @@ export function exportRoutes(store: AasStore, deps: IntegrationRouteDeps, option
         const record = await requirePackage(store, requiredPackageId(request));
         const resolver = createFileResolver(record.id, await store.packageFiles(record.id), deps.publicBaseUrl);
         const plans = readMaintenancePlans(await store.getEnvironment(record.id), languageOf(request), record.revision, resolver);
-        const head = await envelope(store, MAINTENANCE_SCHEMA, now);
+        const head = await envelope(store, MAINTENANCE_SCHEMA, now, deps);
         return respond(format, request, head, { packageId: record.id, revision: record.revision, items: plans }, MAINTENANCE_V1_COLUMNS, () => maintenanceRows(plans));
       },
     },
@@ -167,7 +169,7 @@ export function exportRoutes(store: AasStore, deps: IntegrationRouteDeps, option
         const record = await requirePackage(store, requiredPackageId(request));
         const resolver = createFileResolver(record.id, await store.packageFiles(record.id), deps.publicBaseUrl);
         const rows = readDocuments(await store.getEnvironment(record.id), languageOf(request), resolver);
-        const head = await envelope(store, DOCUMENTS_SCHEMA, now);
+        const head = await envelope(store, DOCUMENTS_SCHEMA, now, deps);
         return respond(format, request, head, { packageId: record.id, revision: record.revision, items: rows }, DOCUMENTS_V1_COLUMNS, () => rows as unknown as CsvRow[]);
       },
     },

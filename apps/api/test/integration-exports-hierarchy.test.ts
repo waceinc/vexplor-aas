@@ -10,7 +10,7 @@ import { EXPORT_SCHEMAS } from '../src/integration/exports/export-schemas.js';
 import { hierarchyRow, type HierarchyItem } from '../src/integration/exports/hierarchy.js';
 import { createIntegrationStore } from './helpers/integration-store.js';
 import { expectGolden, harness, normalized, plantFile, text, unitAsset, unitCopy, type Json } from './helpers/integration-fixtures.js';
-import { schemaErrors } from './helpers/schema-subset.js';
+import { checkSchema, type JsonSchema } from '../src/integration/schema-check.js';
 
 async function setup() {
   const store = createIntegrationStore();
@@ -33,7 +33,7 @@ describe('hierarchy export', () => {
     const { call, plantId } = await setup();
     const asJson = await call('GET', '/integrations/exports/hierarchy', { query: { packageId: plantId } });
     expect(asJson.status).toBe(200);
-    expect(schemaErrors(EXPORT_SCHEMAS['kr.vexplor.aas.hierarchy.v1']!, asJson.body)).toEqual([]);
+    expect(checkSchema(EXPORT_SCHEMAS['kr.vexplor.aas.hierarchy.v1']! as JsonSchema, asJson.body)).toEqual([]);
     expectGolden('hierarchy.json', `${JSON.stringify(normalized(asJson.body), null, 2)}\n`);
     expectGolden('hierarchy.csv', text((await call('GET', '/integrations/exports/hierarchy', { query: { packageId: plantId, format: 'csv' } })).body));
   });

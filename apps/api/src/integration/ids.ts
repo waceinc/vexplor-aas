@@ -96,7 +96,9 @@ export function maskCredentials(url: string): string {
  * can therefore see seq 12 while seq 11 is still in flight; advancing a cursor past 11 would lose it for good.
  * So: hand out the longest prefix that is contiguous from `after`. A gap is passed only when the row after it was
  * recorded more than `settleMs` ago — by then the missing seq belongs to a rolled-back transaction, not a slow one.
- * Memory and folder stores have no gaps, so this always returns the whole batch there.
+ * Gaps are not only a PostgreSQL thing: the folder store leaves one where a torn write was voided after a crash, and a
+ * PostgreSQL `ON CONFLICT` skip burns a seq. Such a gap is permanent, so it passes here after `settleMs` (≤ 30 s hold).
+ * The routes and the dispatcher apply this only where in-flight commits exist (PostgreSQL); see routes-events.ts.
  */
 export function settledPrefix<T extends { seq: number; recordedAt: string }>(
   rows: readonly T[],

@@ -49,7 +49,7 @@ export function opcuaRoutes(store: IntegrationRouteStore, deps: IntegrationRoute
         if (!(await pki.trust(thumbprint))) {
           throw new ApiError(404, 'NotFound', fill(tr('거부된 인증서 중에 지문 {0}인 것이 없습니다.'), { 0: thumbprint }));
         }
-        await recordAudit(store, request, 'config.updated', `opcua/certificates/${thumbprint}`, { operation: 'trust' });
+        await recordAudit(deps.auditStore ?? store, request, 'config.updated', `opcua/certificates/${thumbprint}`, { operation: 'trust' });
         return json(200, { trusted: thumbprint });
       },
     },
