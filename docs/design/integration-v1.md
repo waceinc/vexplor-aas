@@ -228,8 +228,8 @@ Audit and ping:
 ### 2.4 Ordering, idempotency, guarantees (documented contract)
 
 - **At-least-once** delivery. Receivers dedupe on CloudEvents `id` (= `webhook-id`) for ≥ 48 h.
-- `sequence` is monotonic, **not gap-free** on PostgreSQL. For model events of one package, `vxrevision` is strictly increasing; receivers ignore an event whose `vxrevision` ≤ the one already applied for that package.
-- **Sequence visibility (outbox pitfall)** is handled by the shared helper `settledPrefix(rows, now, settleMs = 30_000)` in `apps/api/src/integration/ids.ts`: from a batch ordered by `seq`, return the longest prefix that is contiguous from the requested `after`, plus any rows after a gap whose `recordedAt` is older than `settleMs` (the gap is then a rollback). Used by both the pull feed and the dispatcher fan-out. Memory and folder stores have no gaps.
+- `sequence` is monotonic, **not gap-free** on PostgreSQL and the folder store. For model events of one package, `vxrevision` is strictly increasing; receivers ignore an event whose `vxrevision` ≤ the one already applied for that package.
+- **Sequence visibility (outbox pitfall)** is handled by the shared helper `settledPrefix(rows, now, settleMs = 30_000)` in `apps/api/src/integration/ids.ts`: from a batch ordered by `seq`, return the longest prefix that is contiguous from the requested `after`, plus any rows after a gap whose `recordedAt` is older than `settleMs` (the gap is then a rollback). Used by the dispatcher fan-out and, on PostgreSQL, by the pull feed. The memory store has no gaps; the folder store can leave a permanent gap where an event was voided after a crash (its seq is never reused), so the feed does not wait on it.
 - Feed `after` older than the oldest retained event (pruned) → **410** `{ code: "Gone", oldestSeq }`; consumers then do a full export.
 
 ### 2.5 JSON Schemas
