@@ -148,6 +148,25 @@ export interface SubscriptionInput {
   options?: { topicPrefix?: string; retainState?: boolean };
 }
 
+/**
+ * Fields a PATCH may carry — mirrors PATCH_KEYS in apps/api/src/integration/subscription-input.ts (a test compares them).
+ * Important: `kind` is fixed at creation; the server answers 400 to a PATCH that carries it, so it is never sent.
+ */
+export const SUBSCRIPTION_PATCH_KEYS = ['name', 'url', 'types', 'packageIds', 'enabled', 'options'] as const;
+export type SubscriptionPatch = Partial<Pick<SubscriptionInput, (typeof SUBSCRIPTION_PATCH_KEYS)[number]>>;
+
+/** Only the keys a PATCH accepts, so an edit form that holds the whole subscription cannot send a refused field */
+export function toSubscriptionPatch(input: Partial<SubscriptionInput>): SubscriptionPatch {
+  const out: Record<string, unknown> = {};
+  for (const key of SUBSCRIPTION_PATCH_KEYS) if (input[key] !== undefined) out[key] = input[key];
+  return out as SubscriptionPatch;
+}
+
+/** A 409 shown with the caller's explanation instead of the bare server text (rotate twice in 24 h, resend while sending) */
+export function explainConflict(caught: unknown, text: string): unknown {
+  return caught instanceof IntegrationError && caught.status === 409 ? new IntegrationError(409, text, caught.code, caught.body) : caught;
+}
+
 export interface DeliveryView {
   id: string;
   subscriptionId: string;
@@ -314,8 +333,8 @@ export const integrationApi = {
   subscriptions: (): Promise<{ items: SubscriptionView[] }> => call('/integrations/subscriptions'),
   createSubscription: (input: SubscriptionInput): Promise<{ subscription: SubscriptionView; secret: string }> =>
     call('/integrations/subscriptions', json('POST', input)),
-  updateSubscription: (id: string, patch: Partial<SubscriptionInput>): Promise<SubscriptionView> =>
-    call(`/integrations/subscriptions/${enc(id)}`, json('PATCH', patch)),
+  updateSubscription: (id: string, patch: SubscriptionPatch): Promise<SubscriptionView> =>
+    call(`/integrations/subscriptions/${enc(id)}`, json('PATCH', toSubscriptionPatch(patch))),
   deleteSubscription: (id: string): Promise<void> => call(`/integrations/subscriptions/${enc(id)}`, { method: 'DELETE' }),
   rotateSecret: (id: string): Promise<{ secret: string; previousValidUntil?: string }> =>
     call(`/integrations/subscriptions/${enc(id)}/rotate-secret`, { method: 'POST' }),

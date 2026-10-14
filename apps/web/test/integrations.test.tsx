@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
 import type { AuthState, PackageDescription } from '../src/api.js';
 import { settingsMenuItems } from '../src/app/headerMenus.js';
+import { SUBSCRIPTION_PATCH_KEYS, toSubscriptionPatch } from '../src/api/integration.js';
 import { Integrations, visibleTabs } from '../src/components/integrations/Integrations.js';
 import { useScreenHarness, wireFetch } from './harness.js';
 
@@ -230,6 +231,67 @@ describe('Integrations — subscriptions', () => {
     fireEvent.click(within(row).getByRole('button', { name: '다시 보내기' }));
     expect(await screen.findByText('184223번 사건을 다시 보낼 차례에 넣었습니다.')).toBeTruthy();
     expect(seen.some((item) => item.method === 'POST' && item.path === '/integrations/deliveries/d1/redeliver')).toBe(true);
+  });
+});
+
+describe('Integrations — editing subscriptions', () => {
+  it('mirrors the server PATCH keys exactly, and kind is not one of them', () => {
+    const source = readFileSync('apps/api/src/integration/subscription-input.ts', 'utf8');
+    const match = /const PATCH_KEYS = \[([^\]]*)\]/.exec(source);
+    expect(match).not.toBeNull();
+    const server = [...match![1]!.matchAll(/'([^']+)'/g)].map((item) => item[1]);
+    expect([...SUBSCRIPTION_PATCH_KEYS].sort()).toEqual([...server].sort());
+    expect(SUBSCRIPTION_PATCH_KEYS).not.toContain('kind');
+    expect(Object.keys(toSubscriptionPatch({ name: 'x', kind: 'mqtt', url: 'u', types: ['t'], enabled: true }))).toEqual(['name', 'url', 'types', 'enabled']);
+  });
+
+  it('saves an edit without the kind field; the kind selector is locked while editing', async () => {
+    const seen = mockApi([
+      on('GET', '/integrations/subscriptions', { status: 200, body: { items: [{ ...subscription, kind: 'mqtt', url: 'mqtts://broker.example.com:8883' }] } }),
+      on('PATCH', '/integrations/subscriptions/sub_1', (request) => ({ status: 200, body: { ...subscription, ...(request.body as object) } })),
+    ]);
+    show(user('admin'));
+    tab('보내기 구독');
+    fireEvent.click(await screen.findByRole('button', { name: '고치기' }));
+    const form = screen.getByRole('form', { name: '구독 고치기' });
+    expect((within(form).getByLabelText('방식') as HTMLSelectElement).disabled).toBe(true);
+    expect(within(form).getByText(/호스트를 바꾸면 저장된 브로커 계정이 지워집니다/)).toBeTruthy();
+    fireEvent.change(within(form).getByLabelText('이름'), { target: { value: 'MES Line B' } });
+    fireEvent.click(within(form).getByRole('button', { name: '저장' }));
+    await waitFor(() => expect(seen.some((item) => item.method === 'PATCH')).toBe(true));
+    const body = seen.find((item) => item.method === 'PATCH')!.body as Record<string, unknown>;
+    expect(body['name']).toBe('MES Line B');
+    expect(Object.keys(body).every((key) => (SUBSCRIPTION_PATCH_KEYS as readonly string[]).includes(key))).toBe(true);
+    expect(body).not.toHaveProperty('kind');
+  });
+
+  it('explains a second rotation within 24 hours (409)', async () => {
+    mockApi([
+      on('GET', '/integrations/subscriptions', { status: 200, body: { items: [subscription] } }),
+      on('POST', '/integrations/subscriptions/sub_1/rotate-secret', { status: 409, body: { messages: [{ code: 'Conflict', text: 'rotation pending' }] } }),
+    ]);
+    show(user('admin'));
+    tab('보내기 구독');
+    fireEvent.click(await screen.findByRole('button', { name: '비밀값 바꾸기' }));
+    expect(await screen.findByText(/비밀값은 24시간에 한 번만 바꿀 수 있습니다/)).toBeTruthy();
+    expect(screen.queryByLabelText('서명 비밀값')).toBeNull();
+  });
+
+  it('explains that a delivery being sent cannot be queued again (409)', async () => {
+    mockApi([
+      on('GET', '/integrations/subscriptions', { status: 200, body: { items: [subscription] } }),
+      on('GET', /^\/integrations\/subscriptions\/sub_1\/deliveries/, {
+        status: 200,
+        body: { items: [{ id: 'd1', subscriptionId: 'sub_1', eventSeq: 7, eventId: 'evt_7', status: 'succeeded', attempts: 1, nextAttemptAt: '', createdAt: '', updatedAt: '' }] },
+      }),
+      on('POST', '/integrations/deliveries/d1/redeliver', { status: 409, body: { messages: [{ code: 'Conflict', text: 'in flight' }] } }),
+    ]);
+    show(user('admin'));
+    tab('보내기 구독');
+    fireEvent.click(await screen.findByRole('button', { name: '보낸 기록' }));
+    const row = (await screen.findByText('7')).closest('tr') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: '다시 보내기' }));
+    expect(await screen.findByText(/지금 보내는 중인 건은 다시 보낼 차례에 넣을 수 없습니다/)).toBeTruthy();
   });
 });
 

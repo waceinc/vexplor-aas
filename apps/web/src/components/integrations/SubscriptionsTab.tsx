@@ -9,7 +9,7 @@
 import { DELIVERABLE_TYPES, eventClassOf, shortEventType } from '@aas/core';
 import { useEffect, useState } from 'react';
 import type { PackageDescription } from '../../api.js';
-import { IntegrationError, integrationApi, type SubscriptionInput, type SubscriptionView, type TestResult } from '../../api/integration.js';
+import { explainConflict, IntegrationError, integrationApi, toSubscriptionPatch, type SubscriptionInput, type SubscriptionView, type TestResult } from '../../api/integration.js';
 import { fill, tr } from '../../i18n.js';
 import { T } from '../T.js';
 import { CopyBox, ErrorNote, packageLabel, splitList, when } from './common.js';
@@ -72,7 +72,7 @@ export function SubscriptionsTab({ packages }: Props): React.JSX.Element {
         const made = await integrationApi.createSubscription(input);
         setSecret({ name: made.subscription.name, secret: made.secret });
       } else if (editing) {
-        await integrationApi.updateSubscription(editing.id, input);
+        await integrationApi.updateSubscription(editing.id, toSubscriptionPatch(input));
       }
     });
     if (ok) {
@@ -174,7 +174,9 @@ export function SubscriptionsTab({ packages }: Props): React.JSX.Element {
                         disabled={working}
                         onClick={() =>
                           void act(async () => {
-                            const rotated = await integrationApi.rotateSecret(item.id);
+                            const rotated = await integrationApi.rotateSecret(item.id).catch((caught: unknown) => {
+                              throw explainConflict(caught, tr('비밀값은 24시간에 한 번만 바꿀 수 있습니다 — 이전 비밀값이 아직 함께 쓰이는 동안에는 다시 바꾸지 못합니다. 하루 뒤에 다시 하십시오.'));
+                            });
                             setSecret({ name: item.name, secret: rotated.secret, ...(rotated.previousValidUntil ? { previousValidUntil: rotated.previousValidUntil } : {}) });
                           })
                         }
@@ -293,11 +295,13 @@ export function SubscriptionForm({ initial, packages, working, onSave, onCancel 
       </label>
       <label>
         <span>{tr('방식')}</span>
-        <select value={kind} onChange={(event) => setKind(event.target.value === 'mqtt' ? 'mqtt' : 'webhook')}>
+        {/* The kind is fixed at creation — the server refuses it in a PATCH */}
+        <select value={kind} disabled={initial !== undefined} onChange={(event) => setKind(event.target.value === 'mqtt' ? 'mqtt' : 'webhook')}>
           <option value="webhook">{tr('웹훅 (HTTPS POST)')}</option>
           <option value="mqtt">MQTT</option>
         </select>
       </label>
+      {initial && <p className="hint">{tr('방식은 만든 뒤 바꿀 수 없습니다 — 바꾸려면 새 구독을 만드십시오.')}</p>}
       <label>
         <span>{tr('주소')}</span>
         <input
@@ -309,6 +313,9 @@ export function SubscriptionForm({ initial, packages, working, onSave, onCancel 
       {kind === 'mqtt' && (
         <>
           <p className="hint">{tr('브로커 계정은 주소에 user:password@ 로 적으면 서버가 떼어 내 암호화해 보관합니다. MQTT 에는 서명이 없으니 mqtts 와 브로커 권한(ACL)으로 지키십시오.')}</p>
+          {initial && (
+            <p className="hint warn">{tr('주소의 호스트를 바꾸면 저장된 브로커 계정이 지워집니다 — 새 호스트의 계정을 주소에 user:password@ 로 함께 적으십시오.')}</p>
+          )}
           <label>
             <span>{tr('토픽 앞부분')}</span>
             <input value={topicPrefix} placeholder="vexplor/aas/…" onChange={(event) => setTopicPrefix(event.target.value)} />
