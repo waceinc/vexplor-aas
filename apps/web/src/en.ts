@@ -1268,4 +1268,8 @@ export const EN_MORE: Record<string, string> = {
   '다른 곳에서 먼저 저장했습니다. 다시 읽은 뒤 고쳐 주십시오 — 지금 고친 내용은 저장되지 않았습니다.': 'Saved elsewhere first. Reload and make your change again — what you changed here was not saved.',
   '적용하지 않았습니다 — 바뀔 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건이 있어 아무것도 바꾸지 않았습니다': 'Not applied — {0} number(s) to change, but {1} row error(s) and {2} conflict(s), so nothing was changed',
   '{0} · 마지막 계산 {1}': '{0} · last run {1}',
+  '비밀값은 24시간에 한 번만 바꿀 수 있습니다 — 이전 비밀값이 아직 함께 쓰이는 동안에는 다시 바꾸지 못합니다. 하루 뒤에 다시 하십시오.': 'The secret can be rotated once every 24 hours — while the previous secret still signs, it cannot be rotated again. Try again after a day.',
+  '지금 보내는 중인 건은 다시 보낼 차례에 넣을 수 없습니다 — 이번 시도가 끝난 뒤 다시 하십시오.': 'A delivery that is being sent right now cannot be queued again — try once this attempt has finished.',
+  '주소의 호스트를 바꾸면 저장된 브로커 계정이 지워집니다 — 새 호스트의 계정을 주소에 user:password@ 로 함께 적으십시오.': 'Changing the host in the address clears the stored broker credentials — write the new host\'s credentials into the address as user:password@.',
+  '방식은 만든 뒤 바꿀 수 없습니다 — 바꾸려면 새 구독을 만드십시오.': 'The kind cannot change after creation — create a new subscription to use another kind.',
 };
