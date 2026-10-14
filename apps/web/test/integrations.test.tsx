@@ -5,7 +5,7 @@
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
@@ -122,7 +122,11 @@ describe('Integrations — who sees what', () => {
     expect(screen.getAllByRole('tab').map((item) => item.textContent)).toEqual(['상태', '내보내기', '준비 점검']);
     expect((screen.getByLabelText('읽어 가는 주소') as HTMLInputElement).value).toContain('/integrations/events?after=0');
     expect(screen.queryByRole('tab', { name: '보내기 구독' })).toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // An admin's status request is started by the mount effect; give every effect and the promises it queued one
+    // macrotask turn to run — then "not requested" is a fact, not a race
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(seen.some((item) => item.path === '/integrations/status')).toBe(false);
   });
 

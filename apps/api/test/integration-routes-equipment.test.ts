@@ -299,11 +299,21 @@ describe('bounded heavy reads (review M6, M5)', () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
     const read = store.readValues.bind(store);
-    Object.assign(store, { readValues: async (...args: Parameters<typeof read>) => (await gate, read(...args)) });
+    // Both heavy reads must hold their slot before the third asks — a fixed sleep raced on slow CI runners
+    let started = 0;
+    let bothStarted!: () => void;
+    const bothRunning = new Promise<void>((resolve) => (bothStarted = resolve));
+    Object.assign(store, {
+      readValues: async (...args: Parameters<typeof read>) => {
+        if (++started === 2) bothStarted();
+        await gate;
+        return read(...args);
+      },
+    });
     const query = { packageId: record.id, from: '2026-10-13T23:00:00.000Z', to: '2026-10-14T23:00:00.000Z' };
     const first = call('GET', '/integrations/equipment/segments', { as: 'viewer', query });
     const second = call('GET', '/integrations/equipment/oee-inputs', { as: 'viewer', query: { packageId: record.id, day: '2026-10-14' } });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await bothRunning;
     const third = await call('GET', '/integrations/meters', { as: 'viewer', query: { ...query, counter: 'produced' } });
     expect(third.status).toBe(503);
     expect(third.headers['retry-after']).toBe('5');

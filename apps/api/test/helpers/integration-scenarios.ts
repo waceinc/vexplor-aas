@@ -26,6 +26,18 @@ export async function memoryStore(now?: () => string): Promise<InMemoryStore & I
   return store;
 }
 
+/**
+ * Waits until `condition` holds — for "X has happened" in tests, instead of a fixed sleep that a slow CI runner
+ * outruns. Polls every 5 ms (real timers); fails after `timeoutMs` with what it was waiting for.
+ */
+export async function until(condition: () => boolean | Promise<boolean>, what: string, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await condition())) {
+    if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs} ms waiting for: ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 /** A controllable clock in epoch ms */
 export function clock(start = '2026-10-14T00:00:00.000Z'): { now: () => number; iso: () => string; advance: (ms: number) => void } {
   let at = Date.parse(start);

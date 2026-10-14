@@ -4,7 +4,7 @@
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.js';
@@ -105,8 +105,8 @@ describe('daily state with server rules', () => {
   }
 
   /** Mocked API: the server config and auth vary per test; tag values are "RUNNING_X" two minutes ago */
-  function serve(options: { config?: { status: number; body?: unknown }; role?: 'admin' | 'viewer'; packageConfig?: unknown }): Seen[] {
-    const seen: Seen[] = [];
+  function serve(options: { config?: { status: number; body?: unknown }; role?: 'admin' | 'viewer'; packageConfig?: unknown }): Seen[] & { meRead: boolean } {
+    const seen = Object.assign([] as Seen[], { meRead: false });
     const sample = (property: string) => ({
       packageId: 'p1',
       interfaceName: 'PLC1',
@@ -124,7 +124,19 @@ describe('daily state with server rules', () => {
       if (url.pathname === '/integrations/config' && (init?.method ?? 'GET') === 'GET') return reply(options.config?.status ?? 200, options.config?.body ?? {});
       if (url.pathname === '/integrations/config') return reply(200, { value: body, revision: 1 });
       if (url.pathname === '/auth/me') {
-        return reply(200, { authenticated: true, setupNeeded: false, authRequired: true, user: { id: 'u', login: 'u', displayName: 'u', role: options.role ?? 'viewer', level: 'full' } });
+        const response = reply(200, { authenticated: true, setupNeeded: false, authRequired: true, user: { id: 'u', login: 'u', displayName: 'u', role: options.role ?? 'viewer', level: 'full' } });
+        // Lets a test wait for "the component has read who is logged in" instead of guessing a delay
+        for (const method of ['json', 'text'] as const) {
+          const read = response[method].bind(response);
+          Object.defineProperty(response, method, {
+            value: async () => {
+              const value: unknown = await read();
+              seen.meRead = true;
+              return value;
+            },
+          });
+        }
+        return response;
       }
       if (url.pathname === '/packages/p1/interfaces') {
         return reply(200, { source: 'aid', interfaces: [{ name: 'PLC1', protocol: 'OPCUA', properties: [{ name: 'MachineStatus', observable: true }, { name: 'LineState', observable: true }] }] });
@@ -201,10 +213,15 @@ describe('daily state with server rules', () => {
 
   it('does not offer the move to a non-admin', async () => {
     localStorage.setItem('aas.stateRules', JSON.stringify({ run: ['RUNNING_X'] }));
-    serve({ config: { status: 200, body: { ...serverConfig(['가동']), revision: 0 } }, role: 'viewer' });
+    const seen = serve({ config: { status: 200, body: { ...serverConfig(['가동']), revision: 0 } }, role: 'viewer' });
     const section = showBar();
     await waitFor(() => expect(section.querySelector('.state-totals')?.textContent).toMatch(/^판정 못함 /));
-    await new Promise((resolve) => setTimeout(resolve, 20)); // let /auth/me settle
+    // The viewer role must have arrived before "no button" means anything: wait until /auth/me was read, then let
+    // the resulting state update render (one macrotask turn runs every promise continuation queued before it)
+    await waitFor(() => expect(seen.meRead).toBe(true));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(within(section).queryByRole('button', { name: '브라우저 규칙을 서버로 옮기기' })).toBeNull();
   });
 });

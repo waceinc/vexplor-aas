@@ -18,7 +18,7 @@ import { startIntegrations } from '../src/integration/boot.js';
 import { hashPassword } from '../src/password.js';
 import { verifySignature } from '../src/integration/signing.js';
 import { sendWebhook } from '../src/integration/webhook.js';
-import { clock, KEY, memoryStore, startReceiver } from './helpers/integration-scenarios.js';
+import { clock, KEY, memoryStore, startReceiver, until } from './helpers/integration-scenarios.js';
 
 const closers: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -81,7 +81,8 @@ describe('startIntegrations', () => {
     await store.appendEvents([{ id: 'evt_new', type: EVENT_TYPES.equipmentStateChanged, time: time.iso(), data: {} }]);
     const boot = startIntegrations({ store, env: { INTEGRATION_RETENTION_DAYS: '10' }, demo: false, storeKind: 'memory', now: time.now });
     closers.push(() => boot.stop());
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // The boot prunes asynchronously — wait for the prune itself, not for a guessed amount of time
+    await until(async () => (await store.readEvents({ after: 0, limit: 10 })).items.length === 1, 'the boot-time prune');
     expect((await store.readEvents({ after: 0, limit: 10 })).items.map((row) => row.id)).toEqual(['evt_new']);
   });
 
@@ -133,8 +134,8 @@ describe('end to end', () => {
 
     const created = await (await api('POST', '/integrations/subscriptions', { name: 'MES', kind: 'webhook', url: `http://receiver.test:${receiver.port}/hook`, types: ['model.*'] })).json() as { secret: string };
     expect(created.secret).toMatch(/^whsec_/);
-    // Let the dispatcher take its first cursor before anything happens
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    // The dispatcher's first pass sets its cursor to "now" — wait until it has, so the upload below is delivered
+    await until(async () => (await store.getRuntimeState('dispatcher:cursor')) !== undefined, 'the dispatcher cursor', 20_000);
 
     const upload = await api('POST', '/packages?name=01.aasx', new Uint8Array(goldenBytes), 'application/octet-stream');
     const { packageId } = (await upload.json()) as { packageId: string };
@@ -154,8 +155,9 @@ describe('end to end', () => {
     expect([...revisions].sort((a, b) => a - b)).toEqual(revisions);
 
     // The webhook receives the same events, signed
-    for (let i = 0; i < 50 && receiver.requests.length < feed.items.length; i++) await new Promise((resolve) => setTimeout(resolve, 100));
-    const delivered = receiver.requests.map((request) => request.headers['webhook-id']);
+    const deliveredIds = () => receiver.requests.map((request) => request.headers['webhook-id']);
+    await until(() => relevant.every((item) => deliveredIds().includes(item.id)), 'the webhook to receive the three events', 15_000);
+    const delivered = deliveredIds();
     for (const item of relevant) expect(delivered).toContain(item.id);
     const first = receiver.requests[0]!;
     expect(

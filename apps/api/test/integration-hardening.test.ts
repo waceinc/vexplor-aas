@@ -166,14 +166,20 @@ describe('item 9 — concurrent first deliveries share one MQTT connection', () 
   it('four at once → one connect, one close', async () => {
     let connects = 0;
     let closes = 0;
+    // The connect stays open until all four deliveries have asked for a connection — overlap by construction,
+    // not by a guessed delay
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
     const sink = new MqttSink(async (): Promise<MqttSinkClient> => {
       connects++;
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await gate;
       return { connected: true, publish: async () => undefined, close: async () => void closes++ };
     }, () => 'x');
     const target = { subscriptionId: 'sub_1', url: 'mqtts://b.example.com', lookup: pinnedLookup('93.184.216.34'), servername: 'b.example.com' };
     const event = { specversion: '1.0', id: 'evt_1', source: 'x', type: EVENT_TYPES.equipmentStateChanged, time: 't', datacontenttype: 'application/json', sequence: '1', data: {} } as const;
-    await Promise.all([1, 2, 3, 4].map(() => sink.deliver(target, { ...event }, Buffer.from('{}'))));
+    const deliveries = [1, 2, 3, 4].map(() => sink.deliver(target, { ...event }, Buffer.from('{}')));
+    open();
+    await Promise.all(deliveries);
     await sink.close();
     expect(connects).toBe(1);
     expect(closes).toBe(1);
