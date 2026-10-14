@@ -55,7 +55,7 @@ export function testServices(options: {
     masterKey: 'env',
     now: options.now ?? Date.now,
     status: () => ({ enabled: options.enabled ?? false, running: [], demo: options.demo ?? false }),
-    opcua: () => ({ security: 'off' }),
+    opcua: () => ({ security: 'off', running: false }),
   };
 }
 
