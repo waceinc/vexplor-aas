@@ -14,7 +14,7 @@
  *    (`header.open` 같은) 코드에서 무슨 글자인지 안 보이고, 사전에 없을 때 빈칸이 뜬다.
  *    한국어를 열쇠로 두면 **못 찾아도 한국어가 그대로 나온다** — 최악이 "안 번역됨"이다.
  */
-import { setLangSource } from '@aas/core';
+import { lookupEn, setLangSource } from '@aas/core';
 import { EN_MORE } from './en.js';
 
 export type Lang = 'ko' | 'en';
@@ -378,12 +378,25 @@ const EN: Record<string, string> = {
   '다시 읽기': 'Reload',
 };
 
+/**
+ * 고른 언어. 고른 적이 없으면 **브라우저 언어**를 따른다 — 한국어 브라우저는 한국어, 그 밖은 영어
+ * (대표 2026-10-14 「글로벌을 우선시」). 고른 것은 그대로 기억한다.
+ */
 export function readLang(): Lang {
+  let stored: string | null = null;
   try {
-    return window.localStorage.getItem(KEY) === 'en' ? 'en' : 'ko';
+    stored = window.localStorage.getItem(KEY);
   } catch {
-    return 'ko'; // 사생활 보호 창에서는 localStorage가 던진다 — 한국어로 간다
+    // 사생활 보호 창에서는 localStorage가 던진다 — 브라우저 언어로 간다
   }
+  if (stored === 'en' || stored === 'ko') return stored;
+  return browserLang();
+}
+
+/** 브라우저가 첫째로 원하는 언어 — 한국어면 ko, 그 밖(모르는 경우 포함)은 en */
+export function browserLang(languages: readonly string[] | undefined = globalThis.navigator?.languages): Lang {
+  const first = languages?.[0] ?? globalThis.navigator?.language ?? '';
+  return first.toLowerCase().startsWith('ko') ? 'ko' : 'en';
 }
 
 export function writeLang(lang: Lang): void {
@@ -419,6 +432,11 @@ export function fill(text: string, values: Record<string, string | number | unde
  */
 const current: Lang = readLang();
 
+/** 날짜 · 시각 · 숫자 형식의 지역 — 고른 언어를 따른다(브라우저 기본값에 맡기면 영어 화면에 「오전 8:00」이 나온다) */
+export function locale(): string {
+  return current === 'en' ? 'en-US' : 'ko-KR';
+}
+
 /** 지금 언어 — 서버에 싣는 값(api/http.ts) */
 export function currentLang(): Lang {
   return current;
@@ -438,4 +456,12 @@ if (typeof document !== 'undefined') document.documentElement.lang = current;
  */
 export function tr(text: string): string {
   return current === 'ko' ? text : (EN[text] ?? EN_MORE[text] ?? text);
+}
+
+/**
+ * 서버가 준 **값**을 보여 줄 때 — 번들 분류 이름처럼 서버가 한국어 자료로 들고 있는 것.
+ * 서버 사전(@aas/core)에서 찾는다. 값 자체는 바꾸지 않고 보이는 글자만 옮긴다(보낼 때는 원래 값).
+ */
+export function trServerValue(text: string): string {
+  return current === 'ko' ? text : (lookupEn(text) ?? text);
 }

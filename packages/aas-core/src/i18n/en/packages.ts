@@ -97,4 +97,5 @@ export const EN_PACKAGES: Record<string, string> = {
   'Modbus 주소가 잘못됐습니다: {0}': 'Invalid Modbus address: {0}',
   'quantity 가 잘못됐습니다: {0}': 'Invalid quantity: {0}',
   '잘못된 MQTT 길이': 'Invalid MQTT length',
+  '가상 PLC (시뮬레이션)': 'Virtual PLC (simulation)',
 };

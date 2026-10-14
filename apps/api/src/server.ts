@@ -344,7 +344,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       ? {
           simulate: async (environment: Parameters<SimulatorServer['attach']>[0]) => ({
             ...(await (await simulatorOnce()).attach(environment)),
-            title: (await opcua()).SIMULATOR_TITLE,
+            // 파일에 적히는 연결 이름 — 만든 사람의 언어로. 증빙 판정은 이름이 아니라 경로 · 표지로 가린다(evidence.ts)
+            title: tr((await opcua()).SIMULATOR_TITLE),
           }),
         }
       : {}),

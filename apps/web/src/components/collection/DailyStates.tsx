@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { api } from '../../api.js';
-import { fill, tr } from '../../i18n.js';
+import { fill, locale, tr } from '../../i18n.js';
 import { DEFAULT_STATE_RULES, dayWindow, normalizeState, parseRuleList, pickStateTag, stateTimeline, stateTotals, type BarState, type Segment, type StateRules } from './states.js';
 
 export interface StateRow {
@@ -84,7 +84,7 @@ export function DailyStates({ rows, holdMs, version = '', t }: Props): React.JSX
       <div className="daily-head">
         <h4>{t('하루 상태')}</h4>
         <button className="link" aria-label={tr('앞 날')} onClick={() => move(-1)}>◀</button>
-        <span className="mono">{fill(tr('{0} {1}:00 부터 24시간'), { 0: day.toLocaleDateString(), 1: String(START_HOUR).padStart(2, '0') })}</span>
+        <span className="mono">{fill(tr('{0} {1}:00 부터 24시간'), { 0: day.toLocaleDateString(locale()), 1: String(START_HOUR).padStart(2, '0') })}</span>
         <button className="link" aria-label={tr('다음 날')} disabled={day.getTime() >= today.getTime()} onClick={() => move(1)}>▶</button>
         <span className="spacer" />
         <button className="link" onClick={() => setEditing(!editing)}>{tr('판정 규칙')}</button>
@@ -178,7 +178,7 @@ function StateLine({ row, day, rules, holdMs, version }: { row: StateRow; day: D
             key={segment.from}
             className={`state-seg state-${segment.state}`}
             style={{ left: `${((segment.from - start) / span) * 100}%`, width: `${((segment.to - segment.from) / span) * 100}%` }}
-            title={`${new Date(segment.from).toLocaleTimeString()} ~ ${new Date(segment.to).toLocaleTimeString()} · ${label(segment.state)}`}
+            title={`${new Date(segment.from).toLocaleTimeString(locale())} ~ ${new Date(segment.to).toLocaleTimeString(locale())} · ${label(segment.state)}`}
           />
         ))}
       </div>

@@ -69,13 +69,29 @@ const layerMeaning = (): Record<Layer, { title: string; meaning: string }> => ({
   },
 });
 
+/**
+ * 규칙 근거에 든 사내 문서 이름 — 규칙 쪽은 파일 이름 그대로 들고 있고(i18n-ignore), **보여 줄 때만** 옮긴다.
+ * 파일 이름을 바꾸면 근거를 찾아가는 길이 끊기므로 원래 값은 건드리지 않는다.
+ */
+const SOURCE_DOCUMENTS = [
+  '02_Validator_대응규칙.md', // i18n-ignore — 근거 문서 파일 이름(아래에서 tr로 옮긴다)
+  '04_린터_규칙_명세.md', // i18n-ignore — 근거 문서 파일 이름(아래에서 tr로 옮긴다)
+  'AAS 참조모델 제약조건 spec_260812.pdf', // i18n-ignore — 근거 문서 파일 이름(아래에서 tr로 옮긴다)
+] as const;
+
+function sourceText(source: string): string {
+  let text = source;
+  for (const document of SOURCE_DOCUMENTS) text = text.split(document).join(tr(document));
+  return text;
+}
+
 export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
   const merged = { ...DEFAULT_POLICY, ...policy };
   const rules: RuleInfo[] = ALL_RULES.map((rule) => ({
     id: rule.id,
     layer: rule.layer,
     title: rule.title,
-    source: rule.source,
+    source: sourceText(rule.source),
     fixable: rule.id in FIXERS,
   }));
 

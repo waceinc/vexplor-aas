@@ -3,7 +3,7 @@
  * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
  */
 import type { BundleView } from '../../api.js';
-import { fill, tr } from '../../i18n.js';
+import { fill, tr, trServerValue } from '../../i18n.js';
 
 interface Props {
   view: BundleView | undefined;
@@ -32,14 +32,19 @@ export function BundleForm({ view, busy, readyCount, code, setCode, title, setTi
         <select value={code} onChange={(event) => setCode(event.target.value)}>
           {Object.entries(view?.categories ?? { RB01: '' }).map(([key, name]) => (
             <option key={key} value={key}>
-              {key} {name}
+              {key} {trServerValue(name)}
             </option>
           ))}
         </select>
       </label>
       <label className="grow">
         {tr('제목')}
-        <input value={title} placeholder={category} onChange={(event) => setTitle(event.target.value)} />
+        <input
+          value={title}
+          // 비워 두면 분류 이름(한국어 — 사업이 정한 이름)이 제목이 된다. 영어 화면에서는 뜻을 곁들인다
+          placeholder={trServerValue(category) === category ? category : `${category} — ${trServerValue(category)}`}
+          onChange={(event) => setTitle(event.target.value)}
+        />
       </label>
       <label>
         {tr('버전')}

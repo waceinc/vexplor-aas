@@ -2,7 +2,7 @@
  * 레퍼런스 번들 — 한눈에 — 숫자 다섯(설비 · 사전 점검 · 공통 항목 · 확인할 점 · 실동작 증빙).
  * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
  */
-import { fill, tr } from '../../i18n.js';
+import { fill, locale, tr } from '../../i18n.js';
 import { T } from '../T.js';
 
 interface Props {
@@ -52,7 +52,7 @@ export function BundleStats({ members, ready, planned, failing, aasd120, common,
         <span className="sub">{tr('semanticId 재사용')}</span>
       </div>
       <div className={`stat ${samples > 0 ? 'ok' : 'warn'}`}>
-        <span className="num">{samples > 0 ? samples.toLocaleString('ko-KR') : '—'}</span>
+        <span className="num">{samples > 0 ? samples.toLocaleString(locale()) : '—'}</span>
         <span className="label">{tr('실동작 증빙')}</span>
         <span className="sub">
           {samples > 0

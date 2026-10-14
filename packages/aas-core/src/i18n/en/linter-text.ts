@@ -301,4 +301,8 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   'submodelCountRange는 정수 두 개여야 합니다. 예: [6, 8]': 'submodelCountRange must be two integers, e.g. [6, 8]',
   'submodelCountRange의 최솟값이 최댓값보다 큽니다.': 'The minimum of submodelCountRange is greater than its maximum.',
   '아직 정책 파일로 바꿀 수 없는 항목입니다: {0}': 'This key cannot be changed through a policy file yet: {0}',
+  // 규칙 근거 문서 이름(catalog.ts sourceText) — 사내 문서라 영어 화면에서는 뜻으로 적는다
+  '02_Validator_대응규칙.md': 'Validator response rules (doc 02)',
+  '04_린터_규칙_명세.md': 'Linter rule specification (doc 04)',
+  'AAS 참조모델 제약조건 spec_260812.pdf': 'AAS reference model constraints (spec 2026-08-12)',
 };
