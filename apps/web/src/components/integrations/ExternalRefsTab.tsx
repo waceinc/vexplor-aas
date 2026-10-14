@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { PackageDescription } from '../../api.js';
-import { claimsOf, integrationApi, isStale, type ExternalRef, type ExternalRefsDoc, type RefClaim, type RefImportResult } from '../../api/integration.js';
+import { claimsOf, fieldErrorsOf, integrationApi, rejectedImportOf, isStale, type ExternalRef, type ExternalRefsDoc, type RefClaim, type RefImportResult } from '../../api/integration.js';
 import { fill, tr } from '../../i18n.js';
 import { ErrorNote, PackagePicker, StaleNote } from './common.js';
 
@@ -90,7 +90,7 @@ function Claims({ claims }: { claims: readonly RefClaim[] }): React.JSX.Element 
       <ul>
         {claims.map((claim) => (
           <li key={`${claim.packageId}-${claim.subject}-${claim.id}`} className="mono">
-            {claim.system} · {claim.type} · {claim.id} → {claim.packageId} ({claim.subject})
+            {claim.system} · {claim.type} · {claim.id} → {claim.claimedBy?.packageId ?? claim.packageId} ({claim.claimedBy?.subject ?? claim.subject})
           </li>
         ))}
       </ul>
@@ -162,6 +162,7 @@ export function ExternalRefsTab({ edit, packages }: Props): React.JSX.Element {
     } catch (caught) {
       if (isStale(caught)) setStale(true);
       else if (claimsOf(caught).length > 0) setClaims(claimsOf(caught));
+      else if (fieldErrorsOf(caught).length > 0) setProblems(fieldErrorsOf(caught).map((item) => `${item.path} ${item.message}`));
       else setError(caught);
     }
   };
@@ -273,7 +274,7 @@ export function ExternalRefsTab({ edit, packages }: Props): React.JSX.Element {
 /** CSV import — always a dry run first; "apply" is offered only for a run without errors and conflicts */
 function RefImport({ onApplied }: { onApplied: () => void }): React.JSX.Element {
   const [csv, setCsv] = useState('');
-  const [result, setResult] = useState<{ dryRun: boolean; value: RefImportResult }>();
+  const [result, setResult] = useState<{ dryRun: boolean; rejected?: boolean; value: RefImportResult }>();
   const [error, setError] = useState<unknown>();
 
   const run = async (dryRun: boolean): Promise<void> => {
@@ -283,7 +284,10 @@ function RefImport({ onApplied }: { onApplied: () => void }): React.JSX.Element 
       setResult({ dryRun, value });
       if (!dryRun) onApplied();
     } catch (caught) {
-      setError(caught);
+      // The data changed between the dry run and the apply — the server refused it whole, show its report
+      const rejected = rejectedImportOf(caught);
+      if (rejected) setResult({ dryRun: false, rejected: true, value: rejected });
+      else setError(caught);
     }
   };
   const clean = result?.dryRun === true && result.value.errors.length === 0 && result.value.conflicts.length === 0;
@@ -316,7 +320,7 @@ function RefImport({ onApplied }: { onApplied: () => void }): React.JSX.Element 
       {result && (
         <div className="import-result">
           <p className={result.value.errors.length + result.value.conflicts.length > 0 ? 'note error' : 'note ok'}>
-            {fill(result.dryRun ? tr('미리 보기 — 바뀔 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건') : tr('적용했습니다 — 바뀐 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건'), {
+            {fill(result.dryRun ? tr('미리 보기 — 바뀔 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건') : result.rejected ? tr('적용하지 않았습니다 — 바뀔 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건이 있어 아무것도 바꾸지 않았습니다') : tr('적용했습니다 — 바뀐 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건'), {
               0: changed,
               1: result.value.errors.length,
               2: result.value.conflicts.length,

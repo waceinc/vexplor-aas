@@ -452,7 +452,7 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Export' }
         '422':
-          description: BomRootMismatch — readiness check INT-2 failed (hierarchy root differs from the shell asset)
+          description: BomRootMismatch (readiness check INT-2 — hierarchy root differs from the shell asset) or NoBom (the file has no hierarchy to read a BOM from)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Result' }
@@ -469,6 +469,11 @@ paths:
         - $ref: '#/components/parameters/Lang'
       responses:
         '200': { $ref: '#/components/responses/Export' }
+        '422':
+          description: NoHierarchy — the file is not a process file with a hierarchy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
   /integrations/exports/maintenance:
     get:
       tags: [exports]
@@ -630,6 +635,11 @@ paths:
                         message: { type: string }
                   conflicts: { type: array, items: { $ref: '#/components/schemas/RefClaim' } }
                   revisions: { type: object, additionalProperties: { type: integer } }
+        '422':
+          description: ImportRejected — an apply (no dryRun) with row errors or conflicts; nothing changed, the body carries the same report
+          content:
+            application/json:
+              schema: { type: object }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /integrations/equipment/segments:
@@ -1170,6 +1180,12 @@ components:
         id: { type: string }
         packageId: { type: string }
         subject: { type: string }
+        claimedBy:
+          type: object
+          description: Import conflicts only — the existing holder
+          properties:
+            packageId: { type: string }
+            subject: { type: string }
     CounterDelta:
       type: object
       nullable: true

@@ -230,6 +230,8 @@ export interface RefClaim {
   id: string;
   packageId: string;
   subject: string;
+  /** Import conflicts: who already holds the number (packageId / subject are then the row's own claim) */
+  claimedBy?: { packageId: string; subject: string };
 }
 
 export interface RefImportResult {
@@ -237,6 +239,14 @@ export interface RefImportResult {
   errors: { row: number; message: string }[];
   conflicts: RefClaim[];
   revisions?: Record<string, number>;
+}
+
+/** 422 `ImportRejected` — an apply with errors or conflicts changes nothing and returns the same report */
+export function rejectedImportOf(caught: unknown): RefImportResult | undefined {
+  if (!(caught instanceof IntegrationError) || caught.status !== 422) return undefined;
+  const body = caught.body as Partial<RefImportResult> | undefined;
+  if (!body || !Array.isArray(body.errors) || !Array.isArray(body.conflicts)) return undefined;
+  return { changes: Array.isArray(body.changes) ? body.changes : [], errors: body.errors, conflicts: body.conflicts };
 }
 
 export interface OpcuaCertificate {

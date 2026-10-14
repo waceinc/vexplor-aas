@@ -124,7 +124,8 @@ test labs), internal numbers should not.
 - Edit them in **Integrations → External references**, or import a CSV (columns
   `globalAssetId,subjectKind,subjectKey,system,type,id,publish,sensitive,externalSubjectId`). The import is always shown
   as a dry run first; it adds and updates only — it never deletes numbers missing from the file. Importing the same file
-  twice changes nothing the second time.
+  twice changes nothing the second time. Row numbers count the header as line 1. An apply that still finds row errors
+  or conflicts is refused whole (422 `ImportRejected`, same report, nothing changed).
 - Deleting a file that has external references asks first; connected systems then receive
   `equipment.master.changed` with `operation: "removed"` (the ERP "retired" signal).
 
@@ -433,15 +434,15 @@ credentials may be written in the URL as `user:password@`; the server strips the
 
 All exports: `format=json|csv` (default json). CSV is RFC 4180 (CRLF line ends, `.` decimals, ISO dates, formula
 injection escaped). Multi-values are joined with `;` (`;` inside a value is written `\;`). Options: `bom=1` adds a UTF-8
-byte order mark (Excel), `headers=keys|ko` (**keys are the contract**; `ko` gives Korean labels for people),
+byte order mark (Excel), `headers=keys|ko` (**keys are the contract**; `ko` gives labels for people, in the request language — Korean by default, English with `lang=en` or `Accept-Language`),
 `meta=1` adds a first line `#schema=…`, `lang` picks the language of multi-language values (default `ko`, then `en`,
 then the first). Two exports without edits differ only in `exportedAt`. In the UI: **Integrations → Exports**.
 
 | Path | Schema | Notes |
 |---|---|---|
 | `GET /integrations/exports/equipment` | `vexplor.equipmentMaster/1` | One row per Instance shell; `packageId` optional (all visible files); `includeTypes=1`, `trace=1` (source paths), `profile=sap-pm` (length warnings) |
-| `GET /integrations/exports/bom?packageId=` | `vexplor.bom/1` | Refused with 422 `BomRootMismatch` when INT-2 fails |
-| `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | A process file; flat list with parent ids |
+| `GET /integrations/exports/bom?packageId=` | `vexplor.bom/1` | Refused with 422 `BomRootMismatch` when INT-2 fails, 422 `NoBom` when the file has no hierarchy |
+| `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | A process file; flat list with parent ids. 422 `NoHierarchy` for any other file |
 | `GET /integrations/exports/maintenance?packageId=` | `vexplor.maintenancePlan/1` | CSV has one row per step |
 | `GET /integrations/exports/documents?packageId=` | `vexplor.documents/1` | One row per document × version × file |
 

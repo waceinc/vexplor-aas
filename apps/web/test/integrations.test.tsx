@@ -363,6 +363,34 @@ describe('Integrations — rules, exports, references, certificates', () => {
     expect(seen[1]!.path).toBe('/integrations/external-refs/import');
   });
 
+  it('shows the server report when an apply is refused whole (422 ImportRejected), naming who holds the number', async () => {
+    let call = 0;
+    mockApi([
+      on('POST', /^\/integrations\/external-refs\/import/, () => {
+        call += 1;
+        if (call === 1) return { status: 200, body: { changes: [{ packageId: 'pkg_1', add: [{ system: 'icube:WACE', type: 'equipment', id: 'EQ-7' }], remove: [] }], errors: [], conflicts: [] } };
+        return {
+          status: 422,
+          body: {
+            messages: [{ code: 'ImportRejected', text: 'rejected' }],
+            changes: [],
+            errors: [],
+            conflicts: [{ system: 'icube:WACE', type: 'equipment', id: 'EQ-7', packageId: 'pkg_1', subject: 'asset|urn:asset:press-03', claimedBy: { packageId: 'pkg_9', subject: 'asset|urn:asset:other' } }],
+          },
+        };
+      }),
+    ]);
+    show(user('editor'));
+    tab('외부 번호');
+    fireEvent.change(screen.getByLabelText('CSV 내용'), { target: { value: 'globalAssetId,subjectKind,subjectKey,system,type,id\nurn:asset:press-03,asset,,icube:WACE,equipment,EQ-7\n' } });
+    fireEvent.click(screen.getByRole('button', { name: '미리 보기' }));
+    await screen.findByText('미리 보기 — 바뀔 번호 1개 · 오류 0줄 · 충돌 0건');
+    fireEvent.click(screen.getByRole('button', { name: '적용' }));
+    expect(await screen.findByText('적용하지 않았습니다 — 바뀔 번호 0개 · 오류 0줄 · 충돌 1건이 있어 아무것도 바꾸지 않았습니다')).toBeTruthy();
+    expect(screen.getByText(/icube:WACE · equipment · EQ-7 → pkg_9/)).toBeTruthy();
+    expect(screen.queryByText(/^적용했습니다/)).toBeNull();
+  });
+
   it('trusts a rejected OPC UA client certificate after confirmation', async () => {
     let trusted = false;
     const cert = { thumbprint: 'A1B2C3', subject: 'CN=UaExpert', notAfter: '2027-01-01T00:00:00.000Z' };
