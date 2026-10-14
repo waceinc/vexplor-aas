@@ -118,12 +118,15 @@ export function normalized(value: unknown): unknown {
 /**
  * Compares with a committed golden file. `UPDATE_GOLDEN=1` rewrites it — review the diff before committing: a changed
  * golden means the output an ERP / MES / CMMS integration parses has changed.
+ * Important: goldens are stored with LF (`.gitattributes` `text=auto` converts on checkout per platform), so line ends
+ *    are compared normalised. That CSV lines end with CRLF is asserted by integration-exports-csv.test.ts.
  */
 export function expectGolden(name: string, actual: string): void {
   const path = `apps/api/test/golden/integration/${name}`;
+  const lf = (value: string): string => value.replace(/\r\n/g, '\n');
   if (process.env['UPDATE_GOLDEN'] === '1') {
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, actual);
+    writeFileSync(path, lf(actual));
   }
-  expect(actual).toBe(readFileSync(path, 'utf8'));
+  expect(lf(actual)).toBe(lf(readFileSync(path, 'utf8')));
 }
