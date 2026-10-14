@@ -16,7 +16,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { EVENT_TYPE_PREFIX, EVENT_TYPES, fill, tr } from '@aas/core';
+import { fill, tr } from '@aas/core';
 
 import { actorFields } from './actor.js';
 import {
@@ -41,6 +41,7 @@ import {
   type SubscriptionSecrets,
   type Versioned,
 } from './integration-types.js';
+import { EventScanner } from './event-scan.js';
 import { externalRefsUpdatedEvent, firstShellFacts, type ModelEvent, type PackageFacts } from './model-events.js';
 import type { SqlClient } from './postgres.js';
 import { ConflictError, NotFoundError, type PackageScope, type PageQuery, type PageResult } from './types.js';
@@ -70,6 +71,9 @@ export function toIso(value: unknown): string {
 function sqlState(error: unknown): string | undefined {
   return (error as { code?: string } | null)?.code;
 }
+
+/** Raw rows fetched per round trip while scanning */
+const RAW_BATCH = 500;
 
 function clampLimit(limit: number | undefined, fallback: number): number {
   if (limit === undefined || !Number.isFinite(limit)) return fallback;
@@ -206,18 +210,6 @@ async function insertEvent(client: SqlClient, event: NewEvent, owner: { value: s
 export async function recordModelEvent(tx: SqlClient, event: ModelEvent): Promise<void> {
   const { owner, ...rest } = event;
   await insertEvent(tx, rest, { value: owner });
-}
-
-/** `typeMatches` (@aas/core) translated into exact names and prefixes for SQL. `all` = no restriction */
-function typeFilter(types: readonly string[] | undefined): { all: boolean; exact: string[]; prefixes: string[] } {
-  const out = { all: types === undefined || types.length === 0, exact: [] as string[], prefixes: [] as string[] };
-  for (const filter of types ?? []) {
-    const full = filter === '*' || filter.startsWith(EVENT_TYPE_PREFIX) ? filter : EVENT_TYPE_PREFIX + filter;
-    if (full === '*') out.all = true;
-    else if (full.endsWith('*')) out.prefixes.push(full.slice(0, -1));
-    else out.exact.push(full);
-  }
-  return out;
 }
 
 // ── row mapping ──────────────────────────────────────────────────────────────
@@ -361,39 +353,31 @@ export class PostgresIntegration implements IntegrationStore {
   }
 
   async readEvents(query: EventQuery, scope?: PackageScope): Promise<EventPage> {
-    const filter = typeFilter(query.types);
-    const { rows } = await this.client.query<EventRow>(
-      `SELECT ${EVENT_COLUMNS} FROM integration_event
-        WHERE seq > $1::bigint
-          AND ($2::text IS NULL OR package_id = $2)
-          AND ($3::boolean OR type <> $4)
-          AND ($5::text IS NULL OR owner IS NULL OR owner = $5)
-          AND ($6::boolean
-               OR type IN (SELECT jsonb_array_elements_text($7::jsonb))
-               OR EXISTS (SELECT 1 FROM jsonb_array_elements_text($8::jsonb) AS p(prefix)
-                           WHERE left(type, length(p.prefix)) = p.prefix))
-        ORDER BY seq
-        LIMIT $9`,
-      [
-        Math.max(0, Math.floor(query.after)),
-        query.packageId ?? null,
-        query.includeAudit === true,
-        EVENT_TYPES.integrationAudit,
-        scope?.owner ?? null,
-        filter.all,
-        JSON.stringify(filter.exact),
-        JSON.stringify(filter.prefixes),
-        clampLimit(query.limit, 200),
-      ],
-    );
+    // Raw rows in seq order — the settle rule needs the unfiltered sequence; filtering happens in the shared scanner
+    const scanner = new EventScanner(query, scope, clampLimit(query.limit, 200));
+    let after = Math.max(0, Math.floor(query.after));
+    for (;;) {
+      const { rows } = await this.client.query<EventRow>(
+        `SELECT ${EVENT_COLUMNS} FROM integration_event WHERE seq > $1::bigint ORDER BY seq LIMIT $2`,
+        [after, RAW_BATCH],
+      );
+      let more = true;
+      for (const row of rows) {
+        more = scanner.push(toStoredEvent(row));
+        if (!more) break;
+      }
+      if (!more || rows.length < RAW_BATCH) break;
+      after = Number(rows[rows.length - 1]!.seq);
+    }
     const bounds = await this.client.query<{ oldest: string | null; last: string | null }>(
       'SELECT min(seq)::text AS oldest, max(seq)::text AS last FROM integration_event',
     );
     const range = bounds.rows[0];
     return {
-      items: rows.map(toStoredEvent),
+      items: scanner.items,
       oldestSeq: range?.oldest === null || range?.oldest === undefined ? null : Number(range.oldest),
       lastSeq: range?.last === null || range?.last === undefined ? 0 : Number(range.last),
+      frontier: scanner.frontier,
     };
   }
 

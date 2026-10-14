@@ -38,6 +38,7 @@ import {
   type SubscriptionSecrets,
   type Versioned,
 } from './integration-types.js';
+import { EventScanner } from './event-scan.js';
 import { externalRefsUpdatedEvent } from './model-events.js';
 import { ConflictError, NotFoundError, type PackageScope, type PageQuery, type PageResult } from './types.js';
 
@@ -174,21 +175,13 @@ export class MemoryIntegrationLog implements IntegrationStore {
   }
 
   async readEvents(query: EventQuery, scope?: PackageScope): Promise<EventPage> {
-    const limit = clampLimit(query.limit, 200);
-    const items: StoredEvent[] = [];
-    for (const row of this.events) {
-      if (items.length >= limit) break;
-      if (row.seq <= query.after) continue;
-      if (!query.includeAudit && row.type === AUDIT_EVENT_TYPE) continue;
-      if (query.packageId !== undefined && row.packageId !== query.packageId) continue;
-      if (scope !== undefined && row.owner !== undefined && row.owner !== scope.owner) continue;
-      if (!typesMatch(query.types, row.type)) continue;
-      items.push(copy(row));
-    }
+    const scanner = new EventScanner(query, scope, clampLimit(query.limit, 200), copy);
+    for (const row of this.events) if (!scanner.push(row)) break;
     return {
-      items,
+      items: scanner.items,
       oldestSeq: this.events[0]?.seq ?? null,
       lastSeq: this.events[this.events.length - 1]?.seq ?? 0,
+      frontier: scanner.frontier,
     };
   }
 
