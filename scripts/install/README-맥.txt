@@ -45,3 +45,5 @@ Docker Desktop for Mac
   매뉴얼.pptx      설치부터 사용까지 그림으로 — 처음이면 이것부터 보십시오
   사용법.md        쓰는 사람용 (자세한 설명)
   설치안내서.md    관리자용 (백업·판올림·보안)
+  usage.md         User guide (English)
+  install.md       Installation guide for administrators (English)
