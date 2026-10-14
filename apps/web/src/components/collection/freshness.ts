@@ -12,15 +12,10 @@
 import type { CollectedValueView } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
 
+// The window constants live in @aas/core so the server detector uses the same window (docs/design/integration-v1.md §6.1)
+export { FRESH_WINDOW_MS, freshWindowMs } from '@aas/core';
+
 export type Freshness = 'live' | 'stale' | 'none';
-
-/** Default window — values that arrived within it are receiving */
-export const FRESH_WINDOW_MS = 5 * 60_000;
-
-/** Decides the window from the automatic collection interval — the larger of 3x the interval and 5 minutes */
-export function freshWindowMs(intervalMs: number | undefined): number {
-  return Math.max(FRESH_WINDOW_MS, 3 * (intervalMs ?? 0));
-}
 
 /** When the value arrived — reception time, or equipment time when absent (old records) */
 export function arrivedAt(value: CollectedValueView): string {

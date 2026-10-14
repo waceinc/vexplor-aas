@@ -1075,3 +1075,65 @@ Acceptance: §9 and §10; `i18n-scan --check` and `spacing-scan --check` green; 
 | 24 h soak (MES F) | MES | Not runnable in CI; a scripted soak (`scripts/integration-soak.mjs`) can follow the release |
 | Master-key rotation CLI | platform SHOULD | `keyId` is stored so rotation can be added without migration |
 | Folder store integration guarantees on network filesystems | platform | Documented as local-disk only |
+
+---
+
+## WP0 notes — choices where the design left room (2026-10-14)
+
+Recorded by WP0 so WP1–WP5 code against the same reading. Changing any of these is a contract change.
+
+**Core (`@aas/core`, `packages/aas-core/src/integration/`)**
+- Payload shapes are `type` aliases, not `interface`s: a type alias has an implicit index signature, so a payload can be
+  stored as `StoredEvent.data` (`Record<string, unknown>`) without a cast. Keep it that way when adding `.v2` shapes.
+- `EVENT_TYPES` is a keyed object (`EVENT_TYPES.equipmentStateChanged`), with `ALL_EVENT_TYPES` (catalogue order),
+  `DELIVERABLE_TYPES` (all except audit and ping), `EventDataMap` / `EventDataOf<T>`, `eventClassOf`, `shortEventType`.
+- `typeMatches(filter, type)`: exact or prefix ending in `*`; a filter **without** the `kr.vexplor.aas.` prefix is read as
+  if it had it (`equipment.*` = `kr.vexplor.aas.equipment.*`); `*` alone matches everything. `typesMatch(list, type)`:
+  undefined or empty list = every type (subscription creation must therefore reject an empty `types` list in the API).
+- A `CloudEvent<D>` type lives in core `events.ts` so the web client can type the pull feed; rendering stays in WP3.
+- `AssetJoin.globalAssetId` / `aasId` / `assetKind` are nullable (a package without an AAS still emits connection
+  events). `AssetJoinResolver = (packageId) => Promise<AssetJoin | null>`; null only for a missing package.
+- Config parsers are strict (unknown field = error) and return the complete value with defaults filled. Error `path` is a
+  JSON Pointer (`/alarms/0/raiseSamples`, `/` for the root). Defaults: `raiseSamples` / `clearSamples` 1, `hysteresis` 0,
+  `activeWhen` `"truthy"`, counter `kind` `"other"`, nullable fields `null`, `lostAfterFailures` 2, `shifts` `[]`.
+  Counter id `runtime` is reserved (the meters route uses it for computed run time). A rule word that normalises to the
+  same text under two states is rejected. Server config `schema` is required; a missing `instanceId` parses as `''` and
+  the API overwrites it with the stored id.
+- `ruleSetHashInput(rules)` returns canonical text (states in fixed order, words normalised, de-duplicated, sorted); the
+  API computes `ruleSetHash = "sha256:" + hex(sha256(text))` (hashing needs `node:crypto`, core stays browser-safe).
+  `effectiveStateRules(server, pkg)` picks the package override.
+- Also exported from core `states.ts`: `MachineStateOrUnknown`, `MACHINE_STATES`, `STATE_MATCH_ORDER`,
+  `normalizeStateWord`, `StateValue`. The web files re-export by name (not `export *`) so the web module surface is unchanged.
+
+**Store (`packages/store/src/`)**
+- `EventPage.oldestSeq` / `lastSeq` describe the whole retained log, unfiltered (`lastSeq` 0 when empty).
+- `readEvents` clamps `limit` into 1..1000 instead of throwing (the API validates and answers 400 first).
+- `enqueueDeliveries` skips rows of unknown subscriptions (PostgreSQL: insert with `WHERE EXISTS`, not an FK error).
+- `completeDelivery` changes only the delivery row; resetting `consecutiveDead` / setting `lastSuccessAt` is the
+  dispatcher's job through `updateSubscription`. `last*` fields describe the last attempt only (absent = cleared).
+  An unknown delivery id is a no-op.
+- `SubscriptionPatch`: a key present with `undefined` removes that optional field (`disabledReason: undefined`).
+- `deliveryStats` returns one entry per subscription, also with zero deliveries; `oldestPendingAt` = `createdAt` of the
+  oldest pending or in-flight row. `listDeliveries` cursor = id of the last returned row, newest first.
+- Revisions: `expectedRevision: 0` means "never saved" (matches `revision: 0` of the GET defaults). Re-putting the same
+  external-refs doc does not conflict with itself and still increments the revision (the general revision rule).
+- External-ref conflicts include two subjects of the same doc claiming one key; `claims` lists the existing claim then
+  the new one. The conflict check runs after the revision check and writes nothing.
+- `putPackageIntegrationConfig`, `putExternalRefs`, `putRuntimeState(…, packageId)` throw `NotFoundError` for an unknown
+  package (PostgreSQL must map its FK violation to it).
+- `MemoryIntegrationLog(ownerOf, { maxEvents, now, newId })`; `ownerOf` returns owner string / undefined (no owner) /
+  null (missing). `recordModelEvent` returns `undefined` for a duplicate id. `snapshot()` is versioned (`version: 1`) and
+  JSON-safe; `restore()` rebuilds the ref key index from the docs.
+- Store-level change helpers: `runWithChange`, `currentChange`, and `changeFields()` (mirror of `actorFields`).
+- The `ExternalRefConflictError` message key sits in `i18n/en/integration-core.ts` (WP0's dictionary), so the other four
+  dictionaries start empty; the server scan rejects a key defined in two files, so WP1 must not repeat it.
+
+**API (`apps/api/src/integration/ids.ts`)**
+- `settledPrefix(rows, after, now, settleMs = 30_000)` takes the cursor `after` explicitly (§2.4 text needs it) and
+  `now` in epoch ms; a gap passes only when the row after it is **older than** `settleMs` (exactly `settleMs` still holds).
+- `eventIdFor(type, subject, key, occurredAt, value)` hashes `canonicalJson([type, subject, key, occurredAt, value])`
+  (sorted keys, unambiguous field boundaries). `alarmInstanceIdFor` / `readingIdFor` hash the `|`-joined input of §2.3 / §6.4.
+  All ids are prefix + 26 Crockford base32 chars of sha256.
+- `newChangeSetId()` = `chg_` + 16 hex (64 random bits; the 8-hex example in §2.1 would collide too often).
+- `maskCredentials` replaces the password up to the **last** `@` of the authority (passwords may contain `@`) and keeps
+  everything else byte-for-byte; also exported: `base32Encode`, `canonicalJson`.
