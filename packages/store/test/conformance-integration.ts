@@ -11,6 +11,7 @@ import {
   ConflictError,
   ExternalRefConflictError,
   NotFoundError,
+  ORPHAN_OWNER,
   runAsActor,
   runWithChange,
   type AasStore,
@@ -533,6 +534,119 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       expect(await store.findExternalRef('sap-s4:PRD:100', 'equipment', '10001')).toEqual([{ packageId: p2, subject: 'asset|urn:example:asset:b' }]);
       expect((await store.listExternalRefs()).map((entry) => [entry.packageId, entry.refs.revision])).toEqual([[p1, 3], [p2, 1]].sort((x, y) => String(x[0]).localeCompare(String(y[0]))));
       await expect(store.putExternalRefs('pkg_missing', doc1)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    // ── review fixes: orphan owner (H1), gap-free dedupe (L2), refs events (M3), refs batch (M4) ──
+
+    it('appendEvents owner — package owner, explicit owner, explicit null, and ORPHAN_OWNER for a package that is gone', async () => {
+      const store = await fresh();
+      const kept = (await store.importPackage({ name: 'a', package: tinyPackage('a'), owner: 'ws1' })).id;
+      const gone = (await store.importPackage({ name: 'b', package: tinyPackage('b'), owner: 'ws2' })).id;
+      await store.deletePackage(gone);
+      const rows = await store.appendEvents([
+        ev('o1', { packageId: kept }),
+        ev('o2', { packageId: gone }),
+        ev('o3', { packageId: gone, owner: 'ws2' }),
+        ev('o4', { packageId: gone, owner: null }),
+        ev('o5', { packageId: kept, owner: 'ws9' }),
+        ev('o6'),
+      ]);
+      expect(rows.map((row) => [row.id, row.owner ?? 'shared'])).toEqual([
+        ['o1', 'ws1'],
+        ['o2', ORPHAN_OWNER],
+        ['o3', 'ws2'],
+        ['o4', 'shared'],
+        ['o5', 'ws9'],
+        ['o6', 'shared'],
+      ]);
+      // The input's owner is an instruction, never a stored null
+      for (const row of rows) expect(row.owner).not.toBeNull();
+      // A workspace reader never gets the orphan row
+      const ws1 = (await store.readEvents({ after: 0, limit: 100 }, { owner: 'ws1' })).items.map((row) => row.id);
+      expect(ws1).toEqual(expect.arrayContaining(['o1', 'o4', 'o6']));
+      expect(ws1).not.toContain('o2');
+      expect(ws1).not.toContain('o3');
+    });
+
+    it('a deduplicated append takes no seq — the next row follows without a gap', async () => {
+      const store = await fresh();
+      const [a] = await store.appendEvents([ev('g1')]);
+      expect(await store.appendEvents([ev('g1')])).toEqual([]);
+      expect(await store.appendEvents([ev('g1'), ev('g1')])).toEqual([]);
+      const [b] = await store.appendEvents([ev('g1'), ev('g2')]);
+      expect(b!.seq).toBe(a!.seq + 1);
+    });
+
+    it('putExternalRefs records model.externalrefs.updated in the same write; failed writes record nothing', async () => {
+      const { store, packageId } = await withPackage('ws1');
+      const event = await onlyEvent(store, () =>
+        runAsActor({ id: 'user_1', name: 'Kim' }, () =>
+          runWithChange({ cause: 'external-refs', changeSetId: 'chg_r' }, () =>
+            store.putExternalRefs(packageId, refsDoc('urn:example:asset:1', [{ system: 's', type: 't', id: '1' }]), 0),
+          ),
+        ),
+      );
+      expect(event).toMatchObject({
+        type: EVENT_TYPES.modelExternalRefsUpdated,
+        packageId,
+        subject: `packages/${packageId}`,
+        owner: 'ws1',
+        actorId: 'user_1',
+        cause: 'external-refs',
+        changeSetId: 'chg_r',
+      });
+      // No packageRevision: the package did not change, and receivers skip revisions they already applied
+      expect(event).not.toHaveProperty('packageRevision');
+      expect(event.data).toEqual({ packageId, revision: 1 });
+
+      const other = (await store.importPackage({ name: 'o', package: tinyPackage('o') })).id;
+      const before = await lastSeq(store);
+      await expect(store.putExternalRefs(packageId, refsDoc('urn:x', []), 0)).rejects.toBeInstanceOf(ConflictError);
+      await expect(store.putExternalRefs(other, refsDoc('urn:o', [{ system: 's', type: 't', id: '1' }]))).rejects.toBeInstanceOf(ExternalRefConflictError);
+      await expect(store.putExternalRefs('pkg_missing', refsDoc('urn:x', []))).rejects.toBeInstanceOf(NotFoundError);
+      expect(await eventsAfter(store, before)).toEqual([]);
+    });
+
+    it('putExternalRefsBatch — applied in order (a key may move), all or nothing, one event per item', async () => {
+      const store = await fresh();
+      const p1 = (await store.importPackage({ name: 'a', package: tinyPackage('a') })).id;
+      const p2 = (await store.importPackage({ name: 'b', package: tinyPackage('b') })).id;
+      await store.putExternalRefs(p1, refsDoc('urn:a', [{ system: 's', type: 't', id: 'K' }]));
+
+      // Failure on the second item: neither item is written, no event is recorded
+      const before = await lastSeq(store);
+      await expect(
+        store.putExternalRefsBatch([
+          { packageId: p1, doc: refsDoc('urn:a', [{ system: 's', type: 't', id: 'K2' }]), expectedRevision: 1 },
+          { packageId: p2, doc: refsDoc('urn:b', []), expectedRevision: 5 },
+        ]),
+      ).rejects.toBeInstanceOf(ConflictError);
+      await expect(
+        store.putExternalRefsBatch([
+          { packageId: p2, doc: refsDoc('urn:b', [{ system: 's', type: 't', id: 'NEW' }]) },
+          { packageId: p2, doc: refsDoc('urn:b', [{ system: 's', type: 't', id: 'K' }]) },
+        ]),
+      ).rejects.toBeInstanceOf(ExternalRefConflictError);
+      await expect(store.putExternalRefsBatch([{ packageId: p2, doc: refsDoc('urn:b', []) }, { packageId: 'pkg_missing', doc: refsDoc('urn:x', []) }])).rejects.toBeInstanceOf(NotFoundError);
+      expect((await store.getExternalRefs(p1))?.revision).toBe(1);
+      expect(await store.getExternalRefs(p2)).toBeUndefined();
+      expect(await store.findExternalRef('s', 't', 'K')).toEqual([{ packageId: p1, subject: 'asset|urn:a' }]);
+      expect(await store.findExternalRef('s', 't', 'NEW')).toEqual([]);
+      expect(await eventsAfter(store, before)).toEqual([]);
+
+      // Success: p1 releases K, p2 takes it — in one batch, because items apply in order
+      const saved = await store.putExternalRefsBatch([
+        { packageId: p1, doc: refsDoc('urn:a', [{ system: 's', type: 't', id: 'K2' }]), expectedRevision: 1 },
+        { packageId: p2, doc: refsDoc('urn:b', [{ system: 's', type: 't', id: 'K' }]), expectedRevision: 0 },
+      ]);
+      expect(saved.map((item) => item.revision)).toEqual([2, 1]);
+      expect(await store.findExternalRef('s', 't', 'K')).toEqual([{ packageId: p2, subject: 'asset|urn:b' }]);
+      const events = await eventsAfter(store, before);
+      expect(events.map((row) => [row.type, row.data])).toEqual([
+        [EVENT_TYPES.modelExternalRefsUpdated, { packageId: p1, revision: 2 }],
+        [EVENT_TYPES.modelExternalRefsUpdated, { packageId: p2, revision: 1 }],
+      ]);
+      expect(await store.putExternalRefsBatch([])).toEqual([]);
     });
 
     // ── 10 · runtime state and package deletion ──

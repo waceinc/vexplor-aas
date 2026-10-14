@@ -185,6 +185,7 @@ All types are `kr.vexplor.aas.<name>.v1`. A payload shape never changes inside `
 | `model.package.created` / `.deleted` | model | A file is uploaded, created, cloned or deleted |
 | `model.package.file.changed` | model | An attachment is put or removed |
 | `model.shell\|submodel\|conceptdescription.created` / `.updated` / `.deleted` | model | Any edit, fix, undo, redo, import |
+| `model.externalrefs.updated` | model | The file's external references (ERP/MES/CMMS numbers) were saved — `data` is only `packageId` and the refs `revision`; re-read the refs |
 | `equipment.master.changed` | master data | The equipment-master projection changed (`changedKeys` lists the export columns) |
 | `equipment.bom.changed` / `.maintenance.changed` / `.documents.changed` | master data | That projection changed; re-read `href` |
 | `equipment.state.changed` | runtime | The judged state changed (`run`, `stop`, `alarm`, `off`, `unknown`) |
