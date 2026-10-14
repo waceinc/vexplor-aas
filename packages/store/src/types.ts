@@ -12,6 +12,7 @@
  */
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
+import { fill, tr } from '@aas/core';
 
 export type IdentifiableModelType =
   | 'AssetAdministrationShell'
@@ -232,7 +233,7 @@ export class ForbiddenError extends Error {
 
 export class NotFoundError extends Error {
   constructor(what: string) {
-    super(`${what}을(를) 찾을 수 없습니다.`);
+    super(fill(tr('{0}을(를) 찾을 수 없습니다.'), { 0: what }));
     this.name = 'NotFoundError';
   }
 }
@@ -250,7 +251,7 @@ export class ConflictError extends Error {
     readonly expected: number,
     readonly actual: number,
   ) {
-    super(`리비전이 어긋납니다: 기대 ${expected}, 현재 ${actual}. 다시 읽고 편집하십시오.`);
+    super(fill(tr('리비전이 어긋납니다: 기대 {0}, 현재 {1}. 다시 읽고 편집하십시오.'), { 0: expected, 1: actual }));
     this.name = 'ConflictError';
   }
 }

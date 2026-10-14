@@ -14,7 +14,7 @@
  * ConceptDescription은 바꾸지 않는다 — 개념은 호기가 달라도 같은 개념이다
  * (cd id는 idShort 기반이라 장비명이 들어 있지 않다).
  */
-import type { Environment } from '@aas/core';
+import { tr, type Environment } from '@aas/core';
 
 interface Identifiable {
   id?: string;
@@ -59,9 +59,9 @@ export function renameEnvironment(
   const shells = (env['assetAdministrationShells'] ?? []) as Identifiable[];
   const submodels = (env['submodels'] ?? []) as Identifiable[];
   const shell = shells[0];
-  if (!shell) throw new Error('복제할 파일에 AAS가 없습니다.');
+  if (!shell) throw new Error(tr('복제할 파일에 AAS가 없습니다.'));
   const oldName = shell.idShort ?? '';
-  if (oldName === '') throw new Error('복제할 파일의 AAS에 idShort가 없습니다.');
+  if (oldName === '') throw new Error(tr('복제할 파일의 AAS에 idShort가 없습니다.'));
 
   const map = new Map<string, string>();
   if (shell.id) map.set(shell.id, renameId(shell.id, 'aas', oldName, newName, iriBase, '1/0'));

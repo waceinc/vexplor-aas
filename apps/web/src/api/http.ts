@@ -2,7 +2,7 @@
  * API 클라이언트 — 요청 틀 · 오류 · 접근 토큰 · 내려받기 도우미.
  * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
  */
-import { tr, fill } from '../i18n.js';
+import { tr, fill, currentLang } from '../i18n.js';
 
 /** Part 2는 경로에 들어가는 id를 base64url로 인코딩하도록 정한다 */
 export function encodeIdentifier(value: string): string {
@@ -72,12 +72,14 @@ export function currentToken(): string | undefined {
  * 🔴 세션 열쇠는 화면이 만지지 않는다 — HttpOnly라 스크립트가 읽을 수도 없다.
  */
 export function withAuth(init?: RequestInit): RequestInit {
-  const base: RequestInit = { ...init, credentials: 'same-origin' };
-  if (!token) return base;
-  return {
-    ...base,
-    headers: { ...(init?.headers as Record<string, string> | undefined), authorization: `Bearer ${token}` },
+  // 🔴 고른 언어를 서버에 싣는다 — 지적 문구 · 결과서 · 오류처럼 서버가 만드는 글이 그 언어로 온다.
+  //    브라우저 기본 Accept-Language(ko-KR,…,en…)에 맡기면 화면 설정과 서버 글이 갈린다
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+    'accept-language': currentLang(),
   };
+  if (token) headers['authorization'] = `Bearer ${token}`;
+  return { ...init, credentials: 'same-origin', headers };
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {

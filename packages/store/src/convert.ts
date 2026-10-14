@@ -6,6 +6,7 @@
  */
 import type { AasxFile, AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import {
   ENVIRONMENT_FIELD,
   IDENTIFIABLE_MODEL_TYPES,
@@ -48,11 +49,14 @@ export function deriveColumns(content: Record<string, unknown>): DerivedColumns 
   const modelType = stringOf(content['modelType']);
   if (!modelType || !IDENTIFIABLE_MODEL_TYPES.includes(modelType as IdentifiableModelType)) {
     throw new InvalidContentError(
-      `modelType이 Identifiable 3종(${IDENTIFIABLE_MODEL_TYPES.join(' · ')}) 중 하나여야 합니다: ${modelType ?? '없음'}`,
+      fill(tr('modelType이 Identifiable 3종({0}) 중 하나여야 합니다: {1}'), {
+        0: IDENTIFIABLE_MODEL_TYPES.join(' · '),
+        1: modelType ?? tr('없음'),
+      }),
     );
   }
   const id = stringOf(content['id']);
-  if (!id) throw new InvalidContentError('Identifiable에는 id가 있어야 합니다.');
+  if (!id) throw new InvalidContentError(tr('Identifiable에는 id가 있어야 합니다.'));
 
   const derived: DerivedColumns = { modelType: modelType as IdentifiableModelType, id };
   const idShort = stringOf(content['idShort']);

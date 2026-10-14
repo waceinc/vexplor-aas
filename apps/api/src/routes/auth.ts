@@ -14,6 +14,7 @@ import { checkPasswordRule, hashPassword, verifyPassword } from '../password.js'
 import { SignupThrottle, type LoginThrottle, type SessionStore } from '../session.js';
 import type { Route } from '../router.js';
 import { clientAddress, sameCode } from '../security.js';
+import { tr } from '@aas/core';
 
 export const SESSION_COOKIE = 'aas_session';
 
@@ -178,7 +179,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       throw new ApiError(
         403,
         'Forbidden',
-        '데모 계정은 바꾸거나 지울 수 없습니다 — 여럿이 함께 쓰는 계정입니다. 「회원가입」으로 자기 계정을 만드십시오.',
+        tr('데모 계정은 바꾸거나 지울 수 없습니다 — 여럿이 함께 쓰는 계정입니다. 「회원가입」으로 자기 계정을 만드십시오.'),
       );
     }
   };
@@ -237,7 +238,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const login = String(body['login'] ?? '').trim();
         const password = String(body['password'] ?? '');
         if (login === '' || password === '') {
-          throw new ApiError(400, 'BadRequest', '로그인 이름과 비밀번호를 모두 주십시오.');
+          throw new ApiError(400, 'BadRequest', tr('로그인 이름과 비밀번호를 모두 주십시오.'));
         }
         // 🔴 데모 계정은 세지 않는다 — 비밀번호가 화면에 공개돼 있어 지킬 것이 없고,
         //    세면 누구나 틀린 비밀번호로 데모 계정을 잠가 모든 방문자를 막을 수 있다
@@ -248,7 +249,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           throw new ApiError(
             429,
             'TooManyRequests',
-            '로그인 시도가 많습니다. 5분 뒤에 다시 해 주십시오.',
+            tr('로그인 시도가 많습니다. 5분 뒤에 다시 해 주십시오.'),
           );
         }
 
@@ -257,7 +258,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         if (!ok || !user) {
           if (counted) throttle.fail(login, from);
           // 🔴 있는 계정인지 비밀번호가 틀린 것인지 가르지 않는다
-          throw new ApiError(401, 'Unauthorized', '로그인하지 못했습니다 — 이름이나 비밀번호를 확인하십시오.');
+          throw new ApiError(401, 'Unauthorized', tr('로그인하지 못했습니다 — 이름이나 비밀번호를 확인하십시오.'));
         }
 
         if (counted) throttle.pass(login, from);
@@ -284,7 +285,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       success: [201],
       async handle({ request }) {
         if (!signup) {
-          throw new ApiError(403, 'Forbidden', '이 서버는 가입을 받지 않습니다 — 관리자에게 계정을 받으십시오.');
+          throw new ApiError(403, 'Forbidden', tr('이 서버는 가입을 받지 않습니다 — 관리자에게 계정을 받으십시오.'));
         }
         const address = clientAddress(request);
         const tooMany = signupThrottle.blocked(address);
@@ -300,7 +301,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           throw new ApiError(
             400,
             'BadRequest',
-            '로그인 이름은 영문으로 시작하고 영문·숫자·_ . - 만 씁니다(2~41자).',
+            tr('로그인 이름은 영문으로 시작하고 영문·숫자·_ . - 만 씁니다(2~41자).'),
           );
         }
         const bad = checkPasswordRule(password);
@@ -310,25 +311,25 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         //    올리게 만드는 장치이기도 하다(AAS_PRIVACY_URL)
         if (!signup.privacyUrl) {
           if (email !== '' || company !== '') {
-            throw new ApiError(400, 'BadRequest', '이 서버는 연락처를 받지 않습니다 — 비워 두고 가입하십시오.');
+            throw new ApiError(400, 'BadRequest', tr('이 서버는 연락처를 받지 않습니다 — 비워 두고 가입하십시오.'));
           }
         } else {
           // 처리방침을 올린 서버(공개 체험 서버) — 이름 · 회사명 · 이메일과 **동의**를 받는다(2026-10-06)
           // 🔴 회사명은 **선택**이다(2026-10-08 사용자 요청) — 개인으로 써 보는 사람도 가입할 수 있게
           if (displayName === '' || email === '') {
-            throw new ApiError(400, 'BadRequest', '이름 · 이메일을 적어 주십시오.');
+            throw new ApiError(400, 'BadRequest', tr('이름 · 이메일을 적어 주십시오.'));
           }
           if (displayName.length > 40 || company.length > 80 || email.length > 120) {
-            throw new ApiError(400, 'BadRequest', '입력이 너무 깁니다.');
+            throw new ApiError(400, 'BadRequest', tr('입력이 너무 깁니다.'));
           }
           // 모양만 본다. **확인하지는 않는다** — 메일 서버가 없다.
           // 흉내만 내고 「확인된 주소」라고 믿게 만드는 쪽이 더 나쁘다
           if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-            throw new ApiError(400, 'BadRequest', '이메일 형식이 올바르지 않습니다.');
+            throw new ApiError(400, 'BadRequest', tr('이메일 형식이 올바르지 않습니다.'));
           }
           // 🔴 동의 없이는 받지 않는다 — 화면의 체크만 믿지 않고 서버가 다시 본다
           if (!agreed) {
-            throw new ApiError(400, 'BadRequest', '개인정보 수집·이용에 동의해야 가입할 수 있습니다.');
+            throw new ApiError(400, 'BadRequest', tr('개인정보 수집·이용에 동의해야 가입할 수 있습니다.'));
           }
         }
 
@@ -347,7 +348,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         } catch {
           // 🔴 「이미 있는 이름」은 숨기지 않는다. 로그인 실패와 달리 여기서는
           //    다른 이름을 고르라고 알려 주지 않으면 사람이 가입을 못 한다
-          throw new ApiError(409, 'Conflict', '이미 쓰이는 로그인 이름입니다 — 다른 이름을 고르십시오.');
+          throw new ApiError(409, 'Conflict', tr('이미 쓰이는 로그인 이름입니다 — 다른 이름을 고르십시오.'));
         }
         // 🔴 성공했을 때만 센다 — 실패는 계정을 만들지 않으니 셀 이유가 없다
         signupThrottle.took(address);
@@ -373,7 +374,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       success: [204],
       async handle({ request }) {
         const who = request.principal;
-        if (!who) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        if (!who) throw new ApiError(401, 'Unauthorized', tr('로그인이 필요합니다.'));
         refuseDemoAccount(who);
         if (who.role === 'admin') {
           const admins = (await store.listUsers()).filter((user) => user.role === 'admin' && !user.disabled);
@@ -381,7 +382,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             throw new ApiError(
               409,
               'Conflict',
-              '마지막 관리자는 탈퇴할 수 없습니다 — 다른 관리자를 먼저 만드십시오.',
+              tr('마지막 관리자는 탈퇴할 수 없습니다 — 다른 관리자를 먼저 만드십시오.'),
             );
           }
         }
@@ -409,7 +410,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       success: [201],
       async handle({ request }) {
         if ((await store.countUsers()) > 0) {
-          throw new ApiError(409, 'Conflict', '이미 계정이 있습니다 — 관리자에게 받으십시오.');
+          throw new ApiError(409, 'Conflict', tr('이미 계정이 있습니다 — 관리자에게 받으십시오.'));
         }
         const body = (request.body ?? {}) as Record<string, unknown>;
         // 🔴 밖으로 열린 서버에서는 **서버를 만질 수 있는 사람**만 첫 관리자를 만든다.
@@ -420,7 +421,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             throw new ApiError(
               403,
               'Forbidden',
-              '설치 코드가 필요합니다 — 서버를 띄운 화면(기동 로그)에 적혀 있습니다.',
+              tr('설치 코드가 필요합니다 — 서버를 띄운 화면(기동 로그)에 적혀 있습니다.'),
             );
           }
         }
@@ -431,7 +432,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           throw new ApiError(
             400,
             'BadRequest',
-            '로그인 이름은 영문으로 시작하고 영문·숫자·_ . - 만 씁니다(2~41자).',
+            tr('로그인 이름은 영문으로 시작하고 영문·숫자·_ . - 만 씁니다(2~41자).'),
           );
         }
         const bad = checkPasswordRule(password);
@@ -488,11 +489,11 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           throw new ApiError(
             400,
             'BadRequest',
-            '로그인 이름은 영문으로 시작하고 영문·숫자·_ . - 만 씁니다(2~41자).',
+            tr('로그인 이름은 영문으로 시작하고 영문·숫자·_ . - 만 씁니다(2~41자).'),
           );
         }
         if (!['admin', 'editor', 'viewer'].includes(role)) {
-          throw new ApiError(400, 'BadRequest', '역할은 admin · editor · viewer 중 하나입니다.');
+          throw new ApiError(400, 'BadRequest', tr('역할은 admin · editor · viewer 중 하나입니다.'));
         }
         const bad = checkPasswordRule(password);
         if (bad) throw new ApiError(400, 'BadRequest', bad);
@@ -527,17 +528,17 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const me = request.principal;
         const id = params['userId']!;
         const target = await store.getUser(id);
-        if (!target) throw new ApiError(404, 'NotFound', '그런 계정이 없습니다.');
+        if (!target) throw new ApiError(404, 'NotFound', tr('그런 계정이 없습니다.'));
         if (me && target.id === me.userId) {
-          throw new ApiError(409, 'Conflict', '자기 계정은 여기서 지울 수 없습니다 — 「설정 → 탈퇴」를 쓰십시오.');
+          throw new ApiError(409, 'Conflict', tr('자기 계정은 여기서 지울 수 없습니다 — 「설정 → 탈퇴」를 쓰십시오.'));
         }
         if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
-          throw new ApiError(403, 'Forbidden', '데모 계정은 지울 수 없습니다 — 지우면 공개 서버에 아무도 들어오지 못합니다.');
+          throw new ApiError(403, 'Forbidden', tr('데모 계정은 지울 수 없습니다 — 지우면 공개 서버에 아무도 들어오지 못합니다.'));
         }
         if (target.role === 'admin') {
           const admins = (await store.listUsers()).filter((user) => user.role === 'admin' && !user.disabled);
           if (admins.length <= 1) {
-            throw new ApiError(409, 'Conflict', '마지막 관리자는 지울 수 없습니다 — 다른 관리자를 먼저 만드십시오.');
+            throw new ApiError(409, 'Conflict', tr('마지막 관리자는 지울 수 없습니다 — 다른 관리자를 먼저 만드십시오.'));
           }
         }
         const files = await removeAccount(id);
@@ -556,11 +557,11 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         requireAdmin(request);
         const id = params['userId']!;
         const target = await store.getUser(id);
-        if (!target) throw new ApiError(404, 'NotFound', '그런 계정이 없습니다.');
+        if (!target) throw new ApiError(404, 'NotFound', tr('그런 계정이 없습니다.'));
         // 🔴 데모 계정은 관리자도 바꾸지 못한다(2026-10-06 보안 점검). 역할을 관리자로 올리면
         //    admin/1234로 들어온 **누구나 관리자**가 되고, 비밀번호를 바꾸거나 잠그면 공개 서버의 문이 닫힌다
         if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
-          throw new ApiError(403, 'Forbidden', '데모 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.');
+          throw new ApiError(403, 'Forbidden', tr('데모 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.'));
         }
         const body = (request.body ?? {}) as Record<string, unknown>;
 
@@ -569,7 +570,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         if (typeof body['role'] === 'string') {
           const role = body['role'] as UserRole;
           if (!['admin', 'editor', 'viewer'].includes(role)) {
-            throw new ApiError(400, 'BadRequest', '역할은 admin · editor · viewer 중 하나입니다.');
+            throw new ApiError(400, 'BadRequest', tr('역할은 admin · editor · viewer 중 하나입니다.'));
           }
           patch.role = role;
         }
@@ -590,13 +591,13 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
             throw new ApiError(
               409,
               'Conflict',
-              '마지막 관리자입니다 — 다른 관리자를 먼저 만드십시오. 아무도 계정을 다룰 수 없게 됩니다.',
+              tr('마지막 관리자입니다 — 다른 관리자를 먼저 만드십시오. 아무도 계정을 다룰 수 없게 됩니다.'),
             );
           }
         }
 
         const after = await store.updateUser(id, patch);
-        if (!after) throw new ApiError(404, 'NotFound', '그런 계정이 없습니다.');
+        if (!after) throw new ApiError(404, 'NotFound', tr('그런 계정이 없습니다.'));
         // 역할·잠금·비밀번호가 바뀌었으면 그 사람의 세션을 끊는다
         if (patch.role !== undefined || patch.disabled !== undefined || patch.passwordHash !== undefined) {
           sessions.dropUser(id);
@@ -617,32 +618,32 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       pattern: '/auth/me',
       async handle({ request }) {
         const who = request.principal;
-        if (!who) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        if (!who) throw new ApiError(401, 'Unauthorized', tr('로그인이 필요합니다.'));
         refuseDemoAccount(who);
         const body = (request.body ?? {}) as Record<string, unknown>;
         const patch: { displayName?: string; email?: string; company?: string } = {};
         if (body['displayName'] !== undefined) {
           const displayName = String(body['displayName']).trim();
           if (displayName === '' || displayName.length > 40) {
-            throw new ApiError(400, 'BadRequest', '표시 이름은 1~40자로 적어 주십시오.');
+            throw new ApiError(400, 'BadRequest', tr('표시 이름은 1~40자로 적어 주십시오.'));
           }
           patch.displayName = displayName;
         }
         if (body['email'] !== undefined) {
           const email = String(body['email']).trim();
           if (email.length > 120 || (email !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))) {
-            throw new ApiError(400, 'BadRequest', '이메일 형식이 올바르지 않습니다.');
+            throw new ApiError(400, 'BadRequest', tr('이메일 형식이 올바르지 않습니다.'));
           }
           patch.email = email;
         }
         if (body['company'] !== undefined) {
           const company = String(body['company']).trim();
-          if (company.length > 80) throw new ApiError(400, 'BadRequest', '회사명이 너무 깁니다.');
+          if (company.length > 80) throw new ApiError(400, 'BadRequest', tr('회사명이 너무 깁니다.'));
           patch.company = company;
         }
-        if (Object.keys(patch).length === 0) throw new ApiError(400, 'BadRequest', '바꿀 내용이 없습니다.');
+        if (Object.keys(patch).length === 0) throw new ApiError(400, 'BadRequest', tr('바꿀 내용이 없습니다.'));
         const updated = await store.updateUser(who.userId, patch);
-        if (!updated) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        if (!updated) throw new ApiError(401, 'Unauthorized', tr('로그인이 필요합니다.'));
         return json(200, { user: selfUser(updated) });
       },
     },
@@ -655,15 +656,15 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
       pattern: '/auth/password',
       async handle({ request }) {
         const who = request.principal;
-        if (!who) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        if (!who) throw new ApiError(401, 'Unauthorized', tr('로그인이 필요합니다.'));
         refuseDemoAccount(who);
         const body = (request.body ?? {}) as Record<string, unknown>;
         const current = String(body['current'] ?? '');
         const next = String(body['next'] ?? '');
         const user = await store.getUser(who.userId);
-        if (!user) throw new ApiError(401, 'Unauthorized', '로그인이 필요합니다.');
+        if (!user) throw new ApiError(401, 'Unauthorized', tr('로그인이 필요합니다.'));
         if (!(await verifyPassword(current, user.passwordHash))) {
-          throw new ApiError(401, 'Unauthorized', '지금 비밀번호가 맞지 않습니다.');
+          throw new ApiError(401, 'Unauthorized', tr('지금 비밀번호가 맞지 않습니다.'));
         }
         const bad = checkPasswordRule(next);
         if (bad) throw new ApiError(400, 'BadRequest', bad);
@@ -690,7 +691,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
 function requireAdmin(request: ApiRequest): void {
   const who = request.principal;
   if (who && who.role !== 'admin') {
-    throw new ApiError(403, 'Forbidden', '관리자만 계정을 다룰 수 있습니다.');
+    throw new ApiError(403, 'Forbidden', tr('관리자만 계정을 다룰 수 있습니다.'));
   }
 }
 

@@ -16,7 +16,7 @@
  *
  * 라이브러리를 쓰지 않고 SVG를 직접 쓴다 — 상자와 선뿐이라 의존성을 늘릴 이유가 없다.
  */
-import type { Environment, Submodel, SubmodelElement } from '@aas/core';
+import { fill, tr, type Environment, type Submodel, type SubmodelElement } from '@aas/core';
 
 export interface UmlOptions {
   /**
@@ -186,7 +186,7 @@ function toNode(
     .slice(0, options.maxAttributes)
     .map((child, index) => attributeLine(child, index, options.valueLimit, nameOf(child, index)));
   if (shown.length > options.maxAttributes) {
-    attributes.push(`… 그 밖 ${shown.length - options.maxAttributes}개`);
+    attributes.push(fill(tr('… 그 밖 {0}개'), { 0: shown.length - options.maxAttributes }));
   }
 
   const containerKids =

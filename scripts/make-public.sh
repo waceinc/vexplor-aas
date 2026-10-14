@@ -29,12 +29,13 @@ ALLOW=(
   # 뿌리
   .dockerignore .env.example .gitattributes .gitignore .github
   Caddyfile.example Dockerfile docker-compose.yml
-  LICENSE NOTICE README.md README.en.md CONTRIBUTING.md SECURITY.md THIRD-PARTY-NOTICES.md
+  LICENSE NOTICE README.md README.ko.md CONTRIBUTING.md SECURITY.md THIRD-PARTY-NOTICES.md
   package.json package-lock.json tsconfig.json tsconfig.base.json vitest.config.ts
   # 코드 · 시험
   apps packages tests templates
   # 문서 — 쓰는 사람용만. 개발 기록·규칙 실측 자료는 싣지 않는다
   docs/사용법.md docs/설치.md docs/배포_호스팅.md docs/규칙_목록.md docs/images docs/spec
+  docs/usage.md docs/install.md docs/deployment.md docs/rules.md
   # 도구
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs

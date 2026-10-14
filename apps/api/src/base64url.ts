@@ -1,3 +1,4 @@
+import { fill, tr } from '@aas/core';
 /**
  * IDTA Part 2는 경로에 들어가는 식별자를 **base64url로 인코딩**하도록 정한다.
  * (id가 IRI·IRDI라 슬래시·#이 그대로 들어가면 경로가 깨진다)
@@ -33,7 +34,7 @@ export function decodeIdentifier(value: string): string {
   let bits = 0;
   for (const ch of clean) {
     const index = ALPHABET.indexOf(ch);
-    if (index < 0) throw new Error(`base64url이 아닙니다: ${value}`);
+    if (index < 0) throw new Error(fill(tr('base64url이 아닙니다: {0}'), { 0: value }));
     buffer = (buffer << 6) | index;
     bits += 6;
     if (bits >= 8) {

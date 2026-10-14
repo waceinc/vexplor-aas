@@ -9,6 +9,7 @@
  *  ② ordinal이 없으면 무손실 export가 성립하지 않는다.
  *  ③ id에 UNIQUE를 걸지 않는다 — 결함 파일도 손실 없이 받아야 린터가 지적할 수 있다.
  */
+// i18n-ignore — SQL 문(안의 한국어는 SQL 주석)
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS aas_package (
   id          text PRIMARY KEY,
@@ -149,6 +150,7 @@ ALTER TABLE aas_package_file ADD CONSTRAINT aas_package_file_role_check
      * 🔴 비밀번호는 **해시만** 둔다(scrypt, Node 내장). 원문은 어디에도 남기지 않는다.
      */
     version: 3,
+    // i18n-ignore — SQL 문(안의 한국어는 SQL 주석)
     sql: `
 CREATE TABLE IF NOT EXISTS app_user (
   id            text PRIMARY KEY,

@@ -9,6 +9,7 @@
  *    그래서 `transaction`을 반드시 준다(포트가 이것을 요구하는 이유다).
  */
 import { HYPERTABLE_SQL, PostgresStore, type SqlClient } from '@aas/store';
+import { fill, tr } from '@aas/core';
 
 export interface PostgresOptions {
   connectionString: string;
@@ -29,14 +30,14 @@ async function tryTimescale(client: SqlClient): Promise<string> {
   try {
     await client.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
   } catch {
-    return '일반 PostgreSQL (timescaledb 확장 없음)';
+    return tr('일반 PostgreSQL (timescaledb 확장 없음)');
   }
   try {
     await client.query(HYPERTABLE_SQL);
-    return 'TimescaleDB 하이퍼테이블';
+    return tr('TimescaleDB 하이퍼테이블');
   } catch (error) {
     // 이미 자료가 든 표를 뒤늦게 바꾸려 할 때 등. 동작에는 지장이 없다
-    return `일반 표로 둔다 (${error instanceof Error ? error.message : String(error)})`;
+    return fill(tr('일반 표로 둔다 ({0})'), { 0: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -83,6 +84,6 @@ export async function connectPostgres(
   const store = new PostgresStore(client);
   // 🔴 스키마 판이 프로그램보다 새로우면 여기서 SchemaVersionError로 멈춘다 — 기동 로그에 그대로 찍힌다
   await store.init();
-  const timescale = options.timescale === false ? '끔' : await tryTimescale(client);
-  return { store, timescale: `${timescale} · 스키마 ${store.schemaVersion}판` };
+  const timescale = options.timescale === false ? tr('끔') : await tryTimescale(client);
+  return { store, timescale: fill(tr('{0} · 스키마 {1}판'), { 0: timescale, 1: store.schemaVersion }) };
 }

@@ -14,6 +14,7 @@
  */
 import { timingSafeEqual } from 'node:crypto';
 import { errorResponse, type ApiRequest, type ApiResponse } from './http.js';
+import { tr } from '@aas/core';
 
 export type AccessLevel = 'full' | 'read-only';
 
@@ -155,7 +156,7 @@ export function authorize(
     if (level === 'full' || isReadRequest(request.method)) return { ok: true, level, via: 'session' };
     return {
       ok: false,
-      response: errorResponse(403, 'Forbidden', '보기 전용 계정으로는 고칠 수 없습니다.'),
+      response: errorResponse(403, 'Forbidden', tr('보기 전용 계정으로는 고칠 수 없습니다.')),
     };
   }
 
@@ -169,7 +170,7 @@ export function authorize(
       response: errorResponse(
         401,
         'Unauthorized',
-        '로그인이 필요합니다. 기계라면 Authorization: Bearer <API 키> 헤더를 주십시오.',
+        tr('로그인이 필요합니다. 기계라면 Authorization: Bearer <API 키> 헤더를 주십시오.'),
       ),
     };
   }
@@ -182,12 +183,12 @@ export function authorize(
     if (isReadRequest(request.method)) return { ok: true, level: 'read-only', via: 'apikey' };
     return {
       ok: false,
-      response: errorResponse(403, 'Forbidden', '읽기 전용 토큰으로는 고칠 수 없습니다.'),
+      response: errorResponse(403, 'Forbidden', tr('읽기 전용 토큰으로는 고칠 수 없습니다.')),
     };
   }
 
   // 어느 목록에도 없다 — 있는지 없는지 알려 주지 않는다
-  return { ok: false, response: errorResponse(401, 'Unauthorized', '토큰이 올바르지 않습니다.') };
+  return { ok: false, response: errorResponse(401, 'Unauthorized', tr('토큰이 올바르지 않습니다.')) };
 }
 
 /**

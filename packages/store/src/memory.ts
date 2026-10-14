@@ -6,6 +6,7 @@
  */
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import {
   deriveColumns,
   flattenEnvironment,
@@ -68,7 +69,7 @@ export class InMemoryStore implements AasStore {
 
   private state(packageId: string): PackageState {
     const state = this.packages.get(packageId);
-    if (!state) throw new NotFoundError(`패키지 ${packageId}`);
+    if (!state) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
     return state;
   }
 
@@ -98,7 +99,7 @@ export class InMemoryStore implements AasStore {
   }): Promise<PackageRecord> {
     const id = input.id ?? `pkg_${this.nextPackageId++}`;
     if (this.packages.has(id)) {
-      throw new InvalidContentError(`이미 있는 패키지 id입니다: ${id}`);
+      throw new InvalidContentError(fill(tr('이미 있는 패키지 id입니다: {0}'), { 0: id }));
     }
     const at = this.now();
     const record: PackageRecord = {
@@ -165,7 +166,7 @@ export class InMemoryStore implements AasStore {
   }
 
   async deletePackage(packageId: string): Promise<void> {
-    if (!this.packages.delete(packageId)) throw new NotFoundError(`패키지 ${packageId}`);
+    if (!this.packages.delete(packageId)) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
   }
 
   async getEnvironment(packageId: string): Promise<Environment> {
@@ -219,7 +220,7 @@ export class InMemoryStore implements AasStore {
   async deletePackageFile(packageId: string, part: string): Promise<void> {
     const state = this.state(packageId);
     const index = state.files.findIndex((f) => f.part === part);
-    if (index < 0) throw new NotFoundError(`파트 ${part}`);
+    if (index < 0) throw new NotFoundError(fill(tr('파트 {0}'), { 0: part }));
     state.files.splice(index, 1);
     this.touch(state);
   }
@@ -256,7 +257,7 @@ export class InMemoryStore implements AasStore {
     const state = this.state(packageId);
     const derived = deriveColumns(content);
     if (this.find(state, derived.modelType, derived.id)) {
-      throw new InvalidContentError(`이미 있는 id입니다: ${derived.id}`);
+      throw new InvalidContentError(fill(tr('이미 있는 id입니다: {0}'), { 0: derived.id }));
     }
     const uid = String(state.nextUid++);
     // 자리를 지정하면 그 자리에, 아니면 맨 뒤에. 지정한 자리가 끝보다 뒤면 다음 자리도 그 뒤로 민다
@@ -291,8 +292,10 @@ export class InMemoryStore implements AasStore {
     const derived = deriveColumns(content);
     if (derived.modelType !== modelType || derived.id !== id) {
       throw new InvalidContentError(
-        `본문의 modelType·id가 경로와 다릅니다: ${derived.modelType} ${derived.id}. ` +
-          'id를 바꾸려면 참조 무결성 때문에 Quick Fix의 교정 경로를 쓰십시오.',
+        fill(tr('본문의 modelType·id가 경로와 다릅니다: {0} {1}. id를 바꾸려면 참조 무결성 때문에 Quick Fix의 교정 경로를 쓰십시오.'), {
+          0: derived.modelType,
+          1: derived.id,
+        }),
       );
     }
 
@@ -378,8 +381,8 @@ export class InMemoryStore implements AasStore {
 
   async createUser(user: NewUser): Promise<UserRecord> {
     const login = user.login.trim().toLowerCase();
-    if (login === '') throw new Error('로그인 이름이 비어 있습니다.');
-    if (await this.findUserByLogin(login)) throw new Error(`이미 있는 로그인 이름입니다: ${login}`);
+    if (login === '') throw new Error(tr('로그인 이름이 비어 있습니다.'));
+    if (await this.findUserByLogin(login)) throw new Error(fill(tr('이미 있는 로그인 이름입니다: {0}'), { 0: login }));
     const record: UserRecord = {
       id: `user_${this.nextUserId++}`,
       login,

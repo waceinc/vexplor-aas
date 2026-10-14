@@ -17,6 +17,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@aas/collector": "0.1.0"
+    "@aas/collector": "0.1.0",
+    "@aas/core": "0.1.0"
   }
 }

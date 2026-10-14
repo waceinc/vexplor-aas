@@ -6,7 +6,7 @@
 # 2단계로 나눈 이유: 빌드 도구(typescript·vite·테스트 의존성)는 운영 이미지에 남길 이유가 없다.
 
 # ── 1단계: 빌드 ────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 
 # 잠금 파일까지 그대로 복사해 **정확히 같은 판**을 설치한다(npm ci)
@@ -26,7 +26,7 @@ COPY . .
 RUN npm run build && npm run --silent build --workspace @aas/web
 
 # ── 2단계: 운영 ────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 

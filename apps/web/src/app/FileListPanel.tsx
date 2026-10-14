@@ -57,6 +57,8 @@ export function FileListPanel({ packages, packageId, picked, busy, onPick, onOpe
               disabled={busy}
               onClick={() => onOpen(item.packageId)}
               title={tr('이 파일 열기')}
+              // 「보는 중」 표시는 CSS ::after가 그린다 — 글자는 번역기를 거쳐 속성으로 넘긴다(CSS에 한국어를 적으면 영어 화면에 남는다)
+              data-current-label={tr(' ← 보는 중')}
             >
               {item.name ?? item.packageId}
             </button>

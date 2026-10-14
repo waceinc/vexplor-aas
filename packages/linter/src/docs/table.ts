@@ -18,7 +18,7 @@
  *    모르는 칸은 비워 두고 「사람이 채울 자리」로 표시한다 — 그럴듯하게 지어내지 않는다.
  */
 import { csvCell } from '../csv.js';
-import type { ConceptDescription, Environment, Submodel, SubmodelElement } from '@aas/core';
+import { fill, tr, type ConceptDescription, type Environment, type Submodel, type SubmodelElement } from '@aas/core';
 import { isStandardTerm } from '../policy.js';
 import { iec61360Of } from '../util.js';
 
@@ -77,7 +77,7 @@ export function planFor(submodel: Submodel): SubmodelDocPlan {
       idShort,
       kind: 'table',
       specificCount,
-      reason: `장비 특화 요소 ${specificCount}개를 담고 있습니다(자체 IRI semanticId).`,
+      reason: fill(tr('장비 특화 요소 {0}개를 담고 있습니다(자체 IRI semanticId).'), { 0: specificCount }),
     };
   }
   return {
@@ -85,7 +85,7 @@ export function planFor(submodel: Submodel): SubmodelDocPlan {
     kind: 'info',
     specificCount: 0,
     reason:
-      '장비 특화 요소가 없는 IDTA 표준 템플릿입니다 — 규정 §13 주의사항 5에 따라 표는 생략합니다.',
+      tr('장비 특화 요소가 없는 IDTA 표준 템플릿입니다 — 규정 §13 주의사항 5에 따라 표는 생략합니다.'),
   };
 }
 
@@ -175,16 +175,17 @@ export function submodelTable(environment: Environment, submodel: Submodel): Tab
   return rows;
 }
 
-const COLUMNS = [
-  '구분',
+/** 표 머리 — 언어가 요청마다 다르므로 부를 때 옮긴다 */
+const columns = (): readonly string[] => [
+  tr('구분'),
   'idShort',
-  '종류',
-  '데이터타입',
-  '단위',
-  '예시 값',
+  tr('종류'),
+  tr('데이터타입'),
+  tr('단위'),
+  tr('예시 값'),
   'semanticId',
-  '설명',
-] as const;
+  tr('설명'),
+];
 
 function escapeHtml(text: string): string {
   return text
@@ -199,7 +200,7 @@ function escapeHtml(text: string): string {
  * 글자만 붙는 것과 표가 붙는 것은 실무에서 전혀 다른 일이다.
  */
 export function tableHtml(rows: readonly TableRow[]): string {
-  const head = COLUMNS.map((column) => `<th>${column}</th>`).join('');
+  const head = columns().map((column) => `<th>${column}</th>`).join('');
   const body = rows
     .map((row) => {
       // 계층은 들여쓰기로 보인다 — 경로를 그대로 넣으면 칸이 넘친다
@@ -229,7 +230,7 @@ ${body}
 /** 엑셀에서 열 수 있게. 🔴 BOM을 붙인다 — 없으면 엑셀이 한글을 깨뜨린다 */
 export function tableCsv(rows: readonly TableRow[]): string {
   const escape = (value: string): string => csvCell(value, 'always');
-  const lines = [COLUMNS.map(escape).join(',')];
+  const lines = [columns().map(escape).join(',')];
   for (const row of rows) {
     lines.push(
       [
@@ -267,7 +268,7 @@ export interface SubmodelInfo {
 function dictionaryOf(semanticId: string): string | undefined {
   if (semanticId.startsWith('0173-')) return 'ECLASS (IRDI)';
   if (semanticId.startsWith('0112/')) return 'IEC CDD (IRDI)';
-  if (isStandardTerm(semanticId)) return 'IDTA 표준 템플릿 용어';
+  if (isStandardTerm(semanticId)) return tr('IDTA 표준 템플릿 용어');
   return undefined;
 }
 
@@ -296,11 +297,11 @@ export function submodelInfo(submodel: Submodel): SubmodelInfo {
     templateLink: '',
     elementCount,
     toWrite: [
-      '용어사전 버전 (주의사항 1 — 파일에는 IRDI만 있고 사전 버전은 없습니다)',
-      '템플릿 원본 링크 (주의사항 2 — IDTA Content Hub에서 최신 버전 확인)',
-      '서브모델 및 주요 구성요소 특징',
-      '서브모델 활용방안',
-      '활용 시나리오 (주의사항 4)',
+      tr('용어사전 버전 (주의사항 1 — 파일에는 IRDI만 있고 사전 버전은 없습니다)'),
+      tr('템플릿 원본 링크 (주의사항 2 — IDTA Content Hub에서 최신 버전 확인)'),
+      tr('서브모델 및 주요 구성요소 특징'),
+      tr('서브모델 활용방안'),
+      tr('활용 시나리오 (주의사항 4)'),
     ],
   };
 }
@@ -495,7 +496,7 @@ function semanticHtml(cell: SemanticCell): string {
   const lines = [`${cell.idType} ${escapeHtml(cell.id)}`];
   if (cell.definition !== '') lines.push(escapeHtml(cell.definition));
   if (cell.korean !== '') lines.push(escapeHtml(cell.korean));
-  if (cell.idtaOrigin !== '') lines.push(`IDTA 원본: ${escapeHtml(cell.idtaOrigin)}`);
+  if (cell.idtaOrigin !== '') lines.push(fill(tr('IDTA 원본: {0}'), { 0: escapeHtml(cell.idtaOrigin) }));
   return lines.join('<br/>');
 }
 
@@ -505,7 +506,7 @@ function semanticHtml(cell: SemanticCell): string {
  *    문서에서 **표 위에** 온다(그림 제목은 그림 아래).
  */
 export function smtTableCaption(number: number, submodelName: string, table: SmtTable): string {
-  return `표 ${number} ${submodelName} - ${table.idShort}`;
+  return fill(tr('표 {0} {1} - {2}'), { 0: number, 1: submodelName, 2: table.idShort });
 }
 
 /** 문서에 그대로 붙는 표. 워드·한글이 표로 받아들이도록 HTML로 만든다 */

@@ -24,6 +24,7 @@ import {
   type UAObject,
   type UAVariable,
 } from 'node-opcua';
+import { tr } from '@aas/core';
 import { flattenVariables, type OpcDataType, type PublishNode, type PublishPlan } from './publish.js';
 
 /**
@@ -166,6 +167,7 @@ export class AasOpcUaServer {
       serverInfo: {
         applicationUri: this.instanceUri,
         productUri: PRODUCT_URI,
+        // i18n-ignore — OPC UA 서버 이름(서버가 뜰 때 한 번 정해져 접속하는 모든 앱에 같은 값으로 보인다)
         applicationName: { text: 'VEXPLOR AAS Studio - AAS 내주기' },
       },
       buildInfo: {
@@ -179,7 +181,7 @@ export class AasOpcUaServer {
     await this.server.initialize();
 
     const addressSpace = this.server.engine.addressSpace;
-    if (!addressSpace) throw new Error('주소공간을 만들지 못했습니다.');
+    if (!addressSpace) throw new Error(tr('주소공간을 만들지 못했습니다.'));
     const namespace = addressSpace.getOwnNamespace();
     // 최상위 폴더 하나로 모은다 — 우리 것이 남의 노드와 섞이지 않게
     this.root = namespace.addObject({

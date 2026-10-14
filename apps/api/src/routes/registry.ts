@@ -18,6 +18,7 @@ import { encodeIdentifier } from '../base64url.js';
 import { ApiError, json, pagedResponse, type ApiRequest } from '../http.js';
 import type { Route } from '../router.js';
 import { decodeIdentifier } from '../base64url.js';
+import { fill, tr } from '@aas/core';
 
 /** 규격이 정한 인터페이스 이름 */
 const AAS_INTERFACE = 'AAS-3.0';
@@ -198,14 +199,15 @@ function parseAssetIds(request: ApiRequest): { name: string; value: string }[] {
       // 규격은 base64url을 요구하지만, 날것 JSON으로 보내는 구현도 흔하다 — 둘 다 받는다
       text = raw.trim().startsWith('{') ? raw : decodeIdentifier(raw);
     } catch {
-      throw new ApiError(400, 'BadRequest', `assetIds를 해석하지 못했습니다: ${raw}`);
+      throw new ApiError(400, 'BadRequest', fill(tr('assetIds를 해석하지 못했습니다: {0}'), { 0: raw }));
     }
     try {
       const parsed = JSON.parse(text) as { name?: string; value?: string };
+      // i18n-ignore — 바로 아래 catch가 삼키는 안쪽 신호라 밖으로 나가지 않는다
       if (typeof parsed.value !== 'string') throw new Error('value 없음');
       out.push({ name: parsed.name ?? 'globalAssetId', value: parsed.value });
     } catch {
-      throw new ApiError(400, 'BadRequest', `assetIds가 SpecificAssetId 모양이 아닙니다: ${text}`);
+      throw new ApiError(400, 'BadRequest', fill(tr('assetIds가 SpecificAssetId 모양이 아닙니다: {0}'), { 0: text }));
     }
   }
   return out;
@@ -232,7 +234,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
   const find = async (request: ApiRequest, id: string): Promise<ShellDescriptor> => {
     const all = await allDescriptors(store, baseUrlOf(request, options));
     const found = all.find((descriptor) => descriptor.id === id);
-    if (!found) throw new ApiError(404, 'NotFound', `등록된 AAS가 없습니다: ${id}`);
+    if (!found) throw new ApiError(404, 'NotFound', fill(tr('등록된 AAS가 없습니다: {0}'), { 0: id }));
     return found;
   };
 
@@ -271,7 +273,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
         const descriptor = await find(request, decodeIdentifier(params['aasIdentifier']!));
         const wanted = decodeIdentifier(params['submodelIdentifier']!);
         const found = descriptor.submodelDescriptors.find((entry) => entry.id === wanted);
-        if (!found) throw new ApiError(404, 'NotFound', `그 AAS에 매달린 서브모델이 아닙니다: ${wanted}`);
+        if (!found) throw new ApiError(404, 'NotFound', fill(tr('그 AAS에 매달린 서브모델이 아닙니다: {0}'), { 0: wanted }));
         return json(200, found);
       },
     },
@@ -298,7 +300,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
           const found = descriptor.submodelDescriptors.find((entry) => entry.id === wanted);
           if (found) return json(200, found);
         }
-        throw new ApiError(404, 'NotFound', `등록된 서브모델이 없습니다: ${wanted}`);
+        throw new ApiError(404, 'NotFound', fill(tr('등록된 서브모델이 없습니다: {0}'), { 0: wanted }));
       },
     },
     {

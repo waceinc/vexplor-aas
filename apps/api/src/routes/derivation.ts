@@ -21,6 +21,7 @@ import {
 import type { AasStore, PackageFileRecord } from '@aas/store';
 import { ApiError, json, noContent } from '../http.js';
 import type { Route } from '../router.js';
+import { tr } from '@aas/core';
 
 export const DERIVATION_PART = '/.derivation/source.json';
 
@@ -64,7 +65,7 @@ const count = (changes: readonly DerivationChange[], action: DerivationChange['a
 export function derivationRoutes(store: AasStore): Route[] {
   /** 연결 상태와 계획 — 형식 파일이 사라졌으면 그 사실만 */
   const plan = async (packageId: string) => {
-    if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+    if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
     const record = await readDerivation(store, packageId);
     if (!record) return { linked: false as const };
     const source = await store.getPackage(record.sourcePackageId);
@@ -96,8 +97,8 @@ export function derivationRoutes(store: AasStore): Route[] {
       async handle({ params, request }) {
         const packageId = params['packageId']!;
         const found = await plan(packageId);
-        if (!found.linked) throw new ApiError(409, 'Conflict', '이 파일은 형식 파일과 연결되어 있지 않습니다.');
-        if ('sourceMissing' in found) throw new ApiError(409, 'Conflict', '형식 파일이 보관함에 없습니다 — 다시 연결하십시오.');
+        if (!found.linked) throw new ApiError(409, 'Conflict', tr('이 파일은 형식 파일과 연결되어 있지 않습니다.'));
+        if ('sourceMissing' in found) throw new ApiError(409, 'Conflict', tr('형식 파일이 보관함에 없습니다 — 다시 연결하십시오.'));
         const body = (request.body ?? {}) as { keys?: unknown };
         const wanted = Array.isArray(body.keys) ? new Set(body.keys.map(String)) : undefined;
         const chosen = found.changes.filter((change) => change.action === 'apply' && (!wanted || wanted.has(change.key)));
@@ -125,11 +126,11 @@ export function derivationRoutes(store: AasStore): Route[] {
       pattern: '/packages/:packageId/derivation',
       async handle({ params, request }) {
         const packageId = params['packageId']!;
-        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const sourcePackageId = String(((request.body ?? {}) as { sourcePackageId?: unknown }).sourcePackageId ?? '');
-        if (sourcePackageId === packageId) throw new ApiError(400, 'BadRequest', '자기 자신을 형식 파일로 연결할 수 없습니다.');
+        if (sourcePackageId === packageId) throw new ApiError(400, 'BadRequest', tr('자기 자신을 형식 파일로 연결할 수 없습니다.'));
         const source = await store.getPackage(sourcePackageId);
-        if (!source) throw new ApiError(404, 'NotFound', '형식 파일을 찾을 수 없습니다.');
+        if (!source) throw new ApiError(404, 'NotFound', tr('형식 파일을 찾을 수 없습니다.'));
         // base 는 「지금 형식」이다 — 그 전의 일은 알 수 없다. 지금 다른 값은 호기 고유 값으로 남는다
         const record = newDerivation(sourcePackageId, source.name, await store.getEnvironment(sourcePackageId));
         await store.putPackageFile(packageId, derivationFile(record));
@@ -141,7 +142,7 @@ export function derivationRoutes(store: AasStore): Route[] {
       pattern: '/packages/:packageId/derivation',
       async handle({ params }) {
         const packageId = params['packageId']!;
-        if (!(await readDerivation(store, packageId))) throw new ApiError(404, 'NotFound', '연결이 없습니다.');
+        if (!(await readDerivation(store, packageId))) throw new ApiError(404, 'NotFound', tr('연결이 없습니다.'));
         await store.deletePackageFile(packageId, DERIVATION_PART);
         return noContent();
       },

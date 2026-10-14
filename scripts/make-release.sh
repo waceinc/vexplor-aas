@@ -56,6 +56,8 @@ build_one() {
   cp .env.example "${stage}/.env.example"
   cp docs/설치.md "${stage}/설치안내서.md"
   cp docs/사용법.md "${stage}/사용법.md"
+  cp docs/install.md "${stage}/install.md"
+  cp docs/usage.md "${stage}/usage.md"
   cp out/VEXPLOR_AAS_Studio_매뉴얼.pptx "${stage}/매뉴얼.pptx" 2>/dev/null || true
   mkdir -p "${stage}/문서"; cp -r docs/images "${stage}/문서/images" 2>/dev/null || true
 

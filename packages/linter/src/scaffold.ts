@@ -9,7 +9,7 @@
  * 🔴 규약(iriBase·필수 목록)은 여기서 지어내지 않고 **정책에서 받는다.**
  *    규칙이 두 군데 있으면 반드시 갈라진다.
  */
-import type { Environment } from '@aas/core';
+import { fill, tr, type Environment } from '@aas/core';
 import {
   buildEntryNode,
   hierarchyConceptDescriptions,
@@ -112,7 +112,7 @@ export function scaffoldEnvironment(options: ScaffoldOptions): Environment {
   const policy = { ...DEFAULT_POLICY, ...options.policy };
   const name = options.assetName;
   if (!isValidAssetName(name)) {
-    throw new Error(`장비명은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: ${name}`);
+    throw new Error(fill(tr('장비명은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: {0}'), { 0: name }));
   }
 
   const version = options.version ?? '1';

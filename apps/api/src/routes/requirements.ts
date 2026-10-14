@@ -13,6 +13,7 @@ import { collectTemplateCatalog, type TemplateRequirements } from '@aas/linter';
 import type { AasStore } from '@aas/store';
 import { ApiError, json } from '../http.js';
 import type { Route } from '../router.js';
+import { tr } from '@aas/core';
 
 interface Cached {
   revision: number;
@@ -55,7 +56,7 @@ export function requirementRoutes(store: AasStore): Route[] {
       pattern: '/packages/:packageId/requirements',
       async handle({ params }) {
         const packageId = params['packageId']!;
-        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const environment = await store.getEnvironment(packageId);
         const catalog = await templateCatalog(store, cache);
         const result = [];

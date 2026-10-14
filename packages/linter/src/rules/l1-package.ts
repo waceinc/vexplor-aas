@@ -6,15 +6,19 @@
  * 상위 SMC와 Submodel까지 연쇄 실패로 표시된다 — 대량 오류의 실제 원인이 여기인 경우가 많다.
  */
 import type { File as AasFile, LangString, MultiLanguageProperty } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import type { Rule } from '../types.js';
 import { duplicateLanguages, iec61360Of } from '../util.js';
 
+// i18n-ignore — 근거 문서 파일 이름
 const SOURCE = '04_린터_규칙_명세.md §1 L1';
 
 export const pkgFileUri: Rule = {
   id: 'PKG-FILE-URI',
   layer: 'L1',
-  title: 'File.value는 file:// URI 형식이어야 한다',
+  get title() {
+    return tr('File.value는 file:// URI 형식이어야 한다');
+  },
   source: SOURCE,
   check(ctx, report) {
     for (const v of ctx.elements) {
@@ -32,10 +36,10 @@ export const pkgFileUri: Rule = {
         key: file.idShort ?? v.idShortPath,
         pointer: `${v.pointer}/value`,
         kosmoPath: v.kosmoPath,
-        message: `File.value가 URI 형식이 아닙니다: ${value}`,
-        remedy:
-          'file:///파일명 형태로 바꾸십시오. 단순 상대경로는 공식 스키마 위반이며, ' +
-          'ArrayItemNotValid로 상위 SMC·Submodel까지 연쇄 실패 표시를 유발합니다.',
+        message: fill(tr('File.value가 URI 형식이 아닙니다: {0}'), { 0: value }),
+        remedy: tr(
+          'file:///파일명 형태로 바꾸십시오. 단순 상대경로는 공식 스키마 위반이며, ArrayItemNotValid로 상위 SMC·Submodel까지 연쇄 실패 표시를 유발합니다.',
+        ),
         fixable: true,
       });
     }
@@ -45,7 +49,9 @@ export const pkgFileUri: Rule = {
 export const pkgThumbnailParts: Rule = {
   id: 'PKG-THUMB-PART',
   layer: 'L1',
-  title: '썸네일은 파트 · 관계 · Content_Types 세 곳에 모두 있어야 한다',
+  get title() {
+    return tr('썸네일은 파트 · 관계 · Content_Types 세 곳에 모두 있어야 한다');
+  },
   source: SOURCE,
   check(ctx, report) {
     const pkg = ctx.package;
@@ -58,8 +64,8 @@ export const pkgThumbnailParts: Rule = {
 
     const normalized = thumbPath.startsWith('/') ? thumbPath : `/${thumbPath}`;
     const missing: string[] = [];
-    if (!pkg.parts.includes(normalized)) missing.push('ZIP 파트');
-    if (!pkg.relationshipTargets.includes(normalized)) missing.push('_rels 관계 선언');
+    if (!pkg.parts.includes(normalized)) missing.push(tr('ZIP 파트'));
+    if (!pkg.relationshipTargets.includes(normalized)) missing.push(tr('_rels 관계 선언'));
     // 🔴 Override가 없어도 확장자 Default(`<Default Extension="png">`)가 덮으면 OPC 규격상 유효하다.
     //    Validator가 실제로 떨어뜨린 사유는 defaultThumbnail이 빈 것(02 §2-①)이었지 Default 선언이
     //    아니었다. 사업 참조모델 v0.0.1 30종이 전부 이 형태라 위반으로 두면 화면이 온통 빨갛다
@@ -76,9 +82,13 @@ export const pkgThumbnailParts: Rule = {
         key,
         pointer: '/assetAdministrationShells/0/assetInformation/defaultThumbnail',
         kosmoPath: `/assetAdministrationShells/0(${key})/assetInformation/defaultThumbnail`,
-        message: `썸네일 ${normalized}의 형식이 파일별(Override)이 아니라 확장자 기본값(Default .${extension})으로 선언돼 있습니다.`,
-        remedy:
+        message: fill(
+          tr('썸네일 {0}의 형식이 파일별(Override)이 아니라 확장자 기본값(Default .{1})으로 선언돼 있습니다.'),
+          { 0: normalized, 1: extension },
+        ),
+        remedy: tr(
           'OPC 규격상 유효한 선언입니다. 이 도구로 저장하면 파일별 선언이 함께 들어갑니다(writeAasx). Validator가 이 형태를 떨어뜨린 실측은 아직 없습니다.',
+        ),
         fixable: false,
       });
       return;
@@ -91,8 +101,8 @@ export const pkgThumbnailParts: Rule = {
         key,
         pointer: '/assetAdministrationShells/0/assetInformation/defaultThumbnail',
         kosmoPath: `/assetAdministrationShells/0(${key})/assetInformation/defaultThumbnail`,
-        message: `썸네일 ${normalized}에 대해 누락된 항목이 있습니다: ${missing.join(', ')}`,
-        remedy: '세 곳이 모두 있어야 Validator를 통과합니다. 하나라도 빠지면 열리기는 하나 검증에서 떨어집니다.',
+        message: fill(tr('썸네일 {0}에 대해 누락된 항목이 있습니다: {1}'), { 0: normalized, 1: missing.join(', ') }),
+        remedy: tr('세 곳이 모두 있어야 Validator를 통과합니다. 하나라도 빠지면 열리기는 하나 검증에서 떨어집니다.'),
         fixable: true,
       });
     }
@@ -102,8 +112,12 @@ export const pkgThumbnailParts: Rule = {
 export const pkgLanguageDuplicate: Rule = {
   id: 'PKG-LANG-DUP',
   layer: 'L1',
-  title: '같은 LangString 안에 동일 언어 태그가 중복될 수 없다',
-  source: `${SOURCE} (IDTA 원본 CD의 en 태그 오타가 따라오는 사례)`,
+  get title() {
+    return tr('같은 LangString 안에 동일 언어 태그가 중복될 수 없다');
+  },
+  get source() {
+    return fill(tr('{0} (IDTA 원본 CD의 en 태그 오타가 따라오는 사례)'), { 0: SOURCE });
+  },
   check(ctx, report) {
     const relaxed = ctx.policy.langTagTypo === 'preserve';
     const severity = relaxed ? 'warning' : 'error';
@@ -124,13 +138,13 @@ export const pkgLanguageDuplicate: Rule = {
         key,
         pointer: `${pointer}/${field}`,
         kosmoPath,
-        message: `${field}에 동일한 언어 태그가 중복됩니다: ${dup.join(', ')}`,
-        remedy:
-          '텍스트는 손대지 말고, 같은 항목의 다른 필드에서 근거가 확인될 때만 언어 태그를 교정하십시오. ' +
-          '근거가 없으면 중복 항목만 제거하십시오.',
+        message: fill(tr('{0}에 동일한 언어 태그가 중복됩니다: {1}'), { 0: field, 1: dup.join(', ') }),
+        remedy: tr(
+          '텍스트는 손대지 말고, 같은 항목의 다른 필드에서 근거가 확인될 때만 언어 태그를 교정하십시오. 근거가 없으면 중복 항목만 제거하십시오.',
+        ),
         fixable: true,
         policyNote: relaxed
-          ? 'KTL §7(템플릿 원본 유지)을 따르는 정책(preserve)이라 경고로만 표시했습니다.'
+          ? tr('KTL §7(템플릿 원본 유지)을 따르는 정책(preserve)이라 경고로만 표시했습니다.')
           : undefined,
       });
     };
@@ -181,7 +195,9 @@ export const pkgLanguageDuplicate: Rule = {
 export const pkgEmptyArray: Rule = {
   id: 'PKG-EMPTY-ARRAY',
   layer: 'L1',
-  title: '빈 배열을 남기지 않는다 (공식 스키마 minItems: 1)',
+  get title() {
+    return tr('빈 배열을 남기지 않는다 (공식 스키마 minItems: 1)');
+  },
   source: 'IDTA 01001-3-0 JSON Schema',
   check(ctx, report) {
     const walk = (value: unknown, pointer: string, owner: string): void => {
@@ -193,10 +209,10 @@ export const pkgEmptyArray: Rule = {
             key: pointer.slice(pointer.lastIndexOf('/') + 1),
             pointer,
             kosmoPath: pointer,
-            message: `빈 배열이 남아 있습니다: ${pointer}`,
-            remedy:
-              '항목을 넣거나 키를 지우십시오. 공식 스키마는 빈 배열을 허용하지 않습니다 ' +
-              '(KOSMO Validator는 검사하지 않지만 aas-test-engines가 오류로 떨어뜨립니다).',
+            message: fill(tr('빈 배열이 남아 있습니다: {0}'), { 0: pointer }),
+            remedy: tr(
+              '항목을 넣거나 키를 지우십시오. 공식 스키마는 빈 배열을 허용하지 않습니다 (KOSMO Validator는 검사하지 않지만 aas-test-engines가 오류로 떨어뜨립니다).',
+            ),
             fixable: true,
           });
           return;

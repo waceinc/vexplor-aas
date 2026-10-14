@@ -7,6 +7,7 @@
  * 어긋나면 저작 UI에서 "지적된 그 요소"를 열 수 없다.
  */
 import type { LangString, Submodel, SubmodelElement } from '@aas/core';
+import { fill, tr } from '@aas/core';
 
 export interface ElementLocation {
   /** node를 담고 있는 배열 */
@@ -145,7 +146,7 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
         return;
       }
       if (typeof value === 'object') {
-        throw new ValueNotSupportedError(`${node.modelType}의 값은 스칼라여야 합니다.`);
+        throw new ValueNotSupportedError(fill(tr('{0}의 값은 스칼라여야 합니다.'), { 0: node.modelType }));
       }
       (node as { value?: string }).value = String(value);
       return;
@@ -153,7 +154,7 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
     case 'MultiLanguageProperty': {
       if (!Array.isArray(value)) {
         throw new ValueNotSupportedError(
-          'MultiLanguageProperty의 값은 [{"ko":"…"}] 형태의 배열이어야 합니다.',
+          tr('MultiLanguageProperty의 값은 [{"ko":"…"}] 형태의 배열이어야 합니다.'),
         );
       }
       // 규격 형태([{ko:"…"}])를 받는다. 메타모델 형태({language,text})로 보내는 클라이언트도
@@ -166,7 +167,7 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
         const keys = Object.keys(record);
         if (keys.length !== 1) {
           throw new ValueNotSupportedError(
-            '언어 항목은 {"언어코드":"내용"} 하나이거나 {language,text}여야 합니다.',
+            tr('언어 항목은 {"언어코드":"내용"} 하나이거나 {language,text}여야 합니다.'),
           );
         }
         return { language: keys[0]!, text: String(record[keys[0]!]) };
@@ -176,7 +177,7 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
     case 'Range': {
       const range = value as { min?: unknown; max?: unknown } | null;
       if (range === null || typeof range !== 'object') {
-        throw new ValueNotSupportedError('Range의 값은 {min,max}여야 합니다.');
+        throw new ValueNotSupportedError(tr('Range의 값은 {min,max}여야 합니다.'));
       }
       const target = node as { min?: string; max?: string };
       if (range.min === null || range.min === undefined) delete target.min;
@@ -187,7 +188,7 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
     }
     default:
       throw new ValueNotSupportedError(
-        `${node.modelType}은 $value 쓰기를 지원하지 않습니다. 요소 전체를 PUT하십시오.`,
+        fill(tr('{0}은 $value 쓰기를 지원하지 않습니다. 요소 전체를 PUT하십시오.'), { 0: node.modelType }),
       );
   }
 }

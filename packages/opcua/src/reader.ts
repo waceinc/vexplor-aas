@@ -8,6 +8,7 @@
  * 읽기 실패를 예외로 올리지 않는다. 태그 하나가 나쁘다고 수집 전체가 멈추면 안 되고,
  * **나쁜 값은 버리지 않고 사유와 함께 남기는 것**이 A안의 감사 가능성과도 맞다.
  */
+import { fill, tr } from '@aas/core';
 import type { ProtocolReader, ReadResult } from '@aas/collector';
 import {
   AttributeIds,
@@ -62,7 +63,7 @@ async function withTimeout<T>(work: Promise<T>, ms: number, what: string): Promi
     return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${what}이(가) ${ms}ms 안에 끝나지 않았습니다.`)), ms);
+        timer = setTimeout(() => reject(new Error(fill(tr('{0}이(가) {1}ms 안에 끝나지 않았습니다.'), { 0: what, 1: ms }))), ms);
       }),
     ]);
   } finally {
@@ -87,7 +88,7 @@ export function toReadResult(source: string, dataValue: DataValue): ReadResult {
       result.pending = true;
       result.value = null;
     } else {
-      result.error = `${status.name}: ${status.description ?? '나쁜 상태'}`;
+      result.error = `${status.name}: ${status.description ?? tr('나쁜 상태')}`;
     }
   }
   return result;
@@ -111,13 +112,13 @@ export class OpcUaReader implements ProtocolReader {
     });
 
     try {
-      await withTimeout(client.connect(options.endpoint), timeout, '접속');
-      const session = await withTimeout(client.createSession(), timeout, '세션 열기');
+      await withTimeout(client.connect(options.endpoint), timeout, tr('접속'));
+      const session = await withTimeout(client.createSession(), timeout, tr('세션 열기'));
       return new OpcUaReader(options.endpoint, client, session);
     } catch (error) {
       await client.disconnect().catch(() => undefined);
       throw error instanceof Error
-        ? new Error(`${options.endpoint} 접속 실패: ${error.message}`)
+        ? new Error(fill(tr('{0} 접속 실패: {1}'), { 0: options.endpoint, 1: error.message }))
         : error;
     }
   }
@@ -133,12 +134,12 @@ export class OpcUaReader implements ProtocolReader {
     } catch (error) {
       // 연결이 끊겼을 때 — 전부 실패로 표시하고 수집기가 판단하게 한다
       const reason = error instanceof Error ? error.message : String(error);
-      return sources.map((source) => ({ source, value: null, error: `읽기 실패: ${reason}` }));
+      return sources.map((source) => ({ source, value: null, error: fill(tr('읽기 실패: {0}'), { 0: reason }) }));
     }
 
     return sources.map((source, index) => {
       const dataValue = dataValues[index];
-      if (!dataValue) return { source, value: null, error: '응답이 없습니다.' };
+      if (!dataValue) return { source, value: null, error: tr('응답이 없습니다.') };
       return toReadResult(source, dataValue);
     });
   }

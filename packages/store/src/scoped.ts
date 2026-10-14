@@ -23,6 +23,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
+import { fill, tr } from '@aas/core';
 
 import {
   ForbiddenError,
@@ -114,7 +115,7 @@ class ScopedStore implements AasStore {
     if (!workspace) return;
     const record = await this.base.getPackage(packageId);
     // 진짜 없는 것과 남의 것이 **같은 답**이어야 한다 — 다르면 id를 찍어 보며 있는지 알아낼 수 있다
-    if (!record || !this.canRead(record, workspace)) throw new NotFoundError(`패키지 ${packageId}`);
+    if (!record || !this.canRead(record, workspace)) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
   }
 
   /** 고칠 수 있어야 한다. 남의 것은 없는 것, 공용은 읽기 전용 */
@@ -122,10 +123,10 @@ class ScopedStore implements AasStore {
     const workspace = currentWorkspace();
     if (!workspace) return;
     const record = await this.base.getPackage(packageId);
-    if (!record || !this.canRead(record, workspace)) throw new NotFoundError(`패키지 ${packageId}`);
+    if (!record || !this.canRead(record, workspace)) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
     if (!workspace.seesAll && record.owner !== workspace.key) {
       throw new ForbiddenError(
-        '함께 쓰는 파일이라 고칠 수 없습니다 — 「다른 파일에서 가져오기」로 내 파일에 가져와 고치십시오.',
+        tr('함께 쓰는 파일이라 고칠 수 없습니다 — 「다른 파일에서 가져오기」로 내 파일에 가져와 고치십시오.'),
       );
     }
   }
@@ -159,7 +160,7 @@ class ScopedStore implements AasStore {
         cursor = page.cursor;
       } while (cursor !== undefined);
       if (count >= limit) {
-        throw new ForbiddenError(`파일은 한 사람당 ${limit}개까지 올릴 수 있습니다 — 안 쓰는 파일을 지우고 다시 하십시오.`);
+        throw new ForbiddenError(fill(tr('파일은 한 사람당 {0}개까지 올릴 수 있습니다 — 안 쓰는 파일을 지우고 다시 하십시오.'), { 0: limit }));
       }
     }
     return this.base.importPackage({ ...input, owner });
@@ -279,7 +280,7 @@ class ScopedStore implements AasStore {
   pruneValues(before: string): Promise<number> {
     const workspace = currentWorkspace();
     if (workspace && !workspace.seesAll) {
-      throw new ForbiddenError('수집값 정리는 서버만 할 수 있습니다.');
+      throw new ForbiddenError(tr('수집값 정리는 서버만 할 수 있습니다.'));
     }
     return this.base.pruneValues(before);
   }

@@ -1,3 +1,4 @@
+import { tr } from '@aas/core';
 /**
  * multipart/form-data 파서.
  *
@@ -39,13 +40,13 @@ const decoder = new TextDecoder();
 
 export function parseMultipart(body: Uint8Array, contentType: string): MultipartPart[] {
   const boundary = boundaryOf(contentType);
-  if (!boundary) throw new MultipartError('multipart 경계(boundary)가 없습니다.');
+  if (!boundary) throw new MultipartError(tr('multipart 경계(boundary)가 없습니다.'));
 
   const delimiter = encoder.encode(`--${boundary}`);
   const parts: MultipartPart[] = [];
 
   let cursor = indexOfBytes(body, delimiter, 0);
-  if (cursor < 0) throw new MultipartError('multipart 본문에서 경계를 찾지 못했습니다.');
+  if (cursor < 0) throw new MultipartError(tr('multipart 본문에서 경계를 찾지 못했습니다.'));
 
   while (cursor >= 0) {
     let start = cursor + delimiter.length;
@@ -55,10 +56,10 @@ export function parseMultipart(body: Uint8Array, contentType: string): Multipart
     if (body[start] === 0x0a) start += 1;
 
     const next = indexOfBytes(body, delimiter, start);
-    if (next < 0) throw new MultipartError('닫히지 않은 multipart 조각이 있습니다.');
+    if (next < 0) throw new MultipartError(tr('닫히지 않은 multipart 조각이 있습니다.'));
 
     const headerEnd = indexOfBytes(body, encoder.encode('\r\n\r\n'), start);
-    if (headerEnd < 0 || headerEnd > next) throw new MultipartError('multipart 머리말이 없습니다.');
+    if (headerEnd < 0 || headerEnd > next) throw new MultipartError(tr('multipart 머리말이 없습니다.'));
 
     const headerText = decoder.decode(body.subarray(start, headerEnd));
     let end = next;
@@ -69,7 +70,7 @@ export function parseMultipart(body: Uint8Array, contentType: string): Multipart
     const data = body.slice(headerEnd + 4, end);
     const disposition = /content-disposition:([^\r\n]*)/i.exec(headerText)?.[1] ?? '';
     const name = /name="([^"]*)"/i.exec(disposition)?.[1];
-    if (name === undefined) throw new MultipartError('이름 없는 multipart 조각이 있습니다.');
+    if (name === undefined) throw new MultipartError(tr('이름 없는 multipart 조각이 있습니다.'));
 
     const part: MultipartPart = { name, data };
     const filename = /filename="([^"]*)"/i.exec(disposition)?.[1];

@@ -185,6 +185,19 @@ if (process.argv[1]?.endsWith('i18n-scan.mjs')) {
     if (value !== undefined && marks(key) !== marks(value)) broken.push({ key, value });
   }
 
+  // 🔴 CSS의 content 글자 — 번역기를 거칠 수 없어 영어 화면에 그대로 남는다. attr(data-…)로 넘겨야 한다
+  for (const file of readdirSync(join(ROOT, 'styles')).filter((name) => name.endsWith('.css'))) {
+    const lines = readFileSync(join(ROOT, 'styles', file), 'utf8').split('\n');
+    const untranslated = [];
+    lines.forEach((line, index) => {
+      if (/\bcontent\s*:/.test(line) && HANGUL.test(line.replace(/\/\*.*?\*\//g, ''))) {
+        untranslated.push({ line: index + 1, kind: 'css', text: line.trim() });
+      }
+    });
+    total += untranslated.length;
+    if (untranslated.length > 0) rows.push({ name: `styles/${file}`, untranslated });
+  }
+
   rows.sort((a, b) => b.untranslated.length - a.untranslated.length);
   for (const row of rows) {
     console.log(`${String(row.untranslated.length).padStart(5)}  ${row.name}`);

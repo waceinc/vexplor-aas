@@ -14,20 +14,25 @@
  *   AASc-3a-004 → KOSMO-CD-4, AASc-3a-008 → KOSMO-CD-3
  */
 import type { Entity, Property, Reference, SubmodelElementList } from '@aas/core';
-import { GLOBALLY_IDENTIFIABLE } from '@aas/core';
+import { fill, GLOBALLY_IDENTIFIABLE, tr } from '@aas/core';
 
 /** AASd-123 — 모델 참조의 첫 키로 허용되는 것 */
 const AAS_IDENTIFIABLES = ['AssetAdministrationShell', 'Submodel', 'ConceptDescription'];
 import type { LintContext, Report, Rule } from '../types.js';
 import { firstKeyValue, hasLanguage, iec61360Of, needsUnit } from '../util.js';
 
+// i18n-ignore — 근거 문서 파일 이름
 const SPEC = 'AAS 참조모델 제약조건 spec_260812.pdf';
 
 export const aasd005Administration: Rule = {
   id: 'AASd-005',
   layer: 'L2',
-  title: 'version 없이 revision을 지정할 수 없다',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('version 없이 revision을 지정할 수 없다');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     const check = (
       admin: { version?: string; revision?: string } | undefined,
@@ -43,8 +48,8 @@ export const aasd005Administration: Rule = {
         key,
         pointer: `${pointer}/administration`,
         kosmoPath: `${kosmoPath}/administration`,
-        message: 'version 없이 revision만 지정되어 있습니다.',
-        remedy: 'administration에 version을 함께 입력하십시오.',
+        message: tr('version 없이 revision만 지정되어 있습니다.'),
+        remedy: tr('administration에 version을 함께 입력하십시오.'),
         fixable: false,
       });
     };
@@ -67,8 +72,12 @@ export const aasd005Administration: Rule = {
 export const aasd014Entity: Rule = {
   id: 'AASd-014',
   layer: 'L2',
-  title: 'SelfManagedEntity는 globalAssetId 또는 specificAssetId를 가져야 한다',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('SelfManagedEntity는 globalAssetId 또는 specificAssetId를 가져야 한다');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     for (const v of ctx.elements) {
       if (v.node.modelType !== 'Entity') continue;
@@ -82,8 +91,8 @@ export const aasd014Entity: Rule = {
         key: entity.idShort ?? v.idShortPath,
         pointer: `${v.pointer}/globalAssetId`,
         kosmoPath: v.kosmoPath,
-        message: 'SelfManagedEntity에 globalAssetId도 specificAssetIds도 없습니다.',
-        remedy: '자산 식별자를 지정하거나 entityType을 CoManagedEntity로 바꾸십시오.',
+        message: tr('SelfManagedEntity에 globalAssetId도 specificAssetIds도 없습니다.'),
+        remedy: tr('자산 식별자를 지정하거나 entityType을 CoManagedEntity로 바꾸십시오.'),
         fixable: false,
       });
     }
@@ -93,8 +102,12 @@ export const aasd014Entity: Rule = {
 export const aasd022UniqueIdShort: Rule = {
   id: 'AASd-022',
   layer: 'L2',
-  title: '같은 네임스페이스 안에서 idShort는 고유해야 한다 (대소문자 구분)',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('같은 네임스페이스 안에서 idShort는 고유해야 한다 (대소문자 구분)');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     // 네임스페이스 = 부모 컨테이너. 부모 pointer를 키로 묶는다
     const groups = new Map<string, Map<string, number>>();
@@ -115,8 +128,8 @@ export const aasd022UniqueIdShort: Rule = {
           key: idShort,
           pointer: `${v.pointer}/idShort`,
           kosmoPath: v.kosmoPath,
-          message: `같은 네임스페이스에 동일한 idShort가 이미 있습니다: ${idShort}`,
-          remedy: '형제 요소끼리 이름이 겹치지 않도록 바꾸십시오. 대소문자만 다른 것도 허용되지 않습니다.',
+          message: fill(tr('같은 네임스페이스에 동일한 idShort가 이미 있습니다: {0}'), { 0: idShort }),
+          remedy: tr('형제 요소끼리 이름이 겹치지 않도록 바꾸십시오. 대소문자만 다른 것도 허용되지 않습니다.'),
           fixable: false,
         });
       }
@@ -130,8 +143,12 @@ export const aasd022UniqueIdShort: Rule = {
 export const aasdSubmodelElementList: Rule = {
   id: 'AASd-107/108/109/114',
   layer: 'L2',
-  title: 'SubmodelElementList 직계 자식의 타입·semanticId·valueType 일관성',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('SubmodelElementList 직계 자식의 타입·semanticId·valueType 일관성');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     for (const v of ctx.elements) {
       if (v.node.modelType !== 'SubmodelElementList') continue;
@@ -150,10 +167,11 @@ export const aasdSubmodelElementList: Rule = {
             key,
             pointer: `${v.pointer}/value/${i}`,
             kosmoPath: `${v.kosmoPath}/value/${i}`,
-            message:
-              `자식 요소의 타입이 typeValueListElement와 다릅니다: ` +
-              `${child.modelType} (선언값 ${list.typeValueListElement})`,
-            remedy: 'SubmodelElementList에는 한 가지 타입만 담을 수 있습니다.',
+            message: fill(tr('자식 요소의 타입이 typeValueListElement와 다릅니다: {0} (선언값 {1})'), {
+              0: child.modelType,
+              1: list.typeValueListElement,
+            }),
+            remedy: tr('SubmodelElementList에는 한 가지 타입만 담을 수 있습니다.'),
             fixable: false,
           });
         }
@@ -169,8 +187,8 @@ export const aasdSubmodelElementList: Rule = {
           key,
           pointer: `${v.pointer}/valueTypeListElement`,
           kosmoPath: v.kosmoPath,
-          message: 'Property/Range를 담는 리스트인데 valueTypeListElement가 없습니다.',
-          remedy: '자식들이 공통으로 쓰는 valueType을 valueTypeListElement에 지정하십시오.',
+          message: tr('Property/Range를 담는 리스트인데 valueTypeListElement가 없습니다.'),
+          remedy: tr('자식들이 공통으로 쓰는 valueType을 valueTypeListElement에 지정하십시오.'),
           fixable: true,
         });
       }
@@ -184,8 +202,11 @@ export const aasdSubmodelElementList: Rule = {
               key,
               pointer: `${v.pointer}/value/${i}/valueType`,
               kosmoPath: `${v.kosmoPath}/value/${i}`,
-              message: `자식의 valueType이 valueTypeListElement와 다릅니다: ${childValueType} (선언값 ${list.valueTypeListElement})`,
-              remedy: '리스트 안의 값 타입을 통일하십시오.',
+              message: fill(tr('자식의 valueType이 valueTypeListElement와 다릅니다: {0} (선언값 {1})'), {
+                0: childValueType,
+                1: list.valueTypeListElement,
+              }),
+              remedy: tr('리스트 안의 값 타입을 통일하십시오.'),
               fixable: false,
             });
           }
@@ -206,8 +227,8 @@ export const aasdSubmodelElementList: Rule = {
             key,
             pointer: `${v.pointer}/value`,
             kosmoPath: v.kosmoPath,
-            message: `직계 자식들의 semanticId가 서로 다릅니다: ${distinct.length}종`,
-            remedy: '리스트 자식은 모두 같은 semanticId를 가져야 합니다(AASd-114).',
+            message: fill(tr('직계 자식들의 semanticId가 서로 다릅니다: {0}종'), { 0: distinct.length }),
+            remedy: tr('리스트 자식은 모두 같은 semanticId를 가져야 합니다(AASd-114).'),
             fixable: false,
           });
         } else if (declared !== undefined && distinct[0] !== declared) {
@@ -217,12 +238,15 @@ export const aasdSubmodelElementList: Rule = {
             key,
             pointer: `${v.pointer}/semanticIdListElement`,
             kosmoPath: v.kosmoPath,
-            message: `자식의 semanticId가 semanticIdListElement와 다릅니다: ${distinct[0]} (선언값 ${declared})`,
+            message: fill(tr('자식의 semanticId가 semanticIdListElement와 다릅니다: {0} (선언값 {1})'), {
+              0: distinct[0],
+              1: declared,
+            }),
             // 🔴 자동으로 고치지 않는다 — 어느 쪽이 맞는지는 사람이 안다. 실측: 자식이 「345345」(오타), 선언값이 표준 IRDI.
             //    fixable로 광고하면서 교정기가 없어 단추 숫자와 팝업이 어긋났다(2026-09-11)
-            remedy:
-              '둘 중 맞는 쪽으로 맞추십시오 — 대개 표준 사전 값(0173-/0112/로 시작)이 맞고 자식 쪽이 오타입니다. ' +
-              '자식 요소를 골라 semanticId 칸에서 선언값을 넣으면 됩니다(AASd-107).',
+            remedy: tr(
+              '둘 중 맞는 쪽으로 맞추십시오 — 대개 표준 사전 값(0173-/0112/로 시작)이 맞고 자식 쪽이 오타입니다. 자식 요소를 골라 semanticId 칸에서 선언값을 넣으면 됩니다(AASd-107).',
+            ),
             fixable: false,
           });
         }
@@ -235,8 +259,12 @@ export const aasdSubmodelElementList: Rule = {
 export const aasdReferenceKeys: Rule = {
   id: 'AASd-121~128',
   layer: 'L2',
-  title: 'Reference 키 사슬 — 첫 키·뒤 키·Fragment 자리의 타입 제약',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('Reference 키 사슬 — 첫 키·뒤 키·Fragment 자리의 타입 제약');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     const checkRef = (
       ref: Reference | undefined,
@@ -259,8 +287,8 @@ export const aasdReferenceKeys: Rule = {
           key,
           pointer: `${pointer}/${field}/keys/0/type`,
           kosmoPath,
-          message: `Reference의 첫 키가 GloballyIdentifiable이 아닙니다: ${first.type}`,
-          remedy: `첫 키 타입을 ${GLOBALLY_IDENTIFIABLE.join(' / ')} 중 하나로 바꾸십시오(AASd-121).`,
+          message: fill(tr('Reference의 첫 키가 GloballyIdentifiable이 아닙니다: {0}'), { 0: first.type }),
+          remedy: fill(tr('첫 키 타입을 {0} 중 하나로 바꾸십시오(AASd-121).'), { 0: GLOBALLY_IDENTIFIABLE.join(' / ') }),
           fixable: true,
         });
       }
@@ -274,8 +302,8 @@ export const aasdReferenceKeys: Rule = {
             key,
             pointer: `${pointer}/${field}/keys/0/type`,
             kosmoPath,
-            message: `ModelReference의 첫 키가 AAS 식별 대상이 아닙니다: ${first.type}`,
-            remedy: `첫 키 타입을 ${AAS_IDENTIFIABLES.join(' / ')} 중 하나로 바꾸십시오(AASd-123).`,
+            message: fill(tr('ModelReference의 첫 키가 AAS 식별 대상이 아닙니다: {0}'), { 0: first.type }),
+            remedy: fill(tr('첫 키 타입을 {0} 중 하나로 바꾸십시오(AASd-123).'), { 0: AAS_IDENTIFIABLES.join(' / ') }),
             fixable: false,
           });
         }
@@ -294,8 +322,8 @@ export const aasdReferenceKeys: Rule = {
                 key,
                 pointer: `${pointer}/${field}/keys/${index}/type`,
                 kosmoPath,
-                message: `FragmentReference 앞 키가 File·Blob이 아닙니다: ${previous.type}`,
-                remedy: 'Fragment는 파일 안 위치를 가리킵니다 — 앞 키를 File 또는 Blob으로(AASd-127).',
+                message: fill(tr('FragmentReference 앞 키가 File·Blob이 아닙니다: {0}'), { 0: previous.type }),
+                remedy: tr('Fragment는 파일 안 위치를 가리킵니다 — 앞 키를 File 또는 Blob으로(AASd-127).'),
             fixable: false,
               });
             }
@@ -310,8 +338,8 @@ export const aasdReferenceKeys: Rule = {
               key,
               pointer: `${pointer}/${field}/keys/${index}/value`,
               kosmoPath,
-              message: `SubmodelElementList 키 뒤의 값이 정수 색인이 아닙니다: ${chainKey.value}`,
-              remedy: '리스트 자식은 위치로 가리킵니다 — 0부터 시작하는 숫자를 쓰십시오(AASd-128).',
+              message: fill(tr('SubmodelElementList 키 뒤의 값이 정수 색인이 아닙니다: {0}'), { 0: chainKey.value }),
+              remedy: tr('리스트 자식은 위치로 가리킵니다 — 0부터 시작하는 숫자를 쓰십시오(AASd-128).'),
               fixable: false,
             });
           }
@@ -322,9 +350,11 @@ export const aasdReferenceKeys: Rule = {
               key,
               pointer: `${pointer}/${field}/keys/${index}/type`,
               kosmoPath,
-              message: `ModelReference의 ${index + 1}번째 키 타입이 요소류가 아닙니다: ${chainKey.type}`,
-              remedy:
-                '둘째 키부터는 Property·SubmodelElementCollection 같은 요소 타입이어야 합니다(AASd-125).',
+              message: fill(tr('ModelReference의 {0}번째 키 타입이 요소류가 아닙니다: {1}'), {
+                0: index + 1,
+                1: chainKey.type,
+              }),
+              remedy: tr('둘째 키부터는 Property·SubmodelElementCollection 같은 요소 타입이어야 합니다(AASd-125).'),
             fixable: false,
             });
           }
@@ -339,10 +369,10 @@ export const aasdReferenceKeys: Rule = {
             key,
             pointer: `${pointer}/${field}/keys/0/type`,
             kosmoPath,
-            message: `ExternalReference의 첫 키가 GlobalReference가 아닙니다: ${first.type}`,
-            remedy:
-              'GlobalReference로 바꾸십시오. Submodel로 두면 AASd-122 위반이며 ' +
-              'basyx가 해당 서브모델을 통째로 드롭합니다(실측 7→5).',
+            message: fill(tr('ExternalReference의 첫 키가 GlobalReference가 아닙니다: {0}'), { 0: first.type }),
+            remedy: tr(
+              'GlobalReference로 바꾸십시오. Submodel로 두면 AASd-122 위반이며 basyx가 해당 서브모델을 통째로 드롭합니다(실측 7→5).',
+            ),
             fixable: true,
           });
         }
@@ -353,8 +383,8 @@ export const aasdReferenceKeys: Rule = {
             key,
             pointer: `${pointer}/${field}/keys/${ref.keys.length - 1}/type`,
             kosmoPath,
-            message: `ExternalReference의 마지막 키가 GlobalReference가 아닙니다: ${last.type}`,
-            remedy: '마지막 키 타입을 GlobalReference로 바꾸십시오(AASd-124).',
+            message: fill(tr('ExternalReference의 마지막 키가 GlobalReference가 아닙니다: {0}'), { 0: last.type }),
+            remedy: tr('마지막 키 타입을 GlobalReference로 바꾸십시오(AASd-124).'),
             fixable: true,
           });
         }
@@ -377,8 +407,12 @@ export const aasdReferenceKeys: Rule = {
 export const aasc3a002PreferredName: Rule = {
   id: 'AASc-3a-002',
   layer: 'L2',
-  title: 'ConceptDescription의 preferredName에 영문이 있어야 한다',
-  source: `${SPEC} 2장`,
+  get title() {
+    return tr('ConceptDescription의 preferredName에 영문이 있어야 한다');
+  },
+  get source() {
+    return fill(tr('{0} 2장'), { 0: SPEC });
+  },
   check(ctx, report) {
     (ctx.environment.conceptDescriptions ?? []).forEach((cd, i) => {
       const content = iec61360Of(cd);
@@ -392,8 +426,8 @@ export const aasc3a002PreferredName: Rule = {
         key,
         pointer: `/conceptDescriptions/${i}/embeddedDataSpecifications/0/dataSpecificationContent/preferredName`,
         kosmoPath: `/conceptDescriptions/${i}(${key})/preferredName`,
-        message: 'preferredName에 영문(en) 항목이 없습니다.',
-        remedy: '영문 표기를 en 태그로 추가하십시오.',
+        message: tr('preferredName에 영문(en) 항목이 없습니다.'),
+        remedy: tr('영문 표기를 en 태그로 추가하십시오.'),
         fixable: true,
       });
     });
@@ -403,8 +437,12 @@ export const aasc3a002PreferredName: Rule = {
 export const aasc3a009UnitRequired: Rule = {
   id: 'AASc-3a-009',
   layer: 'L2',
-  title: 'dataType이 MEASURE/CURRENCY 계열이면 unit 또는 unitId가 필요하다',
-  source: `${SPEC} 2장`,
+  get title() {
+    return tr('dataType이 MEASURE/CURRENCY 계열이면 unit 또는 unitId가 필요하다');
+  },
+  get source() {
+    return fill(tr('{0} 2장'), { 0: SPEC });
+  },
   check(ctx, report) {
     (ctx.environment.conceptDescriptions ?? []).forEach((cd, i) => {
       const content = iec61360Of(cd);
@@ -418,10 +456,10 @@ export const aasc3a009UnitRequired: Rule = {
         key,
         pointer: `/conceptDescriptions/${i}/embeddedDataSpecifications/0/dataSpecificationContent/unit`,
         kosmoPath: `/conceptDescriptions/${i}(${key})/unit`,
-        message: `dataType이 ${content.dataType}인데 unit도 unitId도 없습니다.`,
-        remedy:
-          '단위를 지정하십시오. 무차원 값(개수·비율·역률)이라면 단위를 억지로 붙이지 말고 ' +
-          'dataType을 REAL_COUNT / INTEGER_COUNT로 바꾸는 것이 옳습니다.',
+        message: fill(tr('dataType이 {0}인데 unit도 unitId도 없습니다.'), { 0: content.dataType }),
+        remedy: tr(
+          '단위를 지정하십시오. 무차원 값(개수·비율·역률)이라면 단위를 억지로 붙이지 말고 dataType을 REAL_COUNT / INTEGER_COUNT로 바꾸는 것이 옳습니다.',
+        ),
         fixable: true,
       });
     });
@@ -446,8 +484,12 @@ export const aasc3a009UnitRequired: Rule = {
 export const aasd120SmlChildIdShort: Rule = {
   id: 'AASd-120',
   layer: 'L2',
-  title: 'SubmodelElementList 직계 자식은 idShort를 가질 수 없다',
-  source: 'AAS V3.0 메타모델 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측',
+  get title() {
+    return tr('SubmodelElementList 직계 자식은 idShort를 가질 수 없다');
+  },
+  get source() {
+    return tr('AAS V3.0 메타모델 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측');
+  },
   check(ctx, report) {
     const policy = ctx.policy.smlChildIdShort;
     if (policy === 'allow') return;
@@ -463,18 +505,18 @@ export const aasd120SmlChildIdShort: Rule = {
         key: idShort,
         pointer: `${v.pointer}/idShort`,
         kosmoPath: `${v.kosmoPath}/idShort`,
-        message: `SubmodelElementList의 직계 자식에 idShort가 있습니다: ${idShort}`,
-        remedy:
-          'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). ' +
-          '지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. ' +
-          // 🔴 이미 Validator를 받은 파일은 고치면 해시가 달라진다 — 번들은 원본 바이트로 대조한다(2026-09-30)
-          '단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.',
+        message: fill(tr('SubmodelElementList의 직계 자식에 idShort가 있습니다: {0}'), { 0: idShort }),
+        // 🔴 이미 Validator를 받은 파일은 고치면 해시가 달라진다 — 번들은 원본 바이트로 대조한다(2026-09-30)
+        remedy: tr(
+          'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.',
+        ),
         fixable: true,
         policyNote:
           policy === 'forbid'
-            ? '정책(forbid) — 표준 준수·상호운용을 우선합니다.'
-            : 'KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, ' +
-              'basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.',
+            ? tr('정책(forbid) — 표준 준수·상호운용을 우선합니다.')
+            : tr(
+                'KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.',
+              ),
       });
     }
   },
@@ -501,8 +543,12 @@ const ALLOWED_CATEGORIES = ['CONSTANT', 'PARAMETER', 'VARIABLE'];
 export const aasd090DataElementCategory: Rule = {
   id: 'AASd-090',
   layer: 'L2',
-  title: 'DataElement의 category는 CONSTANT · PARAMETER · VARIABLE 중 하나여야 한다',
-  source: 'AAS V3.0 메타모델 AASd-090 (aas-core-meta v3)',
+  get title() {
+    return tr('DataElement의 category는 CONSTANT · PARAMETER · VARIABLE 중 하나여야 한다');
+  },
+  get source() {
+    return tr('AAS V3.0 메타모델 AASd-090 (aas-core-meta v3)');
+  },
   check(ctx, report) {
     for (const v of ctx.elements) {
       if (!DATA_ELEMENT_TYPES.has(v.node.modelType)) continue;
@@ -517,8 +563,8 @@ export const aasd090DataElementCategory: Rule = {
         key: v.node.idShort ?? v.idShortPath,
         pointer: `${v.pointer}/category`,
         kosmoPath: `${v.kosmoPath}/category`,
-        message: `DataElement의 category가 허용값이 아닙니다: ${category}`,
-        remedy: `${ALLOWED_CATEGORIES.join(' · ')} 중 하나로 바꾸거나 비워 두십시오(AASd-090).`,
+        message: fill(tr('DataElement의 category가 허용값이 아닙니다: {0}'), { 0: category }),
+        remedy: fill(tr('{0} 중 하나로 바꾸거나 비워 두십시오(AASd-090).'), { 0: ALLOWED_CATEGORIES.join(' · ') }),
         fixable: true,
       });
     }
@@ -534,8 +580,12 @@ export const aasd090DataElementCategory: Rule = {
 export const aasd118SupplementalSemantics: Rule = {
   id: 'AASd-118',
   layer: 'L2',
-  title: 'supplementalSemanticIds가 있으면 semanticId도 있어야 한다',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('supplementalSemanticIds가 있으면 semanticId도 있어야 한다');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     for (const v of ctx.elements) {
       const raw = v.node as unknown as Record<string, unknown>;
@@ -549,8 +599,8 @@ export const aasd118SupplementalSemantics: Rule = {
         key: v.node.idShort ?? v.idShortPath,
         pointer: `${v.pointer}/supplementalSemanticIds`,
         kosmoPath: v.kosmoPath,
-        message: '보조 semanticId만 있고 주 semanticId가 없습니다.',
-        remedy: 'semanticId를 채우거나 supplementalSemanticIds를 지우십시오(AASd-118).',
+        message: tr('보조 semanticId만 있고 주 semanticId가 없습니다.'),
+        remedy: tr('semanticId를 채우거나 supplementalSemanticIds를 지우십시오(AASd-118).'),
         fixable: false,
       });
     }
@@ -564,8 +614,12 @@ export const aasd118SupplementalSemantics: Rule = {
 export const aasdSpecificAssetId: Rule = {
   id: 'AASd-116/133',
   layer: 'L2',
-  title: 'SpecificAssetId — 예약 이름 globalAssetId 금지, externalSubjectId는 ExternalReference',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('SpecificAssetId — 예약 이름 globalAssetId 금지, externalSubjectId는 ExternalReference');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     (ctx.environment.assetAdministrationShells ?? []).forEach((shell, index) => {
       const asset = (shell as unknown as Record<string, unknown>)['assetInformation'] as
@@ -581,8 +635,8 @@ export const aasdSpecificAssetId: Rule = {
             key: shell.idShort ?? shell.id,
             pointer: `${base}/name`,
             kosmoPath: kosmo,
-            message: 'specificAssetId의 이름으로 예약어 globalAssetId를 쓸 수 없습니다.',
-            remedy: '그 값은 assetInformation.globalAssetId 필드에 두십시오(AASd-116).',
+            message: tr('specificAssetId의 이름으로 예약어 globalAssetId를 쓸 수 없습니다.'),
+            remedy: tr('그 값은 assetInformation.globalAssetId 필드에 두십시오(AASd-116).'),
             fixable: false,
           });
         }
@@ -593,8 +647,10 @@ export const aasdSpecificAssetId: Rule = {
             key: shell.idShort ?? shell.id,
             pointer: `${base}/externalSubjectId/type`,
             kosmoPath: kosmo,
-            message: `externalSubjectId가 ExternalReference가 아닙니다: ${entry.externalSubjectId.type}`,
-            remedy: 'Reference/type을 ExternalReference로 바꾸십시오(AASd-133).',
+            message: fill(tr('externalSubjectId가 ExternalReference가 아닙니다: {0}'), {
+              0: entry.externalSubjectId.type,
+            }),
+            remedy: tr('Reference/type을 ExternalReference로 바꾸십시오(AASd-133).'),
             fixable: false,
           });
         }
@@ -610,8 +666,12 @@ export const aasdSpecificAssetId: Rule = {
 export const aasc3a010ValueExclusive: Rule = {
   id: 'AASc-3a-010',
   layer: 'L2',
-  title: 'IEC 61360의 value와 valueList는 함께 쓸 수 없다',
-  source: `${SPEC} 2장`,
+  get title() {
+    return tr('IEC 61360의 value와 valueList는 함께 쓸 수 없다');
+  },
+  get source() {
+    return fill(tr('{0} 2장'), { 0: SPEC });
+  },
   check(ctx, report) {
     (ctx.environment.conceptDescriptions ?? []).forEach((cd, index) => {
       const content = iec61360Of(cd) as unknown as
@@ -627,8 +687,8 @@ export const aasc3a010ValueExclusive: Rule = {
           key: cd.idShort ?? cd.id,
           pointer: `/conceptDescriptions/${index}/embeddedDataSpecifications/0/dataSpecificationContent/value`,
           kosmoPath: `/conceptDescriptions/${index}(${cd.idShort ?? cd.id})`,
-          message: 'IEC 61360에 value와 valueList가 함께 있습니다.',
-          remedy: '둘 중 하나만 남기십시오(AASc-3a-010) — 고정값이면 value, 선택지면 valueList.',
+          message: tr('IEC 61360에 value와 valueList가 함께 있습니다.'),
+          remedy: tr('둘 중 하나만 남기십시오(AASc-3a-010) — 고정값이면 value, 선택지면 valueList.'),
           fixable: false,
         });
       }
@@ -643,8 +703,12 @@ export const aasc3a010ValueExclusive: Rule = {
 export const aasdTemplateQualifier: Rule = {
   id: 'AASd-119/129',
   layer: 'L2',
-  title: 'TemplateQualifier가 붙은 요소는 kind=Template 서브모델 안에 있어야 한다',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('TemplateQualifier가 붙은 요소는 kind=Template 서브모델 안에 있어야 한다');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     const submodelKind = new Map<number, string | undefined>();
     (ctx.environment.submodels ?? []).forEach((sm, i) => submodelKind.set(i, sm.kind));
@@ -664,8 +728,8 @@ export const aasdTemplateQualifier: Rule = {
         key: v.node.idShort ?? v.idShortPath,
         pointer: `${v.pointer}/qualifiers`,
         kosmoPath: v.kosmoPath,
-        message: `TemplateQualifier가 있는데 서브모델 kind가 Template이 아닙니다: ${kind ?? '없음'}`,
-        remedy: 'Submodel.kind를 Template으로 바꾸거나 qualifier를 지우십시오(AASd-119·129).',
+        message: fill(tr('TemplateQualifier가 있는데 서브모델 kind가 Template이 아닙니다: {0}'), { 0: kind ?? tr('없음') }),
+        remedy: tr('Submodel.kind를 Template으로 바꾸거나 qualifier를 지우십시오(AASd-119·129).'),
         fixable: false,
       });
     }
@@ -681,8 +745,12 @@ export const aasdTemplateQualifier: Rule = {
 export const aasd130StringChars: Rule = {
   id: 'AASd-130',
   layer: 'L2',
-  title: '문자열에 XML 1.0에서 금지된 문자(제어문자 등)를 쓸 수 없다',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('문자열에 XML 1.0에서 금지된 문자(제어문자 등)를 쓸 수 없다');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     // 금지: C0 제어문자(탭·줄바꿈 제외) · FFFE/FFFF · 홀 서로게이트
     const bad = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/;
@@ -697,8 +765,8 @@ export const aasd130StringChars: Rule = {
             key: pointer.slice(pointer.lastIndexOf('/') + 1),
             pointer,
             kosmoPath: pointer,
-            message: '문자열에 XML에서 금지된 문자(제어문자 등)가 들어 있습니다.',
-            remedy: '해당 문자를 지우십시오(AASd-130). 복사·붙여넣기로 섞여 들어오는 일이 흔합니다.',
+            message: tr('문자열에 XML에서 금지된 문자(제어문자 등)가 들어 있습니다.'),
+            remedy: tr('해당 문자를 지우십시오(AASd-130). 복사·붙여넣기로 섞여 들어오는 일이 흔합니다.'),
             fixable: false,
           });
         }
@@ -724,8 +792,12 @@ export const aasd130StringChars: Rule = {
 export const aasd134OperationVariables: Rule = {
   id: 'AASd-134',
   layer: 'L2',
-  title: 'Operation의 입·출력 변수 idShort는 서로 달라야 한다',
-  source: `${SPEC} 1장`,
+  get title() {
+    return tr('Operation의 입·출력 변수 idShort는 서로 달라야 한다');
+  },
+  get source() {
+    return fill(tr('{0} 1장'), { 0: SPEC });
+  },
   check(ctx, report) {
     for (const v of ctx.elements) {
       if (v.node.modelType !== 'Operation') continue;
@@ -745,8 +817,8 @@ export const aasd134OperationVariables: Rule = {
             key: v.node.idShort ?? v.idShortPath,
             pointer: v.pointer,
             kosmoPath: v.kosmoPath,
-            message: `Operation 변수 idShort가 겹칩니다: ${name}`,
-            remedy: '입·출력 변수의 idShort를 서로 다르게 지으십시오(AASd-134).',
+            message: fill(tr('Operation 변수 idShort가 겹칩니다: {0}'), { 0: name }),
+            remedy: tr('입·출력 변수의 idShort를 서로 다르게 지으십시오(AASd-134).'),
             fixable: false,
           });
           break;

@@ -4,7 +4,7 @@
  * 설비 수십 종 × 수백 Property가 들어오면 DOM에 전부 그릴 수 없다(기획서 Ⅷ).
  * 라이브러리를 들이지 않고 고정 행 높이로 창을 잘라 그린다 — 규칙이 단순해 직접 두는 편이 낫다.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { FindingTally, TreeNode } from '../model.js';
 import { displayValue } from '../model.js';
 import { RowContent } from './tree/RowContent.js';
@@ -158,7 +158,8 @@ export function TreeView({
                 className={`row${selected === row.key ? ' selected' : ''}${
                   matched?.has(row.key) ? ' hit' : ''
                 }${drop?.key === row.key ? ` drop-${drop.where}` : ''}${dragKey === row.key ? ' dragging' : ''}`}
-                style={{ height: ROW_HEIGHT, paddingLeft: 8 + row.depth * 14 }}
+                // 들여쓰기는 CSS(.tree .row — 칸 여백 + 단계 × --tree-indent)가 맡는다. 여기서는 단계만 넘긴다
+                style={{ height: ROW_HEIGHT, '--depth': row.depth } as CSSProperties}
                 draggable={canDrag(row)}
                 onDragStart={(event) => {
                   event.dataTransfer.effectAllowed = 'move';

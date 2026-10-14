@@ -12,6 +12,7 @@ import { DataType, DataValue, OPCUAServer, StatusCodes, Variant } from 'node-opc
 import { simulationPlan, type SimDataType } from './simulate.js';
 
 export const SIMULATOR_RESOURCE_PATH = '/UA/Simulator';
+// i18n-ignore — AAS 파일에 적히는 수집 연결 이름(데이터) — 증빙이 이 값으로 시뮬레이션을 가린다
 export const SIMULATOR_TITLE = '가상 PLC (시뮬레이션)';
 
 const OPC_TYPE: Record<SimDataType, DataType> = {

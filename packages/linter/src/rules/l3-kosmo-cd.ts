@@ -5,6 +5,7 @@
  * CD#4는 AASc-3a-004 열거보다 좁다. aas-core3.1은 FILE을 통과시키지만 KOSMO는 거부한다.
  */
 import type { ConceptDescription } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import type { LintContext, Rule, Severity } from '../types.js';
 import {
   hasLanguage,
@@ -15,6 +16,7 @@ import {
   KOSMO_ALLOWED_DATA_TYPES,
 } from '../util.js';
 
+// i18n-ignore — 근거 문서 파일 이름
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2⑥⑦';
 
 function eachCd(
@@ -30,7 +32,9 @@ function eachCd(
 export const kosmoCd1IdShort: Rule = {
   id: 'KOSMO-CD-1',
   layer: 'L3',
-  title: 'ConceptDescription idShort 설정 및 명명 규칙 검사',
+  get title() {
+    return tr('ConceptDescription idShort 설정 및 명명 규칙 검사');
+  },
   source: SOURCE,
   check(ctx, report) {
     eachCd(ctx, (cd, pointer, kosmoPath, key) => {
@@ -41,8 +45,8 @@ export const kosmoCd1IdShort: Rule = {
           key,
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
-          message: 'ConceptDescription에 idShort가 없습니다.',
-          remedy: '대응하는 요소의 idShort와 같은 이름을 지정하십시오.',
+          message: tr('ConceptDescription에 idShort가 없습니다.'),
+          remedy: tr('대응하는 요소의 idShort와 같은 이름을 지정하십시오.'),
           fixable: true,
         });
         return;
@@ -54,8 +58,8 @@ export const kosmoCd1IdShort: Rule = {
           key,
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
-          message: `idShort가 명명 규칙에 맞지 않습니다: ${cd.idShort}`,
-          remedy: '영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오.',
+          message: fill(tr('idShort가 명명 규칙에 맞지 않습니다: {0}'), { 0: cd.idShort }),
+          remedy: tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오.'),
           fixable: true,
         });
       }
@@ -66,8 +70,12 @@ export const kosmoCd1IdShort: Rule = {
 export const kosmoCd2IdFormat: Rule = {
   id: 'KOSMO-CD-2',
   layer: 'L3',
-  title: 'ConceptDescription Id 형식 검사 — IRDI 또는 자체 IRI 화이트리스트',
-  source: `${SOURCE} (실측 1·3차 위반)`,
+  get title() {
+    return tr('ConceptDescription Id 형식 검사 — IRDI 또는 자체 IRI 화이트리스트');
+  },
+  get source() {
+    return fill(tr('{0} (실측 1·3차 위반)'), { 0: SOURCE });
+  },
   check(ctx, report) {
     const { policy } = ctx;
     eachCd(ctx, (cd, pointer, kosmoPath, key) => {
@@ -83,17 +91,18 @@ export const kosmoCd2IdFormat: Rule = {
         key,
         pointer: `${pointer}/id`,
         kosmoPath: `${kosmoPath}/id`,
-        message: `CD의 id가 허용 목록 밖입니다: ${cd.id}`,
-        remedy:
-          `IRDI(${policy.irdiPrefixes.join(' / ')}) 또는 ${policy.iriBase}/cd/{변수명}/{version}/{revision} 형식으로 바꾸십시오. ` +
-          '카테고리 자리(cd)에 장비명을 쓰면 안 됩니다.',
+        message: fill(tr('CD의 id가 허용 목록 밖입니다: {0}'), { 0: cd.id }),
+        remedy: fill(
+          tr('IRDI({0}) 또는 {1}/cd/{변수명}/{version}/{revision} 형식으로 바꾸십시오. 카테고리 자리(cd)에 장비명을 쓰면 안 됩니다.'),
+          { 0: policy.irdiPrefixes.join(' / '), 1: policy.iriBase },
+        ),
         fixable: true,
         ...(idta
           ? {
               policyNote:
                 policy.iriConflict === 'idta-preserve'
-                  ? 'IDTA 공식 IRI라 정책(idta-preserve)에 따라 경고로만 표시했습니다.'
-                  : 'IDTA 공식 IRI이지만 정책(kosmo-first)에 따라 위반으로 봅니다. 교정 시 이관 대장에 원본 IRI를 기록하십시오.',
+                  ? tr('IDTA 공식 IRI라 정책(idta-preserve)에 따라 경고로만 표시했습니다.')
+                  : tr('IDTA 공식 IRI이지만 정책(kosmo-first)에 따라 위반으로 봅니다. 교정 시 이관 대장에 원본 IRI를 기록하십시오.'),
             }
           : {}),
       });
@@ -104,8 +113,12 @@ export const kosmoCd2IdFormat: Rule = {
 export const kosmoCd3Definition: Rule = {
   id: 'KOSMO-CD-3',
   layer: 'L3',
-  title: 'definition/description 작성 검사 — 영문 정의 필수',
-  source: `${SOURCE} (실측 3차 위반, KTL §8과 충돌)`,
+  get title() {
+    return tr('definition/description 작성 검사 — 영문 정의 필수');
+  },
+  get source() {
+    return fill(tr('{0} (실측 3차 위반, KTL §8과 충돌)'), { 0: SOURCE });
+  },
   check(ctx, report) {
     const relaxed = ctx.policy.cdDefinition === 'allow-empty';
     eachCd(ctx, (cd, pointer, kosmoPath, key) => {
@@ -120,14 +133,12 @@ export const kosmoCd3Definition: Rule = {
         key,
         pointer: `${pointer}/embeddedDataSpecifications/0/dataSpecificationContent/definition`,
         kosmoPath: `${kosmoPath}/definition`,
-        message: '영문(en) definition 또는 description이 없습니다.',
-        remedy:
-          '개발계획서 원문의 정의를 그대로 인용해 en 태그로 채우십시오. ' +
-          '정의를 창작하지 마십시오.',
+        message: tr('영문(en) definition 또는 description이 없습니다.'),
+        remedy: tr('개발계획서 원문의 정의를 그대로 인용해 en 태그로 채우십시오. 정의를 창작하지 마십시오.'),
         fixable: false,
         policyNote: relaxed
-          ? 'KTL §8(정의 없으면 공란 유지)을 따르는 정책(allow-empty)이라 참고 항목으로만 표시했습니다. KOSMO Validator는 이를 위반으로 봅니다.'
-          : 'KTL §8은 임의 입력을 금지하나 KOSMO는 영문 정의를 요구합니다. 정책(require-en)에 따라 위반으로 봅니다.',
+          ? tr('KTL §8(정의 없으면 공란 유지)을 따르는 정책(allow-empty)이라 참고 항목으로만 표시했습니다. KOSMO Validator는 이를 위반으로 봅니다.')
+          : tr('KTL §8은 임의 입력을 금지하나 KOSMO는 영문 정의를 요구합니다. 정책(require-en)에 따라 위반으로 봅니다.'),
       });
     });
   },
@@ -136,8 +147,12 @@ export const kosmoCd3Definition: Rule = {
 export const kosmoCd4DataType: Rule = {
   id: 'KOSMO-CD-4',
   layer: 'L3',
-  title: 'DataType 설정 검사 — 존재 여부 및 KOSMO 허용 목록',
-  source: `${SOURCE} (실측 3·4차 위반)`,
+  get title() {
+    return tr('DataType 설정 검사 — 존재 여부 및 KOSMO 허용 목록');
+  },
+  get source() {
+    return fill(tr('{0} (실측 3·4차 위반)'), { 0: SOURCE });
+  },
   check(ctx, report) {
     eachCd(ctx, (cd, pointer, kosmoPath, key) => {
       const content = iec61360Of(cd);
@@ -150,8 +165,8 @@ export const kosmoCd4DataType: Rule = {
           key,
           pointer: `${pointer}/embeddedDataSpecifications`,
           kosmoPath: `${kosmoPath}/embeddedDataSpecifications`,
-          message: 'IEC 61360 데이터 명세가 없습니다.',
-          remedy: 'DataSpecificationIec61360 내용을 embeddedDataSpecifications에 추가하십시오.',
+          message: tr('IEC 61360 데이터 명세가 없습니다.'),
+          remedy: tr('DataSpecificationIec61360 내용을 embeddedDataSpecifications에 추가하십시오.'),
           fixable: true,
         });
         return;
@@ -164,8 +179,8 @@ export const kosmoCd4DataType: Rule = {
           key,
           pointer: `${contentPointer}/dataType`,
           kosmoPath: `${kosmoPath}/dataType`,
-          message: 'dataType이 설정되어 있지 않습니다.',
-          remedy: '대응 Property의 valueType에 맞는 dataType을 지정하십시오.',
+          message: tr('dataType이 설정되어 있지 않습니다.'),
+          remedy: tr('대응 Property의 valueType에 맞는 dataType을 지정하십시오.'),
           fixable: true,
         });
         return;
@@ -178,9 +193,8 @@ export const kosmoCd4DataType: Rule = {
           key,
           pointer: `${contentPointer}/dataType`,
           kosmoPath: `${kosmoPath}/dataType`,
-          message: `유효하지 않은 dataType 값입니다: ${content.dataType}`,
-          remedy:
-            'STRING으로 정규화하십시오. FILE·BLOB·HTML은 AASc-3a-006에서는 허용되지만 KOSMO는 더 좁게 봅니다.',
+          message: fill(tr('유효하지 않은 dataType 값입니다: {0}'), { 0: content.dataType }),
+          remedy: tr('STRING으로 정규화하십시오. FILE·BLOB·HTML은 AASc-3a-006에서는 허용되지만 KOSMO는 더 좁게 봅니다.'),
           fixable: true,
         });
       }
@@ -191,7 +205,9 @@ export const kosmoCd4DataType: Rule = {
 export const kosmoCd5Duplicate: Rule = {
   id: 'KOSMO-CD-5',
   layer: 'L3',
-  title: 'ConceptDescription id·idShort 중복 검사',
+  get title() {
+    return tr('ConceptDescription id·idShort 중복 검사');
+  },
   source: SOURCE,
   check(ctx, report) {
     const byId = new Map<string, number[]>();
@@ -212,8 +228,8 @@ export const kosmoCd5Duplicate: Rule = {
           key: cds[i]?.idShort ?? id,
           pointer: `/conceptDescriptions/${i}/id`,
           kosmoPath: `/conceptDescriptions/${i}(${cds[i]?.idShort ?? id})/id`,
-          message: `동일한 id를 가진 ConceptDescription이 ${indices.length}건 있습니다: ${id}`,
-          remedy: '중복된 CD를 하나로 합치십시오.',
+          message: fill(tr('동일한 id를 가진 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: id }),
+          remedy: tr('중복된 CD를 하나로 합치십시오.'),
           fixable: true,
         });
       }
@@ -251,16 +267,15 @@ export const kosmoCd5Duplicate: Rule = {
           pointer: `/conceptDescriptions/${i}/idShort`,
           kosmoPath: `/conceptDescriptions/${i}(${idShort})/idShort`,
           message: allExternal
-            ? `같은 이름의 표준 사전 항목이 ${indices.length}곳에 있습니다: ${idShort}`
-            : `동일한 idShort를 가진 ConceptDescription이 ${indices.length}건 있습니다: ${idShort}`,
+            ? fill(tr('같은 이름의 표준 사전 항목이 {0}곳에 있습니다: {1}'), { 0: indices.length, 1: idShort })
+            : fill(tr('동일한 idShort를 가진 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: idShort }),
           remedy: allExternal
-            ? '🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.'
-            : '서로 다른 개념이면 idShort를 구분하고, 같은 개념이면 하나로 합치십시오.',
+            ? tr('🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.')
+            : tr('서로 다른 개념이면 idShort를 구분하고, 같은 개념이면 하나로 합치십시오.'),
           fixable: false,
           ...(allExternal
             ? {
-                policyNote:
-                  '외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.',
+                policyNote: tr('외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.'),
               }
             : {}),
         });

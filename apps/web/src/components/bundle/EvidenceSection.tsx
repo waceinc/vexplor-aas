@@ -3,7 +3,7 @@
  * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
  */
 import type { BundleView } from '../../api.js';
-import { tr } from '../../i18n.js';
+import { locale, tr } from '../../i18n.js';
 import { T } from '../T.js';
 
 type Evidence = NonNullable<BundleView['evidence']>;
@@ -14,7 +14,7 @@ interface Props {
 }
 
 const stamp = (iso: string): string =>
-    new Date(iso).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    new Date(iso).toLocaleString(locale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 export function EvidenceSection({ shownSources, carried }: Props): React.JSX.Element {
   return (
@@ -46,7 +46,7 @@ export function EvidenceSection({ shownSources, carried }: Props): React.JSX.Ele
                   {source.interfaces.some((i) => i.simulated) && <span className="ev-sim">{tr('시뮬레이션')}</span>}
                 </div>
                 <div className="ev-num">
-                  {source.samples.toLocaleString('ko-KR')}
+                  {source.samples.toLocaleString(locale())}
                   <span><T k={'건 · 항목 {0}'} v={[source.properties]} /></span>
                 </div>
                 <div className="dim small">

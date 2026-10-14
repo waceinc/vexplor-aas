@@ -23,6 +23,7 @@
  */
 import type { Environment } from '@aas/core';
 import { ENVIRONMENT_FIELD, type AasStore, type IdentifiableModelType, type PackageFileRecord } from '@aas/store';
+import { fill, tr } from '@aas/core';
 
 export const UNDO_DEPTH = 30;
 
@@ -200,37 +201,37 @@ export function describeChange(method: string, path: string): string {
   const last = segments[segments.length - 1] ?? '';
   const at = (name: string) => segments.indexOf(name);
 
-  if (at('fix') >= 0) return '자동 고치기';
-  if (at('derivation') >= 0) return '형식 변경 반영';
-  if (at('restore') >= 0) return '이력에서 되돌리기';
-  if (at('aid') >= 0 || at('interfaces') >= 0) return '수집 연결 만들기';
-  if (at('hierarchy') >= 0) return '구성 편집';
-  if (at('import-submodel') >= 0) return '다른 파일에서 가져오기';
+  if (at('fix') >= 0) return tr('자동 고치기');
+  if (at('derivation') >= 0) return tr('형식 변경 반영');
+  if (at('restore') >= 0) return tr('이력에서 되돌리기');
+  if (at('aid') >= 0 || at('interfaces') >= 0) return tr('수집 연결 만들기');
+  if (at('hierarchy') >= 0) return tr('구성 편집');
+  if (at('import-submodel') >= 0) return tr('다른 파일에서 가져오기');
 
   const elements = at('submodel-elements');
   if (elements >= 0) {
     const pathPart = segments[elements + 1];
     const target = pathPart ? (pathPart.split('.').pop() ?? pathPart) : undefined;
-    const name = target ? `「${target}」` : '요소';
-    if (last === 'move') return `${name} 순서 바꾸기`;
-    if (last === 'duplicate') return `${name} 복제`;
-    if (last === 'attachment') return `${name} 첨부 바꾸기`;
-    if (method === 'DELETE') return `${name} 지움`;
-    if (method === 'POST') return pathPart ? `${name} 밑에 요소 추가` : '요소 추가';
-    return `${name} 고침`;
+    const name = target ? fill(tr('「{0}」'), { 0: target }) : tr('요소');
+    if (last === 'move') return fill(tr('{0} 순서 바꾸기'), { 0: name });
+    if (last === 'duplicate') return fill(tr('{0} 복제'), { 0: name });
+    if (last === 'attachment') return fill(tr('{0} 첨부 바꾸기'), { 0: name });
+    if (method === 'DELETE') return fill(tr('{0} 지움'), { 0: name });
+    if (method === 'POST') return pathPart ? fill(tr('{0} 밑에 요소 추가'), { 0: name }) : tr('요소 추가');
+    return fill(tr('{0} 고침'), { 0: name });
   }
   const submodels = at('submodels');
   if (submodels >= 0) {
-    if (method === 'DELETE') return '서브모델 지움';
-    if (method === 'POST' && segments[submodels + 1] === undefined) return '서브모델 추가';
-    return '서브모델 고침';
+    if (method === 'DELETE') return tr('서브모델 지움');
+    if (method === 'POST' && segments[submodels + 1] === undefined) return tr('서브모델 추가');
+    return tr('서브모델 고침');
   }
   if (at('concept-descriptions') >= 0) {
-    if (method === 'DELETE') return '개념 설명 지움';
-    if (method === 'POST') return '개념 설명 추가';
-    return '개념 설명 고침';
+    if (method === 'DELETE') return tr('개념 설명 지움');
+    if (method === 'POST') return tr('개념 설명 추가');
+    return tr('개념 설명 고침');
   }
-  if (at('shells') >= 0) return 'AAS 고침';
-  if (segments.length === 2 && method === 'PUT') return '파일 다시 올림';
+  if (at('shells') >= 0) return tr('AAS 고침');
+  if (segments.length === 2 && method === 'PUT') return tr('파일 다시 올림');
   return `${method} ${segments.slice(2).join('/') || path}`;
 }

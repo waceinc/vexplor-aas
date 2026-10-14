@@ -6,6 +6,7 @@
  * **압축 폭탄·경로 탈출 방어는 AASX와 똑같이** 건다(기획서 Ⅷ) — 번들도 남이 준 파일이다.
  */
 import { unzipSync, zipSync, type Zippable } from 'fflate';
+import { fill, tr } from '@aas/core';
 import { AasxLimitError, createEntryGuard, DEFAULT_LIMITS, type AasxLimits } from './limits.js';
 import { DETERMINISTIC_MTIME } from './write.js';
 
@@ -36,7 +37,7 @@ export function unzipArchive(buffer: Uint8Array, limits: Partial<AasxLimits> = {
     entries = unzipSync(buffer, { filter: createEntryGuard({ ...DEFAULT_LIMITS, ...limits }) });
   } catch (e) {
     if (e instanceof AasxLimitError) throw e;
-    throw new ArchiveReadError(`ZIP을 열 수 없습니다: ${(e as Error).message}`);
+    throw new ArchiveReadError(fill(tr('ZIP을 열 수 없습니다: {0}'), { 0: (e as Error).message }));
   }
   const out: Record<string, Uint8Array> = {};
   for (const [name, data] of Object.entries(entries)) {

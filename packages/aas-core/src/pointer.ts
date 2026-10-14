@@ -4,6 +4,7 @@
  * 린터가 보고한 위치를 자동수정이 그대로 찾아가는 데 쓴다.
  * 순회기(traverse.ts)가 만든 pointer와 짝을 이룬다.
  */
+import { fill, tr } from './i18n/index.js';
 
 export interface PointerTarget {
   /** 값을 담고 있는 객체 또는 배열 */
@@ -21,7 +22,7 @@ function unescape(segment: string): string {
 
 export function parsePointer(pointer: string): string[] {
   if (pointer === '') return [];
-  if (!pointer.startsWith('/')) throw new Error(`JSON Pointer는 /로 시작해야 합니다: ${pointer}`);
+  if (!pointer.startsWith('/')) throw new Error(fill(tr('JSON Pointer는 /로 시작해야 합니다: {0}'), { 0: pointer }));
   return pointer.slice(1).split('/').map(unescape);
 }
 

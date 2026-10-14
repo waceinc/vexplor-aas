@@ -11,6 +11,7 @@
  *    만들기와 읽기가 어긋나면 "만들었는데 수집이 안 된다"가 된다. 시험이 왕복을 고정한다.
  */
 import type { SubmodelElement } from '@aas/core';
+import { fill, tr } from '@aas/core';
 
 /** IDTA-02017-1-0 템플릿의 표준 semanticId */
 const TERM = {
@@ -138,40 +139,42 @@ export function checkAidInput(input: AidBuildInput): void {
   const protocol = endpointProtocol(input.endpoint);
   if (!protocol) {
     throw new AidBuildError(
-      `접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// 중 하나로 시작해야 합니다: ${input.endpoint}`,
+      fill(tr('접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// 중 하나로 시작해야 합니다: {0}'), { 0: input.endpoint }),
     );
   }
-  if (input.tags.length === 0) throw new AidBuildError('태그가 하나도 없습니다.');
+  if (input.tags.length === 0) throw new AidBuildError(tr('태그가 하나도 없습니다.'));
   const seen = new Set<string>();
   for (const tag of input.tags) {
     if (!NAME_PATTERN.test(tag.name)) {
       throw new AidBuildError(
-        `태그 이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: ${tag.name}`,
+        fill(tr('태그 이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: {0}'), { 0: tag.name }),
       );
     }
-    if (seen.has(tag.name)) throw new AidBuildError(`태그 이름이 겹칩니다: ${tag.name}`);
+    if (seen.has(tag.name)) throw new AidBuildError(fill(tr('태그 이름이 겹칩니다: {0}'), { 0: tag.name }));
     seen.add(tag.name);
     // 🔴 href가 아예 없으면(API를 직접 부른 호출) 500이 났다 — 빈 주소와 같이 400으로 알린다(2026-09-30)
     if (typeof tag.href !== 'string' || tag.href.trim() === '') {
-      throw new AidBuildError(`${tag.name}의 읽을 주소(NodeId)가 비었습니다.`);
+      throw new AidBuildError(fill(tr('{0}의 읽을 주소(NodeId)가 비었습니다.'), { 0: tag.name }));
     }
     // 주소 모양 — Modbus 는 「주소」·「unit/주소」(+ ?quantity=n), MQTT 는 와일드카드 없는 토픽(마지막 값을 읽는다)
     if (protocol === 'MODBUS' && !/^(modbus\+tcp:\/\/[^/]+)?\/?(\d+\/)?\d+(\?quantity=\d+)?$/i.test(tag.href.trim())) {
-      throw new AidBuildError(`${tag.name}의 Modbus 주소가 이상합니다: ${tag.href} — 예: 40 · 1/40 · 1/40?quantity=2`);
+      throw new AidBuildError(fill(tr('{0}의 Modbus 주소가 이상합니다: {1} — 예: 40 · 1/40 · 1/40?quantity=2'), { 0: tag.name, 1: tag.href }));
     }
     if (protocol === 'MQTT' && /[+#]/.test(tag.href)) {
-      throw new AidBuildError(`${tag.name}의 MQTT 토픽에 와일드카드(+ #)를 쓸 수 없습니다: ${tag.href}`);
+      throw new AidBuildError(fill(tr('{0}의 MQTT 토픽에 와일드카드(+ #)를 쓸 수 없습니다: {1}'), { 0: tag.name, 1: tag.href }));
     }
     for (const [key, value] of Object.entries(tag.form ?? {})) {
       const rule = FORM_FIELDS[key];
-      if (!rule || rule.protocol !== protocol) throw new AidBuildError(`${tag.name}에 쓸 수 없는 폼 항목입니다: ${key}`);
+      if (!rule || rule.protocol !== protocol) throw new AidBuildError(fill(tr('{0}에 쓸 수 없는 폼 항목입니다: {1}'), { 0: tag.name, 1: key }));
       if (rule.values && !rule.values.includes(value)) {
-        throw new AidBuildError(`${tag.name}의 ${key} 값이 이상합니다: ${value} — 쓸 수 있는 것: ${rule.values.join(' · ')}`);
+        throw new AidBuildError(
+          fill(tr('{0}의 {1} 값이 이상합니다: {2} — 쓸 수 있는 것: {3}'), { 0: tag.name, 1: key, 2: value, 3: rule.values.join(' · ') }),
+        );
       }
     }
     if (tag.type !== undefined && !TYPES.has(tag.type)) {
       throw new AidBuildError(
-        `${tag.name}의 타입이 이상합니다: ${tag.type} — 쓸 수 있는 것: ${[...TYPES].join(' · ')}`,
+        fill(tr('{0}의 타입이 이상합니다: {1} — 쓸 수 있는 것: {2}'), { 0: tag.name, 1: tag.type, 2: [...TYPES].join(' · ') }),
       );
     }
   }
@@ -196,7 +199,7 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
     semanticId: ref(id),
     submodelElements: [
       smc(base, INTERFACE_NAME[protocol], TERM.interface, [
-        prop(base, 'title', TERM.title, input.title ?? `${input.assetName} 제어반 (${PROTOCOL_LABEL[protocol]})`),
+        prop(base, 'title', TERM.title, input.title ?? fill(tr('{0} 제어반 ({1})'), { 0: input.assetName, 1: PROTOCOL_LABEL[protocol] })),
         smc(base, 'EndpointMetadata', TERM.endpointMetadata, [
           prop(base, 'base', TERM.base, input.endpoint),
           prop(base, 'contentType', TERM.contentType, 'application/json'),

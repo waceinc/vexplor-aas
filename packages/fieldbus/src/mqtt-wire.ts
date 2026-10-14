@@ -2,6 +2,7 @@
  * MQTT 3.1.1 바이트 — 구독해서 받기에 필요한 패킷만(CONNECT · SUBSCRIBE · PUBACK · PINGREQ · DISCONNECT 를 만들고,
  * CONNACK · SUBACK · PUBLISH · PINGRESP 를 읽는다). 클라이언트와 시험 브로커가 함께 쓴다.
  */
+import { tr } from '@aas/core';
 
 /** 남은 길이(가변 길이 정수) */
 export function encodeLength(length: number): Buffer {
@@ -46,7 +47,7 @@ export function takePacket(buffer: Buffer): { packet: Packet; rest: Buffer } | u
     multiplier *= 128;
     index += 1;
     if ((byte & 0x80) === 0) break;
-    if (index > 4) throw new Error('잘못된 MQTT 길이');
+    if (index > 4) throw new Error(tr('잘못된 MQTT 길이'));
   }
   if (buffer.length < index + length) return undefined;
   return {

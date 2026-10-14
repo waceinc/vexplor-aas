@@ -5,6 +5,7 @@
  * 저장소가 `SqlClient`만 받는 것과 같은 이유다 — 이 패키지는 순수 로직이라
  * 장비 없이도 시험할 수 있어야 하고, 라이선스 검토 대상도 늘리지 않는다.
  */
+import { tr } from '@aas/core';
 import type { AidInterface } from './aid.js';
 import { readableProperties } from './aid.js';
 import type { ProtocolReader, SampleSink, ValueSample } from './types.js';
@@ -85,7 +86,7 @@ export async function collectOnce(
       pending.push({
         propertyName: property.name,
         source: result.source,
-        reason: result.quality ?? '값 대기',
+        reason: result.quality ?? tr('값 대기'),
       });
       continue;
     }

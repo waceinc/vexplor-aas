@@ -96,15 +96,20 @@ export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
   if (!step) return null;
 
   // 설명 카드 자리 — 아래에 자리가 있으면 아래, 없으면 위. 옆으로는 화면 안에 붙든다
-  const pad = 8;
+  // 간격은 CSS 토큰(--spacing)의 배수로 — 숫자를 직접 적으면 화면 간격 체계와 따로 논다(2026-10-14)
+  const unit = spacingPx();
+  const pad = unit * 2; // 짚은 요소 둘레
+  const edge = unit * 3; // 화면 가장자리(--space-float 과 같다)
+  const gap = unit * 4; // 짚은 요소와 카드 사이
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const cardW = Math.min(340, vw - 24);
+  const cardW = Math.min(340, vw - edge * 2);
+  const cardH = 190; // 카드 높이 어림 — 간격이 아니라 크기다
   const r = rect ?? { top: vh / 2, left: vw / 2, width: 0, height: 0 };
-  const below = r.top + r.height + 16 + 190 < vh;
+  const below = r.top + r.height + gap + cardH < vh;
   const big = r.height > vh * 0.6; // 칸 하나를 통째로 짚을 때 — 카드를 그 칸 안에 띄운다
-  const cardTop = big ? Math.min(r.top + 24, vh - 220) : below ? r.top + r.height + 14 : Math.max(12, r.top - 14 - 190);
-  const cardLeft = Math.min(Math.max(12, r.left + r.width / 2 - cardW / 2), vw - cardW - 12);
+  const cardTop = big ? Math.min(r.top + unit * 6, vh - cardH - unit * 8) : below ? r.top + r.height + gap : Math.max(edge, r.top - gap - cardH);
+  const cardLeft = Math.min(Math.max(edge, r.left + r.width / 2 - cardW / 2), vw - cardW - edge);
 
   return (
     <div className="tour" role="presentation">
@@ -140,3 +145,15 @@ export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
     </div>
   );
 }
+
+/** CSS 간격 한 단위(--spacing)의 픽셀 값. 읽지 못하면 4px(Tailwind 기본) */
+function spacingPx(): number {
+  if (typeof document === 'undefined') return 4;
+  const root = document.documentElement;
+  const raw = getComputedStyle(root).getPropertyValue('--spacing').trim();
+  const value = parseFloat(raw);
+  if (!Number.isFinite(value) || value <= 0) return 4;
+  if (raw.endsWith('rem')) return value * parseFloat(getComputedStyle(root).fontSize || '16');
+  return value;
+}
+

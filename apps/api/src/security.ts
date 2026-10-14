@@ -15,6 +15,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { errorResponse, type ApiRequest, type ApiResponse } from './http.js';
+import { tr } from '@aas/core';
 
 /** 상태를 바꾸는 메서드 — 이들만 원점을 따진다 */
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -78,7 +79,7 @@ export function demoOutboundAllowed(endpoint: string, simulatorPort: number): bo
 /** 체험판에서 막힌 외부 접속 — 라우트가 이름으로 알아보고 403으로 돌려준다 */
 export class OutboundBlockedError extends Error {
   constructor() {
-    super('체험판에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.');
+    super(tr('체험판에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.'));
     this.name = 'OutboundBlockedError';
   }
 }
@@ -127,7 +128,7 @@ export function crossSiteWrite(
   return errorResponse(
     403,
     'Forbidden',
-    '다른 사이트에서 보낸 요청은 받지 않습니다. 브라우저 주소창의 주소로 직접 접속하십시오.',
+    tr('다른 사이트에서 보낸 요청은 받지 않습니다. 브라우저 주소창의 주소로 직접 접속하십시오.'),
   );
 }
 

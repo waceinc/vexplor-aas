@@ -20,6 +20,7 @@
  * 나머지 항목은 **이름을 가리지 않고 그대로 담아 둔다**(formFields) — 규격이 확정되면 그 자리를 읽는다.
  */
 import type { Environment, Submodel, SubmodelElement } from '@aas/core';
+import { tr } from '@aas/core';
 
 /** AID 서브모델의 semanticId (버전 자리는 느슨하게 본다) */
 export const AID_SEMANTIC_ID_PREFIX = 'https://admin-shell.io/idta/AssetInterfacesDescription/';
@@ -97,7 +98,7 @@ export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
     if (!endpoint && !interaction) continue;
 
     const base = text(child(endpoint, 'base'));
-    const name = node.idShort ?? '(이름 없음)';
+    const name = node.idShort ?? tr('(이름 없음)');
     const properties: AidProperty[] = [];
 
     for (const property of children(child(interaction, 'properties'))) {
@@ -109,7 +110,7 @@ export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
       }
 
       const entry: AidProperty = {
-        name: property.idShort ?? '(이름 없음)',
+        name: property.idShort ?? tr('(이름 없음)'),
         observable: text(child(property, 'observable')) === 'true',
         formFields,
       };

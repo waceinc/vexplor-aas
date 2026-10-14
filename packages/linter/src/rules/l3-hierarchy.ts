@@ -11,6 +11,7 @@
  * 끊어질 수 있는 자리를 미리 막는다.
  */
 import type { Entity, Submodel, SubmodelElement } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import { childNodes, findEntryNode, HIERARCHY_SUBMODEL_ID_SHORT } from '../hierarchy.js';
 import type { LintContext, Report, Rule } from '../types.js';
 
@@ -41,7 +42,9 @@ function assetIdOf(entity: Entity): string | undefined {
 export const hier1EntryNode: Rule = {
   id: 'HIER-1',
   layer: 'L3',
-  title: '계층 구조 진입점 검사 — EntryNode와 ArcheType이 있어야 한다',
+  get title() {
+    return tr('계층 구조 진입점 검사 — EntryNode와 ArcheType이 있어야 한다');
+  },
   source: SOURCE,
   check(ctx: LintContext, report: Report) {
     for (const { submodel, pointer } of hierarchySubmodels(ctx)) {
@@ -54,8 +57,8 @@ export const hier1EntryNode: Rule = {
           key,
           pointer: `${pointer}/submodelElements`,
           kosmoPath: `${pointer}(${key})/submodelElements`,
-          message: '계층 구조에 진입점(EntryNode)이 없습니다.',
-          remedy: '무엇의 계층인지 나타내는 Entity를 최상위에 하나 두십시오.',
+          message: tr('계층 구조에 진입점(EntryNode)이 없습니다.'),
+          remedy: tr('무엇의 계층인지 나타내는 Entity를 최상위에 하나 두십시오.'),
           fixable: false,
         });
         continue;
@@ -69,8 +72,8 @@ export const hier1EntryNode: Rule = {
           key,
           pointer: `${pointer}/submodelElements`,
           kosmoPath: `${pointer}(${key})/submodelElements`,
-          message: 'ArcheType이 없습니다 — 계층을 어느 방향으로 적었는지 알 수 없습니다.',
-          remedy: 'ArcheType Property를 두고 Full · OneDown · OneUp 중 하나를 값으로 넣으십시오.',
+          message: tr('ArcheType이 없습니다 — 계층을 어느 방향으로 적었는지 알 수 없습니다.'),
+          remedy: tr('ArcheType Property를 두고 Full · OneDown · OneUp 중 하나를 값으로 넣으십시오.'),
           fixable: false,
         });
       } else {
@@ -82,8 +85,8 @@ export const hier1EntryNode: Rule = {
             key: 'ArcheType',
             pointer: `${pointer}/submodelElements`,
             kosmoPath: `${pointer}(${key})/submodelElements/ArcheType`,
-            message: `ArcheType 값이 규격에 없는 것입니다: ${value}`,
-            remedy: 'Full · OneDown · OneUp 중 하나여야 합니다.',
+            message: fill(tr('ArcheType 값이 규격에 없는 것입니다: {0}'), { 0: value }),
+            remedy: tr('Full · OneDown · OneUp 중 하나여야 합니다.'),
             fixable: false,
           });
         }
@@ -95,7 +98,9 @@ export const hier1EntryNode: Rule = {
 export const hier2NodeAssetId: Rule = {
   id: 'HIER-2',
   layer: 'L3',
-  title: '자식 노드 연결 검사 — 가리키는 설비 주소(globalAssetId)가 있어야 한다',
+  get title() {
+    return tr('자식 노드 연결 검사 — 가리키는 설비 주소(globalAssetId)가 있어야 한다');
+  },
   source: SOURCE,
   check(ctx: LintContext, report: Report) {
     for (const { submodel, pointer } of hierarchySubmodels(ctx)) {
@@ -105,7 +110,7 @@ export const hier2NodeAssetId: Rule = {
       const seen = new Map<string, string>();
 
       for (const child of childNodes(entry)) {
-        const key = child.idShort ?? '(이름 없음)';
+        const key = child.idShort ?? tr('(이름 없음)');
         const asset = assetIdOf(child);
         const at = `${pointer}(${submodel.idShort})/submodelElements/${entry.idShort}/${key}`;
 
@@ -117,8 +122,8 @@ export const hier2NodeAssetId: Rule = {
             key,
             pointer: `${pointer}/submodelElements`,
             kosmoPath: at,
-            message: '가리키는 설비의 Asset 주소(globalAssetId)가 없습니다.',
-            remedy: '그 설비 파일의 AssetInformation.globalAssetId 값을 넣으십시오.',
+            message: tr('가리키는 설비의 Asset 주소(globalAssetId)가 없습니다.'),
+            remedy: tr('그 설비 파일의 AssetInformation.globalAssetId 값을 넣으십시오.'),
             fixable: false,
           });
           continue;
@@ -133,8 +138,8 @@ export const hier2NodeAssetId: Rule = {
             key,
             pointer: `${pointer}/submodelElements`,
             kosmoPath: at,
-            message: '자기 자신을 부분품으로 매달았습니다.',
-            remedy: '자식 노드는 다른 설비의 Asset을 가리켜야 합니다.',
+            message: tr('자기 자신을 부분품으로 매달았습니다.'),
+            remedy: tr('자식 노드는 다른 설비의 Asset을 가리켜야 합니다.'),
             fixable: false,
           });
         }
@@ -147,8 +152,8 @@ export const hier2NodeAssetId: Rule = {
             key,
             pointer: `${pointer}/submodelElements`,
             kosmoPath: at,
-            message: `같은 설비가 이미 매달려 있습니다: ${first}`,
-            remedy: '중복을 지우십시오. 같은 것이 여러 대면 BulkCount로 적습니다.',
+            message: fill(tr('같은 설비가 이미 매달려 있습니다: {0}'), { 0: first }),
+            remedy: tr('중복을 지우십시오. 같은 것이 여러 대면 BulkCount로 적습니다.'),
             fixable: false,
           });
         } else {
@@ -169,7 +174,9 @@ function referencedName(reference: unknown): string | undefined {
 export const hier3HasPart: Rule = {
   id: 'HIER-3',
   layer: 'L3',
-  title: '부분품 관계 검사 — 자식마다 HasPart 관계가 있어야 한다',
+  get title() {
+    return tr('부분품 관계 검사 — 자식마다 HasPart 관계가 있어야 한다');
+  },
   source: SOURCE,
   check(ctx: LintContext, report: Report) {
     for (const { submodel, pointer } of hierarchySubmodels(ctx)) {
@@ -186,12 +193,12 @@ export const hier3HasPart: Rule = {
       for (const element of statements) {
         if (element.modelType !== 'RelationshipElement') continue;
         const target = referencedName((element as unknown as { second?: unknown }).second);
-        relations.push({ idShort: element.idShort ?? '(이름 없음)', target });
+        relations.push({ idShort: element.idShort ?? tr('(이름 없음)'), target });
         if (target) linked.add(target);
       }
 
       for (const child of childNodes(entry)) {
-        const key = child.idShort ?? '(이름 없음)';
+        const key = child.idShort ?? tr('(이름 없음)');
         if (!linked.has(key)) {
           report({
             severity: 'error',
@@ -199,8 +206,8 @@ export const hier3HasPart: Rule = {
             key,
             pointer: `${pointer}/submodelElements`,
             kosmoPath: `${pointer}(${submodel.idShort})/submodelElements/${entry.idShort}/${key}`,
-            message: '이 자식에 대응하는 HasPart 관계가 없습니다.',
-            remedy: `second가 ${key}를 가리키는 RelationshipElement를 두어 부모와 이어 주십시오.`,
+            message: tr('이 자식에 대응하는 HasPart 관계가 없습니다.'),
+            remedy: fill(tr('second가 {0}를 가리키는 RelationshipElement를 두어 부모와 이어 주십시오.'), { 0: key }),
             fixable: false,
           });
         }
@@ -216,8 +223,8 @@ export const hier3HasPart: Rule = {
             key: relation.idShort,
             pointer: `${pointer}/submodelElements`,
             kosmoPath: `${pointer}(${submodel.idShort})/submodelElements/${entry.idShort}/${relation.idShort}`,
-            message: `관계가 가리키는 자식이 없습니다: ${relation.target}`,
-            remedy: '자식을 되살리거나 이 관계를 지우십시오.',
+            message: fill(tr('관계가 가리키는 자식이 없습니다: {0}'), { 0: relation.target }),
+            remedy: tr('자식을 되살리거나 이 관계를 지우십시오.'),
             fixable: false,
           });
         }

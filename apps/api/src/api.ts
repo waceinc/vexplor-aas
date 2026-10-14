@@ -4,7 +4,7 @@
  * 저장소 오류(NotFound·Conflict·InvalidContent)를 HTTP 상태로 옮기는 곳이 여기 한 곳뿐이도록
  * 모아 뒀다. 핸들러는 도메인 오류를 그냥 던지면 된다.
  */
-import { PRODUCT_VERSION } from '@aas/core';
+import { fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
   ConflictError,
   ForbiddenError,
@@ -33,6 +33,7 @@ import { requirementRoutes } from './routes/requirements.js';
 import { DERIVATION_PART, derivationRoutes } from './routes/derivation.js';
 import { AASX_FILE_SERVER_PROFILES, descriptionRoute, part2Routes } from './routes/part2.js';
 import { describeChange, UndoStack } from './undo.js';
+import { langOf, runInLang } from './lang.js';
 
 export type { ApiOptions } from './api-options.js';
 import type { ApiOptions } from './api-options.js';
@@ -127,7 +128,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     return accountsExist;
   };
 
-  return async function handle(request: ApiRequest): Promise<ApiResponse> {
+  // 🔴 언어를 맨 바깥에서 깐다 — 인증 거절 · 없는 경로 오류까지 그 요청의 언어로 나간다(lang.ts)
+  return (request: ApiRequest): Promise<ApiResponse> => runInLang(langOf(request), () => handle(request));
+
+  async function handle(request: ApiRequest): Promise<ApiResponse> {
     // 🔴 로그인한 사람이 먼저, 기계용 API 키가 나중이다(auth.ts의 순서 설계).
     //    세션이 없으면 undefined가 가고, 그러면 예전처럼 토큰을 본다.
     const principal = await principalOf(store, sessions, request);
@@ -146,10 +150,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
 
     const found = match(routes, inbound.method, inbound.path);
     if (found === undefined) {
-      return errorResponse(404, 'NotFound', `경로가 없습니다: ${request.method} ${request.path}`);
+      return errorResponse(404, 'NotFound', fill(tr('경로가 없습니다: {0} {1}'), { 0: request.method, 1: request.path }));
     }
     if (found === 'method-not-allowed') {
-      return errorResponse(405, 'MethodNotAllowed', `허용되지 않는 메서드입니다: ${request.method}`);
+      return errorResponse(405, 'MethodNotAllowed', fill(tr('허용되지 않는 메서드입니다: {0}'), { 0: request.method }));
     }
 
     // 「누가」를 **여기 한 번만** 깐다. 라우트와 저장소가 매개변수 없이 집어 쓴다 —
@@ -168,7 +172,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
         //    시도해 남의 목록을 지울 수 있었다(시험이 잡았다). 여기서 한 번 더 막아,
         //    앞으로 그런 상태가 더 생겨도 빠질 자리가 없게 한다.
         if (workspace && packageId !== undefined && !(await store.getPackage(packageId))) {
-          return errorResponse(404, 'NotFound', `패키지 ${packageId}을(를) 찾을 수 없습니다.`);
+          return errorResponse(404, 'NotFound', fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: packageId }));
         }
         const snapshot =
           packageId !== undefined && MUTATING.has(request.method) && !UNDO_PATTERNS.has(found.route.pattern)
@@ -181,7 +185,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
           return errorResponse(
             403,
             'Forbidden',
-            '데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.',
+            tr('데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.'),
           );
         }
         if (snapshot && packageId !== undefined && response.status < 300) {
@@ -193,7 +197,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
         return toErrorResponse(error);
       }
     }));
-  };
+  }
 }
 
 /**
@@ -243,6 +247,7 @@ function isDemoAccount(demo: DemoConfig, principal: Principal | undefined): bool
  */
 function actorOf(principal: Principal | undefined, allowed: AuthResult): Actor | undefined {
   if (principal) return { id: principal.userId, name: principal.displayName };
+  // i18n-ignore — 변경 이력(DB의 actor_name)에 저장되는 행위자 이름이다. 요청 언어로 바꾸면 기록이 섞인다
   if (allowed.via === 'apikey') return { id: 'apikey', name: 'API 키' };
   return undefined;
 }
@@ -263,7 +268,7 @@ function undoRoutes(undo: UndoStack): Route[] {
       async handle({ params }) {
         const packageId = params['packageId']!;
         const undone = await undo.undo(packageId);
-        if (undone === undefined) throw new ApiError(409, 'Conflict', '되돌릴 변경이 없습니다.');
+        if (undone === undefined) throw new ApiError(409, 'Conflict', tr('되돌릴 변경이 없습니다.'));
         return json(200, { undone, ...undo.status(packageId) });
       },
     },
@@ -274,7 +279,7 @@ function undoRoutes(undo: UndoStack): Route[] {
       async handle({ params }) {
         const packageId = params['packageId']!;
         const redone = await undo.redo(packageId);
-        if (redone === undefined) throw new ApiError(409, 'Conflict', '다시 할 변경이 없습니다.');
+        if (redone === undefined) throw new ApiError(409, 'Conflict', tr('다시 할 변경이 없습니다.'));
         return json(200, { redone, ...undo.status(packageId) });
       },
     },

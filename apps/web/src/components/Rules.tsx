@@ -59,7 +59,7 @@ export function Rules({ onClose }: Props): React.JSX.Element {
         <h3>{tr('규약 — 새로 만들 때 이 형식을 따릅니다')}</h3>
         {/* 🔴 값이 어디서 왔는지 보여 준다. 정책 파일로 바꿨는데 안 먹었으면 여기서 드러난다 */}
         {(() => {
-          const changed = catalog.sources.filter((entry) => entry.from !== '기본값');
+          const changed = catalog.sources.filter((entry) => entry.from !== 'default');
           return changed.length === 0 ? (
             <p className="hint"><T k={'전부 <b>기본값</b>입니다(코드에 심어 둔 실측 기준).'} /></p>
           ) : (

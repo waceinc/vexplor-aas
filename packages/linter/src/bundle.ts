@@ -20,7 +20,7 @@
  * 🔴 동의어를 추측하지 않는다(MachineState ≈ RobotState 같은 것). 추측이 틀리면
  *    KPI가 조용히 틀린다. 사람이 채우도록 매핑표에 빈 칸을 준다.
  */
-import type { Environment, SubmodelElement } from '@aas/core';
+import { fill, tr, type Environment, type SubmodelElement } from '@aas/core';
 import { csvCell } from './csv.js';
 
 /** 기본으로 훑는 서브모델 — 30종 전부가 가진 운전 데이터 서브모델 */
@@ -203,8 +203,10 @@ export function bundleLinkage(
       kind: 'shared-semantic',
       severity: 'warning',
       message:
-        `semanticId 하나를 서로 다른 이름 ${item.names.length}개가 씁니다: ${item.names.join(', ')}. ` +
-        '같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.',
+        fill(tr('semanticId 하나를 서로 다른 이름 {0}개가 씁니다: {1}. 같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.'), {
+          0: item.names.length,
+          1: item.names.join(', '),
+        }),
       semanticIds: [item.semanticId],
       names: item.names,
     });
@@ -224,8 +226,7 @@ export function bundleLinkage(
       kind: 'split-semantic',
       severity: 'info',
       message:
-        `「${name}」 — 이름은 같은데 semanticId가 ${ids.size}종입니다. ` +
-        'KPI를 모을 때 하나로 볼지 매핑표에서 정하십시오.',
+        fill(tr('「{0}」 — 이름은 같은데 semanticId가 {1}종입니다. KPI를 모을 때 하나로 볼지 매핑표에서 정하십시오.'), { 0: name, 1: ids.size }),
       semanticIds: [...ids],
       names: [name],
     });
@@ -242,7 +243,7 @@ const cell = (value: string): string => csvCell(value);
  * 「연계 키」「KPI 용도」는 **사람이 채울 칸**이다 — 도구는 추측하지 않는다.
  */
 export function linkageCsv(linkage: BundleLinkage): string {
-  const header = ['연계 키(사람이 채움)', 'KPI 용도(사람이 채움)', '대표 이름', 'semanticId', '정의 이름', '단위', '보유 설비 수', '설비', '경로', 'valueType'];
+  const header = [tr('연계 키(사람이 채움)'), tr('KPI 용도(사람이 채움)'), tr('대표 이름'), 'semanticId', tr('정의 이름'), tr('단위'), tr('보유 설비 수'), tr('설비'), tr('경로'), 'valueType'];
   const rows: string[] = [header.map(cell).join(',')];
   for (const item of linkage.items) {
     for (const member of linkage.members) {

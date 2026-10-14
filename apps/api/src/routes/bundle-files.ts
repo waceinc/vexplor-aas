@@ -15,6 +15,7 @@
  * — 옛 CSV와 새 기록서가 섞이면 무엇이 무엇의 증빙인지 흐려진다.
  */
 import { isSafeEntryName } from '@aas/aasx';
+import { fill, tr } from '@aas/core';
 import type { AasStore, PackageFileRecord } from '@aas/store';
 import { ApiError } from '../http.js';
 
@@ -41,11 +42,11 @@ export const CARRIED_EVIDENCE_PART = `${BUNDLE_PART_PREFIX}.carried-evidence.jso
 
 /** 사람이 넣을 수 있는 폴더 — 번들 구조(추진방안 §2.1) */
 export const ATTACHMENT_FOLDERS = [
-  '01_UseCase문서',
+  '01_UseCase문서', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
   '03_가이던스',
-  '04_데이터연계정의',
+  '04_데이터연계정의', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
   '05_샘플데이터',
-  '06_검증결과',
+  '06_검증결과', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
 ] as const;
 
 /** 수집 기록 — 새 기록이 있으면 통째로 갈아 끼운다 */
@@ -57,7 +58,7 @@ export function isGeneratedPath(path: string): boolean {
   return (
     path === 'README.md' ||
     path === 'bundle-manifest.json' ||
-    path.startsWith('00_공정구성/') ||
+    path.startsWith('00_공정구성/') || // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
     path.startsWith('02_참조모델/') ||
     /^06_검증결과\/사전점검_[^/]+\.html$/.test(path) ||
     path === '04_데이터연계정의/연계항목_초안.csv' ||
@@ -98,13 +99,13 @@ export const contentTypeOf = (path: string): string =>
 export function checkAttachmentPath(path: string): string {
   const clean = path.replace(/\\/g, '/').replace(/^\/+/, '');
   if (!clean || !isSafeEntryName(clean) || clean.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')) {
-    throw new ApiError(400, 'BadRequest', `쓸 수 없는 경로입니다: ${path}`);
+    throw new ApiError(400, 'BadRequest', fill(tr('쓸 수 없는 경로입니다: {0}'), { 0: path }));
   }
   if (!ATTACHMENT_FOLDERS.some((folder) => clean.startsWith(`${folder}/`))) {
-    throw new ApiError(400, 'BadRequest', `첨부는 ${ATTACHMENT_FOLDERS.join(' · ')} 폴더 안에만 둡니다.`);
+    throw new ApiError(400, 'BadRequest', fill(tr('첨부는 {0} 폴더 안에만 둡니다.'), { 0: ATTACHMENT_FOLDERS.join(' · ') }));
   }
   if (isGeneratedPath(clean)) {
-    throw new ApiError(400, 'BadRequest', `${clean}은(는) 도구가 내보낼 때마다 새로 만드는 파일입니다.`);
+    throw new ApiError(400, 'BadRequest', fill(tr('{0}은(는) 도구가 내보낼 때마다 새로 만드는 파일입니다.'), { 0: clean }));
   }
   return clean;
 }
