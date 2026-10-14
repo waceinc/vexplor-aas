@@ -48,8 +48,23 @@ export interface NewEvent {
   actorName?: string;
   cause?: string;
   changeSetId?: string;
+  /**
+   * Workspace owner of the row. Absent = copied from the package at append time; a string = that owner; `null` =
+   * deliberately shared (visible to every workspace). Pass it when the package may already be gone — a projector
+   * "removed" event or a detector cycle racing a deletion — because a lookup then finds nothing (see ORPHAN_OWNER).
+   */
+  owner?: string | null;
   data: Record<string, unknown>;
 }
+
+/**
+ * Owner given to an appended event whose package does not exist (any more) and whose caller passed no owner.
+ *
+ * Important: such an event must **not** fall back to "ownerless" — ownerless rows are visible to every workspace, and
+ *    the event of a deleted private package carries its serial number and globalAssetId. No workspace key starts with
+ *    `~`, so only see-all readers (admins, the server) get these rows.
+ */
+export const ORPHAN_OWNER = '~orphan';
 
 export interface EventQuery {
   /** Exclusive */
@@ -228,6 +243,13 @@ export class ExternalRefConflictError extends Error {
   }
 }
 
+export interface ExternalRefsBatchItem {
+  packageId: string;
+  doc: ExternalRefsDoc;
+  /** Same meaning as putExternalRefs' expectedRevision (0 = "never saved") */
+  expectedRevision?: number;
+}
+
 export interface IntegrationStore {
   // ── events (model events are written internally by the mutating methods, never through appendEvents) ──
   /** Returns the inserted rows only — an id that already exists (or repeats in the batch) is skipped */
@@ -275,6 +297,13 @@ export interface IntegrationStore {
   getExternalRefs(packageId: string): Promise<Versioned<ExternalRefsDoc> | undefined>;
   /** ConflictError | ExternalRefConflictError | NotFoundError (unknown package) */
   putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>>;
+  /**
+   * Several packages' docs in one all-or-nothing write, applied in order (a key dropped by an earlier item may be taken
+   * by a later one). The first ConflictError / ExternalRefConflictError / NotFoundError aborts the whole batch and
+   * nothing is written. Each saved item records its own `model.externalrefs.updated` event. Results are in item order.
+   */
+  putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]>;
+  /** Every holder of the key. Inside a workspace, holders in other workspaces are returned masked (scoped.ts) */
   findExternalRef(system: string, type: string, id: string): Promise<{ packageId: string; subject: string }[]>;
   /** Ordered by packageId */
   listExternalRefs(): Promise<{ packageId: string; refs: Versioned<ExternalRefsDoc> }[]>;
