@@ -5,7 +5,7 @@
  * (basyx 왕복 로드는 SML 서브트리와 서브모델을 조용히 드롭한다)
  */
 import { parseEnvironmentXml } from './xml.js';
-import { parseEnvironment, type Environment } from '@aas/core';
+import { fill, parseEnvironment, tr, type Environment } from '@aas/core';
 import { unzipSync, strFromU8 } from 'fflate';
 import {
   contentTypeOf,
@@ -77,7 +77,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
     entries = unzipSync(buffer, { filter: createEntryGuard(limits) });
   } catch (e) {
     if (e instanceof AasxLimitError) throw e; // 상한 초과는 형식 오류가 아니다
-    throw new AasxReadError(`AASX ZIP을 열 수 없습니다: ${(e as Error).message}`);
+    throw new AasxReadError(fill(tr('AASX ZIP을 열 수 없습니다: {0}'), { 0: (e as Error).message }));
   }
 
   const parts = new Map<string, Uint8Array>();
@@ -91,7 +91,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   const ctRaw = parts.get(ctPart);
   let contentTypes: ContentTypes = { defaults: new Map(), overrides: new Map() };
   if (ctRaw) contentTypes = parseContentTypes(strFromU8(ctRaw));
-  else fail('[Content_Types].xml이 없습니다.');
+  else fail(tr('[Content_Types].xml이 없습니다.'));
 
   // ② 관계 파일 전부 파싱
   const relsByOwner = new Map<string, Relationship[]>();
@@ -102,19 +102,19 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   const relsOf = (part: string): Relationship[] => relsByOwner.get(relsPathFor(part)) ?? [];
 
   const rootRels = relsByOwner.get('/_rels/.rels') ?? [];
-  if (rootRels.length === 0) fail('_rels/.rels가 없거나 비어 있습니다.');
+  if (rootRels.length === 0) fail(tr('_rels/.rels가 없거나 비어 있습니다.'));
 
   // ③ aasx-origin → aas-spec(data.json) 경로 추적
   const originRel = rootRels.find((r) => r.type === REL_TYPE.origin);
   const originPart = originRel?.target ?? ORIGIN_PART;
-  if (!originRel) fail('aasx-origin 관계가 없습니다.');
+  if (!originRel) fail(tr('aasx-origin 관계가 없습니다.'));
 
   const specRel = relsOf(originPart).find((r) => r.type === REL_TYPE.spec);
   const specPart = specRel?.target ?? DEFAULT_SPEC_PART;
-  if (!specRel) fail(`aas-spec 관계가 없습니다. ${DEFAULT_SPEC_PART}로 가정합니다.`);
+  if (!specRel) fail(fill(tr('aas-spec 관계가 없습니다. {0}로 가정합니다.'), { 0: DEFAULT_SPEC_PART }));
 
   const specRaw = parts.get(specPart);
-  if (!specRaw) throw new AasxReadError(`AAS 본문 파트를 찾을 수 없습니다: ${specPart}`);
+  if (!specRaw) throw new AasxReadError(fill(tr('AAS 본문 파트를 찾을 수 없습니다: {0}'), { 0: specPart }));
 
   // 기존 도구(Package Explorer 등)는 XML로 저장한 AASX를 흔히 준다. 읽기만 지원한다 —
   // 저장은 계속 JSON으로 한다(무손실 왕복 경로를 둘로 늘리지 않는다)
@@ -122,7 +122,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   const isXml = lower.endsWith('.xml');
   if (isXml) {
     warnings.push(
-      `XML 판을 읽었습니다(${specPart}). 저장할 때는 JSON(${DEFAULT_SPEC_PART})으로 씁니다.`,
+      fill(tr('XML 판을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.'), { 0: specPart, 1: DEFAULT_SPEC_PART }),
     );
   }
   const environment: Environment = isXml
@@ -130,7 +130,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
     : lower.endsWith('.json')
       ? parseEnvironment(strFromU8(specRaw))
       : (() => {
-          throw new AasxReadError(`알 수 없는 본문 형식입니다: ${specPart} (.json 또는 .xml)`);
+          throw new AasxReadError(fill(tr('알 수 없는 본문 형식입니다: {0} (.json 또는 .xml)'), { 0: specPart }));
         })();
 
   // ④ 썸네일
@@ -147,7 +147,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
       };
       consumed.add(thumbRel.target);
     } else {
-      fail(`썸네일 관계는 있으나 파트가 없습니다: ${thumbRel.target}`);
+      fail(fill(tr('썸네일 관계는 있으나 파트가 없습니다: {0}'), { 0: thumbRel.target }));
     }
   }
 
@@ -157,7 +157,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
     if (rel.type !== REL_TYPE.suppl) continue;
     const data = parts.get(rel.target);
     if (!data) {
-      fail(`첨부 파일 관계는 있으나 파트가 없습니다: ${rel.target}`);
+      fail(fill(tr('첨부 파일 관계는 있으나 파트가 없습니다: {0}'), { 0: rel.target }));
       continue;
     }
     supplementaryFiles.push({

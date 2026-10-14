@@ -9,6 +9,7 @@
  *    모델·리비전은 건드리지 않는다(A안 — 값은 파일과 별개다).
  */
 import type { AasStore } from '@aas/store';
+import { tr } from '@aas/core';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const RETENTION_SWEEP_MS = 60 * 60 * 1000;
@@ -35,7 +36,7 @@ export function startRetention(
   options: { sweepMs?: number; now?: () => number; onError?: (error: unknown) => void } = {},
 ): RetentionHandle {
   const now = options.now ?? Date.now;
-  const onError = options.onError ?? ((error: unknown) => console.error('  ⚠️  수집값 정리 실패:', error));
+  const onError = options.onError ?? ((error: unknown) => console.error('  ⚠️  ' + tr('수집값 정리 실패:'), error));
   if (days <= 0) return { pruneNow: async () => 0, stop: () => undefined };
 
   const pruneNow = () => store.pruneValues(new Date(now() - days * DAY_MS).toISOString());

@@ -22,6 +22,24 @@ export function langOf(request: ApiRequest): Lang {
   return parseLang(request.headers['accept-language']);
 }
 
+/**
+ * 날것의 요청(node:http)에서 언어를 고른다 — createApi 밖에서 답하는 자리(본문 상한 413 · 정적 파일 ·
+ * 사전 요청)도 같은 규칙으로 나가야 한다. 규칙은 langOf와 같다: `?lang=`이 먼저, 그다음 `Accept-Language`
+ */
+export function langOfRaw(url: string | undefined, acceptLanguage: string | string[] | undefined): Lang {
+  const fromQuery = new URL(url ?? '/', 'http://localhost').searchParams.get('lang');
+  if (fromQuery) return parseLang(fromQuery);
+  return parseLang(Array.isArray(acceptLanguage) ? acceptLanguage[0] : acceptLanguage);
+}
+
+/**
+ * 운영자가 보는 기동 로그의 언어 — `AAS_LANG=en`이면 영어. 기본은 한국어다.
+ * 🔴 OS의 LANG은 보지 않는다 — 한국어로 쓰는 개발 PC도 en_US인 경우가 흔해서 갑자기 바뀐다
+ */
+export function bootLang(env: Record<string, string | undefined>): Lang {
+  return parseLang(env['AAS_LANG']);
+}
+
 export function runInLang<T>(lang: Lang, fn: () => T): T {
   return storage.run(lang, fn);
 }

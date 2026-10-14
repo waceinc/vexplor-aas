@@ -10,6 +10,7 @@
  *    서명 쿠키(JWT 등)로 하면 로그아웃·강제 잠금이 즉시 먹지 않는다.
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { tr } from '@aas/core';
 
 export interface Session {
   userId: string;
@@ -195,11 +196,11 @@ export class SignupThrottle {
   /** 막혔으면 사람이 읽을 사유, 아니면 undefined */
   blocked(address: string | undefined): string | undefined {
     if (this.fresh(this.all).length >= this.globalLimit) {
-      return '지금은 가입을 받을 수 없습니다 — 잠시 뒤에 다시 시도하십시오.';
+      return tr('지금은 가입을 받을 수 없습니다 — 잠시 뒤에 다시 시도하십시오.');
     }
     const mine = this.byAddress.get(address ?? '');
     if (mine && this.fresh(mine).length >= this.addressLimit) {
-      return '같은 곳에서 가입을 너무 많이 시도했습니다 — 한 시간 뒤에 다시 시도하십시오.';
+      return tr('같은 곳에서 가입을 너무 많이 시도했습니다 — 한 시간 뒤에 다시 시도하십시오.');
     }
     return undefined;
   }

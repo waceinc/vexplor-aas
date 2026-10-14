@@ -5,6 +5,7 @@
  * 붙여 보내고, 응답은 거래 번호로 짝을 맞춘다. 장치가 예외(기능 번호 + 0x80)로 답하면 그 이름을 사유로 돌려준다.
  */
 import { Socket } from 'node:net';
+import { fill, tr } from '@aas/core';
 import type { ModbusEntity } from './modbus-target.js';
 
 const FUNCTION: Record<ModbusEntity, number> = { Coil: 1, DiscreteInput: 2, HoldingRegister: 3, InputRegister: 4 };
@@ -37,7 +38,7 @@ export class ModbusTcpClient {
     socket.on('data', (chunk: Buffer) => this.onData(chunk));
     const fail = (error: Error): void => this.failAll(error);
     socket.on('error', fail);
-    socket.on('close', () => this.failAll(new Error('연결이 끊겼습니다.')));
+    socket.on('close', () => this.failAll(new Error(tr('연결이 끊겼습니다.'))));
   }
 
   static connect(host: string, port: number, timeoutMs = 3000): Promise<ModbusTcpClient> {
@@ -45,7 +46,7 @@ export class ModbusTcpClient {
       const socket = new Socket();
       const timer = setTimeout(() => {
         socket.destroy();
-        reject(new Error(`Modbus 장치에 붙지 못했습니다(시간 초과): ${host}:${port}`));
+        reject(new Error(fill(tr('Modbus 장치에 붙지 못했습니다(시간 초과): {0}:{1}'), { 0: host, 1: port })));
       }, timeoutMs);
       socket.once('error', (error) => {
         clearTimeout(timer);
@@ -64,7 +65,7 @@ export class ModbusTcpClient {
     const fc = FUNCTION[entity];
     const pdu = await this.request(unitId, Buffer.from([fc, address >> 8, address & 0xff, quantity >> 8, quantity & 0xff]));
     if (pdu[0] === (fc | 0x80)) throw new Error(EXCEPTION[pdu[1] ?? 0] ?? `Exception ${String(pdu[1])}`);
-    if (pdu[0] !== fc) throw new Error(`기대하지 않은 응답 기능 번호: ${String(pdu[0])}`);
+    if (pdu[0] !== fc) throw new Error(fill(tr('기대하지 않은 응답 기능 번호: {0}'), { 0: String(pdu[0]) }));
     const data = pdu.subarray(2, 2 + (pdu[1] ?? 0));
     if (entity === 'Coil' || entity === 'DiscreteInput') {
       return Array.from({ length: quantity }, (_, index) => ((data[index >> 3] ?? 0) >> (index & 7)) & 1);
@@ -74,7 +75,7 @@ export class ModbusTcpClient {
 
   close(): Promise<void> {
     this.closed = true;
-    this.failAll(new Error('닫았습니다.'));
+    this.failAll(new Error(tr('닫았습니다.')));
     return new Promise((resolve) => {
       if (this.socket.destroyed) return resolve();
       this.socket.end(() => resolve());
@@ -83,7 +84,7 @@ export class ModbusTcpClient {
   }
 
   private request(unitId: number, pdu: Buffer): Promise<Buffer> {
-    if (this.closed) return Promise.reject(new Error('닫힌 연결입니다.'));
+    if (this.closed) return Promise.reject(new Error(tr('닫힌 연결입니다.')));
     const id = this.nextId;
     this.nextId = (this.nextId % 0xffff) + 1;
     const header = Buffer.alloc(7);

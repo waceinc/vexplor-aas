@@ -12,6 +12,7 @@
  */
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import {
   deriveColumns,
   flattenEnvironment,
@@ -194,7 +195,9 @@ export class PostgresStore implements AasStore {
 
       if (current > SCHEMA_VERSION) {
         throw new SchemaVersionError(
+          // i18n-ignore — 기동할 때 운영자에게 나가는 오류(요청이 없어 언어도 없다)
           `DB 스키마가 ${current}판인데 이 프로그램은 ${SCHEMA_VERSION}판까지만 압니다 — ` +
+            // i18n-ignore — 위 문장의 이어지는 줄
             '프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.',
           current,
         );
@@ -232,7 +235,7 @@ export class PostgresStore implements AasStore {
       packageId,
     ]);
     const row = rows[0];
-    if (!row) throw new NotFoundError(`패키지 ${packageId}`);
+    if (!row) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
     return row;
   }
 
@@ -274,7 +277,7 @@ export class PostgresStore implements AasStore {
         [input.id ?? null, input.name, input.package.specPart, input.owner || null],
       );
       const row = rows[0];
-      if (!row) throw new InvalidContentError('패키지를 만들지 못했습니다.');
+      if (!row) throw new InvalidContentError(tr('패키지를 만들지 못했습니다.'));
 
       for (const file of [...flattenPackageFiles(input.package), ...(input.keep ?? [])]) {
         await tx.query(
@@ -436,7 +439,7 @@ export class PostgresStore implements AasStore {
       'DELETE FROM aas_package_file WHERE package_id = $1 AND part = $2 RETURNING part',
       [packageId, part],
     );
-    if (rows.length === 0) throw new NotFoundError(`파트 ${part}`);
+    if (rows.length === 0) throw new NotFoundError(fill(tr('파트 {0}'), { 0: part }));
     await this.touch(this.client, packageId);
   }
 
@@ -467,7 +470,7 @@ export class PostgresStore implements AasStore {
       'DELETE FROM aas_package WHERE id = $1 RETURNING id',
       [packageId],
     );
-    if (rows.length === 0) throw new NotFoundError(`패키지 ${packageId}`);
+    if (rows.length === 0) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
   }
 
   async getEnvironment(packageId: string): Promise<Environment> {
@@ -526,7 +529,7 @@ export class PostgresStore implements AasStore {
     return withTransaction(this.client, async (tx) => {
       await this.requirePackage(packageId, tx);
       if (await this.findRow(tx, packageId, d.modelType, d.id)) {
-        throw new InvalidContentError(`이미 있는 id입니다: ${d.id}`);
+        throw new InvalidContentError(fill(tr('이미 있는 id입니다: {0}'), { 0: d.id }));
       }
       // 자리를 지정하면 그 자리에(COALESCE), 아니면 맨 뒤에
       const { rows } = await tx.query<IdentifiableRow>(
@@ -563,8 +566,10 @@ export class PostgresStore implements AasStore {
     const d = deriveColumns(content);
     if (d.modelType !== modelType || d.id !== id) {
       throw new InvalidContentError(
-        `본문의 modelType·id가 경로와 다릅니다: ${d.modelType} ${d.id}. ` +
-          'id를 바꾸려면 참조 무결성 때문에 Quick Fix의 교정 경로를 쓰십시오.',
+        fill(tr('본문의 modelType·id가 경로와 다릅니다: {0} {1}. id를 바꾸려면 참조 무결성 때문에 Quick Fix의 교정 경로를 쓰십시오.'), {
+          0: d.modelType,
+          1: d.id,
+        }),
       );
     }
 
@@ -702,7 +707,7 @@ export class PostgresStore implements AasStore {
 
   async createUser(user: NewUser): Promise<UserRecord> {
     const login = user.login.trim().toLowerCase();
-    if (login === '') throw new Error('로그인 이름이 비어 있습니다.');
+    if (login === '') throw new Error(tr('로그인 이름이 비어 있습니다.'));
     const display = user.displayName.trim() === '' ? login : user.displayName.trim();
     // 🔴 id를 DB에서 만들지 않고 여기서 짓는다 — 메모리 구현과 같은 꼴(user_N)이어야
     //    적합성 테스트가 두 구현을 같은 눈으로 본다
@@ -731,7 +736,7 @@ export class PostgresStore implements AasStore {
     } catch (caught) {
       // 23505 = unique_violation. 무슨 일인지 사람 말로 돌려준다
       if ((caught as { code?: string }).code === '23505') {
-        throw new Error(`이미 있는 로그인 이름입니다: ${login}`);
+        throw new Error(fill(tr('이미 있는 로그인 이름입니다: {0}'), { 0: login }));
       }
       throw caught;
     }
@@ -743,6 +748,7 @@ export class PostgresStore implements AasStore {
   ): Promise<UserRecord | undefined> {
     // 🔴 준 것만 바꾼다. COALESCE로 undefined를 흘리면 멀쩡한 값이 지워진다
     const { rows } = await this.client.query<UserRow>(
+      // i18n-ignore — SQL 문(안의 한국어는 SQL 주석)
       `UPDATE app_user SET
          display_name  = COALESCE($2, display_name),
          role          = COALESCE($3, role),

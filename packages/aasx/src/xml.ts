@@ -14,7 +14,7 @@
  *     MultiLanguageProperty에서는 언어별 글자다 → **자식이 요소면 배열, 글자면 문자열**로 가른다
  */
 import { XMLParser } from 'fast-xml-parser';
-import type { Environment } from '@aas/core';
+import { fill, tr, type Environment } from '@aas/core';
 
 /** 문서 순서를 지키는 파서. 이름공간 접두사(aas:)는 떼고 읽는다 */
 const parser = new XMLParser({
@@ -196,11 +196,11 @@ export function parseEnvironmentXml(text: string): Environment {
   try {
     tree = parser.parse(text) as XmlNode[];
   } catch (error) {
-    throw new AasxXmlError(`XML을 해석하지 못했습니다: ${String(error)}`);
+    throw new AasxXmlError(fill(tr('XML을 해석하지 못했습니다: {0}'), { 0: String(error) }));
   }
 
   const root = tree.find((node) => nameOf(node) === 'environment');
-  if (!root) throw new AasxXmlError('<environment> 요소가 없습니다.');
+  if (!root) throw new AasxXmlError(tr('<environment> 요소가 없습니다.'));
 
   const environment: Record<string, unknown> = {};
   for (const child of childrenOf(root)) {

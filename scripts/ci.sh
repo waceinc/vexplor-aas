@@ -36,8 +36,10 @@ else
   exit 1
 fi
 
-echo "▶ 8/8 화면 글자가 번역기를 거치고 영어 사전에 있는가"
+echo "▶ 8/8 화면 글자와 서버 글이 번역기를 거치고 영어 사전에 있는가"
 # 🔴 화면에 한국어를 새로 적고 사전을 빼먹으면, 영어 화면의 그 자리만 한국어로 남는다
 node scripts/i18n-scan.mjs --check
+# 🔴 서버가 만드는 글(지적 문구·결과서·번들·오류)도 같은 약속 — 영어 화면에서 그 자리만 한국어로 남지 않게
+node scripts/i18n-server-scan.mjs --check
 
 echo "✅ CI 통과"

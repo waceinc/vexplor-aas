@@ -14,6 +14,7 @@
  *    AID 용어 쪽(ExternalReference/GlobalReference)과 **다르다** — 헷갈리지 말 것.
  * 🔴 **이미 있는 것은 건드리지 않는다.** 값이 들어 있을 수 있고, 사람이 손댄 것일 수 있다.
  */
+import { fill, tr } from '@aas/core';
 import type { AidTagInput } from './aid-build.js';
 
 const IEC61360 =
@@ -135,6 +136,7 @@ export function runtimeConcept(
           ),
           ...(unit === undefined || unit === '' ? {} : { unit }),
           definition: [
+            // i18n-ignore — AAS 다국어 값의 ko 자리(en 자리는 바로 아래에 따로 있다)
             { language: 'ko', text: `수집 항목 ${idShort}` },
             { language: 'en', text: idShort },
           ],
@@ -168,18 +170,18 @@ function smc(iriBase: string, idShort: string, value: unknown[]): Record<string,
 
 export function checkRuntimeInput(input: RuntimeGroupInput): void {
   for (const [label, name] of [
-    ['대분류', input.group],
-    ['소분류', input.subgroup],
+    [tr('대분류'), input.group],
+    [tr('소분류'), input.subgroup],
   ] as const) {
     if (!NAME_PATTERN.test(name)) {
       throw new RuntimeBuildError(
-        `${label} 이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: ${name}`,
+        fill(tr('{0} 이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: {1}'), { 0: label, 1: name }),
       );
     }
   }
   for (const tag of input.tags) {
     if (!NAME_PATTERN.test(tag.name)) {
-      throw new RuntimeBuildError(`태그 이름이 요소 이름으로 쓸 수 없습니다: ${tag.name}`);
+      throw new RuntimeBuildError(fill(tr('태그 이름이 요소 이름으로 쓸 수 없습니다: {0}'), { 0: tag.name }));
     }
   }
 }

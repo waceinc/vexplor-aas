@@ -10,6 +10,7 @@ import type { ConceptDescription } from '../types/concept.js';
 import type { Environment } from '../types/environment.js';
 import type { AssetAdministrationShell } from '../types/shell.js';
 import type { Submodel, SubmodelElement } from '../types/submodel.js';
+import { fill, tr } from '../i18n/index.js';
 
 export interface ParseIssue {
   /** JSON Pointer */
@@ -21,7 +22,7 @@ export class AasParseError extends Error {
   readonly issues: ParseIssue[];
   constructor(issues: ParseIssue[]) {
     const head = issues.slice(0, 5).map((i) => `  ${i.pointer}: ${i.message}`).join('\n');
-    super(`AAS JSON 파싱 실패 (${issues.length}건)\n${head}${issues.length > 5 ? '\n  ...' : ''}`);
+    super(`${fill(tr('AAS JSON 파싱 실패 ({0}건)'), { 0: issues.length })}\n${head}${issues.length > 5 ? '\n  ...' : ''}`);
     this.name = 'AasParseError';
     this.issues = issues;
   }
@@ -39,16 +40,16 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  */
 function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): void {
   if (!isRecord(node)) {
-    issues.push({ pointer, message: 'SubmodelElement는 객체여야 합니다.' });
+    issues.push({ pointer, message: tr('SubmodelElement는 객체여야 합니다.') });
     return;
   }
   const mt = node['modelType'];
   if (typeof mt !== 'string') {
-    issues.push({ pointer, message: 'modelType이 없습니다.' });
+    issues.push({ pointer, message: tr('modelType이 없습니다.') });
     return;
   }
   if (!SME_TYPES.has(mt)) {
-    issues.push({ pointer, message: `알 수 없는 modelType입니다: ${mt}` });
+    issues.push({ pointer, message: fill(tr('알 수 없는 modelType입니다: {0}'), { 0: mt }) });
     return;
   }
 
@@ -57,7 +58,7 @@ function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): voi
     const children = node[field];
     if (children === undefined) return;
     if (!Array.isArray(children)) {
-      issues.push({ pointer: `${pointer}/${field}`, message: `${field}는 배열이어야 합니다.` });
+      issues.push({ pointer: `${pointer}/${field}`, message: fill(tr('{0}는 배열이어야 합니다.'), { 0: field }) });
       return;
     }
     children.forEach((c, i) => checkElement(c, `${pointer}/${field}/${i}`, issues));
@@ -71,7 +72,7 @@ function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): voi
       const vars = node[f];
       if (vars === undefined) continue;
       if (!Array.isArray(vars)) {
-        issues.push({ pointer: `${pointer}/${f}`, message: `${f}는 배열이어야 합니다.` });
+        issues.push({ pointer: `${pointer}/${f}`, message: fill(tr('{0}는 배열이어야 합니다.'), { 0: f }) });
         continue;
       }
       vars.forEach((v, i) => {
@@ -90,15 +91,15 @@ function checkIdentifiable(
   issues: ParseIssue[],
 ): void {
   if (!isRecord(node)) {
-    issues.push({ pointer, message: `${expectedModelType}는 객체여야 합니다.` });
+    issues.push({ pointer, message: fill(tr('{0}는 객체여야 합니다.'), { 0: expectedModelType }) });
     return;
   }
   if (typeof node['id'] !== 'string' || node['id'].length === 0) {
-    issues.push({ pointer, message: 'id가 없습니다. Identifiable은 전역 id가 필수입니다.' });
+    issues.push({ pointer, message: tr('id가 없습니다. Identifiable은 전역 id가 필수입니다.') });
   }
   const mt = node['modelType'];
   if (mt !== undefined && mt !== expectedModelType) {
-    issues.push({ pointer, message: `modelType 불일치: ${String(mt)} (기대값 ${expectedModelType})` });
+    issues.push({ pointer, message: fill(tr('modelType 불일치: {0} (기대값 {1})'), { 0: String(mt), 1: expectedModelType }) });
   }
 }
 
@@ -115,14 +116,14 @@ export function parseEnvironment(input: string | unknown, options: ParseOptions 
   const { fillMissingModelType = true } = options;
   const raw: unknown = typeof input === 'string' ? JSON.parse(input) : input;
 
-  if (!isRecord(raw)) throw new AasParseError([{ pointer: '', message: '최상위는 객체여야 합니다.' }]);
+  if (!isRecord(raw)) throw new AasParseError([{ pointer: '', message: tr('최상위는 객체여야 합니다.') }]);
 
   const issues: ParseIssue[] = [];
   const section = (key: string, modelType: string): unknown[] => {
     const v = raw[key];
     if (v === undefined) return [];
     if (!Array.isArray(v)) {
-      issues.push({ pointer: `/${key}`, message: `${key}는 배열이어야 합니다.` });
+      issues.push({ pointer: `/${key}`, message: fill(tr('{0}는 배열이어야 합니다.'), { 0: key }) });
       return [];
     }
     v.forEach((item, i) => {
@@ -143,7 +144,7 @@ export function parseEnvironment(input: string | unknown, options: ParseOptions 
     const elems = sm['submodelElements'];
     if (elems === undefined) return;
     if (!Array.isArray(elems)) {
-      issues.push({ pointer: `/submodels/${i}/submodelElements`, message: 'submodelElements는 배열이어야 합니다.' });
+      issues.push({ pointer: `/submodels/${i}/submodelElements`, message: tr('submodelElements는 배열이어야 합니다.') });
       return;
     }
     elems.forEach((e, j) => checkElement(e, `/submodels/${i}/submodelElements/${j}`, issues));

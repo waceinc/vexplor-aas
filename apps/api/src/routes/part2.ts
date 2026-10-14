@@ -43,6 +43,7 @@ import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest, type 
 import { AASX_MEDIA_TYPE } from './packages.js';
 import { fieldValues, fileOf, parseMultipart } from '../multipart.js';
 import type { Route, RouteContext } from '../router.js';
+import { fill, tr } from '@aas/core';
 
 const BASE = '/packages/:packageId/api/v3.0';
 
@@ -57,7 +58,7 @@ function pageOf(request: ApiRequest): ListQuery {
   if (limit !== undefined) {
     const parsed = Number(limit);
     if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new ApiError(400, 'BadRequest', `limit이 양의 정수가 아닙니다: ${limit}`);
+      throw new ApiError(400, 'BadRequest', fill(tr('limit이 양의 정수가 아닙니다: {0}'), { 0: limit }));
     }
     page.limit = parsed;
   }
@@ -86,7 +87,7 @@ function writeOptionsOf(request: ApiRequest): WriteOptions {
   if (!ifMatch || ifMatch === '*') return {};
   const revision = Number(ifMatch.replace(/"/g, ''));
   if (!Number.isInteger(revision)) {
-    throw new ApiError(400, 'BadRequest', `If-Match가 리비전 숫자가 아닙니다: ${ifMatch}`);
+    throw new ApiError(400, 'BadRequest', fill(tr('If-Match가 리비전 숫자가 아닙니다: {0}'), { 0: ifMatch }));
   }
   return { expectedRevision: revision };
 }
@@ -94,7 +95,7 @@ function writeOptionsOf(request: ApiRequest): WriteOptions {
 function bodyObject(request: ApiRequest): Record<string, unknown> {
   const body = request.body;
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-    throw new ApiError(400, 'BadRequest', '본문이 JSON 객체가 아닙니다.');
+    throw new ApiError(400, 'BadRequest', tr('본문이 JSON 객체가 아닙니다.'));
   }
   return body as Record<string, unknown>;
 }
@@ -144,7 +145,7 @@ function identifiableRoutes(
           throw new ApiError(
             400,
             'BadRequest',
-            `이 경로에는 ${modelType}만 만들 수 있습니다: ${String(content['modelType'])}`,
+            fill(tr('이 경로에는 {0}만 만들 수 있습니다: {1}'), { 0: modelType, 1: String(content['modelType']) }),
           );
         }
         const created = await store.createIdentifiable(params['packageId']!, content);
@@ -157,7 +158,7 @@ function identifiableRoutes(
       success: [200],
       async handle(ctx) {
         const record = await store.getIdentifiable(ctx.params['packageId']!, modelType, idOf(ctx));
-        if (!record) throw new ApiError(404, 'NotFound', `${modelType}을(를) 찾을 수 없습니다.`);
+        if (!record) throw new ApiError(404, 'NotFound', fill(tr('{0}을(를) 찾을 수 없습니다.'), { 0: modelType }));
         return withEtag(json(200, record.content), record.revision);
       },
     },
@@ -189,7 +190,7 @@ function identifiableRoutes(
         const packageId = ctx.params['packageId']!;
         const id = idOf(ctx);
         const current = await store.getIdentifiable(packageId, modelType, id);
-        if (!current) throw new ApiError(404, 'NotFound', `${modelType}을(를) 찾을 수 없습니다.`);
+        if (!current) throw new ApiError(404, 'NotFound', fill(tr('{0}을(를) 찾을 수 없습니다.'), { 0: modelType }));
         const merged = { ...current.content, ...bodyObject(ctx.request), modelType, id };
         const updated = await store.updateIdentifiable(
           packageId,
@@ -238,13 +239,13 @@ const nestedLocator: SubmodelLocator = async (store, ctx) => {
   const submodelId = decodeIdentifier(ctx.params['submodelIdentifier']!);
 
   const shell = await store.getIdentifiable(packageId, 'AssetAdministrationShell', aasId);
-  if (!shell) throw new ApiError(404, 'NotFound', 'AAS를 찾을 수 없습니다.');
+  if (!shell) throw new ApiError(404, 'NotFound', tr('AAS를 찾을 수 없습니다.'));
 
   const referenced = ((shell.content as { submodels?: { keys?: { value?: string }[] }[] }).submodels ?? [])
     .flatMap((reference) => reference.keys ?? [])
     .some((key) => key.value === submodelId);
   if (!referenced) {
-    throw new ApiError(404, 'NotFound', '이 AAS가 참조하지 않는 Submodel입니다.');
+    throw new ApiError(404, 'NotFound', tr('이 AAS가 참조하지 않는 Submodel입니다.'));
   }
   return submodelId;
 };
@@ -256,7 +257,7 @@ async function requireShell(store: AasStore, ctx: RouteContext) {
     'AssetAdministrationShell',
     decodeIdentifier(ctx.params['identifier']!),
   );
-  if (!record) throw new ApiError(404, 'NotFound', 'AAS를 찾을 수 없습니다.');
+  if (!record) throw new ApiError(404, 'NotFound', tr('AAS를 찾을 수 없습니다.'));
   return record;
 }
 
@@ -291,7 +292,7 @@ function uploadedFile(request: ApiRequest): { name: string; contentType: string;
 
   if (contentType.includes('multipart/form-data')) {
     if (!(body instanceof Uint8Array)) {
-      throw new ApiError(400, 'BadRequest', 'multipart 본문을 읽지 못했습니다.');
+      throw new ApiError(400, 'BadRequest', tr('multipart 본문을 읽지 못했습니다.'));
     }
     let parts;
     try {
@@ -300,13 +301,13 @@ function uploadedFile(request: ApiRequest): { name: string; contentType: string;
       throw new ApiError(400, 'BadRequest', error instanceof Error ? error.message : String(error));
     }
     const file = fileOf(parts, 'file');
-    if (!file) throw new ApiError(400, 'BadRequest', 'file 조각이 없습니다.');
+    if (!file) throw new ApiError(400, 'BadRequest', tr('file 조각이 없습니다.'));
     const name = fieldValues(parts, 'fileName')[0] ?? file.filename ?? 'thumbnail.png';
     return { name, contentType: file.contentType ?? guessImageType(name), data: file.data };
   }
 
   if (!(body instanceof Uint8Array)) {
-    throw new ApiError(400, 'BadRequest', '본문이 파일 바이트가 아닙니다.');
+    throw new ApiError(400, 'BadRequest', tr('본문이 파일 바이트가 아닙니다.'));
   }
   const name = request.query['fileName'] ?? 'thumbnail.png';
   return { name, contentType: contentType || guessImageType(name), data: body };
@@ -336,7 +337,7 @@ async function editSubmodel(
   const packageId = ctx.params['packageId']!;
   const id = await resolveSubmodel(store, ctx);
   const record = await store.getIdentifiable(packageId, 'Submodel', id);
-  if (!record) throw new ApiError(404, 'NotFound', 'Submodel을 찾을 수 없습니다.');
+  if (!record) throw new ApiError(404, 'NotFound', tr('Submodel을 찾을 수 없습니다.'));
 
   const submodel = JSON.parse(JSON.stringify(record.content)) as Submodel;
   const early = edit(submodel);
@@ -372,7 +373,7 @@ async function readSubmodel(
     'Submodel',
     await resolveSubmodel(store, ctx),
   );
-  if (!record) throw new ApiError(404, 'NotFound', 'Submodel을 찾을 수 없습니다.');
+  if (!record) throw new ApiError(404, 'NotFound', tr('Submodel을 찾을 수 없습니다.'));
   const submodel = record.content as unknown as Submodel;
 
   if (ctx.request.query['live'] !== 'true') return submodel;
@@ -405,7 +406,7 @@ function guardIdShort(
       throw new ApiError(
         400,
         'BadRequest',
-        'SubmodelElementList의 자식에는 idShort를 붙일 수 없습니다(AASd-120). 리스트 자식은 순서로 가리킵니다.',
+        tr('SubmodelElementList의 자식에는 idShort를 붙일 수 없습니다(AASd-120). 리스트 자식은 순서로 가리킵니다.'),
       );
     }
     return;
@@ -421,14 +422,14 @@ function guardIdShort(
     throw new ApiError(
       400,
       'BadRequest',
-      `같은 자리에 이미 「${nextName}」이(가) 있습니다. 형제끼리 이름이 겹치면 안 됩니다(AASd-022).`,
+      fill(tr('같은 자리에 이미 「{0}」이(가) 있습니다. 형제끼리 이름이 겹치면 안 됩니다(AASd-022).'), { 0: nextName }),
     );
   }
 }
 
 function locate(submodel: Submodel, path: string): ReturnType<typeof resolveIdShortPath> {
   const found = resolveIdShortPath(submodel, path);
-  if (!found) throw new ApiError(404, 'NotFound', `요소를 찾을 수 없습니다: ${path}`);
+  if (!found) throw new ApiError(404, 'NotFound', fill(tr('요소를 찾을 수 없습니다: {0}'), { 0: path }));
   return found;
 }
 
@@ -466,7 +467,7 @@ function submodelModifierRoutes(
           // 자식 idShort를 키로 받아 값만 갈아 끼운다. 없는 이름은 무시하지 않고 알린다
           for (const [idShort, value] of Object.entries(body)) {
             const found = resolveIdShortPath(submodel, idShort);
-            if (!found) throw new ApiError(404, 'NotFound', `요소를 찾을 수 없습니다: ${idShort}`);
+            if (!found) throw new ApiError(404, 'NotFound', fill(tr('요소를 찾을 수 없습니다: {0}'), { 0: idShort }));
             applyValueOnly(found.node, value);
           }
         });
@@ -656,7 +657,7 @@ function submodelElementRoutes(
           (submodel) => {
             const container = containerFor(submodel, path);
             if (!container) {
-              throw new ApiError(404, 'NotFound', `부모 요소를 찾을 수 없습니다: ${path}`);
+              throw new ApiError(404, 'NotFound', fill(tr('부모 요소를 찾을 수 없습니다: {0}'), { 0: path }));
             }
             container.push(element);
           },
@@ -736,7 +737,7 @@ function submodelElementRoutes(
         const offset = Number(body['offset']);
         const toIndex = Number(body['to']);
         if (hasTo ? !Number.isInteger(toIndex) || toIndex < 0 : offset !== -1 && offset !== 1)
-          throw new ApiError(400, 'BadRequest', 'offset은 -1(위)·1(아래), to는 0 이상의 정수여야 합니다.');
+          throw new ApiError(400, 'BadRequest', tr('offset은 -1(위)·1(아래), to는 0 이상의 정수여야 합니다.'));
         const path = ctx.params['path']!;
         return editSubmodel(store, ctx, resolveSubmodel, (submodel) => {
           const found = locate(submodel, path)!;
@@ -745,7 +746,7 @@ function submodelElementRoutes(
             throw new ApiError(
               400,
               'BadRequest',
-              hasTo ? `자리는 0~${found.list.length - 1} 사이여야 합니다.` : offset < 0 ? '이미 맨 위입니다.' : '이미 맨 아래입니다.',
+              hasTo ? fill(tr('자리는 0~{0} 사이여야 합니다.'), { 0: found.list.length - 1 }) : offset < 0 ? tr('이미 맨 위입니다.') : tr('이미 맨 아래입니다.'),
             );
           if (to === found.index) return;
           const [node] = found.list.splice(found.index, 1);
@@ -802,10 +803,10 @@ function submodelElementRoutes(
         const submodel = await readSubmodel(store, ctx, resolveSubmodel);
         const found = locate(submodel, ctx.params['path']!)!;
         const part = attachmentPartOf(found.node);
-        if (!part) throw new ApiError(404, 'NotFound', '첨부 경로가 없습니다.');
+        if (!part) throw new ApiError(404, 'NotFound', tr('첨부 경로가 없습니다.'));
 
         const file = (await store.packageFiles(packageId)).find((f) => f.part === part);
-        if (!file) throw new ApiError(404, 'NotFound', `첨부 파트가 패키지에 없습니다: ${part}`);
+        if (!file) throw new ApiError(404, 'NotFound', fill(tr('첨부 파트가 패키지에 없습니다: {0}'), { 0: part }));
         return bytes(200, file.data, file.contentType || 'application/octet-stream');
       },
     },
@@ -830,7 +831,7 @@ function submodelElementRoutes(
         return editSubmodel(store, ctx, resolveSubmodel, (submodel) => {
           const found = locate(submodel, path)!;
           if (found.node.modelType !== 'File' && found.node.modelType !== 'Blob') {
-            throw new ApiError(400, 'BadRequest', '첨부는 File·Blob 요소에만 붙습니다.');
+            throw new ApiError(400, 'BadRequest', tr('첨부는 File·Blob 요소에만 붙습니다.'));
           }
           const target = found.node as unknown as Record<string, unknown>;
           // File.value는 URI여야 한다(PKG-FILE-URI). 상대경로로 두면 스키마 위반이다
@@ -849,7 +850,7 @@ function submodelElementRoutes(
         const submodel = await readSubmodel(store, ctx, resolveSubmodel);
         const found = locate(submodel, ctx.params['path']!)!;
         const part = attachmentPartOf(found.node);
-        if (!part) throw new ApiError(404, 'NotFound', '첨부 경로가 없습니다.');
+        if (!part) throw new ApiError(404, 'NotFound', tr('첨부 경로가 없습니다.'));
         await store.deletePackageFile(packageId, part).catch(() => undefined);
 
         const path = ctx.params['path']!;
@@ -937,7 +938,7 @@ function nestedSubmodelRoutes(store: AasStore): Route[] {
         const packageId = ctx.params['packageId']!;
         const id = await nestedLocator(store, ctx);
         const current = await store.getIdentifiable(packageId, 'Submodel', id);
-        if (!current) throw new ApiError(404, 'NotFound', 'Submodel을 찾을 수 없습니다.');
+        if (!current) throw new ApiError(404, 'NotFound', tr('Submodel을 찾을 수 없습니다.'));
         const updated = await store.updateIdentifiable(
           packageId,
           'Submodel',
@@ -1099,7 +1100,7 @@ export function part2Routes(store: AasStore): Route[] {
         const packageId = ctx.params['packageId']!;
         const record = await requireShell(store, ctx);
         const thumbnail = await findThumbnail(store, packageId, record.content);
-        if (!thumbnail) throw new ApiError(404, 'NotFound', '썸네일이 없습니다.');
+        if (!thumbnail) throw new ApiError(404, 'NotFound', tr('썸네일이 없습니다.'));
         return bytes(200, thumbnail.data, thumbnail.contentType);
       },
     },
@@ -1159,7 +1160,7 @@ export function part2Routes(store: AasStore): Route[] {
         };
         const path = (content.assetInformation?.['defaultThumbnail'] as { path?: string } | undefined)
           ?.path;
-        if (!path) throw new ApiError(404, 'NotFound', '썸네일이 없습니다.');
+        if (!path) throw new ApiError(404, 'NotFound', tr('썸네일이 없습니다.'));
 
         await store.deletePackageFile(packageId, path).catch(() => undefined);
         delete content.assetInformation?.['defaultThumbnail'];
@@ -1181,7 +1182,7 @@ export function part2Routes(store: AasStore): Route[] {
         const packageId = ctx.params['packageId']!;
         const aasId = decodeIdentifier(ctx.params['identifier']!);
         const record = await store.getIdentifiable(packageId, 'AssetAdministrationShell', aasId);
-        if (!record) throw new ApiError(404, 'NotFound', 'AAS를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('AAS를 찾을 수 없습니다.'));
 
         const reference = bodyObject(ctx.request);
         const content = JSON.parse(JSON.stringify(record.content)) as {
@@ -1207,7 +1208,7 @@ export function part2Routes(store: AasStore): Route[] {
         const aasId = decodeIdentifier(ctx.params['identifier']!);
         const submodelId = decodeIdentifier(ctx.params['submodelIdentifier']!);
         const record = await store.getIdentifiable(packageId, 'AssetAdministrationShell', aasId);
-        if (!record) throw new ApiError(404, 'NotFound', 'AAS를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('AAS를 찾을 수 없습니다.'));
 
         const content = JSON.parse(JSON.stringify(record.content)) as {
           submodels?: { keys?: { value: string }[] }[];
@@ -1217,7 +1218,7 @@ export function part2Routes(store: AasStore): Route[] {
           (ref) => ref.keys?.[0]?.value !== submodelId,
         );
         if (content.submodels.length === before) {
-          throw new ApiError(404, 'NotFound', '그 Submodel 참조가 없습니다.');
+          throw new ApiError(404, 'NotFound', tr('그 Submodel 참조가 없습니다.'));
         }
         const updated = await store.updateIdentifiable(
           packageId,
@@ -1239,7 +1240,7 @@ export function part2Routes(store: AasStore): Route[] {
           'AssetAdministrationShell',
           decodeIdentifier(ctx.params['identifier']!),
         );
-        if (!record) throw new ApiError(404, 'NotFound', 'AAS를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('AAS를 찾을 수 없습니다.'));
         const refs = (record.content as { submodels?: unknown[] }).submodels ?? [];
         return pagedResponse(refs);
       },

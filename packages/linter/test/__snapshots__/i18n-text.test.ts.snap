@@ -1,0 +1,1256 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`서버 글의 영어 — 린터 본체 · 결과서 · 고치기 > 한국어(기본)는 바뀌지 않는다 1`] = `
+{
+  "bundle": "﻿연계 키(사람이 채움),KPI 용도(사람이 채움),대표 이름,semanticId,정의 이름,단위,보유 설비 수,설비,경로,valueType
+,,InstantPower,https://www.smart-factory.kr/ids/cd/InstantPower/1/0,InstantPower,kW,2,A,OperationalData/EnergyMonitoring/PowerMeasurement/InstantPower,xs:double
+,,InstantPower,https://www.smart-factory.kr/ids/cd/InstantPower/1/0,InstantPower,kW,2,B,OperationalData/EnergyMonitoring/PowerMeasurement/InstantPower,xs:double
+,,MachineState,https://www.smart-factory.kr/ids/cd/MachineState/1/0,MachineState,,2,A,OperationalData/ProcessMonitoring/MachineStatus/MachineState,xs:string
+,,MachineState,https://www.smart-factory.kr/ids/cd/MachineState/1/0,MachineState,,2,B,OperationalData/ProcessMonitoring/RivetingProcess/MachineState,xs:string
+,,AlarmActive,https://www.smart-factory.kr/ids/cd/AlarmActive/1/0,AlarmActive,,1,A,OperationalData/MaintenanceMonitoring/MaintenanceState/AlarmActive,xs:boolean
+,,CumulativeEnergy,https://www.smart-factory.kr/ids/cd/CumulativeEnergy/1/0,CumulativeEnergy,kWh,1,A,OperationalData/EnergyMonitoring/PowerMeasurement/CumulativeEnergy,xs:double
+,,CumulativeLength,https://www.smart-factory.kr/ids/cd/CumulativeLength/1/0,CumulativeLength,m,1,A,OperationalData/ProcessMonitoring/ProductionResult/CumulativeLength,xs:double
+,,CumulativeRunHours,https://www.smart-factory.kr/ids/cd/CumulativeRunHours/1/0,CumulativeRunHours,h,1,A,OperationalData/MaintenanceMonitoring/MaintenanceState/CumulativeRunHours,xs:double
+,,CurrentLineSpeed,https://www.smart-factory.kr/ids/cd/CurrentLineSpeed/1/0,CurrentLineSpeed,m/min,1,A,OperationalData/ProcessMonitoring/FormingParameter/CurrentLineSpeed,xs:double
+,,CycleCount,https://www.smart-factory.kr/ids/cd/CycleCount/1/0,CycleCount,,1,B,OperationalData/ProcessMonitoring/QualityMonitoring/CycleCount,xs:integer
+,,FormingForce,https://www.smart-factory.kr/ids/cd/FormingForce/1/0,FormingForce,kN,1,A,OperationalData/ProcessMonitoring/FormingParameter/FormingForce,xs:double
+,,InterlockValue,https://www.smart-factory.kr/ids/cd/InterlockValue/1/0,InterlockValue,mm,1,B,OperationalData/ProcessMonitoring/QualityMonitoring/InterlockValue,xs:double
+,,LubricationStatus,https://www.smart-factory.kr/ids/cd/LubricationStatus/1/0,LubricationStatus,,1,A,OperationalData/MaintenanceMonitoring/ConditionStatus/LubricationStatus,xs:string
+,,MaintenanceMode,https://www.smart-factory.kr/ids/cd/MaintenanceMode/1/0,MaintenanceMode,,1,A,OperationalData/MaintenanceMonitoring/MaintenanceState/MaintenanceMode,xs:boolean
+,,MaterialYieldRate,https://www.smart-factory.kr/ids/cd/MaterialYieldRate/1/0,MaterialYieldRate,%,1,A,OperationalData/ProcessMonitoring/ProductionResult/MaterialYieldRate,xs:double
+,,OperatingMode,https://www.smart-factory.kr/ids/cd/OperatingMode/1/0,OperatingMode,,1,A,OperationalData/ProcessMonitoring/MachineStatus/OperatingMode,xs:string
+,,PowerFactor,https://www.smart-factory.kr/ids/cd/PowerFactor/1/0,PowerFactor,,1,A,OperationalData/EnergyMonitoring/PowerMeasurement/PowerFactor,xs:double
+,,PunchDisplacement,https://www.smart-factory.kr/ids/cd/PunchDisplacement/1/0,PunchDisplacement,mm,1,B,OperationalData/ProcessMonitoring/RivetingProcess/PunchDisplacement,xs:double
+,,RemainingBottomThickness,https://www.smart-factory.kr/ids/cd/RemainingBottomThickness/1/0,RemainingBottomThickness,mm,1,B,OperationalData/ProcessMonitoring/QualityMonitoring/RemainingBottomThickness,xs:double
+,,RollGapDeviation,https://www.smart-factory.kr/ids/cd/RollGapDeviation/1/0,RollGapDeviation,mm,1,A,OperationalData/ProcessMonitoring/FormingParameter/RollGapDeviation,xs:double
+,,RollWearStatus,https://www.smart-factory.kr/ids/cd/RollWearStatus/1/0,RollWearStatus,,1,A,OperationalData/MaintenanceMonitoring/ConditionStatus/RollWearStatus,xs:string
+,,SettingForce,https://www.smart-factory.kr/ids/cd/SettingForce/1/0,SettingForce,kN,1,B,OperationalData/ProcessMonitoring/RivetingProcess/SettingForce,xs:double
+",
+  "catalog": "{
+ "layers": [
+  {
+   "layer": "L1",
+   "title": "L1 — 패키지·직렬화",
+   "meaning": "AASX 파일 자체가 규격대로 만들어졌는가 (공식 JSON 스키마·OPC 패키징)",
+   "count": 4
+  },
+  {
+   "layer": "L2",
+   "title": "L2 — 메타모델 제약(AASd·AASc)",
+   "meaning": "AAS V3.0 규격이 정한 제약. 표준 도구(aas-test-engines·BaSyx)가 강제한다",
+   "count": 15
+  },
+  {
+   "layer": "L3",
+   "title": "L3 — KOSMO 사업 규칙",
+   "meaning": "KOSMO가 요구하는 것. 실측(설비 20종 × Validator 4회)으로 확정했다",
+   "count": 24
+  }
+ ],
+ "conflicts": [
+  {
+   "key": "iriConflict",
+   "title": "① IDTA 공식 IRI",
+   "conflict": "KTL §4는 IDTA 공식 IRI 보존을 요구하고, KOSMO는 admin-shell.io IRI를 거부한다",
+   "choices": [
+    {
+     "value": "kosmo-first",
+     "meaning": "허용 목록 밖 IRI는 위반 (KOSMO 우선)"
+    },
+    {
+     "value": "idta-preserve",
+     "meaning": "IDTA 공식 IRI는 통과, 경고로만 표시"
+    }
+   ],
+   "current": "kosmo-first"
+  },
+  {
+   "key": "cdDefinition",
+   "title": "② 개념정의의 영문 definition",
+   "conflict": "KTL §8은 정의가 없으면 공란 유지, KOSMO-CD-3은 영문 definition 필수",
+   "choices": [
+    {
+     "value": "require-en",
+     "meaning": "영문 정의가 없으면 위반"
+    },
+    {
+     "value": "allow-empty",
+     "meaning": "공란 허용, 참고로만 남긴다"
+    }
+   ],
+   "current": "require-en"
+  },
+  {
+   "key": "langTagTypo",
+   "title": "③ 언어태그 오타",
+   "conflict": "KTL §7은 IDTA 템플릿 오류도 원본 유지, 그러나 오타는 AASd 위반을 부른다",
+   "choices": [
+    {
+     "value": "fix-when-evidence",
+     "meaning": "중복 언어태그를 위반으로 보고 교정한다"
+    },
+    {
+     "value": "preserve",
+     "meaning": "경고로만 표시한다"
+    }
+   ],
+   "current": "fix-when-evidence"
+  },
+  {
+   "key": "smlChildIdShort",
+   "title": "④ 리스트 자식의 idShort (AASd-120)",
+   "conflict": "KOSMO Validator는 검사하지 않지만, aas-test-engines는 오류로 떨어뜨리고 basyx는 그 가지를 잃는다",
+   "choices": [
+    {
+     "value": "warn",
+     "meaning": "경고 — 상호운용이 깨진다고 알린다"
+    },
+    {
+     "value": "forbid",
+     "meaning": "위반 — 표준 도구 통과가 목표인 배포"
+    },
+    {
+     "value": "allow",
+     "meaning": "참고 — 알고도 두겠다는 선택"
+    }
+   ],
+   "current": "warn"
+  },
+  {
+   "key": "standardTemplateSemantics",
+   "title": "⑤ 표준 템플릿의 용어 (AID 등)",
+   "conflict": "IDTA 공식 템플릿에는 ConceptDescription이 딸려 오지 않아 KOSMO-SME-3이 요소 수만큼 걸린다. 「고치기」로 없앨 수 있지만 표준 용어가 자체 IRI로 덮인다",
+   "choices": [
+    {
+     "value": "kosmo-first",
+     "meaning": "위반으로 본다 (KOSMO 우선)"
+    },
+    {
+     "value": "preserve",
+     "meaning": "표준 용어를 지키고 참고로만 남긴다 (KTL §7·상호운용)"
+    }
+   ],
+   "current": "kosmo-first"
+  }
+ ],
+ "conventions": [
+  {
+   "key": "iriBase",
+   "title": "자체 IRI 뿌리",
+   "value": "https://www.smart-factory.kr/ids",
+   "source": "KOSMO 허용 접두 (02_Validator_대응규칙 §110)"
+  },
+  {
+   "key": "irdiPrefixes",
+   "title": "표준 사전 IRDI 접두",
+   "value": "0173- · 0112/  (eCl@ss · IEC CDD)",
+   "source": "KOSMO가 인정하는 표준 사전"
+  },
+  {
+   "key": "requiredSubmodels",
+   "title": "필수 서브모델",
+   "value": "DigitalNameplate · HandoverDocumentation · TechnicalData · OperationalData",
+   "source": "KOSMO-AAS-4"
+  },
+  {
+   "key": "submodelCountRange",
+   "title": "서브모델 개수",
+   "value": "6종 이상 8종 이하",
+   "source": "KOSMO-AAS-4"
+  },
+  {
+   "key": "aasId",
+   "title": "AAS id 짓는 법",
+   "value": "https://www.smart-factory.kr/ids/aas/{장비명}/{version}/{revision}",
+   "source": "03_AASX_생성규약"
+  },
+  {
+   "key": "submodelId",
+   "title": "서브모델 id 짓는 법",
+   "value": "https://www.smart-factory.kr/ids/sm/{장비명}/{서브모델명}/{version}/{revision}",
+   "source": "KOSMO-SM-2 (id 접미와 administration 일치)"
+  },
+  {
+   "key": "assetKind",
+   "title": "자산 종류",
+   "value": "Type (형식) — 본 사업 산출물은 개별 장비가 아니라 형식이다",
+   "source": "KOSMO-AAS-6"
+  },
+  {
+   "key": "valueSync",
+   "title": "값 동기화",
+   "value": "A안 — 파일(AASX)이 원본. 수집값은 시계열에만 쌓이고 모델로 되쓰지 않는다",
+   "source": "docs/PROGRESS.md §2-2"
+  }
+ ],
+ "verdict": [
+  {
+   "who": "KOSMO Validator",
+   "role": "🔴 공식 판정 주체. 오류 0건이 기준이다"
+  },
+  {
+   "who": "aas-test-engines",
+   "role": "🔴 합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다"
+  },
+  {
+   "who": "이 도구의 린터",
+   "role": "미리 걸러 주는 사전 점검. 위 둘을 대신하지 않는다"
+  },
+  {
+   "who": "AASX Package Explorer",
+   "role": "뷰어 전용. V2 스키마 오탐이 있어 검증에 쓰지 않는다"
+  },
+  {
+   "who": "BaSyx",
+   "role": "적재·상호운용 시연 도구. 검증 도구가 아니다"
+  }
+ ]
+}",
+  "errors": "정책 파일이 JSON이 아닙니다: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+정책 파일은 객체 하나여야 합니다.
+모르는 정책 항목입니다: nope — 쓸 수 있는 것: iriConflict, cdDefinition, langTagTypo, smlChildIdShort, standardTemplateSemantics, iriBase, irdiPrefixes, requiredSubmodels, submodelCountRange, valueCheckExemptSubmodels
+iriConflict에 쓸 수 없는 값입니다: "x" — 쓸 수 있는 것: kosmo-first · idta-preserve
+iriBase는 비어 있지 않은 글자여야 합니다.
+requiredSubmodels는 글자 목록이어야 합니다.
+submodelCountRange는 정수 두 개여야 합니다. 예: [6, 8]
+submodelCountRange의 최솟값이 최댓값보다 큽니다.
+장비명은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: 1bad
+복제할 파일에 AAS가 없습니다.
+이름이 비었습니다.
+넣을 자리를 찾지 못했습니다: nowhere
+없는 이름입니다: nowhere",
+  "fixes": "assetKind를 Type으로 바꿨습니다.
+CD id를 자체 IRI 규약으로 옮기고 참조 0건을 갱신했습니다. 원본은 이관 대장에 남겼습니다.
+kind를 Template으로 바꿨습니다.
+ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는 idShort를 그대로 둔 자리표시자이므로 개발계획서 원문으로 대체하십시오.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.
+대상 AssetAdministrationShell을 찾을 수 없습니다.
+대상 Submodel을 찾을 수 없습니다.
+대상 ConceptDescription을 찾을 수 없습니다.
+대상 Property를 찾을 수 없습니다.
+배열이 아닙니다.
+이 규칙에는 자동 교정기가 없습니다. 사람이 판단해야 합니다.",
+  "html": "<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>AAS 검증 결과서 — 01-롤포밍기-공34.aasx</title>
+<style>
+  :root { color-scheme: light; }
+  body { font: 12px/1.6 -apple-system, 'Malgun Gothic', sans-serif; color: #16191d; margin: 32px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #5a6673; margin: 0 0 20px; }
+  .verdict { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 700; }
+  .verdict.pass { background: #e3f6ee; color: #0d6b4b; }
+  .verdict.fail { background: #fdeaea; color: #a11c1c; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+  th, td { border: 1px solid #d7dde4; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f3f5f8; white-space: nowrap; }
+  tr.error td:first-child { color: #a11c1c; font-weight: 700; }
+  tr.warning td:first-child { color: #8a5a00; font-weight: 700; }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+  .path { word-break: break-all; max-width: 260px; }
+  .remedy { color: #3d4b59; margin-top: 4px; }
+  .policy { color: #8a5a00; margin-top: 4px; }
+  .note { color: #5a6673; border-top: 1px solid #d7dde4; padding-top: 10px; margin-top: 24px; }
+  @media print {
+    body { margin: 12mm; }
+    /* 표가 쪽을 넘어갈 때 행이 잘리지 않게 한다 */
+    tr { break-inside: avoid; }
+    thead { display: table-header-group; }
+    /* 회사 표시 — 인쇄해서 제출하는 문서다 */
+    .brand { margin-bottom: 6px; }
+    .brand img { height: 26px; width: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="brand"><img src="(logo)" alt="VEXPLOR"/></div>
+<h1>AAS 검증 결과서</h1>
+<p class="sub">
+  01-롤포밍기-공34.aasx · 2026-08-21T00:00:00.000Z ·
+  <span class="verdict fail">FAIL</span>
+</p>
+
+<h2>요약</h2>
+<table>
+  <tr><th>검사 규칙</th><td>43종 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)</td></tr>
+  <tr><th>위반</th><td>4건</td></tr>
+  <tr><th>경고</th><td>10건</td></tr>
+  <tr><th>참고</th><td>2건</td></tr>
+  <tr><th>계층별</th><td>L1 0건 · L2 10건 · L3 6건</td></tr>
+</table>
+
+<h2>규칙별 집계</h2>
+<table>
+  <thead><tr><th>규칙</th><th>건수</th></tr></thead>
+  <tbody><tr><td class="mono">AASd-120</td><td>10건</td></tr><tr><td class="mono">KOSMO-CD-5</td><td>2건</td></tr><tr><td class="mono">KOSMO-AAS-6</td><td>1건</td></tr><tr><td class="mono">KOSMO-CD-2</td><td>1건</td></tr><tr><td class="mono">KOSMO-SM-4</td><td>1건</td></tr><tr><td class="mono">KOSMO-SME-3</td><td>1건</td></tr></tbody>
+</table>
+
+<h2>지적 목록</h2>
+<table>
+  <thead>
+    <tr><th>등급</th><th>규칙</th><th>대상</th><th>위치</th><th>내용과 조치</th><th>교정</th></tr>
+  </thead>
+  <tbody>
+    <tr class="error">
+      <td>위반</td>
+      <td class="mono">KOSMO-AAS-6</td>
+      <td>AssetAdministrationShell<br /><b>RollFormingMachine</b></td>
+      <td class="mono path">/assetAdministrationShells/0(RollFormingMachine)/assetInformation/assetKind</td>
+      <td>
+        assetKind가 Type이 아닙니다: Instance
+        <div class="remedy">assetKind를 Type으로 지정하십시오. 본 사업 산출물은 형식(Type) 단위입니다.</div>
+        
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="error">
+      <td>위반</td>
+      <td class="mono">KOSMO-CD-2</td>
+      <td>ConceptDescription<br /><b>Markings</b></td>
+      <td class="mono path">/conceptDescriptions/0(Markings)/id</td>
+      <td>
+        CD의 id가 허용 목록 밖입니다: urn:wrong:cd
+        <div class="remedy">IRDI(0173- / 0112/) 또는 https://www.smart-factory.kr/ids/cd/{변수명}/{version}/{revision} 형식으로 바꾸십시오. 카테고리 자리(cd)에 장비명을 쓰면 안 됩니다.</div>
+        
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="error">
+      <td>위반</td>
+      <td class="mono">KOSMO-SM-4</td>
+      <td>Submodel<br /><b>DigitalNameplate</b></td>
+      <td class="mono path">/submodels/0(DigitalNameplate)/kind</td>
+      <td>
+        kind가 Template이 아닙니다: Instance
+        <div class="remedy">kind를 Template으로 지정하십시오.</div>
+        
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="error">
+      <td>위반</td>
+      <td class="mono">KOSMO-SME-3</td>
+      <td>SubmodelElementList<br /><b>Markings</b></td>
+      <td class="mono path">/submodels/0(DigitalNameplate)/submodelElements/9(Markings)</td>
+      <td>
+        semanticId에 대응하는 ConceptDescription이 없습니다: 0112/2///61360_7#AAS006#001
+        <div class="remedy">해당 id를 가진 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.</div>
+        
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MarkingsEntry_0</b></td>
+      <td class="mono path">/submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MarkingsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentIdsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/0(DocumentIds)/value/0(DocumentIdsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentIdsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentClassificationsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/1(DocumentClassifications)/value/0(DocumentClassificationsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentClassificationsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentVersionsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentVersionsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>File<br /><b>DigitalFilesEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/value/6(DigitalFiles)/value/0(DigitalFilesEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DigitalFilesEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>TechnicalPropertyAreasEntry_0</b></td>
+      <td class="mono path">/submodels/2(TechnicalData)/submodelElements/1(TechnicalPropertyAreas)/value/0(TechnicalPropertyAreasEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: TechnicalPropertyAreasEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MaintenanceToolListEntry_0</b></td>
+      <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/0(MaintenanceToolListEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MaintenanceToolListEntry_1</b></td>
+      <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/1(MaintenanceToolListEntry_1)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_1
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MaintenanceConsumablesListEntry_0</b></td>
+      <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/3(MaintenanceConsumablesList)/value/0(MaintenanceConsumablesListEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceConsumablesListEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="info">
+      <td>참고</td>
+      <td class="mono">KOSMO-CD-5</td>
+      <td>ConceptDescription<br /><b>ManufacturerName</b></td>
+      <td class="mono path">/conceptDescriptions/18(ManufacturerName)/idShort</td>
+      <td>
+        같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
+        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
+      </td>
+      <td>사람 판단</td>
+    </tr>
+    <tr class="info">
+      <td>참고</td>
+      <td class="mono">KOSMO-CD-5</td>
+      <td>ConceptDescription<br /><b>ManufacturerProductDesignation</b></td>
+      <td class="mono path">/conceptDescriptions/21(ManufacturerProductDesignation)/idShort</td>
+      <td>
+        같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerProductDesignation
+        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
+      </td>
+      <td>사람 판단</td>
+    </tr></tbody>
+</table>
+
+<h2>적용한 규정 해석</h2>
+<p class="sub">KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책으로 갈린다. 어느 쪽을 골랐는지 함께 남긴다.</p>
+<table>
+  <tr><th>① IRI 충돌</th><td>KOSMO 우선 — 화이트리스트 밖 IRI를 위반으로 본다</td></tr>
+  <tr><th>② CD 정의</th><td>영문 definition 필수</td></tr>
+  <tr><th>③ 언어 태그</th><td>중복 태그를 교정 대상으로 본다</td></tr>
+  <tr><th>④ SML 자식 idShort (AASd-120)</th><td>경고 — KOSMO 판정에는 영향 없음</td></tr>
+  <tr><th>⑤ 표준 템플릿 용어</th><td>KOSMO 우선 — CD 없는 표준 용어를 위반으로 본다</td></tr>
+  <tr><th>자체 IRI 접두</th><td>https://www.smart-factory.kr/ids</td></tr>
+  <tr><th>인정 IRDI 접두</th><td>0173- / 0112/</td></tr>
+</table>
+
+<h2>IRI 이관 대장 (1건)</h2>
+<p class="sub">KOSMO Validator가 IDTA 공식 IRI를 거부하므로 자체 IRI로 옮겼다(KTL §4와 충돌하는 자리 — 정책 KOSMO 우선). 원본은 여기 남아 있어 언제든 되돌릴 수 있다.</p>
+<table>
+  <thead><tr><th>지금 IRI</th><th>원본 IRI</th></tr></thead>
+  <tbody><tr><td class="mono">https://www.smart-factory.kr/ids/cd/Markings/1/0</td><td class="mono">urn:wrong:cd</td></tr></tbody>
+</table>
+
+<p class="note">
+  이 문서는 <b>자체 규칙 린터</b>의 결과입니다. KOSMO Validator가 출력한 결과서가 아닙니다.
+  Validator 실행 결과와 함께 확인하십시오.
+  
+</p>
+</body>
+</html>",
+  "htmlPass": "<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>AAS 검증 결과서 — 01-롤포밍기-공34.aasx</title>
+<style>
+  :root { color-scheme: light; }
+  body { font: 12px/1.6 -apple-system, 'Malgun Gothic', sans-serif; color: #16191d; margin: 32px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #5a6673; margin: 0 0 20px; }
+  .verdict { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 700; }
+  .verdict.pass { background: #e3f6ee; color: #0d6b4b; }
+  .verdict.fail { background: #fdeaea; color: #a11c1c; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+  th, td { border: 1px solid #d7dde4; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f3f5f8; white-space: nowrap; }
+  tr.error td:first-child { color: #a11c1c; font-weight: 700; }
+  tr.warning td:first-child { color: #8a5a00; font-weight: 700; }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+  .path { word-break: break-all; max-width: 260px; }
+  .remedy { color: #3d4b59; margin-top: 4px; }
+  .policy { color: #8a5a00; margin-top: 4px; }
+  .note { color: #5a6673; border-top: 1px solid #d7dde4; padding-top: 10px; margin-top: 24px; }
+  @media print {
+    body { margin: 12mm; }
+    /* 표가 쪽을 넘어갈 때 행이 잘리지 않게 한다 */
+    tr { break-inside: avoid; }
+    thead { display: table-header-group; }
+    /* 회사 표시 — 인쇄해서 제출하는 문서다 */
+    .brand { margin-bottom: 6px; }
+    .brand img { height: 26px; width: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="brand"><img src="(logo)" alt="VEXPLOR"/></div>
+<h1>AAS 검증 결과서</h1>
+<p class="sub">
+  01-롤포밍기-공34.aasx · 2026-08-21T00:00:00.000Z ·
+  <span class="verdict pass">PASS</span>
+</p>
+
+<h2>요약</h2>
+<table>
+  <tr><th>검사 규칙</th><td>43종 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)</td></tr>
+  <tr><th>위반</th><td>0건</td></tr>
+  <tr><th>경고</th><td>10건</td></tr>
+  <tr><th>참고</th><td>2건</td></tr>
+  <tr><th>계층별</th><td>L1 0건 · L2 10건 · L3 2건</td></tr>
+</table>
+
+<h2>규칙별 집계</h2>
+<table>
+  <thead><tr><th>규칙</th><th>건수</th></tr></thead>
+  <tbody><tr><td class="mono">AASd-120</td><td>10건</td></tr><tr><td class="mono">KOSMO-CD-5</td><td>2건</td></tr></tbody>
+</table>
+
+<h2>지적 목록</h2>
+<table>
+  <thead>
+    <tr><th>등급</th><th>규칙</th><th>대상</th><th>위치</th><th>내용과 조치</th><th>교정</th></tr>
+  </thead>
+  <tbody>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MarkingsEntry_0</b></td>
+      <td class="mono path">/submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MarkingsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentIdsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/0(DocumentIds)/value/0(DocumentIdsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentIdsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentClassificationsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/1(DocumentClassifications)/value/0(DocumentClassificationsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentClassificationsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>DocumentVersionsEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentVersionsEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>File<br /><b>DigitalFilesEntry_0</b></td>
+      <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/value/6(DigitalFiles)/value/0(DigitalFilesEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: DigitalFilesEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>TechnicalPropertyAreasEntry_0</b></td>
+      <td class="mono path">/submodels/2(TechnicalData)/submodelElements/1(TechnicalPropertyAreas)/value/0(TechnicalPropertyAreasEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: TechnicalPropertyAreasEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MaintenanceToolListEntry_0</b></td>
+      <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/0(MaintenanceToolListEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MaintenanceToolListEntry_1</b></td>
+      <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/1(MaintenanceToolListEntry_1)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_1
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="warning">
+      <td>경고</td>
+      <td class="mono">AASd-120</td>
+      <td>SubmodelElementCollection<br /><b>MaintenanceConsumablesListEntry_0</b></td>
+      <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/3(MaintenanceConsumablesList)/value/0(MaintenanceConsumablesListEntry_0)/idShort</td>
+      <td>
+        SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceConsumablesListEntry_0
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
+      </td>
+      <td>자동 교정 가능</td>
+    </tr>
+    <tr class="info">
+      <td>참고</td>
+      <td class="mono">KOSMO-CD-5</td>
+      <td>ConceptDescription<br /><b>ManufacturerName</b></td>
+      <td class="mono path">/conceptDescriptions/18(ManufacturerName)/idShort</td>
+      <td>
+        같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
+        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
+      </td>
+      <td>사람 판단</td>
+    </tr>
+    <tr class="info">
+      <td>참고</td>
+      <td class="mono">KOSMO-CD-5</td>
+      <td>ConceptDescription<br /><b>ManufacturerProductDesignation</b></td>
+      <td class="mono path">/conceptDescriptions/21(ManufacturerProductDesignation)/idShort</td>
+      <td>
+        같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerProductDesignation
+        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
+      </td>
+      <td>사람 판단</td>
+    </tr></tbody>
+</table>
+
+
+
+
+
+<p class="note">
+  이 문서는 <b>자체 규칙 린터</b>의 결과입니다. KOSMO Validator가 출력한 결과서가 아닙니다.
+  Validator 실행 결과와 함께 확인하십시오.
+  
+</p>
+</body>
+</html>",
+  "smt": "<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 1 TechnicalData - TechnicalData</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">TechnicalData</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">Submodel</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRDI] 0173-1#01-AHX837#002</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">-</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">-</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]GeneralInformation</td><td>[IRDI] 0173-1#02-ABK161#002/0173-1#01-AHX838#002<br/>General Information</td><td>[-]3 elements</td><td>0..1</td></tr>
+<tr><td>[SML]TechnicalPropertyAreas</td><td>[IRDI] 0173-1#02-ABK163#002<br/>Technical Property Areas</td><td>[-]1 elements</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 2 TechnicalData - GeneralInformation</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">GeneralInformation</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRDI] 0173-1#02-ABK161#002/0173-1#01-AHX838#002<br/>General Information</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SM &quot;TechnicalData&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">General Information</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]ManufacturerName</td><td>[IRDI] 0173-1#02-AAO677#004<br/>Legally valid designation of the natural or judicial person which is directly responsible for the design, production, packaging and labeling of a product in respect to its being brought into circulation</td><td>[string]Example Manufacturer Co., Ltd.</td><td>0..1</td></tr>
+<tr><td>[MLP]ManufacturerProductDesignation</td><td>[IRDI] 0173-1#02-AAW338#003<br/>Short description of the product (short text)</td><td>[langString]Roll Forming Line - Automotive Body</td><td>0..1</td></tr>
+<tr><td>[Prop]ManufacturerOrderCode</td><td>[IRDI] 0173-1#02-AAO227#004<br/>by manufactures issued unique combination of numbers and letters used to identify the device for ordering</td><td>[string]RF-AUTO-BODY-12ST</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 3 TechnicalData - TechnicalPropertyAreas</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">TechnicalPropertyAreas</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementList</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRDI] 0173-1#02-ABK163#002<br/>Technical Property Areas</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SM &quot;TechnicalData&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Technical Property Areas</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]TechnicalPropertyAreasEntry_0</td><td>[IRDI] 0173-1#02-ABL358#002/0173-1#01-AHX773#002<br/>Technical Property Areas Entry_0</td><td>[-]4 elements</td><td>0..*</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 4 TechnicalData - TechnicalPropertyAreasEntry_0</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">TechnicalPropertyAreasEntry_0</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRDI] 0173-1#02-ABL358#002/0173-1#01-AHX773#002<br/>Technical Property Areas Entry_0</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SML &quot;TechnicalPropertyAreas&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Technical Property Areas Entry_0</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]RollStandSpecification</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]2 elements</td><td>0..1</td></tr>
+<tr><td>[SMC]DriveMotorSpecification</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]1 elements</td><td>0..1</td></tr>
+<tr><td>[SMC]MaterialSpecification</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]1 elements</td><td>0..1</td></tr>
+<tr><td>[SMC]GeneralEquipmentSpecification</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]2 elements</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 5 TechnicalData - RollStandSpecification</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">RollStandSpecification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;TechnicalPropertyAreasEntry_0&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]RollGeometry</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]4 elements</td><td>0..1</td></tr>
+<tr><td>[SMC]StandLayout</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]1 elements</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 6 TechnicalData - RollGeometry</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">RollGeometry</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;RollStandSpecification&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]NumberOfStands</td><td>[IRI] https://www.smart-factory.kr/ids/cd/NumberOfStands/1/0<br/>Number Of Stands<br/>롤 스탠드 형상 - NumberOfStands</td><td>[integer]12</td><td>0..1</td></tr>
+<tr><td>[Prop]RollDiameter</td><td>[IRI] https://www.smart-factory.kr/ids/cd/RollDiameter/1/0<br/>Roll Diameter<br/>롤 스탠드 형상 - RollDiameter</td><td>[double]150.0</td><td>0..1</td></tr>
+<tr><td>[Prop]ShaftDiameter</td><td>[IRI] https://www.smart-factory.kr/ids/cd/ShaftDiameter/1/0<br/>Shaft Diameter<br/>롤 스탠드 형상 - ShaftDiameter</td><td>[double]60.0</td><td>0..1</td></tr>
+<tr><td>[Prop]MaxRollWidth</td><td>[IRI] https://www.smart-factory.kr/ids/cd/MaxRollWidth/1/0<br/>Max Roll Width<br/>롤 스탠드 형상 - MaxRollWidth</td><td>[double]600.0</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 7 TechnicalData - StandLayout</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">StandLayout</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;RollStandSpecification&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]StandSpacing</td><td>[IRI] https://www.smart-factory.kr/ids/cd/StandSpacing/1/0<br/>Stand Spacing<br/>롤 스탠드 배치 - StandSpacing</td><td>[double]250.0</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 8 TechnicalData - DriveMotorSpecification</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">DriveMotorSpecification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;TechnicalPropertyAreasEntry_0&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]MotorRating</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]4 elements</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 9 TechnicalData - MotorRating</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">MotorRating</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;DriveMotorSpecification&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]RatedMotorPower</td><td>[IRDI] 0173-1#02-AAC970#010<br/>Rated Motor Power</td><td>[double]30.0</td><td>0..1</td></tr>
+<tr><td>[Prop]RatedVoltage</td><td>[IRDI] 0173-1#02-AAG184#005<br/>Rated Voltage<br/>정격 전압(V)</td><td>[double]380.0</td><td>0..1</td></tr>
+<tr><td>[Prop]RatedCurrent</td><td>[IRDI] 0173-1#02-AAF726#006<br/>Rated Current</td><td>[double]60.0</td><td>0..1</td></tr>
+<tr><td>[Prop]MotorProtectionType</td><td>[IRI] https://www.smart-factory.kr/ids/cd/MotorProtectionType/1/0<br/>Motor Protection Type<br/>구동 모터 정격 - MotorProtectionType</td><td>[string]IP55</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 10 TechnicalData - MaterialSpecification</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">MaterialSpecification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;TechnicalPropertyAreasEntry_0&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]MaterialCapacity</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]3 elements</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 11 TechnicalData - MaterialCapacity</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">MaterialCapacity</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;MaterialSpecification&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]MaxMaterialThickness</td><td>[IRDI] 0173-1#02-AAX634#005<br/>Max Material Thickness<br/>최대 소재 두께</td><td>[double]3.2</td><td>0..1</td></tr>
+<tr><td>[Prop]MaxMaterialWidth</td><td>[IRI] https://www.smart-factory.kr/ids/cd/MaxMaterialWidth/1/0<br/>Max Material Width<br/>소재 허용 한계 - MaxMaterialWidth</td><td>[double]600.0</td><td>0..1</td></tr>
+<tr><td>[Prop]MaxMaterialTensileStrength</td><td>[IRDI] 0173-1#02-AAH039#009<br/>Max Material Tensile Strength<br/>적용소재 인장강도 상한</td><td>[double]590.0</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 12 TechnicalData - GeneralEquipmentSpecification</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">GeneralEquipmentSpecification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;TechnicalPropertyAreasEntry_0&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[SMC]PerformanceSpec</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]1 elements</td><td>0..1</td></tr>
+<tr><td>[SMC]DimensionSpec</td><td>[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td><td>[-]3 elements</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 13 TechnicalData - PerformanceSpec</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">PerformanceSpec</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;GeneralEquipmentSpecification&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]MaxFormingSpeed</td><td>[IRI] https://www.smart-factory.kr/ids/cd/MaxFormingSpeed/1/0<br/>Max Forming Speed<br/>성능 사양 - MaxFormingSpeed</td><td>[double]30.0</td><td>0..1</td></tr>
+</table>
+<p style="margin:0;font-size:6pt">&nbsp;</p>
+<p style="margin:14pt 0 4pt;font-weight:bold;font-size:10pt">표 14 TechnicalData - DimensionSpec</p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:9pt;width:100%">
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">idShort:</td><td colspan="3">DimensionSpec</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Class:</td><td colspan="3">SubmodelElementCollection</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">semanticId:</td><td colspan="3">[IRI] https://www.smart-factory.kr/ids/cd/Arbitrary/1/0<br/>Roll Stand Specification<br/>IDTA 원본: https://admin-shell.io/SMT/General/Arbitrary</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Parent:</td><td colspan="3">SMC &quot;GeneralEquipmentSpecification&quot;</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold;width:22%">Explanation:</td><td colspan="3">Roll Stand Specification</td></tr>
+<tr><td style="background:#DAE9F7;font-weight:bold">[SME type]idShort</td><td style="background:#DAE9F7;font-weight:bold">semanticId = [idType]value<br/>Description@en</td><td style="background:#DAE9F7;font-weight:bold">[valueType]example</td><td style="background:#DAE9F7;font-weight:bold">card.</td></tr>
+<tr><td>[Prop]TotalWeight</td><td>[IRDI] 0173-1#02-AAQ808#007<br/>Total Weight<br/>전체 중량(kg)</td><td>[double]8500.0</td><td>0..1</td></tr>
+<tr><td>[Prop]OverallLength</td><td>[IRI] https://www.smart-factory.kr/ids/cd/OverallLength/1/0<br/>Overall Length<br/>치수 사양 - OverallLength</td><td>[double]12000.0</td><td>0..1</td></tr>
+<tr><td>[Prop]FloorSpace</td><td>[IRI] https://www.smart-factory.kr/ids/cd/FloorSpace/1/0<br/>Floor Space<br/>치수 사양 - FloorSpace</td><td>[double]18.0</td><td>0..1</td></tr>
+</table>",
+  "summary": "FAIL 01-롤포밍기-공34.aasx 위반 4건 · 경고 10건",
+  "table": "장비 특화 요소 20개를 담고 있습니다(자체 IRI semanticId).
+장비 특화 요소가 없는 IDTA 표준 템플릿입니다 — 규정 §13 주의사항 5에 따라 표는 생략합니다.
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:10pt">
+<thead><tr style="background:#eef2f7"><th>구분</th><th>idShort</th><th>종류</th><th>데이터타입</th><th>단위</th><th>예시 값</th><th>semanticId</th><th>설명</th></tr></thead>
+<tbody>
+<tr><td></td><td>GeneralInformation</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>0173-1#02-ABK161#002/0173-1#01-AHX838#002</td><td>General Information</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;└ </td><td>ManufacturerName</td><td>Property</td><td>string</td><td></td><td>Example Manufacturer Co., Ltd.</td><td>0173-1#02-AAO677#004</td><td>Legally valid designation of the natural or judicial person which is directly responsible for the design, production, packaging and labeling of a product in respect to its being brought into circulation</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;└ </td><td>ManufacturerProductDesignation</td><td>MultiLanguageProperty</td><td>STRING</td><td></td><td>Roll Forming Line - Automotive Body</td><td>0173-1#02-AAW338#003</td><td>Short description of the product (short text)</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;└ </td><td>ManufacturerOrderCode</td><td>Property</td><td>string</td><td></td><td>RF-AUTO-BODY-12ST</td><td>0173-1#02-AAO227#004</td><td>by manufactures issued unique combination of numbers and letters used to identify the device for ordering</td></tr>
+<tr><td></td><td>TechnicalPropertyAreas</td><td>SubmodelElementList</td><td></td><td></td><td></td><td>0173-1#02-ABK163#002</td><td>Technical Property Areas</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;└ </td><td>TechnicalPropertyAreasEntry_0</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>0173-1#02-ABL358#002/0173-1#01-AHX773#002</td><td>Technical Property Areas Entry_0</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>RollStandSpecification</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>RollGeometry</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>NumberOfStands</td><td>Property</td><td>integer</td><td></td><td>12</td><td>https://www.smart-factory.kr/ids/cd/NumberOfStands/1/0</td><td>롤 스탠드 형상 - NumberOfStands</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>RollDiameter</td><td>Property</td><td>double</td><td>mm</td><td>150.0</td><td>https://www.smart-factory.kr/ids/cd/RollDiameter/1/0</td><td>롤 스탠드 형상 - RollDiameter</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>ShaftDiameter</td><td>Property</td><td>double</td><td>mm</td><td>60.0</td><td>https://www.smart-factory.kr/ids/cd/ShaftDiameter/1/0</td><td>롤 스탠드 형상 - ShaftDiameter</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaxRollWidth</td><td>Property</td><td>double</td><td>mm</td><td>600.0</td><td>https://www.smart-factory.kr/ids/cd/MaxRollWidth/1/0</td><td>롤 스탠드 형상 - MaxRollWidth</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>StandLayout</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>StandSpacing</td><td>Property</td><td>double</td><td>mm</td><td>250.0</td><td>https://www.smart-factory.kr/ids/cd/StandSpacing/1/0</td><td>롤 스탠드 배치 - StandSpacing</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>DriveMotorSpecification</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MotorRating</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>RatedMotorPower</td><td>Property</td><td>double</td><td></td><td>30.0</td><td>0173-1#02-AAC970#010</td><td>Rated Motor Power</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>RatedVoltage</td><td>Property</td><td>double</td><td></td><td>380.0</td><td>0173-1#02-AAG184#005</td><td>정격 전압(V)</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>RatedCurrent</td><td>Property</td><td>double</td><td></td><td>60.0</td><td>0173-1#02-AAF726#006</td><td>Rated Current</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MotorProtectionType</td><td>Property</td><td>string</td><td></td><td>IP55</td><td>https://www.smart-factory.kr/ids/cd/MotorProtectionType/1/0</td><td>구동 모터 정격 - MotorProtectionType</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaterialSpecification</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaterialCapacity</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaxMaterialThickness</td><td>Property</td><td>double</td><td></td><td>3.2</td><td>0173-1#02-AAX634#005</td><td>최대 소재 두께</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaxMaterialWidth</td><td>Property</td><td>double</td><td>mm</td><td>600.0</td><td>https://www.smart-factory.kr/ids/cd/MaxMaterialWidth/1/0</td><td>소재 허용 한계 - MaxMaterialWidth</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaxMaterialTensileStrength</td><td>Property</td><td>double</td><td></td><td>590.0</td><td>0173-1#02-AAH039#009</td><td>적용소재 인장강도 상한</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>GeneralEquipmentSpecification</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>PerformanceSpec</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>MaxFormingSpeed</td><td>Property</td><td>double</td><td>m/min</td><td>30.0</td><td>https://www.smart-factory.kr/ids/cd/MaxFormingSpeed/1/0</td><td>성능 사양 - MaxFormingSpeed</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>DimensionSpec</td><td>SubmodelElementCollection</td><td></td><td></td><td></td><td>https://www.smart-factory.kr/ids/cd/Arbitrary/1/0</td><td>Roll Stand Specification</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>TotalWeight</td><td>Property</td><td>double</td><td></td><td>8500.0</td><td>0173-1#02-AAQ808#007</td><td>전체 중량(kg)</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>OverallLength</td><td>Property</td><td>double</td><td>mm</td><td>12000.0</td><td>https://www.smart-factory.kr/ids/cd/OverallLength/1/0</td><td>치수 사양 - OverallLength</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ </td><td>FloorSpace</td><td>Property</td><td>double</td><td>m2</td><td>18.0</td><td>https://www.smart-factory.kr/ids/cd/FloorSpace/1/0</td><td>치수 사양 - FloorSpace</td></tr>
+</tbody>
+</table>
+﻿"구분","idShort","종류","데이터타입","단위","예시 값","semanticId","설명"
+"","GeneralInformation","SubmodelElementCollection","","","","0173-1#02-ABK161#002/0173-1#01-AHX838#002","General Information"
+"  └ ","ManufacturerName","Property","string","","Example Manufacturer Co., Ltd.","0173-1#02-AAO677#004","Legally valid designation of the natural or judicial person which is directly responsible for the design, production, packaging and labeling of a product in respect to its being brought into circulation"
+"  └ ","ManufacturerProductDesignation","MultiLanguageProperty","STRING","","Roll Forming Line - Automotive Body","0173-1#02-AAW338#003","Short description of the product (short text)"
+"  └ ","ManufacturerOrderCode","Property","string","","RF-AUTO-BODY-12ST","0173-1#02-AAO227#004","by manufactures issued unique combination of numbers and letters used to identify the device for ordering"
+"","TechnicalPropertyAreas","SubmodelElementList","","","","0173-1#02-ABK163#002","Technical Property Areas"
+"  └ ","TechnicalPropertyAreasEntry_0","SubmodelElementCollection","","","","0173-1#02-ABL358#002/0173-1#01-AHX773#002","Technical Property Areas Entry_0"
+"    └ ","RollStandSpecification","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"      └ ","RollGeometry","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"        └ ","NumberOfStands","Property","integer","","12","https://www.smart-factory.kr/ids/cd/NumberOfStands/1/0","롤 스탠드 형상 - NumberOfStands"
+"        └ ","RollDiameter","Property","double","mm","150.0","https://www.smart-factory.kr/ids/cd/RollDiameter/1/0","롤 스탠드 형상 - RollDiameter"
+"        └ ","ShaftDiameter","Property","double","mm","60.0","https://www.smart-factory.kr/ids/cd/ShaftDiameter/1/0","롤 스탠드 형상 - ShaftDiameter"
+"        └ ","MaxRollWidth","Property","double","mm","600.0","https://www.smart-factory.kr/ids/cd/MaxRollWidth/1/0","롤 스탠드 형상 - MaxRollWidth"
+"      └ ","StandLayout","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"        └ ","StandSpacing","Property","double","mm","250.0","https://www.smart-factory.kr/ids/cd/StandSpacing/1/0","롤 스탠드 배치 - StandSpacing"
+"    └ ","DriveMotorSpecification","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"      └ ","MotorRating","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"        └ ","RatedMotorPower","Property","double","","30.0","0173-1#02-AAC970#010","Rated Motor Power"
+"        └ ","RatedVoltage","Property","double","","380.0","0173-1#02-AAG184#005","정격 전압(V)"
+"        └ ","RatedCurrent","Property","double","","60.0","0173-1#02-AAF726#006","Rated Current"
+"        └ ","MotorProtectionType","Property","string","","IP55","https://www.smart-factory.kr/ids/cd/MotorProtectionType/1/0","구동 모터 정격 - MotorProtectionType"
+"    └ ","MaterialSpecification","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"      └ ","MaterialCapacity","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"        └ ","MaxMaterialThickness","Property","double","","3.2","0173-1#02-AAX634#005","최대 소재 두께"
+"        └ ","MaxMaterialWidth","Property","double","mm","600.0","https://www.smart-factory.kr/ids/cd/MaxMaterialWidth/1/0","소재 허용 한계 - MaxMaterialWidth"
+"        └ ","MaxMaterialTensileStrength","Property","double","","590.0","0173-1#02-AAH039#009","적용소재 인장강도 상한"
+"    └ ","GeneralEquipmentSpecification","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"      └ ","PerformanceSpec","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"        └ ","MaxFormingSpeed","Property","double","m/min","30.0","https://www.smart-factory.kr/ids/cd/MaxFormingSpeed/1/0","성능 사양 - MaxFormingSpeed"
+"      └ ","DimensionSpec","SubmodelElementCollection","","","","https://www.smart-factory.kr/ids/cd/Arbitrary/1/0","Roll Stand Specification"
+"        └ ","TotalWeight","Property","double","","8500.0","0173-1#02-AAQ808#007","전체 중량(kg)"
+"        └ ","OverallLength","Property","double","mm","12000.0","https://www.smart-factory.kr/ids/cd/OverallLength/1/0","치수 사양 - OverallLength"
+"        └ ","FloorSpace","Property","double","m2","18.0","https://www.smart-factory.kr/ids/cd/FloorSpace/1/0","치수 사양 - FloorSpace"
+{"idShort":"DigitalNameplate","externalTemplate":"","dictionaries":["IEC CDD (IRDI)"],"templateLink":"","elementCount":13,"toWrite":["용어사전 버전 (주의사항 1 — 파일에는 IRDI만 있고 사전 버전은 없습니다)","템플릿 원본 링크 (주의사항 2 — IDTA Content Hub에서 최신 버전 확인)","서브모델 및 주요 구성요소 특징","서브모델 활용방안","활용 시나리오 (주의사항 4)"]}",
+  "text": "# 01-롤포밍기-공34.aasx
+
+검사 규칙 43종 · 위반 4건 · 경고 10건 · 참고 2건  → FAIL
+계층별: L1 패키지 0건 · L2 제약조건 10건 · L3 KOSMO 6건
+
+## 규칙별 집계
+
+  AASd-120                 10건
+  KOSMO-CD-5                2건
+  KOSMO-AAS-6               1건
+  KOSMO-CD-2                1건
+  KOSMO-SM-4                1건
+  KOSMO-SME-3               1건
+
+## 상세
+
+[위반] The AssetAdministrationShell "RollFormingMachine" violates the L3 rules [KOSMO-AAS-6]: @ /assetAdministrationShells/0(RollFormingMachine)/assetInformation/assetKind
+- assetKind가 Type이 아닙니다: Instance
+- assetKind를 Type으로 지정하십시오. 본 사업 산출물은 형식(Type) 단위입니다.
+
+[위반] The ConceptDescription "Markings" violates the L3 rules [KOSMO-CD-2]: @ /conceptDescriptions/0(Markings)/id
+- CD의 id가 허용 목록 밖입니다: urn:wrong:cd
+- IRDI(0173- / 0112/) 또는 https://www.smart-factory.kr/ids/cd/{변수명}/{version}/{revision} 형식으로 바꾸십시오. 카테고리 자리(cd)에 장비명을 쓰면 안 됩니다.
+
+[참고] The ConceptDescription "ManufacturerName" violates the L3 rules [KOSMO-CD-5]: @ /conceptDescriptions/18(ManufacturerName)/idShort
+- 같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
+- 🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
+  ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
+
+... 외 13건",
+  "textPass": "검사 규칙 43종 · 위반 0건 · 경고 10건 · 참고 2건  → PASS
+계층별: L1 패키지 0건 · L2 제약조건 10건 · L3 KOSMO 2건
+
+## 규칙별 집계
+
+  AASd-120                 10건
+  KOSMO-CD-5                2건
+
+## 상세
+
+[참고] The ConceptDescription "ManufacturerName" violates the L3 rules [KOSMO-CD-5]: @ /conceptDescriptions/18(ManufacturerName)/idShort
+- 같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
+- 🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
+  ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
+
+[참고] The ConceptDescription "ManufacturerProductDesignation" violates the L3 rules [KOSMO-CD-5]: @ /conceptDescriptions/21(ManufacturerProductDesignation)/idShort
+- 같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerProductDesignation
+- 🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
+  ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
+
+[경고] The SubmodelElementCollection "MarkingsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: MarkingsEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "DocumentsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentsEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "DocumentIdsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/0(DocumentIds)/value/0(DocumentIdsEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentIdsEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "DocumentClassificationsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/1(DocumentClassifications)/value/0(DocumentClassificationsEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentClassificationsEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "DocumentVersionsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentVersionsEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The File "DigitalFilesEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/value/6(DigitalFiles)/value/0(DigitalFilesEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: DigitalFilesEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "TechnicalPropertyAreasEntry_0" violates the L2 rules [AASd-120]: @ /submodels/2(TechnicalData)/submodelElements/1(TechnicalPropertyAreas)/value/0(TechnicalPropertyAreasEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: TechnicalPropertyAreasEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "MaintenanceToolListEntry_0" violates the L2 rules [AASd-120]: @ /submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/0(MaintenanceToolListEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "MaintenanceToolListEntry_1" violates the L2 rules [AASd-120]: @ /submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/1(MaintenanceToolListEntry_1)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_1
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+
+[경고] The SubmodelElementCollection "MaintenanceConsumablesListEntry_0" violates the L2 rules [AASd-120]: @ /submodels/5(MaintenanceInstructions)/submodelElements/3(MaintenanceConsumablesList)/value/0(MaintenanceConsumablesListEntry_0)/idShort
+- SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceConsumablesListEntry_0
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+  ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
+",
+  "uml": "<svg xmlns="http://www.w3.org/2000/svg" width="818" height="983" viewBox="0 0 818 983" font-family="'Malgun Gothic','Apple SD Gothic Neo','Segoe UI',sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .frame { fill: none; stroke: #6d6d6d; stroke-width: 1; }
+    .tab { font-size: 13px; fill: #1b1b1b; }
+    .cls rect { fill: #ffffff; stroke: #1b1b1b; stroke-width: 1.2; }
+    .cls line { stroke: #1b1b1b; stroke-width: 1; }
+    .stereo { font-size: 11px; fill: #555555; text-anchor: middle; }
+    .cname { font-size: 15px; fill: #111111; text-anchor: middle; }
+    .attr { font-size: 12px; fill: #1b1b1b; }
+    .link { fill: none; stroke: #4a4a4a; stroke-width: 1; }
+    .diamond { fill: #4a4a4a; stroke: #4a4a4a; }
+    .mult { font-size: 11px; fill: #8b1a1a; }
+  </style>
+  <rect class="bg" x="0" y="0" width="818" height="983"/>
+    <rect class="frame" x="18" y="18" width="782" height="947"/>
+    <path class="frame" d="M 18 18 h 184.43999999999994 l 14 27 v 0 h -198.43999999999994 Z"/>
+    <text class="tab" x="28" y="41">AAS RollFormingMachine</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 137.5 L 336 137.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="131.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 280.5 L 336 280.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="274.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 383.5 L 336 383.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="377.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 506.5 L 336 506.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="500.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 629.5 L 336 629.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="623.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 762.5 L 336 762.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="756.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 274 496.5 L 299 496.5 L 299 895.5 L 336 895.5"/>
+    <path class="diamond" d="M 262 496.5 L 268 490.5 L 274 496.5 L 268 502.5 Z"/>
+    <text class="mult" x="328" y="889.5" text-anchor="end">0..1</text>
+    <g class="cls">
+      <rect x="40" y="399" width="222" height="195"/>
+      <text x="151" y="421" class="stereo">«AAS»</text>
+      <text x="151" y="434" class="cname">RollFormingMachine</text>
+      <line x1="40" y1="446" x2="262" y2="446"/>
+      <text x="52" y="467" class="attr">+ DigitalNameplate : SM</text>
+      <text x="52" y="487" class="attr">+ HandoverDocumentation : SM</text>
+      <text x="52" y="507" class="attr">+ TechnicalData : SM</text>
+      <text x="52" y="527" class="attr">+ OperationalData : SM</text>
+      <text x="52" y="547" class="attr">+ HierarchicalStructures : SM</text>
+      <text x="52" y="567" class="attr">+ MaintenanceInstructions : SM</text>
+      <text x="52" y="587" class="attr">+ RollFormingSafety : SM</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="50" width="442" height="175"/>
+      <text x="557" y="72" class="stereo">«SM»</text>
+      <text x="557" y="85" class="cname">DigitalNameplate</text>
+      <line x1="336" y1="97" x2="778" y2="97"/>
+      <text x="348" y="118" class="attr">+ URIOfTheProduct : xs:string = &quot;https://www.smart-...&quot;</text>
+      <text x="348" y="138" class="attr">+ ManufacturerName : MLP = &quot;Example Manufactur...&quot;</text>
+      <text x="348" y="158" class="attr">+ ManufacturerProductDesignation : MLP = &quot;Roll Forming Line ...&quot;</text>
+      <text x="348" y="178" class="attr">+ ManufacturerProductRoot : MLP = &quot;Roll Forming Line&quot;</text>
+      <text x="348" y="198" class="attr">+ ManufacturerProductFamily : MLP = &quot;Automotive Body RF...&quot;</text>
+      <text x="348" y="218" class="attr">+ ManufacturerProductType : xs:string = &quot;RF-AUTO-BODY-12ST&quot;</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="243" width="210" height="75"/>
+      <text x="441" y="265" class="stereo">«SM»</text>
+      <text x="441" y="278" class="cname">HandoverDocumentation</text>
+      <line x1="336" y1="290" x2="546" y2="290"/>
+      <text x="348" y="311" class="attr">+ Documents : SML</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="336" width="222" height="95"/>
+      <text x="447" y="358" class="stereo">«SM»</text>
+      <text x="447" y="371" class="cname">TechnicalData</text>
+      <line x1="336" y1="383" x2="558" y2="383"/>
+      <text x="348" y="404" class="attr">+ GeneralInformation : SMC</text>
+      <text x="348" y="424" class="attr">+ TechnicalPropertyAreas : SML</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="449" width="215" height="115"/>
+      <text x="443.5" y="471" class="stereo">«SM»</text>
+      <text x="443.5" y="484" class="cname">OperationalData</text>
+      <line x1="336" y1="496" x2="551" y2="496"/>
+      <text x="348" y="517" class="attr">+ MaintenanceMonitoring : SMC</text>
+      <text x="348" y="537" class="attr">+ EnergyMonitoring : SMC</text>
+      <text x="348" y="557" class="attr">+ ProcessMonitoring : SMC</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="582" width="235" height="95"/>
+      <text x="453.5" y="604" class="stereo">«SM»</text>
+      <text x="453.5" y="617" class="cname">HierarchicalStructures</text>
+      <line x1="336" y1="629" x2="571" y2="629"/>
+      <text x="348" y="650" class="attr">+ RollFormingMachine : Entity</text>
+      <text x="348" y="670" class="attr">+ ArcheType : xs:string = &quot;Full&quot;</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="695" width="364" height="135"/>
+      <text x="518" y="717" class="stereo">«SM»</text>
+      <text x="518" y="730" class="cname">MaintenanceInstructions</text>
+      <line x1="336" y1="742" x2="700" y2="742"/>
+      <text x="348" y="763" class="attr">+ MaintenanceFreeAsset : xs:boolean = &quot;false&quot;</text>
+      <text x="348" y="783" class="attr">+ MaintenanceInstructionsForSpecificInterval_0 : SMC</text>
+      <text x="348" y="803" class="attr">+ MaintenanceToolList : SML</text>
+      <text x="348" y="823" class="attr">+ MaintenanceConsumablesList : SML</text>
+    </g>
+    <g class="cls">
+      <rect x="336" y="848" width="241" height="95"/>
+      <text x="456.5" y="870" class="stereo">«SM»</text>
+      <text x="456.5" y="883" class="cname">RollFormingSafety</text>
+      <line x1="336" y1="895" x2="577" y2="895"/>
+      <text x="348" y="916" class="attr">+ GeneralSafety : SMC</text>
+      <text x="348" y="936" class="attr">+ RollFormingSpecificSafety : SMC</text>
+    </g>
+</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1233" height="225" viewBox="0 0 1233 225" font-family="'Malgun Gothic','Apple SD Gothic Neo','Segoe UI',sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .frame { fill: none; stroke: #6d6d6d; stroke-width: 1; }
+    .tab { font-size: 13px; fill: #1b1b1b; }
+    .cls rect { fill: #ffffff; stroke: #1b1b1b; stroke-width: 1.2; }
+    .cls line { stroke: #1b1b1b; stroke-width: 1; }
+    .stereo { font-size: 11px; fill: #555555; text-anchor: middle; }
+    .cname { font-size: 15px; fill: #111111; text-anchor: middle; }
+    .attr { font-size: 12px; fill: #1b1b1b; }
+    .link { fill: none; stroke: #4a4a4a; stroke-width: 1; }
+    .diamond { fill: #4a4a4a; stroke: #4a4a4a; }
+    .mult { font-size: 11px; fill: #8b1a1a; }
+  </style>
+  <rect class="bg" x="0" y="0" width="1233" height="225"/>
+    <rect class="frame" x="18" y="18" width="1197" height="189"/>
+    <path class="frame" d="M 18 18 h 170.39999999999998 l 14 27 v 0 h -184.39999999999998 Z"/>
+    <text class="tab" x="28" y="41">SMT DigitalNameplate</text>
+    <path class="link" d="M 494 117.5 L 519 117.5 L 519 97.5 L 556 97.5"/>
+    <path class="diamond" d="M 482 117.5 L 488 111.5 L 494 117.5 L 488 123.5 Z"/>
+    <text class="mult" x="548" y="91.5" text-anchor="end">0..1</text>
+    <path class="link" d="M 708 97.5 L 733 97.5 L 733 97.5 L 770 97.5"/>
+    <path class="diamond" d="M 696 97.5 L 702 91.5 L 708 97.5 L 702 103.5 Z"/>
+    <text class="mult" x="762" y="91.5" text-anchor="end">1..*</text>
+    <g class="cls">
+      <rect x="40" y="50" width="442" height="135"/>
+      <text x="261" y="72" class="stereo">«SM»</text>
+      <text x="261" y="85" class="cname">DigitalNameplate</text>
+      <line x1="40" y1="97" x2="482" y2="97"/>
+      <text x="52" y="118" class="attr">+ URIOfTheProduct : xs:string = &quot;https://www.smart-...&quot;</text>
+      <text x="52" y="138" class="attr">+ ManufacturerName : MLP = &quot;Example Manufactur...&quot;</text>
+      <text x="52" y="158" class="attr">+ ManufacturerProductDesignation : MLP = &quot;Roll Forming Line ...&quot;</text>
+      <text x="52" y="178" class="attr">… 그 밖 7개</text>
+    </g>
+    <g class="cls">
+      <rect x="556" y="60" width="140" height="75"/>
+      <text x="626" y="82" class="stereo">«SML»</text>
+      <text x="626" y="95" class="cname">Markings</text>
+      <line x1="556" y1="107" x2="696" y2="107"/>
+      <text x="568" y="128" class="attr">+ Marking : SMC</text>
+    </g>
+    <g class="cls">
+      <rect x="770" y="50" width="423" height="95"/>
+      <text x="981.5" y="72" class="stereo">«SMC»</text>
+      <text x="981.5" y="85" class="cname">Marking</text>
+      <line x1="770" y1="97" x2="1193" y2="97"/>
+      <text x="782" y="118" class="attr">+ MarkingName : xs:string = &quot;CE 2006/42/EC, KCs...&quot;</text>
+      <text x="782" y="138" class="attr">+ MarkingAdditionalText : xs:string = &quot;2006/42/EC Machine...&quot;</text>
+    </g>
+</svg>",
+}
+`;

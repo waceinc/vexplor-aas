@@ -7,12 +7,13 @@
  *
  * 🔴 값 동기화 A안은 그대로다. 수집값을 모델에 되쓰지 않는다 — 번들의 별도 파일(CSV·기록서)로만 나간다.
  * 🔴 번들은 GitHub에 공개된다. **현장 PLC 주소는 가린다**(자기 PC 주소만 그대로 — 시뮬레이션 재현용).
- * 🔴 증빙 수준(A 현장 / B 재현 / C 시뮬레이션)은 사람이 고른다. 도구가 아는 것은 인터페이스 이름에
- *    「시뮬레이션」이 박혀 있는지뿐이라, 그때만 C를 기본값으로 제안한다.
+ * 🔴 증빙 수준(A 현장 / B 재현 / C 시뮬레이션)은 사람이 고른다. 도구가 아는 것은 그 수집 연결이 도구 안의
+ *    가상 PLC인지뿐이라(접속 경로 /UA/Simulator, 또는 AAS 파일에 적힌 연결 이름의 「시뮬레이션」 표지), 그때만 C를 제안한다.
+ *    🔴 화면 언어로 옮긴 글자와 견주지 않는다 — 데이터(경로 · 파일에 적힌 이름)로 가린다.
  */
 import { parseAid } from '@aas/collector';
 import { csvCell } from '@aas/linter';
-import type { Environment } from '@aas/core';
+import { currentLang, fill, tr, type Environment } from '@aas/core';
 import type { AasStore, CollectedValue, PackageRecord } from '@aas/store';
 import { localTimestamp } from './packages.js';
 
@@ -20,11 +21,37 @@ import { localTimestamp } from './packages.js';
 export const EVIDENCE_LIMIT = 200_000;
 
 export type EvidenceLevel = 'A' | 'B' | 'C';
+/** 증빙 수준 설명 — 한국어 원문(사전의 열쇠). 사람이 읽는 자리에서는 `tr()`을 거친다 */
 export const EVIDENCE_LEVELS: Record<EvidenceLevel, string> = {
-  A: '현장 적용 — Pilot 기업 실제 설비의 수집값(비식별화)',
+  A: '현장 적용 — Pilot 기업 실제 설비의 수집값(비식별화)', // i18n-ignore — 사전의 열쇠(쓸 때 tr()로 옮긴다)
   B: '실장비 기반 재현 — 실제 태그 구조, 값은 가공',
-  C: '시뮬레이션 — 가상 PLC 값',
+  C: '시뮬레이션 — 가상 PLC 값', // i18n-ignore — 사전의 열쇠(쓸 때 tr()로 옮긴다)
 };
+
+/** 지금 언어로 옮긴 증빙 수준 설명 — 화면 응답용 */
+export const evidenceLevelNames = (): Record<EvidenceLevel, string> => ({
+  A: tr(EVIDENCE_LEVELS.A),
+  B: tr(EVIDENCE_LEVELS.B),
+  C: tr(EVIDENCE_LEVELS.C),
+});
+
+/** 도구 안 가상 PLC의 접속 경로 — @aas/opcua SIMULATOR_RESOURCE_PATH와 같은 값(opcua는 늦게 불러 여기서 못 가져온다) */
+const SIMULATOR_PATH = '/UA/Simulator';
+// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+const SAMPLES_CSV = '05_샘플데이터/수집값_*.csv';
+// i18n-ignore — AAS 파일에 적힌 연결 이름과 견주는 표지(데이터). 옮기면 한국어로 만든 파일을 못 알아본다
+const SIMULATION_MARKS = ['시뮬레이션', 'simulation'];
+
+/** 시뮬레이션 수집 연결인가 — 접속 경로나 파일에 적힌 이름으로 가린다(화면 언어와 무관) */
+export function isSimulatedInterface(title: string, base: string | undefined): boolean {
+  try {
+    if (base && new URL(base.replace(/^[a-z.+-]+:/i, 'http:')).pathname === SIMULATOR_PATH) return true;
+  } catch {
+    // 주소 모양이 이상하면 이름으로만 본다
+  }
+  const lower = title.toLowerCase();
+  return SIMULATION_MARKS.some((mark) => lower.includes(mark));
+}
 
 export interface EvidenceSource {
   /** 번들 안 설비(형식) 이름 */
@@ -44,11 +71,11 @@ const LOOPBACK = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?)$/i;
 
 /** 공개 번들용 주소 — 자기 PC가 아니면 호스트를 가린다 */
 export function maskEndpoint(endpoint: string | undefined): string {
-  if (!endpoint) return '(주소 없음)';
+  if (!endpoint) return tr('(주소 없음)');
   const match = /^([a-z.+-]+:\/\/)([^/:]+|\[[^\]]+\])(.*)$/i.exec(endpoint);
-  if (!match) return '(비공개)';
+  if (!match) return tr('(비공개)');
   const [, scheme, host, rest] = match;
-  return LOOPBACK.test(host!) ? endpoint : `${scheme}(비공개)${rest}`;
+  return LOOPBACK.test(host!) ? endpoint : `${scheme}${tr('(비공개)')}${rest}`;
 }
 
 interface ShellLink {
@@ -105,7 +132,7 @@ export async function gatherEvidence(
       const environment: Environment = (await store.exportPackage(candidate.record.id)).environment;
       const interfaces = parseAid(environment).map((iface) => {
         const title = iface.title ?? iface.name;
-        return { title, endpoint: maskEndpoint(iface.base), simulated: title.includes('시뮬레이션') };
+        return { title, endpoint: maskEndpoint(iface.base), simulated: isSimulatedInterface(title, iface.base) };
       });
       sources.push({
         model: model.name,
@@ -123,7 +150,7 @@ export async function gatherEvidence(
   return sources;
 }
 
-/** 인터페이스 이름에 「시뮬레이션」이 박힌 것뿐이면 C를 제안한다. 그 밖엔 사람이 고른다 */
+/** 시뮬레이션 수집 연결뿐이면 C를 제안한다. 그 밖엔 사람이 고른다 */
 export function suggestedLevel(sources: EvidenceSource[]): EvidenceLevel | null {
   const interfaces = sources.flatMap((source) => source.interfaces);
   return interfaces.length > 0 && interfaces.every((iface) => iface.simulated) ? 'C' : null;
@@ -136,7 +163,8 @@ const cell = (text: string): string => csvCell(text);
 
 /** 호기 하나의 수집값 CSV — 엑셀로 KPI를 계산하는 재료 */
 export function evidenceCsv(source: EvidenceSource): string {
-  const rows = [['시각', '설비(형식)', '호기', '인터페이스', '항목', '읽은 주소', '값', '품질'].join(',')];
+  // 머리글은 사람이 엑셀로 보는 글자다 — 도구가 다시 읽지 않는다(번들을 열 때도 이 CSV는 첨부로만 보관)
+  const rows = [[tr('시각'), tr('설비(형식)'), tr('호기'), tr('인터페이스'), tr('항목'), tr('읽은 주소'), tr('값'), tr('품질')].join(',')];
   for (const value of source.values) {
     rows.push(
       [
@@ -231,19 +259,21 @@ export function evidenceHtml(options: {
 }): string {
   const { sources, level } = options;
   const total = sources.reduce((sum, s) => sum + s.values.length, 0);
-  const levelText = level ? `증빙 수준 ${level} — ${EVIDENCE_LEVELS[level]}` : '증빙 수준 미지정 — 사람이 채울 것(A 현장 / B 재현 / C 시뮬레이션)';
+  const levelText = level
+    ? fill(tr('증빙 수준 {0} — {1}'), { 0: level, 1: tr(EVIDENCE_LEVELS[level]) })
+    : tr('증빙 수준 미지정 — 사람이 채울 것(A 현장 / B 재현 / C 시뮬레이션)');
   const sections = sources.map((source) => {
     const p = period(source.values);
     const stats = propertyStats(source.values);
     const rows = stats
       .map((stat) => {
         const detail = stat.numeric
-          ? `최소 ${fmt(stat.numeric.min)} · 평균 ${fmt(stat.numeric.avg)} · 최대 ${fmt(stat.numeric.max)}`
+          ? fill(tr('최소 {0} · 평균 {1} · 최대 {2}'), { 0: fmt(stat.numeric.min), 1: fmt(stat.numeric.avg), 2: fmt(stat.numeric.max) })
           : (stat.distribution ?? [])
               .slice(0, 4)
               .map((d) => `${escapeHtml(d.value)} ${(d.share * 100).toFixed(0)}%`)
               .join(' · ');
-        return `<tr><td>${escapeHtml(stat.name)}</td><td class="n">${stat.samples}</td><td class="n">${stat.good === stat.samples ? '전부' : `${stat.good}`}</td><td>${escapeHtml(stat.latest)}</td><td>${detail}</td><td>${stat.numeric ? sparkline(stat.numeric.series) : ''}</td></tr>`;
+        return `<tr><td>${escapeHtml(stat.name)}</td><td class="n">${stat.samples}</td><td class="n">${stat.good === stat.samples ? tr('전부') : `${stat.good}`}</td><td>${escapeHtml(stat.latest)}</td><td>${detail}</td><td>${stat.numeric ? sparkline(stat.numeric.series) : ''}</td></tr>`;
       })
       .join('\n');
     const ifaces = source.interfaces
@@ -252,20 +282,25 @@ export function evidenceHtml(options: {
     return `<section>
 <h2>${escapeHtml(source.model)} ${source.direct ? '' : `← <span class="inst">${escapeHtml(source.instance)}</span>`}</h2>
 <table class="meta">
-<tr><th>형식 모델</th><td>${escapeHtml(source.modelFile)}</td></tr>
-<tr><th>값을 모은 파일</th><td>${escapeHtml(source.instanceFile)} ${source.direct ? '(형식 파일에 직접 연결)' : '(형식에서 파생된 호기 — derivedFrom)'}</td></tr>
-<tr><th>수집 연결</th><td>${ifaces || '(연결 정보 없음)'}</td></tr>
-<tr><th>기간</th><td>${escapeHtml(local(p.from))} ~ ${escapeHtml(local(p.to))} (약 ${p.minutes}분)</td></tr>
-<tr><th>수집 건수</th><td>${source.values.length.toLocaleString('ko-KR')}건${source.truncated ? ' (상한에 걸려 최근 것만)' : ''} · 항목 ${stats.length}개</td></tr>
+<tr><th>${tr('형식 모델')}</th><td>${escapeHtml(source.modelFile)}</td></tr>
+<tr><th>${tr('값을 모은 파일')}</th><td>${escapeHtml(source.instanceFile)} ${source.direct ? tr('(형식 파일에 직접 연결)') : tr('(형식에서 파생된 호기 — derivedFrom)')}</td></tr>
+<tr><th>${tr('수집 연결')}</th><td>${ifaces || tr('(연결 정보 없음)')}</td></tr>
+<tr><th>${tr('기간')}</th><td>${escapeHtml(local(p.from))} ~ ${escapeHtml(local(p.to))} ${fill(tr('(약 {0}분)'), { 0: p.minutes })}</td></tr>
+<tr><th>${tr('수집 건수')}</th><td>${fill(tr('{0}건{1} · 항목 {2}개'), {
+  0: source.values.length.toLocaleString('ko-KR'),
+  1: source.truncated ? ` ${tr('(상한에 걸려 최근 것만)')}` : '',
+  2: stats.length,
+})}</td></tr>
 </table>
-<table class="stats"><thead><tr><th>항목</th><th>건수</th><th>정상</th><th>마지막 값</th><th>분포</th><th>추이</th></tr></thead><tbody>
+<table class="stats"><thead><tr><th>${tr('항목')}</th><th>${tr('건수')}</th><th>${tr('정상')}</th><th>${tr('마지막 값')}</th><th>${tr('분포')}</th><th>${tr('추이')}</th></tr></thead><tbody>
 ${rows}
 </tbody></table>
 </section>`;
   });
 
+  const heading = fill(tr('수집 기록서 — {0}'), { 0: escapeHtml(options.title) });
   return `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><title>수집 기록서 — ${escapeHtml(options.title)}</title>
+<html lang="${currentLang()}"><head><meta charset="utf-8"><title>${heading}</title>
 <style>
   :root { color-scheme: light; }
   body { font: 12px/1.6 -apple-system, 'Malgun Gothic', sans-serif; color: #16191d; margin: 32px; background: #fff; }
@@ -278,14 +313,19 @@ ${rows}
   code { font-size: 11px; } .note { color: #555; margin-top: 18px; border-top: 1px solid #c9ced6; padding-top: 8px; }
   @media print { body { margin: 12mm; } section { break-inside: avoid; } }
 </style></head><body>
-<h1>수집 기록서 — ${escapeHtml(options.title)}</h1>
-<div class="sub">만든 시각 ${escapeHtml(options.generatedAt)} · ${escapeHtml(options.tool)} · 설비 ${sources.length}곳 · 수집 ${total.toLocaleString('ko-KR')}건</div>
+<h1>${heading}</h1>
+<div class="sub">${fill(tr('만든 시각 {0} · {1} · 설비 {2}곳 · 수집 {3}건'), {
+    0: escapeHtml(options.generatedAt),
+    1: escapeHtml(options.tool),
+    2: sources.length,
+    3: total.toLocaleString('ko-KR'),
+  })}</div>
 <div class="level ${level ? 'set' : ''}">${escapeHtml(levelText)}</div>
 ${sections.join('\n')}
 <p class="note">
-· 값은 이 도구가 수집 연결(AID, IDTA 02017)로 읽어 저장소에 쌓은 기록 그대로입니다. 모델(AASX)에는 되쓰지 않습니다(값 동기화 A안).<br>
-· 전체 값은 <code>05_샘플데이터/수집값_*.csv</code>에 있습니다. KPI(가동률 등) 계산은 그 CSV로 합니다.<br>
-· 현장 설비 주소는 공개 번들이므로 가렸습니다. 자기 PC 주소(127.0.0.1)는 재현용으로 그대로 둡니다.
+${tr('· 값은 이 도구가 수집 연결(AID, IDTA 02017)로 읽어 저장소에 쌓은 기록 그대로입니다. 모델(AASX)에는 되쓰지 않습니다(값 동기화 A안).')}<br>
+${fill(tr('· 전체 값은 <code>{0}</code>에 있습니다. KPI(가동률 등) 계산은 그 CSV로 합니다.'), { 0: SAMPLES_CSV })}<br>
+${tr('· 현장 설비 주소는 공개 번들이므로 가렸습니다. 자기 PC 주소(127.0.0.1)는 재현용으로 그대로 둡니다.')}
 </p>
 </body></html>
 `;

@@ -762,10 +762,10 @@ export const EN_MORE: Record<string, string> = {
   '지적 목록': 'Findings',
   '지적 목록 닫기': 'Close the findings',
   // ── 설정 ────────────────────────────────────────────────────────────────
-  '화면 글자를 영어로 — 서버가 만드는 글(지적 문구·검증 결과서)은 한국어로 남습니다':
-    'Switch the interface to English — text produced by the server (finding messages, validation report) stays Korean',
-  '영어는 <b>화면 글자</b>까지 옮겼습니다. 지적 문구·규칙 설명·검증 결과서는 서버가 만드는 글이라 아직 한국어로 나옵니다 — 섞여 보이는 것이 정상입니다.':
-    'English covers <b>the interface</b>. Finding messages, rule descriptions and the validation report are produced by the server and are still Korean — seeing both mixed is expected.',
+  '화면 글자와 서버가 만드는 글(지적 문구·검증 결과서)을 영어로':
+    'Switch the interface and server-produced text (finding messages, validation report) to English',
+  '영어를 고르면 화면 글자와 지적 문구·규칙 설명·검증 결과서가 모두 영어로 나옵니다. <b>파일에서 온 이름과 값</b>, 제출 묶음의 폴더 이름은 그대로 남습니다.':
+    'In English, the interface, finding messages, rule descriptions and the validation report are all in English. <b>Names and values that come from your files</b>, and the folder names of the submission bundle, stay as they are.',
   '언어를 바꾸면 화면을 새로 읽습니다 — 파일은 그대로 있고, 저장하지 않은 입력만 사라집니다.':
     'Changing the language reloads the page — your files stay as they are; only unsaved input is lost.',
 

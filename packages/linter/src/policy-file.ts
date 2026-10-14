@@ -10,6 +10,7 @@
  *    "바꿨는데 안 바뀌었다"가 되고, 그 상태로 제출까지 간다. 그게 최악이다.
  */
 import { DEFAULT_POLICY, type LinterPolicy } from './policy.js';
+import { fill, tr } from '@aas/core';
 
 const ENUMS: Partial<Record<keyof LinterPolicy, readonly string[]>> = {
   iriConflict: ['kosmo-first', 'idta-preserve'],
@@ -40,10 +41,10 @@ export function parsePolicy(text: string): ParsedPolicy {
   try {
     raw = JSON.parse(text);
   } catch (error) {
-    throw new PolicyFileError(`정책 파일이 JSON이 아닙니다: ${String(error)}`);
+    throw new PolicyFileError(fill(tr('정책 파일이 JSON이 아닙니다: {0}'), { 0: String(error) }));
   }
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new PolicyFileError('정책 파일은 객체 하나여야 합니다.');
+    throw new PolicyFileError(tr('정책 파일은 객체 하나여야 합니다.'));
   }
 
   const known = new Set(Object.keys(DEFAULT_POLICY));
@@ -54,7 +55,7 @@ export function parsePolicy(text: string): ParsedPolicy {
     if (key.startsWith('_')) continue;
     if (!known.has(key)) {
       throw new PolicyFileError(
-        `모르는 정책 항목입니다: ${key} — 쓸 수 있는 것: ${[...known].join(', ')}`,
+        fill(tr('모르는 정책 항목입니다: {0} — 쓸 수 있는 것: {1}'), { 0: key, 1: [...known].join(', ') }),
       );
     }
 
@@ -62,7 +63,7 @@ export function parsePolicy(text: string): ParsedPolicy {
     if (enumValues) {
       if (typeof value !== 'string' || !enumValues.includes(value)) {
         throw new PolicyFileError(
-          `${key}에 쓸 수 없는 값입니다: ${JSON.stringify(value)} — 쓸 수 있는 것: ${enumValues.join(' · ')}`,
+          fill(tr('{0}에 쓸 수 없는 값입니다: {1} — 쓸 수 있는 것: {2}'), { 0: key, 1: JSON.stringify(value), 2: enumValues.join(' · ') }),
         );
       }
       policy[key] = value;
@@ -71,7 +72,7 @@ export function parsePolicy(text: string): ParsedPolicy {
 
     if (STRING_KEYS.includes(key as keyof LinterPolicy)) {
       if (typeof value !== 'string' || value.trim() === '') {
-        throw new PolicyFileError(`${key}는 비어 있지 않은 글자여야 합니다.`);
+        throw new PolicyFileError(fill(tr('{0}는 비어 있지 않은 글자여야 합니다.'), { 0: key }));
       }
       policy[key] = value;
       continue;
@@ -79,7 +80,7 @@ export function parsePolicy(text: string): ParsedPolicy {
 
     if (STRING_ARRAY_KEYS.includes(key as keyof LinterPolicy)) {
       if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-        throw new PolicyFileError(`${key}는 글자 목록이어야 합니다.`);
+        throw new PolicyFileError(fill(tr('{0}는 글자 목록이어야 합니다.'), { 0: key }));
       }
       policy[key] = value;
       continue;
@@ -92,16 +93,16 @@ export function parsePolicy(text: string): ParsedPolicy {
         range.length !== 2 ||
         range.some((item) => typeof item !== 'number' || !Number.isInteger(item))
       ) {
-        throw new PolicyFileError('submodelCountRange는 정수 두 개여야 합니다. 예: [6, 8]');
+        throw new PolicyFileError(tr('submodelCountRange는 정수 두 개여야 합니다. 예: [6, 8]'));
       }
       if ((range[0] as number) > (range[1] as number)) {
-        throw new PolicyFileError('submodelCountRange의 최솟값이 최댓값보다 큽니다.');
+        throw new PolicyFileError(tr('submodelCountRange의 최솟값이 최댓값보다 큽니다.'));
       }
       policy[key] = range;
       continue;
     }
 
-    throw new PolicyFileError(`아직 정책 파일로 바꿀 수 없는 항목입니다: ${key}`);
+    throw new PolicyFileError(fill(tr('아직 정책 파일로 바꿀 수 없는 항목입니다: {0}'), { 0: key }));
   }
 
   const changed = (Object.keys(policy) as (keyof LinterPolicy)[]).filter(
@@ -116,9 +117,7 @@ export function policySources(
 ): { key: keyof LinterPolicy; from: '기본값' | '정책 파일' }[] {
   return (Object.keys(DEFAULT_POLICY) as (keyof LinterPolicy)[]).map((key) => ({
     key,
-    from:
-      key in policy && JSON.stringify(policy[key]) !== JSON.stringify(DEFAULT_POLICY[key])
-        ? '정책 파일'
-        : '기본값',
+    // i18n-ignore — 화면(Rules.tsx)이 '기본값'과 견주는 표지라 한국어 그대로 둔다. 보여 주지 않는 값이다
+    from: key in policy && JSON.stringify(policy[key]) !== JSON.stringify(DEFAULT_POLICY[key]) ? '정책 파일' : '기본값',
   }));
 }

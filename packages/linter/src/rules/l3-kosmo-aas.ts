@@ -5,10 +5,12 @@
  * 실측 결함 이력: #1(1차 위반) · #3(1·2차 위반).
  */
 import type { AssetAdministrationShell } from '@aas/core';
+import { fill, tr } from '@aas/core';
 import type { LintContext, Rule } from '../types.js';
 import { isOrganizationalAssetType } from '../scaffold.js';
 import { idVersionSuffix, isValidIdShort } from '../util.js';
 
+// i18n-ignore — 근거 문서 파일 이름
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2';
 
 /** AAS 하나를 순회하며 위치 정보를 만들어 준다 */
@@ -28,7 +30,9 @@ function eachShell(
 export const kosmoAas1Thumbnail: Rule = {
   id: 'KOSMO-AAS-1',
   layer: 'L3',
-  title: 'Thumbnail 이미지 검사 — defaultThumbnail 설정 및 패키지 파트 일치',
+  get title() {
+    return tr('Thumbnail 이미지 검사 — defaultThumbnail 설정 및 패키지 파트 일치');
+  },
   source: SOURCE,
   check(ctx, report) {
     eachShell(ctx, (shell, pointer, kosmoPath) => {
@@ -42,10 +46,10 @@ export const kosmoAas1Thumbnail: Rule = {
           key,
           pointer: `${pointer}/assetInformation/defaultThumbnail`,
           kosmoPath: `${kosmoPath}/assetInformation/defaultThumbnail`,
-          message: 'AssetInformation에 defaultThumbnail이 설정되어 있지 않습니다.',
-          remedy:
-            '패키지의 썸네일 파트와 같은 경로로 defaultThumbnail을 지정하십시오. ' +
-            '예: path=/thumbnail.png, contentType=image/png',
+          message: tr('AssetInformation에 defaultThumbnail이 설정되어 있지 않습니다.'),
+          remedy: tr(
+            '패키지의 썸네일 파트와 같은 경로로 defaultThumbnail을 지정하십시오. 예: path=/thumbnail.png, contentType=image/png',
+          ),
           fixable: true,
         });
         return;
@@ -63,9 +67,8 @@ export const kosmoAas1Thumbnail: Rule = {
           key,
           pointer: `${pointer}/assetInformation/defaultThumbnail/path`,
           kosmoPath: `${kosmoPath}/assetInformation/defaultThumbnail/path`,
-          message: `defaultThumbnail이 가리키는 파트가 패키지에 없습니다: ${thumb.path}`,
-          remedy:
-            '썸네일 파일을 패키지에 넣고 _rels/.rels 관계와 Content_Types Override를 함께 추가하십시오.',
+          message: fill(tr('defaultThumbnail이 가리키는 파트가 패키지에 없습니다: {0}'), { 0: thumb.path }),
+          remedy: tr('썸네일 파일을 패키지에 넣고 _rels/.rels 관계와 Content_Types Override를 함께 추가하십시오.'),
           fixable: true,
         });
       }
@@ -76,7 +79,9 @@ export const kosmoAas1Thumbnail: Rule = {
 export const kosmoAas2IdShort: Rule = {
   id: 'KOSMO-AAS-2',
   layer: 'L3',
-  title: 'AAS idShort 설정 및 명명 규칙 검사',
+  get title() {
+    return tr('AAS idShort 설정 및 명명 규칙 검사');
+  },
   source: SOURCE,
   check(ctx, report) {
     eachShell(ctx, (shell, pointer, kosmoPath) => {
@@ -88,8 +93,8 @@ export const kosmoAas2IdShort: Rule = {
           key,
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
-          message: 'AAS에 idShort가 없습니다.',
-          remedy: '장비 영문명을 CamelCase로 지정하십시오.',
+          message: tr('AAS에 idShort가 없습니다.'),
+          remedy: tr('장비 영문명을 CamelCase로 지정하십시오.'),
           fixable: false,
         });
         return;
@@ -101,9 +106,10 @@ export const kosmoAas2IdShort: Rule = {
           key,
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
-          message: `idShort가 명명 규칙에 맞지 않습니다: ${shell.idShort}`,
-          remedy:
+          message: fill(tr('idShort가 명명 규칙에 맞지 않습니다: {0}'), { 0: shell.idShort }),
+          remedy: tr(
             '영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오. 한글·공백·특수문자는 쓸 수 없고 하이픈으로 끝날 수 없습니다.',
+          ),
           fixable: true,
         });
       }
@@ -114,8 +120,12 @@ export const kosmoAas2IdShort: Rule = {
 export const kosmoAas3IdFormat: Rule = {
   id: 'KOSMO-AAS-3',
   layer: 'L3',
-  title: 'AAS Id 형식 검사 — administration의 version·revision과 Id 접미 일치',
-  source: `${SOURCE} (실측 1·2차 위반)`,
+  get title() {
+    return tr('AAS Id 형식 검사 — administration의 version·revision과 Id 접미 일치');
+  },
+  get source() {
+    return fill(tr('{0} (실측 1·2차 위반)'), { 0: SOURCE });
+  },
   check(ctx, report) {
     eachShell(ctx, (shell, pointer, kosmoPath) => {
       const key = shell.idShort ?? shell.id;
@@ -127,8 +137,8 @@ export const kosmoAas3IdFormat: Rule = {
           key,
           pointer: `${pointer}/administration`,
           kosmoPath: `${kosmoPath}/administration`,
-          message: 'Version 정보가 부족하여 Id 형식을 검증할 수 없습니다.',
-          remedy: 'administration에 version과 revision을 모두 입력하십시오.',
+          message: tr('Version 정보가 부족하여 Id 형식을 검증할 수 없습니다.'),
+          remedy: tr('administration에 version과 revision을 모두 입력하십시오.'),
           fixable: true,
         });
         return;
@@ -142,8 +152,11 @@ export const kosmoAas3IdFormat: Rule = {
           key,
           pointer: `${pointer}/id`,
           kosmoPath: `${kosmoPath}/id`,
-          message: `Id의 끝 두 세그먼트가 administration과 일치하지 않습니다: ${actual} (기대값 ${expected})`,
-          remedy: `Id가 ${expected} 로 끝나도록 맞추십시오.`,
+          message: fill(tr('Id의 끝 두 세그먼트가 administration과 일치하지 않습니다: {0} (기대값 {1})'), {
+            0: actual,
+            1: expected,
+          }),
+          remedy: fill(tr('Id가 {0} 로 끝나도록 맞추십시오.'), { 0: expected }),
           fixable: true,
         });
       }
@@ -154,14 +167,16 @@ export const kosmoAas3IdFormat: Rule = {
 export const kosmoAas4RequiredSubmodels: Rule = {
   id: 'KOSMO-AAS-4',
   layer: 'L3',
-  title: '필수 Submodel 포함 여부 검사 — DN·HD·TD·OD 4종 + 총 6~8종',
+  get title() {
+    return tr('필수 Submodel 포함 여부 검사 — DN·HD·TD·OD 4종 + 총 6~8종');
+  },
   source: `${SOURCE} §1.3-2`,
   check(ctx, report) {
     const submodels = ctx.environment.submodels ?? [];
     const present = new Set(submodels.map((s) => s.idShort ?? ''));
     const [min, max] = ctx.policy.submodelCountRange;
     const shell = ctx.environment.assetAdministrationShells?.[0];
-    const key = shell?.idShort ?? shell?.id ?? 'AAS 없음';
+    const key = shell?.idShort ?? shell?.id ?? tr('AAS 없음');
 
     // 🔴 공정·회사 파일(assetType 표시)에는 이 규칙을 적용하지 않는다. 필수 4종(명판·기술사양…)과
     //    6~8종 하한은 **설비 20종 실측**에서 나온 설비 규칙이고, 조직 단위는 Validator 제출용이
@@ -176,8 +191,8 @@ export const kosmoAas4RequiredSubmodels: Rule = {
         key,
         pointer: '/submodels',
         kosmoPath: '/submodels',
-        message: `필수 Submodel이 없습니다: ${missing.join(', ')}`,
-        remedy: '누락된 서브모델을 IDTA 표준 템플릿으로 추가하십시오.',
+        message: fill(tr('필수 Submodel이 없습니다: {0}'), { 0: missing.join(', ') }),
+        remedy: tr('누락된 서브모델을 IDTA 표준 템플릿으로 추가하십시오.'),
         fixable: false,
       });
     }
@@ -189,11 +204,15 @@ export const kosmoAas4RequiredSubmodels: Rule = {
         key,
         pointer: '/submodels',
         kosmoPath: '/submodels',
-        message: `Submodel 개수가 허용 범위를 벗어났습니다: ${submodels.length}종 (허용 ${min}~${max}종)`,
+        message: fill(tr('Submodel 개수가 허용 범위를 벗어났습니다: {count}종 (허용 {min}~{max}종)'), {
+          count: submodels.length,
+          min,
+          max,
+        }),
         remedy:
           submodels.length > max
-            ? `서브모델을 ${max}종 이하로 통합하십시오. ${max + 1}종 이상은 그 자체로 위반입니다.`
-            : `서브모델을 ${min}종 이상으로 보강하십시오.`,
+            ? fill(tr('서브모델을 {max}종 이하로 통합하십시오. {over}종 이상은 그 자체로 위반입니다.'), { max, over: max + 1 })
+            : fill(tr('서브모델을 {min}종 이상으로 보강하십시오.'), { min }),
         fixable: false,
       });
     }
@@ -203,7 +222,9 @@ export const kosmoAas4RequiredSubmodels: Rule = {
 export const kosmoAas5GlobalAssetId: Rule = {
   id: 'KOSMO-AAS-5',
   layer: 'L3',
-  title: 'globalAssetId 검사',
+  get title() {
+    return tr('globalAssetId 검사');
+  },
   source: SOURCE,
   check(ctx, report) {
     eachShell(ctx, (shell, pointer, kosmoPath) => {
@@ -216,8 +237,8 @@ export const kosmoAas5GlobalAssetId: Rule = {
           key: shell.idShort ?? shell.id,
           pointer: `${pointer}/assetInformation/globalAssetId`,
           kosmoPath: `${kosmoPath}/assetInformation/globalAssetId`,
-          message: 'globalAssetId가 없습니다.',
-          remedy: `${ctx.policy.iriBase}/asset/{장비명}/{version}/{revision} 형식으로 지정하십시오.`,
+          message: tr('globalAssetId가 없습니다.'),
+          remedy: fill(tr('{0}/asset/{장비명}/{version}/{revision} 형식으로 지정하십시오.'), { 0: ctx.policy.iriBase }),
           fixable: true,
         });
       }
@@ -228,7 +249,9 @@ export const kosmoAas5GlobalAssetId: Rule = {
 export const kosmoAas6TypeKind: Rule = {
   id: 'KOSMO-AAS-6',
   layer: 'L3',
-  title: 'Type 유형 검사 — assetKind는 Type이어야 한다',
+  get title() {
+    return tr('Type 유형 검사 — assetKind는 Type이어야 한다');
+  },
   source: SOURCE,
   check(ctx, report) {
     eachShell(ctx, (shell, pointer, kosmoPath) => {
@@ -240,8 +263,8 @@ export const kosmoAas6TypeKind: Rule = {
           key: shell.idShort ?? shell.id,
           pointer: `${pointer}/assetInformation/assetKind`,
           kosmoPath: `${kosmoPath}/assetInformation/assetKind`,
-          message: `assetKind가 Type이 아닙니다: ${kind ?? '없음'}`,
-          remedy: 'assetKind를 Type으로 지정하십시오. 본 사업 산출물은 형식(Type) 단위입니다.',
+          message: fill(tr('assetKind가 Type이 아닙니다: {0}'), { 0: kind ?? tr('없음') }),
+          remedy: tr('assetKind를 Type으로 지정하십시오. 본 사업 산출물은 형식(Type) 단위입니다.'),
           fixable: true,
         });
       }

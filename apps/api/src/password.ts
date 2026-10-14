@@ -13,6 +13,7 @@
  */
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
+import { tr } from '@aas/core';
 
 const scrypt = promisify(scryptCb) as (
   password: string | Buffer,
@@ -78,8 +79,8 @@ export async function verifyPassword(password: string, stored: string): Promise<
  *    실제로는 더 약해진다는 것이 알려져 있다(NIST SP 800-63B). **길이**가 낫다.
  */
 export function checkPasswordRule(password: string): string | undefined {
-  if (password.length < 10) return '비밀번호는 10자 이상이어야 합니다.';
-  if (password.length > 200) return '비밀번호가 너무 깁니다(200자 이하).';
-  if (/^\s|\s$/.test(password)) return '비밀번호 앞뒤의 빈칸은 빼 주십시오 — 나중에 못 맞춥니다.';
+  if (password.length < 10) return tr('비밀번호는 10자 이상이어야 합니다.');
+  if (password.length > 200) return tr('비밀번호가 너무 깁니다(200자 이하).');
+  if (/^\s|\s$/.test(password)) return tr('비밀번호 앞뒤의 빈칸은 빼 주십시오 — 나중에 못 맞춥니다.');
   return undefined;
 }

@@ -6,12 +6,11 @@
  * 우리는 항상 key를 출력한다.
  */
 import type { Finding, LintResult, Severity } from '../types.js';
+import { fill, tr } from '@aas/core';
 
-const SEVERITY_LABEL: Record<Severity, string> = {
-  error: '위반',
-  warning: '경고',
-  info: '참고',
-};
+/** 등급 글자 — 언어가 요청마다 다르므로 부를 때 옮긴다 */
+const severityLabel = (severity: Severity): string =>
+  ({ error: tr('위반'), warning: tr('경고'), info: tr('참고') })[severity];
 
 /** 한 건을 KOSMO 리포트 형식으로 출력한다 */
 export function formatFinding(finding: Finding): string {
@@ -39,32 +38,35 @@ export function formatReport(result: LintResult, options: TextReportOptions = {}
 
   const { error, warning, info } = result.countBySeverity;
   out.push(
-    `검사 규칙 ${result.rulesRun}종 · 위반 ${error}건 · 경고 ${warning}건 · 참고 ${info}건` +
+    fill(tr('검사 규칙 {0}종 · 위반 {1}건 · 경고 {2}건 · 참고 {3}건'), { 0: result.rulesRun, 1: error, 2: warning, 3: info }) +
       `  → ${result.passed ? 'PASS' : 'FAIL'}`,
   );
   out.push(
-    `계층별: L1 패키지 ${result.countByLayer.L1}건 · L2 제약조건 ${result.countByLayer.L2}건 · ` +
-      `L3 KOSMO ${result.countByLayer.L3}건`,
+    fill(tr('계층별: L1 패키지 {0}건 · L2 제약조건 {1}건 · L3 KOSMO {2}건'), {
+      0: result.countByLayer.L1,
+      1: result.countByLayer.L2,
+      2: result.countByLayer.L3,
+    }),
   );
 
   if (result.findings.length === 0) {
-    out.push('', '지적사항이 없습니다.');
+    out.push('', tr('지적사항이 없습니다.'));
     return out.join('\n');
   }
 
-  out.push('', '## 규칙별 집계', '');
+  out.push('', `## ${tr('규칙별 집계')}`, '');
   const ranked = Object.entries(result.countByRule).sort((a, b) => b[1] - a[1]);
   for (const [ruleId, count] of ranked) {
-    out.push(`  ${ruleId.padEnd(22)} ${String(count).padStart(4)}건`);
+    out.push(`  ${ruleId.padEnd(22)} ${fill(tr('{0}건'), { 0: String(count).padStart(4) })}`);
   }
 
-  out.push('', '## 상세', '');
+  out.push('', `## ${tr('상세')}`, '');
   const shown = limit === undefined ? result.findings : result.findings.slice(0, limit);
   for (const f of shown) {
-    out.push(`[${SEVERITY_LABEL[f.severity]}] ${formatFinding(f)}`, '');
+    out.push(`[${severityLabel(f.severity)}] ${formatFinding(f)}`, '');
   }
   if (limit !== undefined && result.findings.length > limit) {
-    out.push(`... 외 ${result.findings.length - limit}건`);
+    out.push(`... ${fill(tr('외 {0}건'), { 0: result.findings.length - limit })}`);
   }
 
   return out.join('\n');
@@ -75,5 +77,5 @@ export function formatSummary(result: LintResult, label = ''): string {
   const { error, warning } = result.countBySeverity;
   const mark = result.passed ? 'PASS' : 'FAIL';
   const name = label ? `${label} ` : '';
-  return `${mark} ${name}위반 ${error}건 · 경고 ${warning}건`;
+  return `${mark} ${name}${fill(tr('위반 {0}건 · 경고 {1}건'), { 0: error, 1: warning })}`;
 }

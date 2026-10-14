@@ -10,6 +10,7 @@
  * zeroBasedAddressing 은 원문에서 폐지 예정이고 「TD 에는 쓰는 쪽이 그대로 쓸 주소를 적는다」 — 그래서 주소는 적힌 대로 쓰고,
  * 이 항목이 'false'(첫 레지스터가 1)로 **명시된** 경우에만 1 을 뺀다.
  */
+import { fill, tr } from '@aas/core';
 
 export type ModbusEntity = 'Coil' | 'DiscreteInput' | 'HoldingRegister' | 'InputRegister';
 
@@ -58,7 +59,7 @@ function registersFor(type: string): number {
 
 export function modbusTarget(base: string | undefined, href: string, fields: Record<string, string> = {}): ModbusTarget {
   const absolute = /^modbus\+tcp:\/\//i.test(href);
-  if (!absolute && !base) throw new Error('Modbus 접속 주소(base)가 없습니다.');
+  if (!absolute && !base) throw new Error(tr('Modbus 접속 주소(base)가 없습니다.'));
   const baseUrl = new URL(absolute ? href : base!.replace(/^modbus\+tcp:/i, 'http:'));
   const host = baseUrl.hostname;
   const port = baseUrl.port ? Number(baseUrl.port) : 502;
@@ -74,10 +75,10 @@ export function modbusTarget(base: string | undefined, href: string, fields: Rec
   }
   const unitId = Number(unitText ?? 1);
   let address = Number(addressText);
-  if (!Number.isInteger(unitId) || unitId < 0 || unitId > 255) throw new Error(`unitID 가 잘못됐습니다: ${String(unitText)}`);
-  if (!Number.isInteger(address) || address < 0 || address > 65535) throw new Error(`Modbus 주소가 잘못됐습니다: ${href}`);
+  if (!Number.isInteger(unitId) || unitId < 0 || unitId > 255) throw new Error(fill(tr('unitID 가 잘못됐습니다: {0}'), { 0: String(unitText) }));
+  if (!Number.isInteger(address) || address < 0 || address > 65535) throw new Error(fill(tr('Modbus 주소가 잘못됐습니다: {0}'), { 0: href }));
   if (field(fields, 'zeroBasedAddressing')?.trim().toLowerCase() === 'false') address -= 1;
-  if (address < 0) throw new Error(`Modbus 주소가 잘못됐습니다: ${href}`);
+  if (address < 0) throw new Error(fill(tr('Modbus 주소가 잘못됐습니다: {0}'), { 0: href }));
 
   const entityText = field(fields, 'entity');
   const functionText = field(fields, 'function');
@@ -89,7 +90,7 @@ export function modbusTarget(base: string | undefined, href: string, fields: Rec
   const type = (field(fields, 'type') ?? (bitEntity ? 'xsd:boolean' : 'xsd:integer')).replace(/^xsd:/, '');
   const quantityParam = new URLSearchParams(query).get('quantity');
   const quantity = quantityParam !== null ? Number(quantityParam) : bitEntity ? 1 : registersFor(type);
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 125) throw new Error(`quantity 가 잘못됐습니다: ${String(quantityParam)}`);
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 125) throw new Error(fill(tr('quantity 가 잘못됐습니다: {0}'), { 0: String(quantityParam) }));
   return { host, port, unitId, address, quantity, entity, type, msb: bool(field(fields, 'mostSignificantByte'), true), msw: bool(field(fields, 'mostSignificantWord'), true) };
 }
 

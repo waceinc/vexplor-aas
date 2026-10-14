@@ -51,6 +51,8 @@ import {
   type Environment,
   type LangString,
   type Property,
+  fill,
+  tr,
 } from '@aas/core';
 
 export * from './types.js';
@@ -78,24 +80,24 @@ function record(ledger: RelocationLedger, newIri: string, oldIri: string): void 
 
 const fixThumbnail: Fixer = ({ environment, finding, package: pkg }) => {
   const shell = shellAt(environment, finding.pointer);
-  if (!shell) return skipped('대상 AssetAdministrationShell을 찾을 수 없습니다.');
+  if (!shell) return skipped(tr('대상 AssetAdministrationShell을 찾을 수 없습니다.'));
   if (!pkg) {
     return skipped(
-      '패키지 정보가 없어 썸네일 파트를 찾을 수 없습니다. AASX를 읽을 때의 opc 정보를 함께 넘기십시오.',
+      tr('패키지 정보가 없어 썸네일 파트를 찾을 수 없습니다. AASX를 읽을 때의 opc 정보를 함께 넘기십시오.'),
     );
   }
 
   const part = findThumbnailPart(pkg.parts);
   if (!part) {
-    return skipped('패키지에 이미지 파트가 없습니다. 썸네일 파일을 먼저 추가해야 합니다.');
+    return skipped(tr('패키지에 이미지 파트가 없습니다. 썸네일 파일을 먼저 추가해야 합니다.'));
   }
 
   const before = shell.assetInformation.defaultThumbnail;
-  if (before?.path === part) return skipped('이미 해당 파트를 가리키고 있습니다.');
+  if (before?.path === part) return skipped(tr('이미 해당 파트를 가리키고 있습니다.'));
 
   const after = { path: part, contentType: imageContentType(part) };
   shell.assetInformation.defaultThumbnail = after;
-  return applied(`defaultThumbnail을 패키지 파트 ${part}로 지정했습니다.`, before, after);
+  return applied(fill(tr('defaultThumbnail을 패키지 파트 {0}로 지정했습니다.'), { 0: part }), before, after);
 };
 
 // ── KOSMO-AAS-3 / KOSMO-SM-2 · administration과 id 접미 일치 ─────────────────
@@ -108,20 +110,19 @@ const fixThumbnail: Fixer = ({ environment, finding, package: pkg }) => {
 const fixVersionConsistency: Fixer = ({ environment, finding, ledger }) => {
   const item =
     shellAt(environment, finding.pointer) ?? submodelAt(environment, finding.pointer);
-  if (!item) return skipped('대상 Identifiable을 찾을 수 없습니다.');
+  if (!item) return skipped(tr('대상 Identifiable을 찾을 수 없습니다.'));
 
   if (finding.pointer.endsWith('/administration')) {
     const derived = versionFromId(item.id);
     if (!derived) {
       return skipped(
-        `id의 끝 두 세그먼트가 버전 형식이 아니어서 administration을 유추할 수 없습니다: ${item.id}. ` +
-          'version·revision을 직접 입력하십시오.',
+        fill(tr('id의 끝 두 세그먼트가 버전 형식이 아니어서 administration을 유추할 수 없습니다: {0}. version·revision을 직접 입력하십시오.'), { 0: item.id }),
       );
     }
     const before = item.administration;
     item.administration = { ...before, ...derived };
     return applied(
-      `id 접미에서 administration을 만들었습니다: version=${derived.version}, revision=${derived.revision}`,
+      fill(tr('id 접미에서 administration을 만들었습니다: version={0}, revision={1}'), { 0: derived.version, 1: derived.revision }),
       before,
       item.administration,
     );
@@ -129,56 +130,56 @@ const fixVersionConsistency: Fixer = ({ environment, finding, ledger }) => {
 
   const admin = item.administration;
   if (!admin?.version || !admin.revision) {
-    return skipped('administration이 없어 기대 id를 만들 수 없습니다.');
+    return skipped(tr('administration이 없어 기대 id를 만들 수 없습니다.'));
   }
 
   const oldId = item.id;
   const newId = withVersionSuffix(oldId, admin.version, admin.revision);
-  if (newId === oldId) return skipped('이미 administration과 일치합니다.');
+  if (newId === oldId) return skipped(tr('이미 administration과 일치합니다.'));
   if (idExists(environment, newId, item)) {
-    return skipped(`같은 id를 쓰는 다른 요소가 있습니다: ${newId}`);
+    return skipped(fill(tr('같은 id를 쓰는 다른 요소가 있습니다: {0}'), { 0: newId }));
   }
 
   item.id = newId;
   const refs = replaceIdEverywhere(environment, oldId, newId);
   record(ledger, newId, oldId);
-  return applied(`id를 administration에 맞추고 참조 ${refs}건을 함께 갱신했습니다.`, oldId, newId);
+  return applied(fill(tr('id를 administration에 맞추고 참조 {0}건을 함께 갱신했습니다.'), { 0: refs }), oldId, newId);
 };
 
 // ── KOSMO-AAS-5 · globalAssetId ──────────────────────────────────────────────
 
 const fixGlobalAssetId: Fixer = ({ environment, finding, policy }) => {
   const shell = shellAt(environment, finding.pointer);
-  if (!shell) return skipped('대상 AssetAdministrationShell을 찾을 수 없습니다.');
-  if (!shell.idShort) return skipped('AAS에 idShort가 없어 asset IRI를 만들 수 없습니다.');
+  if (!shell) return skipped(tr('대상 AssetAdministrationShell을 찾을 수 없습니다.'));
+  if (!shell.idShort) return skipped(tr('AAS에 idShort가 없어 asset IRI를 만들 수 없습니다.'));
 
   const { version, revision } = versionOf(shell);
   const value = `${policy.iriBase}/asset/${shell.idShort}/${version}/${revision}`;
   const before = shell.assetInformation.globalAssetId;
-  if (before === value) return skipped('이미 같은 값입니다.');
+  if (before === value) return skipped(tr('이미 같은 값입니다.'));
 
   shell.assetInformation.globalAssetId = value;
-  return applied(`globalAssetId를 ${value}로 지정했습니다.`, before, value);
+  return applied(fill(tr('globalAssetId를 {0}로 지정했습니다.'), { 0: value }), before, value);
 };
 
 // ── KOSMO-AAS-6 / KOSMO-SM-4 · Type · Template ───────────────────────────────
 
 const fixAssetKind: Fixer = ({ environment, finding }) => {
   const shell = shellAt(environment, finding.pointer);
-  if (!shell) return skipped('대상 AssetAdministrationShell을 찾을 수 없습니다.');
+  if (!shell) return skipped(tr('대상 AssetAdministrationShell을 찾을 수 없습니다.'));
   const before = shell.assetInformation.assetKind;
-  if (before === 'Type') return skipped('이미 Type입니다.');
+  if (before === 'Type') return skipped(tr('이미 Type입니다.'));
   shell.assetInformation.assetKind = 'Type';
-  return applied('assetKind를 Type으로 바꿨습니다.', before, 'Type');
+  return applied(tr('assetKind를 Type으로 바꿨습니다.'), before, 'Type');
 };
 
 const fixModellingKind: Fixer = ({ environment, finding }) => {
   const sm = submodelAt(environment, finding.pointer);
-  if (!sm) return skipped('대상 Submodel을 찾을 수 없습니다.');
+  if (!sm) return skipped(tr('대상 Submodel을 찾을 수 없습니다.'));
   const before = sm.kind;
-  if (before === 'Template') return skipped('이미 Template입니다.');
+  if (before === 'Template') return skipped(tr('이미 Template입니다.'));
   sm.kind = 'Template';
-  return applied('kind를 Template으로 바꿨습니다.', before, 'Template');
+  return applied(tr('kind를 Template으로 바꿨습니다.'), before, 'Template');
 };
 
 // ── KOSMO-SM-3 · Submodel semanticId ─────────────────────────────────────────
@@ -190,23 +191,23 @@ const fixModellingKind: Fixer = ({ environment, finding }) => {
  */
 const fixSubmodelSemanticId: Fixer = ({ environment, finding, ledger }) => {
   const sm = submodelAt(environment, finding.pointer);
-  if (!sm) return skipped('대상 Submodel을 찾을 수 없습니다.');
+  if (!sm) return skipped(tr('대상 Submodel을 찾을 수 없습니다.'));
 
   if (finding.pointer.endsWith('/semanticId/keys/0/type')) {
     const key = sm.semanticId?.keys?.[0];
-    if (!key) return skipped('semanticId 키가 없습니다.');
+    if (!key) return skipped(tr('semanticId 키가 없습니다.'));
     const before = key.type;
-    if (before === 'GlobalReference') return skipped('이미 GlobalReference입니다.');
+    if (before === 'GlobalReference') return skipped(tr('이미 GlobalReference입니다.'));
     key.type = 'GlobalReference';
     return applied(
-      'semanticId 키 타입을 GlobalReference로 되돌렸습니다(basyx 서브모델 드롭 방지).',
+      tr('semanticId 키 타입을 GlobalReference로 되돌렸습니다(basyx 서브모델 드롭 방지).'),
       before,
       'GlobalReference',
     );
   }
 
   const before = firstKeyValue(sm.semanticId);
-  if (before === sm.id) return skipped('이미 자신의 id를 가리키고 있습니다.');
+  if (before === sm.id) return skipped(tr('이미 자신의 id를 가리키고 있습니다.'));
 
   sm.semanticId = {
     type: 'ExternalReference',
@@ -216,8 +217,8 @@ const fixSubmodelSemanticId: Fixer = ({ environment, finding, ledger }) => {
 
   return applied(
     before === undefined
-      ? `semanticId를 자신의 id(${sm.id})로 지정했습니다.`
-      : `semanticId를 자신의 id로 옮기고 원본 IRI를 이관 대장에 기록했습니다.`,
+      ? fill(tr('semanticId를 자신의 id({0})로 지정했습니다.'), { 0: sm.id })
+      : tr('semanticId를 자신의 id로 옮기고 원본 IRI를 이관 대장에 기록했습니다.'),
     before,
     sm.id,
   );
@@ -227,18 +228,18 @@ const fixSubmodelSemanticId: Fixer = ({ environment, finding, ledger }) => {
 
 const fixConceptDescriptionId: Fixer = ({ environment, finding, policy, ledger }) => {
   const cd = conceptDescriptionAt(environment, finding.pointer);
-  if (!cd) return skipped('대상 ConceptDescription을 찾을 수 없습니다.');
+  if (!cd) return skipped(tr('대상 ConceptDescription을 찾을 수 없습니다.'));
   if (!cd.idShort) {
-    return skipped('CD에 idShort가 없어 새 id를 만들 수 없습니다. KOSMO-CD-1을 먼저 고치십시오.');
+    return skipped(tr('CD에 idShort가 없어 새 id를 만들 수 없습니다. KOSMO-CD-1을 먼저 고치십시오.'));
   }
 
   const { version, revision } = versionOf(cd);
   const oldId = cd.id;
   const newId = `${policy.iriBase}/cd/${cd.idShort}/${version}/${revision}`;
-  if (newId === oldId) return skipped('이미 규약에 맞는 id입니다.');
+  if (newId === oldId) return skipped(tr('이미 규약에 맞는 id입니다.'));
   if (idExists(environment, newId, cd)) {
     return skipped(
-      `같은 idShort의 CD가 이미 ${newId}를 쓰고 있습니다. 중복 CD를 하나로 합친 뒤 다시 시도하십시오.`,
+      fill(tr('같은 idShort의 CD가 이미 {0}를 쓰고 있습니다. 중복 CD를 하나로 합친 뒤 다시 시도하십시오.'), { 0: newId }),
     );
   }
 
@@ -246,7 +247,7 @@ const fixConceptDescriptionId: Fixer = ({ environment, finding, policy, ledger }
   const refs = replaceIdEverywhere(environment, oldId, newId);
   record(ledger, newId, oldId);
   return applied(
-    `CD id를 자체 IRI 규약으로 옮기고 참조 ${refs}건을 갱신했습니다. 원본은 이관 대장에 남겼습니다.`,
+    fill(tr('CD id를 자체 IRI 규약으로 옮기고 참조 {0}건을 갱신했습니다. 원본은 이관 대장에 남겼습니다.'), { 0: refs }),
     oldId,
     newId,
   );
@@ -256,11 +257,11 @@ const fixConceptDescriptionId: Fixer = ({ environment, finding, policy, ledger }
 
 const fixConceptDataType: Fixer = ({ environment, finding }) => {
   const cd = conceptDescriptionAt(environment, finding.pointer);
-  if (!cd) return skipped('대상 ConceptDescription을 찾을 수 없습니다.');
+  if (!cd) return skipped(tr('대상 ConceptDescription을 찾을 수 없습니다.'));
 
   if (finding.pointer.endsWith('/embeddedDataSpecifications')) {
-    if (!cd.idShort) return skipped('CD에 idShort가 없어 데이터 명세를 만들 수 없습니다.');
-    if (iec61360Of(cd)) return skipped('이미 IEC 61360 명세가 있습니다.');
+    if (!cd.idShort) return skipped(tr('CD에 idShort가 없어 데이터 명세를 만들 수 없습니다.'));
+    if (iec61360Of(cd)) return skipped(tr('이미 IEC 61360 명세가 있습니다.'));
     const content = makeIec61360(cd.idShort, 'STRING');
     cd.embeddedDataSpecifications = [
       ...(cd.embeddedDataSpecifications ?? []),
@@ -272,18 +273,18 @@ const fixConceptDataType: Fixer = ({ environment, finding }) => {
         dataSpecificationContent: content,
       },
     ];
-    return applied('IEC 61360 데이터 명세를 STRING으로 만들었습니다.', undefined, content);
+    return applied(tr('IEC 61360 데이터 명세를 STRING으로 만들었습니다.'), undefined, content);
   }
 
   const content = iec61360Of(cd);
-  if (!content) return skipped('IEC 61360 명세가 없습니다.');
+  if (!content) return skipped(tr('IEC 61360 명세가 없습니다.'));
   const before = content.dataType;
-  if (before === 'STRING') return skipped('이미 STRING입니다.');
+  if (before === 'STRING') return skipped(tr('이미 STRING입니다.'));
   content.dataType = 'STRING';
   return applied(
     before === undefined
-      ? 'dataType을 STRING으로 지정했습니다.'
-      : `허용 목록 밖 dataType(${before})을 STRING으로 정규화했습니다.`,
+      ? tr('dataType을 STRING으로 지정했습니다.')
+      : fill(tr('허용 목록 밖 dataType({0})을 STRING으로 정규화했습니다.'), { 0: before }),
     before,
     'STRING',
   );
@@ -301,7 +302,7 @@ function singularOf(name: string): string {
 const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
   const nodePointer = parentPointer(finding.pointer);
   const node = asElement(resolvePointer(environment, nodePointer)?.value);
-  if (!node) return skipped('대상 SubmodelElement를 찾을 수 없습니다.');
+  if (!node) return skipped(tr('대상 SubmodelElement를 찾을 수 없습니다.'));
 
   const existing = firstKeyValue(node.semanticId);
   let targetId = existing;
@@ -327,7 +328,7 @@ const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
     const declared = firstKeyValue(list?.semanticIdListElement);
     if (declared !== undefined) targetId = declared;
     else {
-      if (!cdName) return skipped('idShort가 없고 부모 리스트에서도 이름을 빌릴 수 없어 CD id를 만들 수 없습니다.');
+      if (!cdName) return skipped(tr('idShort가 없고 부모 리스트에서도 이름을 빌릴 수 없어 CD id를 만들 수 없습니다.'));
       // 빌린 이름이면 같은 이름의 CD가 이미 있을 때(골든 파일의 Marking — 표준 사전 IRDI) 그것을 가리킨다.
       // 제 이름이 있는 요소는 예전대로 규약 IRI로 새로 짓는다 — 이름만 같은 사전 항목에 멋대로 붙이지 않는다
       const known = borrowed ? (environment.conceptDescriptions ?? []).find((cd) => cd.idShort === cdName) : undefined;
@@ -344,21 +345,21 @@ const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
   const already = cds.some((cd) => cd.id === targetId);
   if (!already) {
     if (!cdName) {
-      return skipped('idShort가 없어 ConceptDescription을 만들 수 없습니다.');
+      return skipped(tr('idShort가 없어 ConceptDescription을 만들 수 없습니다.'));
     }
     cds.push(makeConceptDescription(targetId, cdName, inferDataType(node)));
   }
 
-  if (!assigned && already) return skipped('이미 대응하는 ConceptDescription이 있습니다.');
+  if (!assigned && already) return skipped(tr('이미 대응하는 ConceptDescription이 있습니다.'));
 
-  const what = [
-    assigned ? 'semanticId를 지정' : null,
-    already ? null : 'ConceptDescription을 생성',
-  ]
-    .filter(Boolean)
-    .join('하고 ');
+  // 문장을 토막으로 잇지 않는다 — 영어는 어순이 달라 통문장으로 옮긴다
+  const sentence = !already
+    ? assigned
+      ? tr('semanticId를 지정하고 ConceptDescription을 생성했습니다: {0}. 정의는 idShort를 그대로 둔 자리표시자이므로 개발계획서 원문으로 대체하십시오.')
+      : tr('ConceptDescription을 생성했습니다: {0}. 정의는 idShort를 그대로 둔 자리표시자이므로 개발계획서 원문으로 대체하십시오.')
+    : tr('semanticId를 지정했습니다: {0}. 정의는 idShort를 그대로 둔 자리표시자이므로 개발계획서 원문으로 대체하십시오.');
   return applied(
-    `${what}했습니다: ${targetId}. 정의는 idShort를 그대로 둔 자리표시자이므로 개발계획서 원문으로 대체하십시오.`,
+    fill(sentence, { 0: targetId }),
     existing,
     targetId,
   );
@@ -386,10 +387,10 @@ const MEASURE_TO_COUNT = {
  */
 const fixMeasureUnit: Fixer = ({ environment, finding }) => {
   const cd = conceptDescriptionAt(environment, finding.pointer);
-  if (!cd) return skipped('대상 ConceptDescription을 찾을 수 없습니다.');
+  if (!cd) return skipped(tr('대상 ConceptDescription을 찾을 수 없습니다.'));
   const content = iec61360Of(cd);
-  if (!content) return skipped('IEC 61360 명세가 없습니다.');
-  if (content.unit || content.unitId) return skipped('이미 단위가 있습니다.');
+  if (!content) return skipped(tr('IEC 61360 명세가 없습니다.'));
+  if (content.unit || content.unitId) return skipped(tr('이미 단위가 있습니다.'));
 
   const before = content.dataType;
   const after =
@@ -398,13 +399,14 @@ const fixMeasureUnit: Fixer = ({ environment, finding }) => {
       : MEASURE_TO_COUNT[before as keyof typeof MEASURE_TO_COUNT];
   if (!after) {
     return skipped(
-      `${before ?? '알 수 없는'} dataType은 단위를 빼고 표현할 수 없습니다 — 단위를 직접 넣으십시오.`,
+      before === undefined
+        ? tr('알 수 없는 dataType은 단위를 빼고 표현할 수 없습니다 — 단위를 직접 넣으십시오.')
+        : fill(tr('{0} dataType은 단위를 빼고 표현할 수 없습니다 — 단위를 직접 넣으십시오.'), { 0: before }),
     );
   }
   content.dataType = after;
   return applied(
-    `단위를 모르므로 dataType을 ${before} → ${after}로 낮췄습니다. ` +
-      `🔴 실제로 단위가 있는 측정값이라면 unit을 넣고 ${before}로 되돌리십시오.`,
+    fill(tr('단위를 모르므로 dataType을 {0} → {1}로 낮췄습니다. 🔴 실제로 단위가 있는 측정값이라면 unit을 넣고 {0}로 되돌리십시오.'), { 0: before, 1: after }),
     before,
     after,
   );
@@ -419,46 +421,46 @@ const fixMeasureUnit: Fixer = ({ environment, finding }) => {
  */
 const fixValueTypeMatch: Fixer = ({ environment, finding, policy }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
-  if (!node || node.modelType !== 'Property') return skipped('대상 Property를 찾을 수 없습니다.');
+  if (!node || node.modelType !== 'Property') return skipped(tr('대상 Property를 찾을 수 없습니다.'));
   const prop = node as Property;
 
   const semantic = firstKeyValue(prop.semanticId);
-  if (semantic === undefined) return skipped('semanticId가 없습니다. KOSMO-SME-3을 먼저 고치십시오.');
+  if (semantic === undefined) return skipped(tr('semanticId가 없습니다. KOSMO-SME-3을 먼저 고치십시오.'));
 
   const cd = (environment.conceptDescriptions ?? []).find((c) => c.id === semantic);
-  if (!cd) return skipped('대응하는 ConceptDescription이 없습니다. KOSMO-SME-3을 먼저 고치십시오.');
+  if (!cd) return skipped(tr('대응하는 ConceptDescription이 없습니다. KOSMO-SME-3을 먼저 고치십시오.'));
 
   const content = iec61360Of(cd);
   const external = policy.irdiPrefixes.some((p) => semantic.startsWith(p));
 
   if (external) {
     const dataType = content?.dataType;
-    if (!dataType) return skipped('외부 CD에 dataType이 없어 맞출 기준이 없습니다.');
+    if (!dataType) return skipped(tr('외부 CD에 dataType이 없어 맞출 기준이 없습니다.'));
     const valueType = valueTypeFor(dataType);
     if (!valueType) {
-      return skipped(`dataType ${dataType}에 대응하는 valueType이 없습니다. 사람이 판단해야 합니다.`);
+      return skipped(fill(tr('dataType {0}에 대응하는 valueType이 없습니다. 사람이 판단해야 합니다.'), { 0: dataType }));
     }
     const before = prop.valueType;
-    if (before === valueType) return skipped('이미 일치합니다.');
+    if (before === valueType) return skipped(tr('이미 일치합니다.'));
     prop.valueType = valueType;
     return applied(
-      `외부 표준 사전 CD를 존중해 Property의 valueType을 ${valueType}로 맞췄습니다.`,
+      fill(tr('외부 표준 사전 CD를 존중해 Property의 valueType을 {0}로 맞췄습니다.'), { 0: valueType }),
       before,
       valueType,
     );
   }
 
-  if (!content) return skipped('자체 CD에 IEC 61360 명세가 없습니다. KOSMO-CD-4를 먼저 고치십시오.');
+  if (!content) return skipped(tr('자체 CD에 IEC 61360 명세가 없습니다. KOSMO-CD-4를 먼저 고치십시오.'));
   const candidates = XS_TO_DATA_TYPE[prop.valueType];
   if (!candidates) {
-    return skipped(`valueType ${prop.valueType}에 대응하는 dataType 매핑이 없습니다.`);
+    return skipped(fill(tr('valueType {0}에 대응하는 dataType 매핑이 없습니다.'), { 0: prop.valueType }));
   }
   const dataType = pickDataType(candidates, content);
-  if (!dataType) return skipped('KOSMO 허용 목록 안에서 고를 dataType이 없습니다.');
+  if (!dataType) return skipped(tr('KOSMO 허용 목록 안에서 고를 dataType이 없습니다.'));
   const before = content.dataType;
-  if (before === dataType) return skipped('이미 일치합니다.');
+  if (before === dataType) return skipped(tr('이미 일치합니다.'));
   content.dataType = dataType;
-  return applied(`자체 CD이므로 CD의 dataType을 ${dataType}로 맞췄습니다.`, before, dataType);
+  return applied(fill(tr('자체 CD이므로 CD의 dataType을 {0}로 맞췄습니다.'), { 0: dataType }), before, dataType);
 };
 
 // ── AASd-120 · SML 자식 idShort ──────────────────────────────────────────────
@@ -472,13 +474,13 @@ const fixValueTypeMatch: Fixer = ({ environment, finding, policy }) => {
  */
 const fixSmlChildIdShort: Fixer = ({ environment, finding }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
-  if (!node) return skipped('대상 SubmodelElement를 찾을 수 없습니다.');
+  if (!node) return skipped(tr('대상 SubmodelElement를 찾을 수 없습니다.'));
   const before = node.idShort;
-  if (before === undefined) return skipped('이미 idShort가 없습니다.');
+  if (before === undefined) return skipped(tr('이미 idShort가 없습니다.'));
 
   delete node.idShort;
   return applied(
-    `리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.`,
+    tr('리스트 자식의 idShort를 지웠습니다(AASd-120). 리스트 자식은 인덱스로 가리킵니다.'),
     before,
     undefined,
   );
@@ -492,13 +494,13 @@ const fixSmlChildIdShort: Fixer = ({ environment, finding }) => {
  */
 const fixDataElementCategory: Fixer = ({ environment, finding }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
-  if (!node) return skipped('대상 SubmodelElement를 찾을 수 없습니다.');
+  if (!node) return skipped(tr('대상 SubmodelElement를 찾을 수 없습니다.'));
   const before = node.category;
-  if (before === undefined) return skipped('이미 category가 없습니다.');
+  if (before === undefined) return skipped(tr('이미 category가 없습니다.'));
 
   delete node.category;
   return applied(
-    'category를 비웠습니다(AASd-090). 어느 값이 맞는지는 의미 판단이라 사람이 정해야 합니다.',
+    tr('category를 비웠습니다(AASd-090). 어느 값이 맞는지는 의미 판단이라 사람이 정해야 합니다.'),
     before,
     undefined,
   );
@@ -508,16 +510,16 @@ const fixDataElementCategory: Fixer = ({ environment, finding }) => {
 
 const fixFileUri: Fixer = ({ environment, finding }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
-  if (!node || node.modelType !== 'File') return skipped('대상 File을 찾을 수 없습니다.');
+  if (!node || node.modelType !== 'File') return skipped(tr('대상 File을 찾을 수 없습니다.'));
   const file = node as { value?: string };
   const before = file.value;
-  if (before === undefined || before === '') return skipped('값이 비어 있어 URI를 만들 수 없습니다.');
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(before)) return skipped('이미 URI 스킴이 있습니다.');
+  if (before === undefined || before === '') return skipped(tr('값이 비어 있어 URI를 만들 수 없습니다.'));
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(before)) return skipped(tr('이미 URI 스킴이 있습니다.'));
 
   const path = before.replace(/\\/g, '/').replace(/^\.\/+/, '');
   const after = path.startsWith('/') ? `file://${path}` : `file:///${path}`;
   file.value = after;
-  return applied('File.value를 file:// URI 형식으로 바꿨습니다.', before, after);
+  return applied(tr('File.value를 file:// URI 형식으로 바꿨습니다.'), before, after);
 };
 
 /**
@@ -526,22 +528,22 @@ const fixFileUri: Fixer = ({ environment, finding }) => {
  */
 const fixEmptyArray: Fixer = ({ environment, finding }) => {
   const target = resolvePointer(environment, finding.pointer);
-  if (!target) return skipped('대상 자리를 찾을 수 없습니다.');
-  if (!Array.isArray(target.value)) return skipped('배열이 아닙니다.');
-  if (target.value.length > 0) return skipped('이미 항목이 들어 있습니다.');
+  if (!target) return skipped(tr('대상 자리를 찾을 수 없습니다.'));
+  if (!Array.isArray(target.value)) return skipped(tr('배열이 아닙니다.'));
+  if (target.value.length > 0) return skipped(tr('이미 항목이 들어 있습니다.'));
 
   if (Array.isArray(target.container)) {
     // 배열 안의 배열은 자리를 지우면 뒤가 밀린다 — 그런 구조는 메타모델에 없다
-    return skipped('배열 안의 빈 배열은 손대지 않습니다.');
+    return skipped(tr('배열 안의 빈 배열은 손대지 않습니다.'));
   }
   delete (target.container as Record<string, unknown>)[target.key];
-  return applied(`빈 배열 ${finding.pointer}을(를) 지웠습니다.`, '[]', undefined);
+  return applied(fill(tr('빈 배열 {0}을(를) 지웠습니다.'), { 0: finding.pointer }), '[]', undefined);
 };
 
 const fixDuplicateLanguage: Fixer = ({ environment, finding }) => {
   const target = resolvePointer(environment, finding.pointer);
   const list = target?.value;
-  if (!Array.isArray(list)) return skipped('대상 다국어 필드를 찾을 수 없습니다.');
+  if (!Array.isArray(list)) return skipped(tr('대상 다국어 필드를 찾을 수 없습니다.'));
 
   const seen = new Set<string>();
   const kept: LangString[] = [];
@@ -554,14 +556,14 @@ const fixDuplicateLanguage: Fixer = ({ environment, finding }) => {
     seen.add(item.language);
     kept.push(item);
   }
-  if (dropped.length === 0) return skipped('중복 언어 태그가 없습니다.');
+  if (dropped.length === 0) return skipped(tr('중복 언어 태그가 없습니다.'));
 
   list.length = 0;
   list.push(...kept);
   return applied(
     // 텍스트는 손대지 않는다. 언어 태그 오타의 근거가 없는 상태에서 번역을 창작하면
     // KTL §7(템플릿 원본 유지)을 정면으로 어기게 된다.
-    `중복 언어 태그 ${dropped.length}건을 제거했습니다(먼저 나온 항목을 남깁니다).`,
+    fill(tr('중복 언어 태그 {0}건을 제거했습니다(먼저 나온 항목을 남깁니다).'), { 0: dropped.length }),
     dropped,
     kept,
   );
@@ -583,18 +585,18 @@ const fixDuplicateLanguage: Fixer = ({ environment, finding }) => {
  */
 const fixListValueType: Fixer = ({ environment, finding }) => {
   if (!finding.pointer.endsWith('/valueTypeListElement')) {
-    return skipped('리스트 안의 타입·semanticId 불일치는 어느 쪽이 맞는지 사람이 정해야 합니다.');
+    return skipped(tr('리스트 안의 타입·semanticId 불일치는 어느 쪽이 맞는지 사람이 정해야 합니다.'));
   }
   const list = resolvePointer(environment, parentPointer(finding.pointer))?.value as
     | { value?: { valueType?: string }[]; valueTypeListElement?: string }
     | undefined;
-  if (!list) return skipped('대상 리스트를 찾을 수 없습니다.');
+  if (!list) return skipped(tr('대상 리스트를 찾을 수 없습니다.'));
   const types = [...new Set((list.value ?? []).map((child) => child.valueType).filter((t): t is string => !!t))];
   if (types.length !== 1) {
-    return skipped(`자식들의 valueType이 하나로 모이지 않습니다(${types.join(', ') || '없음'}) — 리스트 안의 값 타입을 먼저 통일하십시오.`);
+    return skipped(fill(tr('자식들의 valueType이 하나로 모이지 않습니다({0}) — 리스트 안의 값 타입을 먼저 통일하십시오.'), { 0: types.join(', ') || tr('없음') }));
   }
   list.valueTypeListElement = types[0];
-  return applied(`valueTypeListElement를 자식들의 valueType(${types[0]})으로 지정했습니다.`, undefined, types[0]);
+  return applied(fill(tr('valueTypeListElement를 자식들의 valueType({0})으로 지정했습니다.'), { 0: types[0] }), undefined, types[0]);
 };
 
 export const FIXERS: Readonly<Record<string, Fixer>> = {
@@ -698,7 +700,7 @@ export function applyFixes(
 
       const fixer = fixers[finding.ruleId];
       if (!fixer) {
-        note(finding, '이 규칙에는 자동 교정기가 없습니다. 사람이 판단해야 합니다.');
+        note(finding, tr('이 규칙에는 자동 교정기가 없습니다. 사람이 판단해야 합니다.'));
         continue;
       }
 
@@ -715,7 +717,7 @@ export function applyFixes(
         outcome = fixer(input);
       } catch (error) {
         // 교정 하나가 터져도 나머지는 진행한다 — 저작 UI에서 편집 세션이 통째로 죽으면 안 된다
-        outcome = skipped(`교정 중 오류: ${error instanceof Error ? error.message : String(error)}`);
+        outcome = skipped(fill(tr('교정 중 오류: {0}'), { 0: error instanceof Error ? error.message : String(error) }));
       }
 
       if (outcome.status === 'applied') {

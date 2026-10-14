@@ -24,7 +24,7 @@ import {
   zipArchive,
   type AasxLimits,
 } from '@aas/aasx';
-import { PRODUCT_NAME, PRODUCT_VERSION, type Environment } from '@aas/core';
+import { fill, PRODUCT_NAME, PRODUCT_VERSION, tr, type Environment } from '@aas/core';
 import { currentActor } from '@aas/store';
 import {
   ALL_RULES,
@@ -58,6 +58,7 @@ import {
 import {
   EVIDENCE_LEVELS,
   evidenceCsv,
+  evidenceLevelNames,
   evidenceHtml,
   gatherEvidence,
   suggestedLevel,
@@ -67,29 +68,41 @@ import {
 import type { Route } from '../router.js';
 import { localTimestamp } from './packages.js';
 
-/** 레퍼런스 번들 분류 7건 — 코드는 manifest와 파일명에 쓴다 */
+/**
+ * 레퍼런스 번들 분류 7건 — 코드는 manifest와 파일명에 쓴다.
+ * 🔴 이름은 사업이 정한 값이고 기본 제목 = 번들 폴더 이름이 된다 — 한국어 그대로 둔다.
+ *    사람이 읽는 자리(README)에서만 `tr()`로 옮긴다(사전: en/bundle.ts)
+ */
 export const BUNDLE_CATEGORIES: Record<string, string> = {
-  RB01: '생산최적화/품질관리',
+  RB01: '생산최적화/품질관리', // i18n-ignore — 분류 이름(위 설명)
   RB02: '에너지효율/지속가능성',
-  RB03: '유연생산/자산관리',
+  RB03: '유연생산/자산관리', // i18n-ignore — 분류 이름(위 설명)
   RB04: '데이터통합/보안',
-  RB05: '지능형 자율제조/AI 에이전트',
+  RB05: '지능형 자율제조/AI 에이전트', // i18n-ignore — 분류 이름(위 설명)
   RB06: '설비 예지보전(PdM)',
-  RB07: '공급망 디지털 연결',
+  RB07: '공급망 디지털 연결', // i18n-ignore — 분류 이름(위 설명)
 };
 
 export const BUNDLE_MANIFEST = 'bundle-manifest.json';
 export const BUNDLE_SCHEMA = 'wace-reference-bundle/1';
 
 const FOLDERS = {
-  process: '00_공정구성',
+  process: '00_공정구성', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
   usecase: '01_UseCase문서',
-  models: '02_참조모델',
+  models: '02_참조모델', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
   guidance: '03_가이던스',
-  linkage: '04_데이터연계정의',
+  linkage: '04_데이터연계정의', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
   samples: '05_샘플데이터',
-  evidence: '06_검증결과',
+  evidence: '06_검증결과', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
 } as const;
+
+/** 번들 안 파일 경로 — README · manifest · 작성 안내가 같은 글자를 쓴다 */
+// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+const LINKAGE_CSV = `${FOLDERS.linkage}/연계항목_초안.csv`;
+// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+const EVIDENCE_HTML = `${FOLDERS.evidence}/수집기록.html`;
+// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+const SAMPLES_CSV = `${FOLDERS.samples}/수집값_*.csv`;
 
 const sha256 = (data: Uint8Array): string => createHash('sha256').update(data).digest('hex');
 const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -181,14 +194,14 @@ async function hierarchyOf(store: AasStore, packageId: string): Promise<Hierarch
 
 export async function resolveBundle(store: AasStore, packageId: string): Promise<ResolvedBundle> {
   const process = await store.getPackage(packageId);
-  if (!process) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+  if (!process) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
   const processInfo = await shellInfo(store, packageId);
   const top = await hierarchyOf(store, packageId);
   if (!top || !isComposite(processInfo)) {
     throw new ApiError(
       400,
       'BadRequest',
-      '번들은 공정(묶음) 파일에서 만듭니다 — 이 파일은 설비 한 대 파일입니다.',
+      tr('번들은 공정(묶음) 파일에서 만듭니다 — 이 파일은 설비 한 대 파일입니다.'),
     );
   }
 
@@ -292,22 +305,22 @@ function evidenceWindow(request: ApiRequest, now: Date): { from?: string } {
   if (raw === undefined || raw === '' || raw === 'all') return {};
   const minutes = Number(raw);
   if (!Number.isFinite(minutes) || minutes <= 0) {
-    throw new ApiError(400, 'BadRequest', `evidenceMinutes는 양수(분)입니다: ${raw}`);
+    throw new ApiError(400, 'BadRequest', fill(tr('evidenceMinutes는 양수(분)입니다: {0}'), { 0: raw }));
   }
   return { from: new Date(now.getTime() - minutes * 60_000).toISOString() };
 }
 
 function bundleOptions(request: ApiRequest, fallbackTitle: string): BundleOptions {
   const code = (request.query['code'] ?? 'RB00').toUpperCase();
-  if (!/^RB\d{2}$/.test(code)) throw new ApiError(400, 'BadRequest', '번들 코드는 RB01 형식입니다.');
+  if (!/^RB\d{2}$/.test(code)) throw new ApiError(400, 'BadRequest', tr('번들 코드는 RB01 형식입니다.'));
   const version = request.query['version'] ?? '1.0.0';
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
-    throw new ApiError(400, 'BadRequest', '버전은 1.0.0 형식입니다(운영 가이드라인과 같은 3자리).');
+    throw new ApiError(400, 'BadRequest', tr('버전은 1.0.0 형식입니다(운영 가이드라인과 같은 3자리).'));
   }
   const title = (request.query['title'] ?? '').trim() || BUNDLE_CATEGORIES[code] || fallbackTitle;
   const evidence = (request.query['evidence'] ?? 'auto').toUpperCase();
   if (!['A', 'B', 'C', 'AUTO', 'NONE'].includes(evidence)) {
-    throw new ApiError(400, 'BadRequest', '증빙 수준은 A·B·C·auto·none 중 하나입니다.');
+    throw new ApiError(400, 'BadRequest', tr('증빙 수준은 A·B·C·auto·none 중 하나입니다.'));
   }
   return {
     code,
@@ -326,15 +339,15 @@ function treeText(rootName: string, members: BundleMember[]): string {
     if (group && group !== lastGroup) lines.push(`  ▦ ${group}`);
     lastGroup = group;
     const indent = group ? '      ' : '  ';
-    const count = member.bulkCount > 1 ? ` ×${member.bulkCount}대` : '';
-    const file = member.record ? member.record.name : '(파일 없음 — 예정)';
+    const count = member.bulkCount > 1 ? ` ${fill(tr('×{0}대'), { 0: member.bulkCount })}` : '';
+    const file = member.record ? member.record.name : tr('(파일 없음 — 예정)');
     lines.push(`${indent}⚙ ${member.name}${count}  ${file}`);
   }
   return lines.join('\n');
 }
 
 const pendingNote = (title: string, lines: string[]): string =>
-  [`# ${title}`, '', '> 이 파일은 **채울 자리 안내**입니다. 도구가 문서를 대신 쓰지 않습니다.', '', ...lines, ''].join('\n');
+  [`# ${title}`, '', tr('> 이 파일은 **채울 자리 안내**입니다. 도구가 문서를 대신 쓰지 않습니다.'), '', ...lines, ''].join('\n');
 
 /** manifest·README·화면이 함께 쓰는 증빙 요약 — 값 자체는 빼고 */
 function evidenceEntry(source: EvidenceSource, file?: string) {
@@ -382,8 +395,9 @@ export async function buildBundle(
     const path = `${FOLDERS.process}/${safeName(record.name)}`;
     put(path, data);
     put(
+      // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
       `${FOLDERS.evidence}/사전점검_${safeName(record.name.replace(/\.aasx$/i, ''))}.html`,
-      formatHtmlReport(result, { title: `${record.name} (공정 구성 — 사전 점검)`, generatedAt: printed, policy: effectivePolicy }),
+      formatHtmlReport(result, { title: fill(tr('{0} (공정 구성 — 사전 점검)'), { 0: record.name }), generatedAt: printed, policy: effectivePolicy }),
     );
     const shell = pkg.environment.assetAdministrationShells?.[0];
     processFiles.push({
@@ -432,8 +446,9 @@ export async function buildBundle(
       packed.set(member.record.id, path);
       put(path, data);
       put(
+        // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
         `${FOLDERS.evidence}/사전점검_${safeName(member.record.name.replace(/\.aasx$/i, ''))}.html`,
-        formatHtmlReport(result, { title: `${member.record.name} (사전 점검)`, generatedAt: printed, policy: effectivePolicy }),
+        formatHtmlReport(result, { title: fill(tr('{0} (사전 점검)'), { 0: member.record.name }), generatedAt: printed, policy: effectivePolicy }),
       );
       entry = {
         file: path,
@@ -480,14 +495,17 @@ export async function buildBundle(
   const evidenceEntries: Record<string, unknown>[] = [...(carried?.entries ?? []).map((e) => ({ ...e, carried: true }))];
   if (evidenceSources.length > 0) {
     for (const source of evidenceSources) {
+      // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
       const csvPath = `${FOLDERS.samples}/수집값_${safeName(source.instance)}.csv`;
       put(csvPath, evidenceCsv(source));
       evidenceEntries.push(evidenceEntry(source, csvPath));
     }
     put(
+      // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
       `${FOLDERS.evidence}/수집기록.html`,
       evidenceHtml({
-        title: `${options.code} ${options.title}`,
+        // 제목이 분류 이름 그대로면(기본값) 그 이름도 옮긴다(README와 같은 규칙)
+        title: `${options.code} ${tr(options.title)}`,
         level,
         generatedAt: printed,
         tool: `${PRODUCT_NAME} ${PRODUCT_VERSION}`,
@@ -498,55 +516,64 @@ export async function buildBundle(
 
   // ③ 연계 정의 — 공통 항목표(초안). 「연계 키」「KPI 용도」는 사람이 채운다
   const linkage = await linkageFor(store, resolved);
+  // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
   put(`${FOLDERS.linkage}/연계항목_초안.csv`, linkageCsv(linkage));
   const findingLines = linkage.findings.map((f) => `- ${f.severity === 'warning' ? '⚠' : 'ℹ'} ${f.message}`);
   put(
+    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
     `${FOLDERS.linkage}/연계_확인사항.md`,
     [
-      '# 데이터 연계 — 확인할 점',
+      tr('# 데이터 연계 — 확인할 점'),
       '',
-      `분석 대상: 설비 ${linkage.members.length}대의 OperationalData · 공통 항목(2대 이상) ${linkage.items.filter((i) => i.coverage >= 2).length}개`,
-      linkage.missing.length > 0 ? `\n분석에서 빠진 설비(파일 없음): ${linkage.missing.join(', ')}` : '',
+      fill(tr('분석 대상: 설비 {0}대의 OperationalData · 공통 항목(2대 이상) {1}개'), {
+        0: linkage.members.length,
+        1: linkage.items.filter((i) => i.coverage >= 2).length,
+      }),
+      linkage.missing.length > 0 ? `\n${fill(tr('분석에서 빠진 설비(파일 없음): {0}'), { 0: linkage.missing.join(', ') })}` : '',
       '',
-      '연계 매핑은 **semanticId만으로 잡지 말고 경로(idShort 경로)를 함께** 적습니다.',
-      '같은 semanticId를 서로 다른 개념이 쓰는 사례가 실측으로 확인됐습니다(사업 참조모델 30종, 2026-09-30).',
+      tr('연계 매핑은 **semanticId만으로 잡지 말고 경로(idShort 경로)를 함께** 적습니다.'),
+      tr('같은 semanticId를 서로 다른 개념이 쓰는 사례가 실측으로 확인됐습니다(사업 참조모델 30종, 2026-09-30).'),
       '',
-      ...(findingLines.length > 0 ? findingLines : ['- 확인할 점 없음']),
+      ...(findingLines.length > 0 ? findingLines : [tr('- 확인할 점 없음')]),
       '',
     ].join('\n'),
   );
 
   // ④ 채울 자리 — 문서는 사람이 쓴다
   put(
+    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
     `${FOLDERS.usecase}/_작성안내.md`,
-    pendingNote('Use-Case 문서 (hwpx 또는 docx + pdf)', [
-      '목차(안) — 추진방안 §2.2',
+    pendingNote(tr('Use-Case 문서 (hwpx 또는 docx + pdf)'), [
+      tr('목차(안) — 추진방안 §2.2'),
       '',
-      '1. 개요: 카테고리, 대상 업종·공정, 현장 문제, **데이터 출처와 증빙 수준(A 현장 적용 / B 실장비 재현 / C 시뮬레이션)**',
-      '2. 공정 흐름과 장비 구성 — `README.md`의 구성 트리, 「문서용 자료」의 구성도',
-      '3. Use-Case 시나리오: 붙임6 매핑 근거, 액터, 단계별 흐름',
-      `4. 데이터 연계 구조 — \`${FOLDERS.linkage}/연계항목_초안.csv\``,
-      '5. KPI 산출: 산식, 필요한 Property, 샘플 계산',
-      '6. 실증: BaSyx 통합 적재, REST 조회 예시, 시연 화면',
-      '7. 중소기업 도입 절차: 다운로드 → 자사 값 입력 → 연동',
-      '8. 부록: 용어, 참조 표준, 용어사전 버전',
+      tr('1. 개요: 카테고리, 대상 업종·공정, 현장 문제, **데이터 출처와 증빙 수준(A 현장 적용 / B 실장비 재현 / C 시뮬레이션)**'),
+      tr('2. 공정 흐름과 장비 구성 — `README.md`의 구성 트리, 「문서용 자료」의 구성도'),
+      tr('3. Use-Case 시나리오: 붙임6 매핑 근거, 액터, 단계별 흐름'),
+      fill(tr('4. 데이터 연계 구조 — `{0}`'), { 0: LINKAGE_CSV }),
+      tr('5. KPI 산출: 산식, 필요한 Property, 샘플 계산'),
+      tr('6. 실증: BaSyx 통합 적재, REST 조회 예시, 시연 화면'),
+      tr('7. 중소기업 도입 절차: 다운로드 → 자사 값 입력 → 연동'),
+      tr('8. 부록: 용어, 참조 표준, 용어사전 버전'),
     ]),
   );
   put(
+    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
     `${FOLDERS.guidance}/_작성안내.md`,
-    pendingNote('가이던스 (장비별 1:1)', [
-      '아래 설비마다 작성한 가이던스를 넣습니다. 참조모델과 **같은 버전**이어야 합니다.',
+    pendingNote(tr('가이던스 (장비별 1:1)'), [
+      tr('아래 설비마다 작성한 가이던스를 넣습니다. 참조모델과 **같은 버전**이어야 합니다.'),
       '',
       ...[...new Set(resolved.members.filter((m) => m.record).map((m) => m.record!.name))].map(
+        // i18n-ignore — 넣을 파일 이름(제출 묶음 규격의 가이던스 파일명)
         (name) => `- [ ] ${name.replace(/\.aasx$/i, '')}_AAS활용가이던스`,
       ),
     ]),
   );
   put(
+    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
     `${FOLDERS.samples}/_작성안내.md`,
-    pendingNote('샘플 데이터 (KPI 산출용)', [
-      '- 🔴 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).',
-      '- 가상 PLC 데이터는 파일명과 본문에 **「시뮬레이션」** 을 표기합니다.',
+    pendingNote(tr('샘플 데이터 (KPI 산출용)'), [
+      tr('- 🔴 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).'),
+      tr('- 가상 PLC 데이터는 파일명과 본문에 **「시뮬레이션」** 을 표기합니다.'),
     ]),
   );
 
@@ -584,15 +611,15 @@ export async function buildBundle(
     models,
     planned,
     linkage: {
-      file: `${FOLDERS.linkage}/연계항목_초안.csv`,
+      file: LINKAGE_CSV,
       analyzedMembers: linkage.members.length,
       commonItems: linkage.items.filter((i) => i.coverage >= 2).length,
       warnings: linkage.findings.filter((f) => f.severity === 'warning').length,
     },
     notes: [
-      '모델의 공식 검증(KOSMO Validator)은 장비별 AASX를 만들 때 받는 것이다. 여기 lint는 번들에 넣은 모델을 이 도구가 다시 확인한 참고 기록이다.',
-      '번들 자체의 확인은 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 한다.',
-      '공정 구성 파일은 참조모델에 포함하지 않는다(설비 필수 서브모델 4종이 없다).',
+      tr('모델의 공식 검증(KOSMO Validator)은 장비별 AASX를 만들 때 받는 것이다. 여기 lint는 번들에 넣은 모델을 이 도구가 다시 확인한 참고 기록이다.'),
+      tr('번들 자체의 확인은 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 한다.'),
+      tr('공정 구성 파일은 참조모델에 포함하지 않는다(설비 필수 서브모델 4종이 없다).'),
     ],
   };
   put(BUNDLE_MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -603,87 +630,104 @@ export async function buildBundle(
   put(
     'README.md',
     [
-      `# ${options.code} ${options.title} — 레퍼런스 번들 v${options.version}`,
+      // 제목이 분류 이름 그대로면(기본값) 그 이름도 옮긴다 — 사람이 적은 제목은 사전에 없어 그대로 나간다
+      fill(tr('# {0} {1} — 레퍼런스 번들 v{2}'), { 0: options.code, 1: tr(options.title), 2: options.version }),
       '',
-      `- 카테고리: ${BUNDLE_CATEGORIES[options.code] ?? '(미지정)'}`,
-      `- 만든 날: ${stamp.slice(0, 10)} · 도구: ${PRODUCT_NAME} ${PRODUCT_VERSION}`,
-      ...(exporter ? [`- 내보낸 사람: ${exporter.name}`] : []),
+      fill(tr('- 카테고리: {0}'), { 0: BUNDLE_CATEGORIES[options.code] ? tr(BUNDLE_CATEGORIES[options.code]!) : tr('(미지정)') }),
+      fill(tr('- 만든 날: {0} · 도구: {1} {2}'), { 0: stamp.slice(0, 10), 1: PRODUCT_NAME, 2: PRODUCT_VERSION }),
+      ...(exporter ? [fill(tr('- 내보낸 사람: {0}'), { 0: exporter.name })] : []),
       level
-        ? `- 증빙 수준: **${level}** — ${EVIDENCE_LEVELS[level]}`
-        : `- 증빙 수준: **(사람이 채움 — A 현장 적용 / B 실장비 재현 / C 시뮬레이션)**`,
+        ? fill(tr('- 증빙 수준: **{0}** — {1}'), { 0: level, 1: tr(EVIDENCE_LEVELS[level]) })
+        : tr('- 증빙 수준: **(사람이 채움 — A 현장 적용 / B 실장비 재현 / C 시뮬레이션)**'),
       '',
-      '## 공정 구성',
+      tr('## 공정 구성'),
       '',
       '```',
       treeText(resolved.processInfo.idShort ?? resolved.process.name, resolved.members),
       '```',
       '',
-      '## 포함 참조모델',
+      tr('## 포함 참조모델'),
       '',
-      '| 파일 | 버전 | SHA256(앞 12자) | 원본 | 사전 점검 |',
+      tr('| 파일 | 버전 | SHA256(앞 12자) | 원본 | 사전 점검 |'),
       '|---|---|---|---|---|',
       ...uniqueModels.map(
         (m) =>
-          `| ${m.sourceName} | ${m.version ?? '-'}.${m.revision ?? '-'} | \`${m.sha256.slice(0, 12)}\` | ${m.original ? '올린 파일 그대로' : '⚠ 도구에서 고쳐 다시 포장'} | ${m.lint.passed ? '통과' : `위반 ${m.lint.error}`} · 경고 ${m.lint.warning} |`,
+          fill(tr('| {0} | {1}.{2} | `{3}` | {4} | {5} · 경고 {6} |'), {
+            0: m.sourceName,
+            1: m.version ?? '-',
+            2: m.revision ?? '-',
+            3: m.sha256.slice(0, 12),
+            4: m.original ? tr('올린 파일 그대로') : tr('⚠ 도구에서 고쳐 다시 포장'),
+            5: m.lint.passed ? tr('통과') : fill(tr('위반 {0}'), { 0: m.lint.error }),
+            6: m.lint.warning,
+          }),
       ),
       ...(planned.length > 0
-        ? ['', `**파일이 없는 설비(예정)**: ${planned.map((p) => p.assetName).join(', ')} — 번들 완성 전에 채웁니다.`]
+        ? ['', fill(tr('**파일이 없는 설비(예정)**: {0} — 번들 완성 전에 채웁니다.'), { 0: planned.map((p) => p.assetName).join(', ') })]
         : []),
       ...(models.some((m) => m.demo)
         ? [
             '',
-            `> ⚡ **시연본 포함**: ${[...new Set(models.filter((m) => m.demo).map((m) => m.sourceName))].join(', ')} — 수집 연결(AID)이 붙어 있습니다.`,
-            '> 정식 번들에는 수집 연결이 없는 **원본 참조모델**을 넣으십시오.',
+            fill(tr('> ⚡ **시연본 포함**: {0} — 수집 연결(AID)이 붙어 있습니다.'), {
+              0: [...new Set(models.filter((m) => m.demo).map((m) => m.sourceName))].join(', '),
+            }),
+            tr('> 정식 번들에는 수집 연결이 없는 **원본 참조모델**을 넣으십시오.'),
           ]
         : []),
       '',
-      '## 실동작 증빙',
+      tr('## 실동작 증빙'),
       '',
       ...(carried
         ? [
-            `> 이전 번들(${carried.from.code ?? ''} v${carried.from.version ?? '?'})에서 **이어받은 수집 기록**입니다 — 이번에 새로 모은 값은 없습니다.`,
+            fill(tr('> 이전 번들({0} v{1})에서 **이어받은 수집 기록**입니다 — 이번에 새로 모은 값은 없습니다.'), {
+              0: carried.from.code ?? '',
+              1: carried.from.version ?? '?',
+            }),
             '',
           ]
         : []),
       ...(evidenceEntries.length > 0
         ? [
-            `시연 대신 **수집 기록**을 싣습니다 — \`${FOLDERS.evidence}/수집기록.html\`(인쇄하면 PDF), 전체 값은 \`${FOLDERS.samples}/수집값_*.csv\`.`,
+            fill(tr('시연 대신 **수집 기록**을 싣습니다 — `{0}`(인쇄하면 PDF), 전체 값은 `{1}`.'), {
+              0: EVIDENCE_HTML,
+              1: SAMPLES_CSV,
+            }),
             '',
-            '| 설비(형식) | 값을 모은 파일 | 수집 연결 | 기간 | 건수 |',
+            tr('| 설비(형식) | 값을 모은 파일 | 수집 연결 | 기간 | 건수 |'),
             '|---|---|---|---|---|',
             ...(evidenceEntries as ReturnType<typeof evidenceEntry>[]).map(
               (e) =>
-                `| ${e.model} | ${e.instance}${e.direct ? '' : ' (파생 호기)'} | ${e.interfaces.map((i) => `${i.title} \`${i.endpoint}\``).join('<br>')} | ${localTimestamp(new Date(e.from))} ~ ${localTimestamp(new Date(e.to)).slice(11)} | ${e.samples} |`,
+                `| ${e.model} | ${e.instance}${e.direct ? '' : ` ${tr('(파생 호기)')}`} | ${e.interfaces.map((i) => `${i.title} \`${i.endpoint}\``).join('<br>')} | ${localTimestamp(new Date(e.from))} ~ ${localTimestamp(new Date(e.to)).slice(11)} | ${e.samples} |`,
             ),
           ]
-        : ['수집 기록이 없습니다. 이 번들의 설비(또는 「호기별로 나누기」로 만든 호기)를 수집한 뒤 다시 내보내면 여기에 실립니다.']),
+        : [tr('수집 기록이 없습니다. 이 번들의 설비(또는 「호기별로 나누기」로 만든 호기)를 수집한 뒤 다시 내보내면 여기에 실립니다.')]),
       '',
-      '### 재현 방법 — 누구나 직접 돌려 볼 수 있습니다',
+      tr('### 재현 방법 — 누구나 직접 돌려 볼 수 있습니다'),
       '',
-      '1. AAS 저작 도구(설치판)를 띄우고 **「번들 열기」**로 이 ZIP을 엽니다 — 알림 띠에 해시 일치가 나옵니다',
-      '2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 세우고 수집 연결을 만듭니다',
-      '3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오',
+      tr('1. AAS 저작 도구(설치판)를 띄우고 **「번들 열기」**로 이 ZIP을 엽니다 — 알림 띠에 해시 일치가 나옵니다'),
+      tr('2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 세우고 수집 연결을 만듭니다'),
+      tr('3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오'),
       '',
-      '## 사람이 넣은 문서',
+      tr('## 사람이 넣은 문서'),
       '',
       ...(attachments.length > 0
-        ? ['| 파일 | 크기 |', '|---|---|', ...attachments.map((a) => `| ${a.path} | ${(a.size / 1024).toFixed(1)} KB |`)]
-        : ['아직 없습니다 — Use-Case 문서와 장비별 가이던스를 해당 폴더에 넣으십시오(도구 「레퍼런스 번들 → 문서·첨부」에서 올리면 다시 열어도 보존됩니다).']),
+        ? [tr('| 파일 | 크기 |'), '|---|---|', ...attachments.map((a) => `| ${a.path} | ${(a.size / 1024).toFixed(1)} KB |`)]
+        : [tr('아직 없습니다 — Use-Case 문서와 장비별 가이던스를 해당 폴더에 넣으십시오(도구 「레퍼런스 번들 → 문서·첨부」에서 올리면 다시 열어도 보존됩니다).')]),
       '',
-      '## 폴더',
+      tr('## 폴더'),
       '',
-      `| 폴더 | 내용 |`,
+      tr('| 폴더 | 내용 |'),
       '|---|---|',
-      `| ${FOLDERS.process} | 공정 구성 파일(HierarchicalStructures). 참조모델에 포함하지 않음 |`,
-      `| ${FOLDERS.usecase} | Use-Case 문서 — 작성 안내 |`,
-      `| ${FOLDERS.models} | 설비 참조모델 AASX (해시는 ${BUNDLE_MANIFEST}) |`,
-      `| ${FOLDERS.guidance} | 장비별 가이던스 — 넣을 목록 |`,
-      `| ${FOLDERS.linkage} | 연계 항목 초안(CSV) · 확인할 점 |`,
-      `| ${FOLDERS.samples} | KPI 산출용 샘플 데이터(수집값 CSV) — 비식별화 |`,
-      `| ${FOLDERS.evidence} | 사전 점검 결과서(참고) · 수집 기록서(HTML) |`,
+      fill(tr('| {0} | 공정 구성 파일(HierarchicalStructures). 참조모델에 포함하지 않음 |'), { 0: FOLDERS.process }),
+      fill(tr('| {0} | Use-Case 문서 — 작성 안내 |'), { 0: FOLDERS.usecase }),
+      fill(tr('| {0} | 설비 참조모델 AASX (해시는 {1}) |'), { 0: FOLDERS.models, 1: BUNDLE_MANIFEST }),
+      fill(tr('| {0} | 장비별 가이던스 — 넣을 목록 |'), { 0: FOLDERS.guidance }),
+      fill(tr('| {0} | 연계 항목 초안(CSV) · 확인할 점 |'), { 0: FOLDERS.linkage }),
+      fill(tr('| {0} | KPI 산출용 샘플 데이터(수집값 CSV) — 비식별화 |'), { 0: FOLDERS.samples }),
+      fill(tr('| {0} | 사전 점검 결과서(참고) · 수집 기록서(HTML) |'), { 0: FOLDERS.evidence }),
       '',
-      '> 참조모델의 공식 검증(KOSMO Validator)은 **장비별 AASX를 만들 때** 받은 것입니다. 이 번들의 사전 점검은 넣은 모델을 다시 확인한 참고 기록이고,',
-      '> 번들 자체는 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 확인합니다.',
+      tr('> 참조모델의 공식 검증(KOSMO Validator)은 **장비별 AASX를 만들 때** 받은 것입니다. 이 번들의 사전 점검은 넣은 모델을 다시 확인한 참고 기록이고,'),
+      tr('> 번들 자체는 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 확인합니다.'),
       '',
     ].join('\n'),
   );
@@ -723,7 +767,7 @@ export async function importBundle(
   }
   const manifestPath = Object.keys(entries).find((p) => p === BUNDLE_MANIFEST || p.endsWith(`/${BUNDLE_MANIFEST}`));
   if (!manifestPath) {
-    throw new ApiError(400, 'BadRequest', `${BUNDLE_MANIFEST}가 없습니다 — 이 도구로 만든 레퍼런스 번들이 아닙니다.`);
+    throw new ApiError(400, 'BadRequest', fill(tr('{0}가 없습니다 — 이 도구로 만든 레퍼런스 번들이 아닙니다.'), { 0: BUNDLE_MANIFEST }));
   }
   let manifest: {
     schema?: string;
@@ -734,10 +778,10 @@ export async function importBundle(
   try {
     manifest = JSON.parse(new TextDecoder().decode(entries[manifestPath]));
   } catch {
-    throw new ApiError(400, 'BadRequest', `${BUNDLE_MANIFEST}를 읽을 수 없습니다.`);
+    throw new ApiError(400, 'BadRequest', fill(tr('{0}를 읽을 수 없습니다.'), { 0: BUNDLE_MANIFEST }));
   }
   if (manifest.schema !== BUNDLE_SCHEMA) {
-    throw new ApiError(400, 'BadRequest', `지원하지 않는 번들 형식입니다: ${String(manifest.schema)}`);
+    throw new ApiError(400, 'BadRequest', fill(tr('지원하지 않는 번들 형식입니다: {0}'), { 0: String(manifest.schema) }));
   }
   const base = manifestPath.slice(0, manifestPath.length - BUNDLE_MANIFEST.length);
   const expected = new Map<string, string>();
@@ -764,8 +808,8 @@ export async function importBundle(
     const digest = sha256(bytes);
     const want = expected.get(relative);
     const hashOk = want === undefined ? null : want === digest;
-    if (hashOk === false) problems.push(`${relative}: manifest의 해시와 다릅니다 — 번들을 만든 뒤 파일이 바뀌었습니다.`);
-    if (want === undefined) problems.push(`${relative}: manifest에 없는 파일입니다.`);
+    if (hashOk === false) problems.push(fill(tr('{0}: manifest의 해시와 다릅니다 — 번들을 만든 뒤 파일이 바뀌었습니다.'), { 0: relative }));
+    if (want === undefined) problems.push(fill(tr('{0}: manifest에 없는 파일입니다.'), { 0: relative }));
 
     let packageId = opened.get(digest);
     const reused = packageId !== undefined;
@@ -781,7 +825,7 @@ export async function importBundle(
   }
 
   for (const file of expected.keys()) {
-    if (!aasxPaths.some((p) => p.slice(base.length) === file)) problems.push(`${file}: manifest에 있는데 번들에 없습니다.`);
+    if (!aasxPaths.some((p) => p.slice(base.length) === file)) problems.push(fill(tr('{0}: manifest에 있는데 번들에 없습니다.'), { 0: file }));
   }
 
   // 사람이 넣은 파일을 공정 파일에 보관한다 — 다시 내보낼 때 되살린다(왕복 보존)
@@ -792,7 +836,7 @@ export async function importBundle(
       const relative = path.slice(base.length);
       if (/\.aasx$/i.test(relative) || isGeneratedPath(relative)) continue;
       if (!ATTACHMENT_FOLDERS.some((folder) => relative.startsWith(`${folder}/`))) {
-        problems.push(`${relative}: 번들 폴더(01·03~06) 밖이라 보관하지 않았습니다.`);
+        problems.push(fill(tr('{0}: 번들 폴더(01·03~06) 밖이라 보관하지 않았습니다.'), { 0: relative }));
         continue;
       }
       await saveAttachment(store, processPackageId, checkAttachmentPath(relative), bytes);
@@ -883,7 +927,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
           linkage,
           evidence: {
             suggested: suggestedLevel(sources),
-            levels: EVIDENCE_LEVELS,
+            levels: evidenceLevelNames(),
             sources: sources.map((s) => evidenceEntry(s)),
             // 번들을 열 때 이어받은 기록 — 새 수집이 없으면 이것이 실린다
             ...(carried ? { carried } : {}),
@@ -900,7 +944,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       async handle({ params, request }) {
         const packageId = params['packageId']!;
         const record = await store.getPackage(packageId);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const bundleOpts = bundleOptions(request, record.name.replace(/\.aasx$/i, ''));
         const minutes = request.query['evidenceMinutes'];
         if (minutes !== undefined && minutes !== '' && minutes !== 'all') {
@@ -926,7 +970,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       success: [204],
       async handle({ params, request }) {
         const resolved = await resolveBundle(store, params['packageId']!);
-        if (!(request.body instanceof Uint8Array)) throw new ApiError(400, 'BadRequest', '본문이 파일 바이트가 아닙니다.');
+        if (!(request.body instanceof Uint8Array)) throw new ApiError(400, 'BadRequest', tr('본문이 파일 바이트가 아닙니다.'));
         const path = checkAttachmentPath(request.query['path'] ?? '');
         await saveAttachment(store, resolved.process.id, path, request.body);
         return noContent();
@@ -940,7 +984,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       async handle({ params, request }) {
         const path = checkAttachmentPath(request.query['path'] ?? '');
         const found = (await listAttachments(store, params['packageId']!)).find((a) => a.path === path);
-        if (!found) throw new ApiError(404, 'NotFound', `첨부가 없습니다: ${path}`);
+        if (!found) throw new ApiError(404, 'NotFound', fill(tr('첨부가 없습니다: {0}'), { 0: path }));
         return {
           status: 200,
           headers: {
@@ -960,7 +1004,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
         try {
           await removeAttachment(store, params['packageId']!, path);
         } catch {
-          throw new ApiError(404, 'NotFound', `첨부가 없습니다: ${path}`);
+          throw new ApiError(404, 'NotFound', fill(tr('첨부가 없습니다: {0}'), { 0: path }));
         }
         return noContent();
       },
@@ -971,7 +1015,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       success: [201],
       async handle({ request }) {
         if (!(request.body instanceof Uint8Array)) {
-          throw new ApiError(400, 'BadRequest', '본문이 ZIP 바이트가 아닙니다.');
+          throw new ApiError(400, 'BadRequest', tr('본문이 ZIP 바이트가 아닙니다.'));
         }
         return json(201, await importBundle(store, request.body, options.aasxLimits ?? {}));
       },

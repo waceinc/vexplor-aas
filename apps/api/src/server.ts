@@ -31,6 +31,8 @@ import { corsFromEnv, corsHeaders, isPreflight, type CorsPolicy } from './cors.j
 import { demoOutboundAllowed, isHttps, OutboundBlockedError, securityHeaders, setupCode, setupCodeRequired } from './security.js';
 import { demoFromEnv, seedDemoUser, startDemoReset } from './demo.js';
 import { hashPassword, verifyPassword } from './password.js';
+import { fill, tr } from '@aas/core';
+import { bootLang, langOfRaw, runInLang } from './lang.js';
 
 /** 업로드 상한 — Zip Bomb 대비(기획서 Ⅷ 보안 항목). 기본 512MB */
 const DEFAULT_MAX_BODY = 512 * 1024 * 1024;
@@ -70,11 +72,14 @@ function policyFromFile(): Partial<LinterPolicy> {
   try {
     text = readFileSync(path, 'utf8');
   } catch (error) {
-    throw new Error(`정책 파일을 읽지 못했습니다: ${path} — ${String(error)}`);
+    throw new Error(fill(tr('정책 파일을 읽지 못했습니다: {0} — {1}'), { 0: path, 1: String(error) }));
   }
   const { policy, changed } = parsePolicy(text);
   console.log(
-    `  정책 파일: ${path} — ${changed.length === 0 ? '기본값과 같음' : `바꾼 항목 ${changed.join(', ')}`}`,
+    `  ${fill(tr('정책 파일: {0} — {1}'), {
+      0: path,
+      1: changed.length === 0 ? tr('기본값과 같음') : fill(tr('바꾼 항목 {0}'), { 0: changed.join(', ') }),
+    })}`,
   );
   return policy;
 }
@@ -101,7 +106,7 @@ async function readBody(request: IncomingMessage, limit: number): Promise<Uint8A
     const data = chunk as Uint8Array;
     size += data.length;
     if (size > limit) {
-      throw new ApiError(413, 'PayloadTooLarge', `본문이 상한(${limit} 바이트)을 넘었습니다.`);
+      throw new ApiError(413, 'PayloadTooLarge', fill(tr('본문이 상한({0} 바이트)을 넘었습니다.'), { 0: limit }));
     }
     chunks.push(data);
   }
@@ -181,15 +186,15 @@ export function createHttpServer(options: ServerOptions = {}): Server {
    */
   const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
     if (descriptor.protocol === 'MODBUS') {
-      if (!descriptor.base) throw new Error('EndpointMetadata.base가 없습니다.');
+      if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
       guardOutbound(descriptor.base);
       return (await fieldbus()).ModbusReader.connect(descriptor, { guard: guardOutbound });
     }
     if (descriptor.protocol === 'MQTT') return (await fieldbus()).MqttReader.connect(descriptor, { guard: guardOutbound });
     if (descriptor.protocol !== 'OPCUA') {
-      throw new Error(`아직 지원하지 않는 프로토콜입니다: ${descriptor.protocol}`);
+      throw new Error(fill(tr('아직 지원하지 않는 프로토콜입니다: {0}'), { 0: descriptor.protocol }));
     }
-    if (!descriptor.base) throw new Error('EndpointMetadata.base가 없습니다.');
+    if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
     guardOutbound(descriptor.base);
     return (await opcua()).OpcUaReader.connect({ endpoint: descriptor.base });
   };
@@ -228,7 +233,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
    *    그 전제가 통째로 깨진다. 둘을 함께 켠 것은 실수일 가능성이 높으니 거절하고 알린다.
    */
   if (demo && process.env['OPCUA_SERVER'] === 'on') {
-    console.error('  ⚠️  체험판(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.');
+    console.error('  ⚠️  ' + tr('체험판(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.'));
   }
   const publishing = process.env['OPCUA_SERVER'] === 'on' && !demo;
   let publisher: OpcUaPublisher | undefined;
@@ -246,7 +251,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       })
       .catch((error: unknown) => {
       console.error(
-        `  ⚠️  OPC UA 서버를 띄우지 못했습니다: ${error instanceof Error ? error.message : String(error)}`,
+        '  ⚠️  ' + fill(tr('OPC UA 서버를 띄우지 못했습니다: {0}'), { 0: error instanceof Error ? error.message : String(error) }),
       );
     });
   }
@@ -295,7 +300,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
                   running: false,
                   packages: 0,
                   variables: 0,
-                  reason: publishing ? 'OPC UA 서버를 띄우는 중입니다.' : 'OPCUA_SERVER=on이 아닙니다.',
+                  reason: publishing ? tr('OPC UA 서버를 띄우는 중입니다.') : tr('OPCUA_SERVER=on이 아닙니다.'),
                 },
           ),
       },
@@ -309,7 +314,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
               // collect — 수집(과 가상 PLC)을 쓸 수 있는 서버인가. 화면이 버튼을 보일지 여기서 정한다
               collect,
               running: false,
-              reason: 'COLLECT_INTERVAL이 설정되지 않았습니다 (수동 수집만).',
+              reason: tr('COLLECT_INTERVAL이 설정되지 않았습니다 (수동 수집만).'),
             });
           }
           const status = supervisor.status();
@@ -356,7 +361,9 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   let ready: Promise<void> | undefined;
 
   return createServer((request: IncomingMessage, response: ServerResponse) => {
-    void (async () => {
+    // 🔴 언어를 여기서 한 번 더 깐다 — 본문 상한(413)처럼 createApi에 닿기 전에 나가는 오류도
+    //    그 요청의 언어여야 한다. 기동 로그의 언어(AAS_LANG)가 요청으로 새지 않게 하는 뜻도 있다
+    void runInLang(langOfRaw(request.url, request.headers['accept-language']), async () => {
       try {
         // 정적 파일이 먼저다. 실제로 있는 파일일 때만 가로채므로 API 경로와 부딪히지 않는다.
         // 🔴 여기에는 인증을 걸지 않는다 — 화면이 떠야 사용자가 토큰을 넣을 수 있다
@@ -407,7 +414,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
         const fallback = toErrorResponse(error);
         write(response, fallback.status, fallback.headers, fallback.body);
       }
-    })();
+    });
   });
 }
 
@@ -478,11 +485,11 @@ async function storeFromEnv(): Promise<{ store: AasStore; kind: string }> {
     connectionString: url,
     ...(schema ? { schema } : {}),
   });
-  return { store, kind: `postgres${schema ? ` (schema ${schema})` : ''} · 수집값 ${timescale}` };
+  return { store, kind: fill(tr('postgres{0} · 수집값 {1}'), { 0: schema ? ` (schema ${schema})` : '', 1: timescale }) };
 }
 
-/** `node dist/server.js`로 바로 띄운다 */
-if (process.argv[1]?.endsWith('server.js')) {
+/** `node dist/server.js`로 바로 띄운다. 기동 로그 · 주기 작업의 글은 AAS_LANG의 언어로(lang.ts) */
+if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env), async () => {
   const port = Number(process.env['PORT'] ?? 8080);
   const { store: bootStore, kind } = await storeFromEnv();
   // 템플릿 폴더(선택) — 「다른 파일에서 가져오기」의 출처가 되는 AASX를 미리 올려 둔다
@@ -492,7 +499,7 @@ if (process.argv[1]?.endsWith('server.js')) {
   const retentionDays = retentionDaysFromEnv(process.env);
   const retention = startRetention(bootStore, retentionDays);
   const prunedAtBoot = await retention.pruneNow().catch((error: unknown) => {
-    console.error(`  ⚠️  수집값 정리 실패: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('  ⚠️  ' + fill(tr('수집값 정리 실패: {0}'), { 0: error instanceof Error ? error.message : String(error) }));
     return 0;
   });
   // 체험판 — 계정을 심고, 올린 것을 주기적으로 비운다(demo.ts)
@@ -517,25 +524,25 @@ if (process.argv[1]?.endsWith('server.js')) {
   }
 
   app.listen(port, bind.host, () => {
-    console.log(`AAS API가 http://localhost:${port} 에서 대기합니다.`);
-    console.log(`  Part 2 기저 경로: /packages/{packageId}/api/v3.0`);
-    console.log(`  저장소: ${kind}`);
+    console.log(fill(tr('AAS API가 http://localhost:{0} 에서 대기합니다.'), { 0: port }));
+    console.log('  ' + tr('Part 2 기저 경로: /packages/{packageId}/api/v3.0'));
+    console.log('  ' + fill(tr('저장소: {0}'), { 0: kind }));
     if (kind === 'memory') {
-      console.log('     ⚠️  서버를 끄면 올린 파일이 사라집니다.');
-      console.log('        남기려면 AAS_DATA_DIR=<폴더> (혼자 쓸 때) 또는 DATABASE_URL (여럿이 쓸 때).');
+      console.log('     ⚠️  ' + tr('서버를 끄면 올린 파일이 사라집니다.'));
+      console.log('        ' + tr('남기려면 AAS_DATA_DIR=<폴더> (혼자 쓸 때) 또는 DATABASE_URL (여럿이 쓸 때).'));
     } else if (kind.startsWith('folder')) {
-      console.log('     껐다 켜도 남습니다. 그 폴더를 통째로 복사하면 그대로 옮겨집니다.');
+      console.log('     ' + tr('껐다 켜도 남습니다. 그 폴더를 통째로 복사하면 그대로 옮겨집니다.'));
     }
     const root = webRootFrom(undefined);
-    console.log(root ? `  저작 UI: 같은 포트에서 내줍니다 (${root})` : '  저작 UI: 없음 (API만)');
+    console.log(root ? '  ' + fill(tr('저작 UI: 같은 포트에서 내줍니다 ({0})'), { 0: root }) : '  ' + tr('저작 UI: 없음 (API만)'));
     const corsOrigins = corsFromEnv(process.env).origins;
     if (corsOrigins.length > 0) {
-      console.log(`  교차 출처(CORS) 허용: ${corsOrigins.join(', ')}`);
-      if (corsOrigins.includes('*')) console.log('     ⚠️  모든 출처에 열려 있습니다 — 사내 배포면 도메인을 적으십시오.');
+      console.log('  ' + fill(tr('교차 출처(CORS) 허용: {0}'), { 0: corsOrigins.join(', ') }));
+      if (corsOrigins.includes('*')) console.log('     ⚠️  ' + tr('모든 출처에 열려 있습니다 — 사내 배포면 도메인을 적으십시오.'));
     }
     if (seeded) {
       console.log(
-        `  템플릿 폴더: ${templatesDir} — 새로 올림 ${seeded.added.length} · 이미 있음 ${seeded.skipped.length}`,
+        '  ' + fill(tr('템플릿 폴더: {0} — 새로 올림 {1} · 이미 있음 {2}'), { 0: templatesDir, 1: seeded.added.length, 2: seeded.skipped.length }),
       );
       for (const item of seeded.failed) console.log(`     ⚠️  ${item.name}: ${item.reason}`);
     }
@@ -543,63 +550,67 @@ if (process.argv[1]?.endsWith('server.js')) {
       const seconds = Number(process.env['COLLECT_INTERVAL']);
       console.log(
         Number.isFinite(seconds) && seconds > 0
-          ? `  수집(M8) 켜짐 — ${seconds}초마다 자동 수집 · GET /collect-status`
-          : '  수집(M8) 켜짐 — POST /packages/{id}/collect (수동). 자동은 COLLECT_INTERVAL=<초>',
+          ? '  ' + fill(tr('수집(M8) 켜짐 — {0}초마다 자동 수집 · GET /collect-status'), { 0: seconds })
+          : '  ' + tr('수집(M8) 켜짐 — POST /packages/{id}/collect (수동). 자동은 COLLECT_INTERVAL=<초>'),
       );
       console.log(
         retentionDays > 0
-          ? `     보존 기간 ${retentionDays}일 — 기동 때 ${prunedAtBoot}개 정리 · 한 시간마다 반복`
-          : '     보존 기간 없음(영구 보관) — 오래된 값을 지우려면 COLLECT_RETENTION_DAYS=<일>',
+          ? '     ' + fill(tr('보존 기간 {0}일 — 기동 때 {1}개 정리 · 한 시간마다 반복'), { 0: retentionDays, 1: prunedAtBoot })
+          : '     ' + tr('보존 기간 없음(영구 보관) — 오래된 값을 지우려면 COLLECT_RETENTION_DAYS=<일>'),
       );
     } else if (retentionDays > 0) {
-      console.log(`  수집값 보존 기간 ${retentionDays}일 — 기동 때 ${prunedAtBoot}개 정리`);
+      console.log('  ' + fill(tr('수집값 보존 기간 {0}일 — 기동 때 {1}개 정리'), { 0: retentionDays, 1: prunedAtBoot }));
     }
 
     // OPC UA 노출(M6·M7) — 상위 앱이 붙는 자리.
     // 🔴 체험판에서는 거절했으므로 **켜졌다고 말하면 안 된다**(실측으로 잡은 거짓 로그)
     if (process.env['OPCUA_SERVER'] === 'on' && bootDemo) {
-      console.log('  OPC UA 노출(M6·M7) — 🔴 **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).');
+      console.log('  ' + tr('OPC UA 노출(M6·M7) — 🔴 **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
     } else if (process.env['OPCUA_SERVER'] === 'on') {
       const uaPort = Number(process.env['OPCUA_PORT'] ?? 4840);
       const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
-      console.log(`  OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:${uaPort}/UA/AAS · ${every}초마다 갱신`);
-      console.log('     상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status');
+      console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: uaPort, 1: every }));
+      console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
       // 🔴 여기서 한 번은 말해야 한다 — HTTP는 토큰으로 막혀 있어도 이쪽은 아니다
-      console.log('     ⚠️  이 포트에는 인증이 없습니다. 사내망 밖으로 열지 마십시오.');
+      console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다. 사내망 밖으로 열지 마십시오.'));
     }
 
     // 체험판 — 무엇이 막혀 있고 무엇이 지워지는지 운영자가 기동할 때 알아야 한다
     if (bootDemo) {
       console.log('');
-      console.log('  🧪 체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.');
+      console.log('  🧪 ' + tr('체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.'));
       console.log(
-        `     데모 계정: ${bootDemo.login} / ${bootDemo.password}  (${demoSeeded === 'created' ? '지금 만들었습니다' : demoSeeded === 'updated' ? '설정에 맞춰 고쳤습니다' : '이미 있습니다'})`,
+        `     ${fill(tr('데모 계정: {0} / {1}  ({2})'), {
+          0: bootDemo.login,
+          1: bootDemo.password,
+          2: demoSeeded === 'created' ? tr('지금 만들었습니다') : demoSeeded === 'updated' ? tr('설정에 맞춰 고쳤습니다') : tr('이미 있습니다'),
+        })}`,
       );
-      console.log('     이 계정으로는 **파일을 내려받을 수 없습니다.** 가입한 계정은 받을 수 있습니다.');
-      console.log('     작업 공간은 **로그인마다 따로**입니다 — 같은 데모 계정으로 들어와도 서로의 파일을 못 봅니다.');
+      console.log('     ' + tr('이 계정으로는 **파일을 내려받을 수 없습니다.** 가입한 계정은 받을 수 있습니다.'));
+      console.log('     ' + tr('작업 공간은 **로그인마다 따로**입니다 — 같은 데모 계정으로 들어와도 서로의 파일을 못 봅니다.'));
       console.log(
         bootDemo.resetMinutes > 0
-          ? `     방문자가 ${bootDemo.resetMinutes}분 넘게 손대지 않은 파일은 지웁니다(가입한 사람의 파일은 남깁니다).`
-          : '     🔴 자동 정리가 꺼져 있습니다(AAS_DEMO_RESET_MINUTES=0) — 떠난 방문자의 파일이 계속 쌓입니다.',
+          ? '     ' + fill(tr('방문자가 {0}분 넘게 손대지 않은 파일은 지웁니다(가입한 사람의 파일은 남깁니다).'), { 0: bootDemo.resetMinutes })
+          : '     🔴 ' + tr('자동 정리가 꺼져 있습니다(AAS_DEMO_RESET_MINUTES=0) — 떠난 방문자의 파일이 계속 쌓입니다.'),
       );
     }
     if (process.env['AAS_WORKSPACE'] === 'private' && !bootDemo) {
-      console.log('  🗂  작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 저마다 자기가 올린 것만 봅니다.');
-      console.log('     관리자와 API 키는 전부 봅니다. 그 전에 올려 둔 파일은 모두에게 읽기 전용으로 보입니다.');
+      console.log('  🗂  ' + tr('작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 저마다 자기가 올린 것만 봅니다.'));
+      console.log('     ' + tr('관리자와 API 키는 전부 봅니다. 그 전에 올려 둔 파일은 모두에게 읽기 전용으로 보입니다.'));
       if (process.env['OPCUA_SERVER'] === 'on') {
         // 🔴 OPC UA 포트에는 인증이 없다 — 나눠 놓은 값이 그 포트로는 **누구에게나** 나간다
-        console.log('     ⚠️  OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.');
+        console.log('     ⚠️  ' + tr('OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.'));
       }
       if (isOpen(bootAuth) && bootUserCount === 0) {
         // 🔴 로그인이 없으면 가를 기준이 없다 — 켰다고 믿게 두면 안 된다
-        console.log('     ⚠️  계정도 API 키도 없으면 가를 수 없습니다 — 모두가 같은 칸을 씁니다. 계정을 먼저 만드십시오.');
+        console.log('     ⚠️  ' + tr('계정도 API 키도 없으면 가를 수 없습니다 — 모두가 같은 칸을 씁니다. 계정을 먼저 만드십시오.'));
       }
     }
     if (process.env['AAS_SIGNUP'] === 'on' || bootDemo) {
       const role = process.env['AAS_SIGNUP_ROLE'];
-      console.log(`  ✍️  스스로 가입할 수 있습니다 — 새 계정의 역할: ${role === 'viewer' ? 'viewer' : 'editor'}`);
+      console.log('  ✍️  ' + fill(tr('스스로 가입할 수 있습니다 — 새 계정의 역할: {0}'), { 0: role === 'viewer' ? 'viewer' : 'editor' }));
       if (role === 'admin') {
-        console.log('     ⚠️  AAS_SIGNUP_ROLE=admin은 받지 않습니다 — 가입하면 누구나 관리자가 됩니다. editor로 둡니다.');
+        console.log('     ⚠️  ' + tr('AAS_SIGNUP_ROLE=admin은 받지 않습니다 — 가입하면 누구나 관리자가 됩니다. editor로 둡니다.'));
       }
     }
 
@@ -607,9 +618,9 @@ if (process.argv[1]?.endsWith('server.js')) {
     // 🔴 로그를 볼 수 있다는 것이 「서버를 만질 수 있다」는 증거다. 그래서 여기에 찍는다
     if (setupCodeRequired(bind.protected)) {
       console.log('');
-      console.log(`  🔑 첫 관리자 설치 코드: ${setupCode(process.env)}`);
-      console.log('     계정이 하나도 없을 때 「첫 관리자 만들기」 화면이 이 값을 묻습니다.');
-      console.log('     계정을 만들고 나면 쓰이지 않습니다. 직접 정하려면 AAS_SETUP_CODE=<값>.');
+      console.log('  🔑 ' + fill(tr('첫 관리자 설치 코드: {0}'), { 0: setupCode(process.env) }));
+      console.log('     ' + tr('계정이 하나도 없을 때 「첫 관리자 만들기」 화면이 이 값을 묻습니다.'));
+      console.log('     ' + tr('계정을 만들고 나면 쓰이지 않습니다. 직접 정하려면 AAS_SETUP_CODE=<값>.'));
     }
 
     // 🔴 조용히 열려 있으면 안 된다. 사내에 올린 뒤 이 줄을 보고 알아채야 한다
@@ -617,21 +628,21 @@ if (process.argv[1]?.endsWith('server.js')) {
     if (isOpen(configured)) {
       console.log('');
       if (bind.protected) {
-        console.log('  🔒 보호 모드 — 토큰이 없어 **이 컴퓨터에서만** 열었습니다 (127.0.0.1).');
-        console.log('     다른 사람도 쓰게 하려면 AAS_TOKEN=<토큰>을 주고 다시 띄우십시오.');
-        console.log('     토큰 없이 밖으로 열려면 AAS_ALLOW_OPEN=1 (권하지 않습니다).');
+        console.log('  🔒 ' + tr('보호 모드 — 토큰이 없어 **이 컴퓨터에서만** 열었습니다 (127.0.0.1).'));
+        console.log('     ' + tr('다른 사람도 쓰게 하려면 AAS_TOKEN=<토큰>을 주고 다시 띄우십시오.'));
+        console.log('     ' + tr('토큰 없이 밖으로 열려면 AAS_ALLOW_OPEN=1 (권하지 않습니다).'));
       } else if (process.env['AAS_ALLOW_OPEN'] === '1') {
         // 스스로 정하고 연 것이다 — 겁주는 문구를 반복할 이유가 없다
-        console.log('  🔓 토큰 없이 열었습니다 (AAS_ALLOW_OPEN=1) — 같은 망의 누구나 열고 고칠 수 있습니다.');
-        console.log('     특정 사람만 쓰게 하려면 AAS_TOKEN=<토큰>을 주고 다시 띄우십시오.');
+        console.log('  🔓 ' + tr('토큰 없이 열었습니다 (AAS_ALLOW_OPEN=1) — 같은 망의 누구나 열고 고칠 수 있습니다.'));
+        console.log('     ' + tr('특정 사람만 쓰게 하려면 AAS_TOKEN=<토큰>을 주고 다시 띄우십시오.'));
       } else {
-        console.log('  ⚠️  인증이 꺼진 채 밖으로 열려 있습니다 — 주소를 아는 누구나 파일을 읽고 지울 수 있습니다.');
-        console.log('     AAS_TOKEN=<토큰>으로 띄우십시오.');
+        console.log('  ⚠️  ' + tr('인증이 꺼진 채 밖으로 열려 있습니다 — 주소를 아는 누구나 파일을 읽고 지울 수 있습니다.'));
+        console.log('     ' + tr('AAS_TOKEN=<토큰>으로 띄우십시오.'));
       }
-      console.log('     읽기 전용만 줄 때는 AAS_READONLY_TOKEN=<토큰>.');
+      console.log('     ' + tr('읽기 전용만 줄 때는 AAS_READONLY_TOKEN=<토큰>.'));
     } else {
       console.log(
-        `  인증 켜짐 — 전체 토큰 ${configured.tokens.length}개 · 읽기 전용 ${configured.readOnlyTokens.length}개`,
+        '  ' + fill(tr('인증 켜짐 — 전체 토큰 {0}개 · 읽기 전용 {1}개'), { 0: configured.tokens.length, 1: configured.readOnlyTokens.length }),
       );
       // HTTP 헤더는 ASCII가 원칙이다. 한글 토큰은 서버가 되돌려 맞춰 주지만
       // 중간 프록시가 또 건드릴 수 있어 미리 알린다
@@ -640,9 +651,9 @@ if (process.argv[1]?.endsWith('server.js')) {
       ).length;
       if (nonAscii > 0) {
         console.log(
-          `  ⚠️  토큰 ${nonAscii}개에 ASCII 밖 문자가 있습니다 — 영문·숫자·기호로 바꾸기를 권합니다.`,
+          '  ⚠️  ' + fill(tr('토큰 {0}개에 ASCII 밖 문자가 있습니다 — 영문·숫자·기호로 바꾸기를 권합니다.'), { 0: nonAscii }),
         );
       }
     }
   });
-}
+});

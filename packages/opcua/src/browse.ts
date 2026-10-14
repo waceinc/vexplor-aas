@@ -9,6 +9,7 @@
  * 🔴 상한을 둔다. 현장 서버에는 노드가 수만 개인 경우가 있고, 다 훑으면 화면이 죽는다.
  *    끊긴 자리를 `truncated`로 알린다 — 조용히 잘라 내면 "왜 그 태그가 없지"가 된다.
  */
+import { fill, tr } from '@aas/core';
 import { PRODUCT_URI } from './server.js';
 import {
   AttributeIds,
@@ -108,8 +109,8 @@ export function aidTypeOf(dataType: string | undefined): BrowsedNode['type'] {
 /** 값 하나를 사람이 읽는 문자열로. 배열·구조체는 굳이 펼치지 않는다 */
 export function showValue(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
-  if (Array.isArray(value)) return `[${value.length}개]`;
-  if (typeof value === 'object') return '(구조체)';
+  if (Array.isArray(value)) return fill(tr('[{0}개]'), { 0: value.length });
+  if (typeof value === 'object') return tr('(구조체)');
   return String(value);
 }
 
@@ -160,16 +161,13 @@ export async function browseDevice(options: BrowseOptions): Promise<BrowseResult
     const identity = await describeServer(client);
     if (options.selfUri && identity.applicationUri === options.selfUri) {
       throw new SelfBrowseError(
-        '이 주소는 지금 이 저작도구가 값을 내주는 OPC UA 서버입니다. ' +
-          '여기서 보이는 것은 설비 태그가 아니라 열려 있는 AAS 파일의 내용입니다. ' +
-          '수집할 곳은 설비(PLC)의 주소여야 합니다.',
+        tr('이 주소는 지금 이 저작도구가 값을 내주는 OPC UA 서버입니다. 여기서 보이는 것은 설비 태그가 아니라 열려 있는 AAS 파일의 내용입니다. 수집할 곳은 설비(PLC)의 주소여야 합니다.'),
         'self',
       );
     }
     if (identity.productUri === PRODUCT_URI) {
       throw new SelfBrowseError(
-        '이 주소는 다른 컴퓨터에서 도는 같은 VEXPLOR AAS Studio입니다(AAS를 내주는 서버). ' +
-          '수집할 곳은 설비(PLC)의 주소여야 합니다.',
+        tr('이 주소는 다른 컴퓨터에서 도는 같은 VEXPLOR AAS Studio입니다(AAS를 내주는 서버). 수집할 곳은 설비(PLC)의 주소여야 합니다.'),
         'sibling',
       );
     }
@@ -257,7 +255,7 @@ export async function browseDevice(options: BrowseOptions): Promise<BrowseResult
     // 자기 자신 판정은 「훑기 실패」가 아니다 — 사유가 다르므로 그대로 올린다
     if (error instanceof SelfBrowseError) throw error;
     throw error instanceof Error
-      ? new Error(`${options.endpoint} 훑기 실패: ${error.message}`)
+      ? new Error(fill(tr('{0} 훑기 실패: {1}'), { 0: options.endpoint, 1: error.message }))
       : error;
   } finally {
     await session?.close().catch(() => undefined);

@@ -153,7 +153,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       return errorResponse(404, 'NotFound', fill(tr('경로가 없습니다: {0} {1}'), { 0: request.method, 1: request.path }));
     }
     if (found === 'method-not-allowed') {
-      return errorResponse(405, 'MethodNotAllowed', `허용되지 않는 메서드입니다: ${request.method}`);
+      return errorResponse(405, 'MethodNotAllowed', fill(tr('허용되지 않는 메서드입니다: {0}'), { 0: request.method }));
     }
 
     // 「누가」를 **여기 한 번만** 깐다. 라우트와 저장소가 매개변수 없이 집어 쓴다 —
@@ -172,7 +172,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
         //    시도해 남의 목록을 지울 수 있었다(시험이 잡았다). 여기서 한 번 더 막아,
         //    앞으로 그런 상태가 더 생겨도 빠질 자리가 없게 한다.
         if (workspace && packageId !== undefined && !(await store.getPackage(packageId))) {
-          return errorResponse(404, 'NotFound', `패키지 ${packageId}을(를) 찾을 수 없습니다.`);
+          return errorResponse(404, 'NotFound', fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: packageId }));
         }
         const snapshot =
           packageId !== undefined && MUTATING.has(request.method) && !UNDO_PATTERNS.has(found.route.pattern)
@@ -185,7 +185,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
           return errorResponse(
             403,
             'Forbidden',
-            '데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.',
+            tr('데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.'),
           );
         }
         if (snapshot && packageId !== undefined && response.status < 300) {
@@ -247,6 +247,7 @@ function isDemoAccount(demo: DemoConfig, principal: Principal | undefined): bool
  */
 function actorOf(principal: Principal | undefined, allowed: AuthResult): Actor | undefined {
   if (principal) return { id: principal.userId, name: principal.displayName };
+  // i18n-ignore — 변경 이력(DB의 actor_name)에 저장되는 행위자 이름이다. 요청 언어로 바꾸면 기록이 섞인다
   if (allowed.via === 'apikey') return { id: 'apikey', name: 'API 키' };
   return undefined;
 }

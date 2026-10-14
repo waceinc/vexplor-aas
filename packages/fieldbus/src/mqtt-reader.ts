@@ -8,6 +8,7 @@
  */
 import { connect as tlsConnect } from 'node:tls';
 import { Socket } from 'node:net';
+import { fill, tr } from '@aas/core';
 import type { AidInterface, ProtocolReader, ReadResult } from '@aas/collector';
 import { packet, readPublish, takePacket, utf8 } from './mqtt-wire.js';
 
@@ -59,14 +60,14 @@ export class MqttReader implements ProtocolReader {
   }
 
   static async connect(descriptor: AidInterface, options: MqttReaderOptions = {}): Promise<MqttReader> {
-    if (!descriptor.base) throw new Error('EndpointMetadata.base가 없습니다.');
+    if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
     options.guard?.(descriptor.base);
     const url = new URL(descriptor.base.replace(/^mqtt(s?):/i, 'http$1:'));
     const secure = /^mqtts:/i.test(descriptor.base);
     const port = url.port ? Number(url.port) : secure ? 8883 : 1883;
     const timeoutMs = options.timeoutMs ?? 5000;
     const socket = await new Promise<Socket>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`MQTT 브로커에 붙지 못했습니다(시간 초과): ${url.hostname}:${port}`)), timeoutMs);
+      const timer = setTimeout(() => reject(new Error(fill(tr('MQTT 브로커에 붙지 못했습니다(시간 초과): {0}:{1}'), { 0: url.hostname, 1: port }))), timeoutMs);
       const done = (s: Socket): void => {
         clearTimeout(timer);
         s.removeAllListeners('error');
@@ -88,7 +89,7 @@ export class MqttReader implements ProtocolReader {
     return sources.map((source) => {
       if (this.error) return { source, value: undefined, error: this.error };
       const message = this.latest.get(topicOf(source));
-      if (!message) return { source, value: undefined, pending: true, quality: '아직 받은 메시지 없음' };
+      if (!message) return { source, value: undefined, pending: true, quality: tr('아직 받은 메시지 없음') };
       return { source, value: payloadValue(message.payload), observedAt: message.at, quality: 'Good' };
     });
   }
@@ -108,7 +109,7 @@ export class MqttReader implements ProtocolReader {
     const payload = Buffer.concat([utf8(clientId), ...(user ? [utf8(user)] : []), ...(pass ? [utf8(pass)] : [])]);
     const topics = [...new Set(this.descriptor.properties.flatMap((property) => (property.href ? [topicOf(property.href)] : [])))];
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('MQTT 연결 응답이 없습니다(시간 초과).')), timeoutMs);
+      const timer = setTimeout(() => reject(new Error(tr('MQTT 연결 응답이 없습니다(시간 초과).'))), timeoutMs);
       const fail = (message: string): void => {
         clearTimeout(timer);
         this.error = message;
@@ -119,7 +120,7 @@ export class MqttReader implements ProtocolReader {
         fail(error.message);
       });
       this.socket.on('close', () => {
-        this.error ??= '연결이 끊겼습니다.';
+        this.error ??= tr('연결이 끊겼습니다.');
       });
       this.socket.on('data', (chunk: Buffer) => {
         this.buffer = Buffer.concat([this.buffer, chunk]);
@@ -128,7 +129,7 @@ export class MqttReader implements ProtocolReader {
           const { type, body } = next.packet;
           if (type === 2) {
             // CONNACK — 0 이 아니면 거절(1~5: 판 · id · 서버 · 사용자/암호 · 권한)
-            if (body[1] !== 0) return fail(`MQTT 브로커가 연결을 거절했습니다(코드 ${String(body[1])}).`);
+            if (body[1] !== 0) return fail(fill(tr('MQTT 브로커가 연결을 거절했습니다(코드 {0}).'), { 0: String(body[1]) }));
             if (topics.length === 0) {
               clearTimeout(timer);
               return resolve();

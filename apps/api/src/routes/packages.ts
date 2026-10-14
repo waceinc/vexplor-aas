@@ -71,6 +71,7 @@ import { fieldValues, fileOf, MultipartError, parseMultipart } from '../multipar
 import type { Route } from '../router.js';
 import { originalFile } from './bundle-files.js';
 import { derivationFile, newDerivation } from './derivation.js';
+import { fill, tr } from '@aas/core';
 
 /** AASX 패키지의 미디어 타입 (규격 AasxFileServer §GetAASXByPackageId) */
 export const AASX_MEDIA_TYPE = 'application/asset-administration-shell-package';
@@ -101,7 +102,7 @@ function uploadedPackage(request: ApiRequest): UploadedPackage {
 
   if (contentType.includes('multipart/form-data')) {
     if (!(body instanceof Uint8Array)) {
-      throw new ApiError(400, 'BadRequest', 'multipart 본문을 읽지 못했습니다.');
+      throw new ApiError(400, 'BadRequest', tr('multipart 본문을 읽지 못했습니다.'));
     }
     let parts;
     try {
@@ -110,20 +111,20 @@ function uploadedPackage(request: ApiRequest): UploadedPackage {
       throw new ApiError(400, 'BadRequest', error instanceof MultipartError ? error.message : String(error));
     }
     const file = fileOf(parts, 'file');
-    if (!file) throw new ApiError(400, 'BadRequest', 'file 조각이 없습니다.');
+    if (!file) throw new ApiError(400, 'BadRequest', tr('file 조각이 없습니다.'));
     const name = fieldValues(parts, 'fileName')[0] ?? file.filename ?? 'package.aasx';
     return { name, data: file.data };
   }
 
   if (!(body instanceof Uint8Array)) {
-    throw new ApiError(400, 'BadRequest', '본문이 AASX 바이트가 아닙니다.');
+    throw new ApiError(400, 'BadRequest', tr('본문이 AASX 바이트가 아닙니다.'));
   }
   const name = request.query['name'];
   if (!name) {
     throw new ApiError(
       400,
       'BadRequest',
-      'multipart/form-data로 보내거나(규격), name 질의 인자를 함께 주십시오(확장).',
+      tr('multipart/form-data로 보내거나(규격), name 질의 인자를 함께 주십시오(확장).'),
     );
   }
   return { name, data: body };
@@ -223,7 +224,7 @@ async function writeBackEnvironment(
 function bodyObject(request: ApiRequest): Record<string, unknown> {
   const body = request.body;
   if (typeof body !== 'object' || body === null || Array.isArray(body) || body instanceof Uint8Array) {
-    throw new ApiError(400, 'BadRequest', '본문이 JSON 객체가 아닙니다.');
+    throw new ApiError(400, 'BadRequest', tr('본문이 JSON 객체가 아닙니다.'));
   }
   return body as Record<string, unknown>;
 }
@@ -240,14 +241,14 @@ async function findHierarchy(
   packageId: string,
 ): Promise<{ submodel: Record<string, unknown>; record: PackageRecord }> {
   const record = await store.getPackage(packageId);
-  if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+  if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
   const submodels = await store.listIdentifiables(packageId, 'Submodel');
   const found = submodels.items.find((item) => item.idShort === HIERARCHY_SUBMODEL_ID_SHORT);
   if (!found) {
     throw new ApiError(
       400,
       'BadRequest',
-      `이 파일에는 ${HIERARCHY_SUBMODEL_ID_SHORT} 서브모델이 없습니다 — 공정 파일이 아닙니다.`,
+      fill(tr('이 파일에는 {0} 서브모델이 없습니다 — 공정 파일이 아닙니다.'), { 0: HIERARCHY_SUBMODEL_ID_SHORT }),
     );
   }
   return { submodel: found.content as Record<string, unknown>, record };
@@ -299,7 +300,7 @@ async function guardCycle(store: AasStore, targetId: string, sourceId: string): 
     throw new ApiError(
       400,
       'BadRequest',
-      '넣으려는 파일이 (직접 또는 몇 단계 건너) 이 파일을 이미 담고 있습니다 — 순환이 됩니다.',
+      tr('넣으려는 파일이 (직접 또는 몇 단계 건너) 이 파일을 이미 담고 있습니다 — 순환이 됩니다.'),
     );
   }
 }
@@ -525,15 +526,15 @@ export function packageRoutes(store: AasStore, options: PackageRouteOptions = {}
       success: [201],
       async handle(context) {
         if (!options.simulate) {
-          throw new ApiError(501, 'NotImplemented', '가상 PLC는 수집이 켜진 서버(COLLECT=on)에서만 씁니다.');
+          throw new ApiError(501, 'NotImplemented', tr('가상 PLC는 수집이 켜진 서버(COLLECT=on)에서만 씁니다.'));
         }
         const packageId = context.params['packageId']!;
         const record = await store.getPackage(packageId);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const environment = (await store.exportPackage(packageId)).environment;
         const assetType = String(environment.assetAdministrationShells?.[0]?.assetInformation?.['assetType' as never] ?? '');
         if (assetType.includes('/type/')) {
-          throw new ApiError(400, 'BadRequest', '가상 PLC는 설비 파일에 붙입니다 — 공정(묶음) 파일에는 수집할 값이 없습니다.');
+          throw new ApiError(400, 'BadRequest', tr('가상 PLC는 설비 파일에 붙입니다 — 공정(묶음) 파일에는 수집할 값이 없습니다.'));
         }
         let sim: Awaited<ReturnType<NonNullable<PackageRouteOptions['simulate']>>>;
         try {
@@ -544,19 +545,19 @@ export function packageRoutes(store: AasStore, options: PackageRouteOptions = {}
             503,
             'ServiceUnavailable',
             /EADDRINUSE|address already in use/i.test(message)
-              ? '가상 PLC 포트(14850)를 이미 다른 프로그램이 쓰고 있습니다 — 가상PLC_시작.bat 창이 떠 있으면 닫고 다시 누르십시오.'
-              : `가상 PLC를 띄우지 못했습니다: ${message}`,
+              ? tr('가상 PLC 포트(14850)를 이미 다른 프로그램이 쓰고 있습니다 — 가상PLC_시작.bat 창이 떠 있으면 닫고 다시 누르십시오.')
+              : fill(tr('가상 PLC를 띄우지 못했습니다: {0}'), { 0: message }),
           );
         }
         if (sim.tags.length === 0) {
-          throw new ApiError(400, 'BadRequest', '운전 데이터(OperationalData)에 Property가 없어 흉내 낼 태그가 없습니다.');
+          throw new ApiError(400, 'BadRequest', tr('운전 데이터(OperationalData)에 Property가 없어 흉내 낼 태그가 없습니다.'));
         }
         const existing = parseAid(environment).find((iface) => iface.base && iface.base !== sim.endpoint);
         if (existing) {
           throw new ApiError(
             409,
             'Conflict',
-            `이미 다른 주소(${existing.base})로 수집 연결이 있습니다 — 가상 PLC로 바꾸지 않았습니다. 시연은 「호기별로 나누기」로 만든 호기에서 하십시오.`,
+            fill(tr('이미 다른 주소({0})로 수집 연결이 있습니다 — 가상 PLC로 바꾸지 않았습니다. 시연은 「호기별로 나누기」로 만든 호기에서 하십시오.'), { 0: existing.base }),
           );
         }
         await aid.handle({
@@ -590,7 +591,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           throw new ApiError(
             400,
             'BadRequest',
-            '장비명은 영문으로 시작하고 영문·숫자·밑줄만 씁니다. 예: RollFormingMachine',
+            tr('장비명은 영문으로 시작하고 영문·숫자·밑줄만 씁니다. 예: RollFormingMachine'),
           );
         }
         const extras = Array.isArray(body['extraSubmodels'])
@@ -641,11 +642,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           throw new ApiError(
             400,
             'BadRequest',
-            '이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다. 예: RollFormingMachine_1',
+            tr('이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다. 예: RollFormingMachine_1'),
           );
         }
         const source = await store.getPackage(packageId);
-        if (!source) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!source) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const exported = await store.exportPackage(packageId);
         const iriBase = (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string;
         let environment: Environment;
@@ -707,7 +708,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ params }) {
         const packageId = params['packageId']!;
         const record = await store.getPackage(packageId);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const data = writeAasx(await store.exportPackage(packageId));
         return bytes(200, data, AASX_MEDIA_TYPE, record.name);
       },
@@ -719,7 +720,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ request, params }) {
         const packageId = params['packageId']!;
         const existing = await store.getPackage(packageId);
-        if (!existing) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!existing) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
 
         const upload = uploadedPackage(request);
         const pkg = readAasx(upload.data, readOptions);
@@ -753,7 +754,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       pattern: '/packages/:packageId/metadata',
       async handle({ params }) {
         const record = await store.getPackage(params['packageId']!);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         return json(200, { ...record, ...(await packageDescription(store, record)) });
       },
     },
@@ -800,7 +801,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const changedAt = String(bodyObject(request)['changedAt'] ?? '');
         const entries = await store.history(packageId, 'Submodel', submodelId);
         const entry = entries.find((candidate) => candidate.changedAt === changedAt);
-        if (!entry) throw new ApiError(404, 'NotFound', '그 시각의 이력이 없습니다.');
+        if (!entry) throw new ApiError(404, 'NotFound', tr('그 시각의 이력이 없습니다.'));
         const current = await store.getIdentifiable(packageId, 'Submodel', submodelId);
         if (current) {
           await store.updateIdentifiable(packageId, 'Submodel', submodelId, entry.content);
@@ -877,7 +878,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
 
         // 그룹(중간 마디) — 파일 없이 층만 만든다. 회사 파일 안의 「용접공정」 같은 것
         if (body['group'] === true) {
-          if (!name) throw new ApiError(400, 'BadRequest', '그룹 이름이 비었습니다.');
+          if (!name) throw new ApiError(400, 'BadRequest', tr('그룹 이름이 비었습니다.'));
           const line = body['line'] === true;
           const iriBase = (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string;
           let grouped;
@@ -901,7 +902,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const sourcePackageId = String(body['sourcePackageId'] ?? '').trim();
         if (sourcePackageId) {
           if (sourcePackageId === packageId) {
-            throw new ApiError(400, 'BadRequest', '자기 자신을 매달 수 없습니다.');
+            throw new ApiError(400, 'BadRequest', tr('자기 자신을 매달 수 없습니다.'));
           }
           // 🔴 순환 방지 — A가 B를 담고 B가 A를 담으면 트리가 무한이 된다.
           //    계층이 재귀(회사→공정→설비)가 되면서 실제로 만들 수 있는 실수가 됐다.
@@ -909,7 +910,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           await guardCycle(store, packageId, sourcePackageId);
           const shells = await store.listIdentifiables(sourcePackageId, 'AssetAdministrationShell');
           const shell = shells.items[0];
-          if (!shell) throw new ApiError(404, 'NotFound', '고른 파일에 AAS가 없습니다.');
+          if (!shell) throw new ApiError(404, 'NotFound', tr('고른 파일에 AAS가 없습니다.'));
           const content = shell.content as {
             idShort?: string;
             assetInformation?: { globalAssetId?: string };
@@ -920,7 +921,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             throw new ApiError(
               400,
               'BadRequest',
-              '고른 파일에 Asset 주소(globalAssetId)가 없습니다 — 그 파일을 먼저 고치십시오.',
+              tr('고른 파일에 Asset 주소(globalAssetId)가 없습니다 — 그 파일을 먼저 고치십시오.'),
             );
           }
         }
@@ -996,9 +997,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const onDuplicate = String(body['onDuplicate'] ?? 'reject') as 'reject' | 'replace' | 'alongside';
 
         const target = await store.getPackage(targetId);
-        if (!target) throw new ApiError(404, 'NotFound', '가져올 대상 패키지가 없습니다.');
+        if (!target) throw new ApiError(404, 'NotFound', tr('가져올 대상 패키지가 없습니다.'));
         const source = await store.getIdentifiable(sourcePackageId, 'Submodel', submodelId);
-        if (!source) throw new ApiError(404, 'NotFound', '원본 Submodel을 찾을 수 없습니다.');
+        if (!source) throw new ApiError(404, 'NotFound', tr('원본 Submodel을 찾을 수 없습니다.'));
 
         const content = JSON.parse(JSON.stringify(source.content)) as Record<string, unknown>;
         const oldId = String(content['id']);
@@ -1013,7 +1014,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             throw new ApiError(
               409,
               'Conflict',
-              `이미 「${String(content['idShort'])}」 서브모델이 있습니다. 바꾸거나 나란히 둘지 정해 주십시오.`,
+              fill(tr('이미 「{0}」 서브모델이 있습니다. 바꾸거나 나란히 둘지 정해 주십시오.'), { 0: String(content['idShort']) }),
             );
           }
           if (onDuplicate === 'alongside') {
@@ -1032,7 +1033,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             throw new ApiError(
               400,
               'BadRequest',
-              '가져오는 쪽 AAS의 idShort와 원본 Submodel의 idShort가 모두 있어야 id를 다시 지을 수 있습니다.',
+              tr('가져오는 쪽 AAS의 idShort와 원본 Submodel의 idShort가 모두 있어야 id를 다시 지을 수 있습니다.'),
             );
           }
           const admin = content['administration'] as { version?: string; revision?: string } | undefined;
@@ -1085,7 +1086,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         }
 
         if (await store.getIdentifiable(targetId, 'Submodel', newId)) {
-          throw new ApiError(409, 'Conflict', `이미 같은 id의 Submodel이 있습니다: ${newId}`);
+          throw new ApiError(409, 'Conflict', fill(tr('이미 같은 id의 Submodel이 있습니다: {0}'), { 0: newId }));
         }
         await store.createIdentifiable(targetId, content, seatOrdinal === undefined ? {} : { ordinal: seatOrdinal });
 
@@ -1139,7 +1140,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ params }) {
         const packageId = params['packageId']!;
         const record = await store.getPackage(packageId);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
 
         const out: Record<string, Record<string, number>> = {};
         for (const modelType of IDENTIFIABLE_MODEL_TYPES) {
@@ -1194,7 +1195,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         if (limit !== undefined) {
           const parsed = Number(limit);
           if (!Number.isInteger(parsed) || parsed <= 0) {
-            throw new ApiError(400, 'BadRequest', `limit이 양의 정수가 아닙니다: ${limit}`);
+            throw new ApiError(400, 'BadRequest', fill(tr('limit이 양의 정수가 아닙니다: {0}'), { 0: limit }));
           }
           query.limit = parsed;
         }
@@ -1215,7 +1216,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           throw new ApiError(
             501,
             'NotImplemented',
-            '이 서버에는 수집 어댑터가 없습니다. OPC UA 스택을 올린 배포에서 쓰십시오.',
+            tr('이 서버에는 수집 어댑터가 없습니다. OPC UA 스택을 올린 배포에서 쓰십시오.'),
           );
         }
         const environment = await store.getEnvironment(packageId);
@@ -1224,7 +1225,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           throw new ApiError(
             404,
             'NotFound',
-            'AssetInterfacesDescription 서브모델이 없습니다. 수집할 주소를 알 수 없습니다.',
+            tr('AssetInterfacesDescription 서브모델이 없습니다. 수집할 주소를 알 수 없습니다.'),
           );
         }
 
@@ -1290,7 +1291,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           const submodel = (pkg.environment.submodels ?? []).find(
             (item) => item.idShort === wanted || item.id === wanted,
           );
-          if (!submodel) throw new ApiError(404, 'NotFound', `서브모델을 찾을 수 없습니다: ${wanted}`);
+          if (!submodel) throw new ApiError(404, 'NotFound', fill(tr('서브모델을 찾을 수 없습니다: {0}'), { 0: wanted }));
           svg = submodelUml(submodel, options);
         }
         return {
@@ -1313,11 +1314,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ params, request }) {
         const pkg = await snapshot(store, params['packageId']!);
         const wanted = request.query['submodel'];
-        if (!wanted) throw new ApiError(400, 'BadRequest', 'submodel을 지정하십시오.');
+        if (!wanted) throw new ApiError(400, 'BadRequest', tr('submodel을 지정하십시오.'));
         const submodel = (pkg.environment.submodels ?? []).find(
           (item) => item.idShort === wanted || item.id === wanted,
         );
-        if (!submodel) throw new ApiError(404, 'NotFound', `서브모델을 찾을 수 없습니다: ${wanted}`);
+        if (!submodel) throw new ApiError(404, 'NotFound', fill(tr('서브모델을 찾을 수 없습니다: {0}'), { 0: wanted }));
 
         const plan = planFor(submodel);
         const format = request.query['format'];
@@ -1328,7 +1329,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             throw new ApiError(
               409,
               'Conflict',
-              `${plan.idShort}은(는) 표를 만들지 않습니다. ${plan.reason}`,
+              fill(tr('{0}은(는) 표를 만들지 않습니다. {1}'), { 0: plan.idShort, 1: plan.reason }),
             );
           }
           return json(200, { plan, info });
@@ -1387,12 +1388,12 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       success: [200],
       async handle({ request }) {
         if (!options.browseDevice) {
-          throw new ApiError(501, 'NotImplemented', '이 배포에는 수집 어댑터가 없습니다.');
+          throw new ApiError(501, 'NotImplemented', tr('이 배포에는 수집 어댑터가 없습니다.'));
         }
         const body = (request.body ?? {}) as Record<string, unknown>;
         const endpoint = String(body['endpoint'] ?? '').trim();
         if (!/^opc\.tcp:\/\/.+/.test(endpoint)) {
-          throw new ApiError(400, 'BadRequest', `접속 주소는 opc.tcp:// 로 시작해야 합니다: ${endpoint}`);
+          throw new ApiError(400, 'BadRequest', fill(tr('접속 주소는 opc.tcp:// 로 시작해야 합니다: {0}'), { 0: endpoint }));
         }
         try {
           return json(200, await options.browseDevice(endpoint));
@@ -1439,7 +1440,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const shells = await store.listIdentifiables(packageId, 'AssetAdministrationShell');
         const shell = shells.items[0];
         if (!shell?.idShort) {
-          throw new ApiError(400, 'BadRequest', 'AAS의 idShort(장비명)가 있어야 AID id를 지을 수 있습니다.');
+          throw new ApiError(400, 'BadRequest', tr('AAS의 idShort(장비명)가 있어야 AID id를 지을 수 있습니다.'));
         }
 
         let submodel: Record<string, unknown>;
@@ -1651,7 +1652,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       pattern: '/packages/:packageId/policy',
       async handle({ params }) {
         const record = await store.getPackage(params['packageId']!);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         // 저작 UI가 새 id를 만들 때 쓴다. 규약(iriBase 등)을 UI에 복사해 두면
         // 린터와 UI가 서로 다른 규칙을 갖게 된다 — 지식은 한 곳에만 둔다
         return json(200, { ...DEFAULT_POLICY, ...options.policy });
@@ -1683,7 +1684,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ params, request }) {
         const packageId = params['packageId']!;
         const record = await store.getPackage(packageId);
-        if (!record) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const pkg = await snapshot(store, packageId);
         // 🔴 /lint와 같은 정책으로 판정해야 한다. 한때 여기만 DEFAULT_POLICY로 고정돼
         //    화면은 위반 10건인데 결과서는 합격으로 찍혔다(2026-09-03 검토에서 발견).
@@ -1740,7 +1741,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       pattern: '/packages/:packageId/fix-preview',
       async handle({ params, request }) {
         const packageId = params['packageId']!;
-        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const overrides = { ...options.policy, ...policyFromQuery(request) };
         const includeWarnings = request.query['includeWarnings'] === '1' || request.query['includeWarnings'] === 'true';
         const result = await previewFix(store, packageId, overrides, includeWarnings);
@@ -1760,7 +1761,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       pattern: '/packages/:packageId/relocations',
       async handle({ params }) {
         const packageId = params['packageId']!;
-        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         return json(200, { relocations: await readLedger(store, packageId) });
       },
     },
@@ -1773,7 +1774,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       pattern: '/packages/:packageId/relocations/revert',
       async handle({ params, request }) {
         const packageId = params['packageId']!;
-        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', '패키지를 찾을 수 없습니다.');
+        if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const ledger = await readLedger(store, packageId);
         const body = (request.body ?? {}) as { iris?: unknown };
         const only = Array.isArray(body.iris) ? (body.iris as unknown[]).filter((v): v is string => typeof v === 'string') : undefined;

@@ -20,6 +20,7 @@
 import type { AasStore, UserRole } from '@aas/store';
 
 import type { ApiResponse } from './http.js';
+import { fill, tr } from '@aas/core';
 
 export interface DemoConfig {
   /** 데모 계정의 로그인 이름 — 이 계정으로 들어오면 내려받기가 막힌다 */
@@ -42,6 +43,7 @@ const DEFAULTS = {
   // 2026-10-08 — 예전에는 admin. 「관리자」로 읽혀 운영자 계정과 헷갈렸다
   login: 'demo',
   password: '0629',
+  // i18n-ignore — 계정 표에 저장되는 표시 이름(자료)이라 요청마다 바뀌면 안 된다
   displayName: '데모 계정',
   role: 'editor' as UserRole,
   resetMinutes: 60,
@@ -153,10 +155,10 @@ export function startDemoReset(
   const timer = setInterval(() => {
     void sweepVisitorFiles(store, minutes)
       .then((removed) => {
-        if (removed > 0) log(`체험 서버 정리 — ${minutes}분 넘게 안 쓴 방문자 파일 ${removed}개를 지웠습니다.`);
+        if (removed > 0) log(fill(tr('체험 서버 정리 — {0}분 넘게 안 쓴 방문자 파일 {1}개를 지웠습니다.'), { 0: minutes, 1: removed }));
       })
       .catch((error: unknown) => {
-        log(`체험 서버 정리 실패: ${error instanceof Error ? error.message : String(error)}`);
+        log(fill(tr('체험 서버 정리 실패: {0}'), { 0: error instanceof Error ? error.message : String(error) }));
       });
   }, every * 60_000);
   timer.unref?.();

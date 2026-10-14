@@ -82,6 +82,7 @@ export class FolderStore extends InMemoryStore {
     try {
       snapshot = JSON.parse(text) as UserSnapshot;
     } catch (error) {
+      // i18n-ignore — 기동할 때 운영자에게 나가는 오류(요청이 없어 언어도 없다)
       throw new Error(`${join(this.dir, USERS_FILE)}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: ${String(error)}`);
     }
     this.restoreUsers(snapshot);

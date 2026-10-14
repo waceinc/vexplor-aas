@@ -12,7 +12,7 @@
  * 자식 Node는 자기 상세를 담지 않는다. `globalAssetId`로 **그 설비의 Asset을 가리키기만** 한다.
  * 설비의 상세는 각자 파일에 그대로 둔다(값 동기화 A안과 같은 정신 — 원본은 한 군데다).
  */
-import type { Entity, RelationshipElement, Submodel, SubmodelElement } from '@aas/core';
+import { fill, tr, type Entity, type RelationshipElement, type Submodel, type SubmodelElement } from '@aas/core';
 
 /** IDTA 02011이 정한 것 — 우리가 지어낸 값이 아니다 */
 export const IDTA_HIERARCHY = {
@@ -181,23 +181,23 @@ export function addChild(
 ): Submodel {
   const next = JSON.parse(JSON.stringify(submodel)) as Submodel;
   const entry = findEntryNode(next);
-  if (!entry) throw new Error('계층 구조에 진입점(EntryNode)이 없습니다.');
-  if (!input.name.trim()) throw new Error('이름이 비었습니다.');
+  if (!entry) throw new Error(tr('계층 구조에 진입점(EntryNode)이 없습니다.'));
+  if (!input.name.trim()) throw new Error(tr('이름이 비었습니다.'));
   const isGroup = 'group' in input && input.group;
   const isLine = isGroup && 'line' in input && input.line === true;
   if (!isGroup && !(input as NodeInput).globalAssetId.trim()) {
-    throw new Error('설비의 Asset 주소가 비었습니다.');
+    throw new Error(tr('설비의 Asset 주소가 비었습니다.'));
   }
 
   const parent = findByPath(next, parentPath);
-  if (!parent) throw new Error(`넣을 자리를 찾지 못했습니다: ${parentPath.join(' → ')}`);
-  if (isLine && parentPath.length > 0) throw new Error('라인은 맨 위(회사 바로 밑)에만 둡니다.');
+  if (!parent) throw new Error(fill(tr('넣을 자리를 찾지 못했습니다: {0}'), { 0: parentPath.join(' → ') }));
+  if (isLine && parentPath.length > 0) throw new Error(tr('라인은 맨 위(회사 바로 밑)에만 둡니다.'));
 
   const holder = parent as unknown as { statements?: SubmodelElement[]; idShort: string };
   holder.statements ??= [];
 
   if (holder.statements.some((e) => e.idShort === input.name)) {
-    throw new Error(`이미 있는 이름입니다: ${input.name}`);
+    throw new Error(fill(tr('이미 있는 이름입니다: {0}'), { 0: input.name }));
   }
   if (!isGroup) {
     // 🔴 같은 설비를 같은 자리에 두 번 매다는 것을 막는다 — 다른 마디 밑이면 허용한다
@@ -207,7 +207,7 @@ export function addChild(
         (child as unknown as { globalAssetId?: string }).globalAssetId ===
         (input as NodeInput).globalAssetId,
     );
-    if (already) throw new Error(`이미 매달린 설비입니다: ${already.idShort}`);
+    if (already) throw new Error(fill(tr('이미 매달린 설비입니다: {0}'), { 0: already.idShort }));
   }
 
   const entryName = (entry as unknown as { idShort: string }).idShort;
@@ -229,7 +229,7 @@ export function removeChild(
 ): Submodel {
   const next = JSON.parse(JSON.stringify(submodel)) as Submodel;
   const parent = findByPath(next, parentPath);
-  if (!parent) throw new Error(`자리를 찾지 못했습니다: ${parentPath.join(' → ')}`);
+  if (!parent) throw new Error(fill(tr('자리를 찾지 못했습니다: {0}'), { 0: parentPath.join(' → ') }));
   const holder = parent as unknown as { statements?: SubmodelElement[] };
   const before = holder.statements?.length ?? 0;
   // 자식과, 그 자식을 second로 가리키는 관계를 함께 뺀다(이름이 아니라 참조로 찾는다)
@@ -241,7 +241,7 @@ export function removeChild(
     }
     return true;
   });
-  if (holder.statements.length === before) throw new Error(`없는 이름입니다: ${name}`);
+  if (holder.statements.length === before) throw new Error(fill(tr('없는 이름입니다: {0}'), { 0: name }));
   // 🔴 비면 키 자체를 없앤다 — V3.0 스키마는 빈 배열을 허용하지 않는다(PKG-EMPTY-ARRAY).
   //    그룹에서 마지막 자식을 뺄 때 실제로 걸렸다
   if (holder.statements.length === 0) delete holder.statements;
