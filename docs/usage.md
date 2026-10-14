@@ -607,7 +607,7 @@ Cycles (A contains B and B contains A) are refused by the server. When you delet
 A **reference bundle** of the manufacturing data standardization program is a **package that groups machine deliverables (AASX, guidance) per process** (7 bundles).
 The process file is the backbone of the bundle. In a process file: **Export ▾ → Reference bundle**.
 
-![Reference bundle](images/09-레퍼런스번들.png)
+![Reference bundle](images/manual/en/09-reference-bundle.png)
 
 | Section | Shows |
 |---|---|
@@ -618,7 +618,7 @@ The process file is the backbone of the bundle. In a process file: **Export ▾ 
 | ④ Documents and attachments | Where Use-Case documents, guidance and references go (below) |
 | ⑤ Points to confirm | Where trusting the semanticId alone goes wrong |
 
-![Data linkage matrix](images/10-번들연계매트릭스.png)
+![Data linkage matrix](images/manual/en/10-bundle-linkage-matrix.png)
 
 > **Note:** **linking by semanticId alone is wrong** (measured on the program's 30 reference models). One ECLASS IRDI (`0173-1#02-ABC132#004`)
 > is used for MachineState, AlarmCode and JudgmentResult alike. Record links as **path + semanticId pairs**, and a person decides whether to treat them as the same.
@@ -652,7 +652,7 @@ RB01_생산최적화품질관리_v1.0.0/
 
 #### Evidence of real operation — for submissions where a live demo is not possible
 
-![Evidence of real operation](images/11-실동작증빙.png)
+![Evidence of real operation](images/manual/en/11-operation-evidence.png)
 
 The machines in a bundle are types, so they have no values. Values accumulate on **units** created with "per unit". A unit carries the standard field
 `derivedFrom` (→ its original type), so when you export the bundle, **collected values of units derived from that type are included automatically**.
