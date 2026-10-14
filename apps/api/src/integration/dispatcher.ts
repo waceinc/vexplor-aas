@@ -21,7 +21,7 @@ import type { EgressPolicy } from './egress.js';
 import { settledPrefix } from './ids.js';
 import type { MqttSink } from './mqtt-sink.js';
 import type { SecretBox, StoreKind } from './secrets.js';
-import { claimFor, completeGuarded } from './delivery-store.js';
+import { claimFor, completeGuarded, extendGuarded } from './delivery-store.js';
 import { RESOLVE_TIMEOUT_MS } from './egress.js';
 import { MQTT_ATTEMPT_MS, Transport, type SendResult } from './transport.js';
 import { DEFAULT_TIMEOUT_MS } from './webhook.js';
@@ -237,7 +237,7 @@ export class Dispatcher {
       return false;
     }
     if ((this.lanes.get(row.subscriptionId) ?? 0) >= LANES_PER_SUBSCRIPTION || this.claimed >= GLOBAL_LANES) {
-      // Only with a store that ignores the subscription filter: leave it, the lease brings it back
+      // Cannot happen with the per-subscription claim; if it does, leave the row — its lease brings it back
       return false;
     }
     this.inProgress.set(id, row.attempts);
@@ -301,6 +301,9 @@ export class Dispatcher {
       return;
     }
     const event = this.render(stored);
+    // The send starts now: renew the lease from this moment. False = another claim owns the row — do not send
+    const attempt = this.inProgress.get(row.id) ?? row.attempts;
+    if (!(await extendGuarded(store, row.id, attempt, new Date(this.now() + this.leaseMs).toISOString()))) return;
     const result = await this.transport.deliver(subscription, event, cloudEventBody(event));
     await this.record(row, subscription, result);
   }

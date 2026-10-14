@@ -28,6 +28,8 @@ const PACKAGE_EVENT_TYPES = new Set<string>([
   EVENT_TYPES.modelPackageCreated,
   EVENT_TYPES.modelPackageDeleted,
   EVENT_TYPES.modelPackageFileChanged,
+  // The sidecar external references belong to the package, not to one identifiable
+  EVENT_TYPES.modelExternalRefsUpdated,
 ]);
 
 function isIdentifiableEvent(row: StoredEvent): boolean {

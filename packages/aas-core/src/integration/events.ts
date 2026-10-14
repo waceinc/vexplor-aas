@@ -318,6 +318,7 @@ export const AUDIT_ACTIONS = [
   'subscription.deleted',
   'subscription.secret-rotated',
   'subscription.replayed',
+  'subscription.tested',
   'delivery.redelivered',
   'external-refs.imported',
   'config.updated',
