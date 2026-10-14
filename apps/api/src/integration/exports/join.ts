@@ -19,9 +19,12 @@ import { buildLocationIndex, isProcessFile, type LocationEntry, type ProcessFile
 import { serialNumberOf } from './nameplate.js';
 import { allPackages, hasIntegrationStore } from './store.js';
 
-/** A ref that may appear in events and exports (D1: never sensitive, never a cost centre) */
+/** Types never exported, projected or put in events, compared without case (D1, review L7) */
+const SENSITIVE_TYPES = new Set(['costcenter']);
+
+/** A ref that may appear in events and exports (D1: never sensitive, never a cost centre — in any spelling) */
 export function isPublicRef(ref: { type: string; sensitive?: boolean }): boolean {
-  return ref.sensitive !== true && ref.type !== 'costCenter';
+  return ref.sensitive !== true && !SENSITIVE_TYPES.has(ref.type.toLowerCase());
 }
 
 function compareRefs(a: PublicExternalRef, b: PublicExternalRef): number {

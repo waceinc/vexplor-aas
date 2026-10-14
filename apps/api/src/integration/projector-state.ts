@@ -37,6 +37,11 @@ export interface ProjectorState {
   parts: Partial<Record<Part, PartDigest>>;
   /** Process files only: assets the hierarchy places — their location changes with this file */
   placed?: string[];
+  /**
+   * Package owner when last projected (null = shared). Kept so the "removed" events of a deleted private package still
+   * carry its workspace — after the deletion nobody can look it up any more (review H1).
+   */
+  owner?: string | null;
 }
 
 const sha256 = (value: unknown): string => `sha256:${createHash('sha256').update(canonicalJson(value)).digest('hex')}`;

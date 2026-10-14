@@ -116,6 +116,13 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const UNDO_PATTERNS = new Set(['/packages/:packageId/undo', '/packages/:packageId/redo']);
 /** Requests that change sidecar files along with the model — undo snapshots the sidecar files too (undo.ts) */
 const SIDECAR_PATTERNS = new Set(['/packages/:packageId/derivation/apply']);
+/**
+ * Requests that are not undoable and end the package's undo history.
+ * External refs live in a store document the snapshot does not hold, while their projection changes the shell: undoing
+ * would restore the shell and leave the document saying `publish: true`. Older snapshots predate the projection, so
+ * they are dropped too — otherwise undoing an earlier edit would silently remove published ids (review L9).
+ */
+const UNDO_BARRIER_PATTERNS = new Set(['/packages/:packageId/external-refs']);
 
 export function createApi(base: AasStore, options: ApiOptions = {}): (request: ApiRequest) => Promise<ApiResponse> {
   // Important: wrap the store in a workspace layer. Routes see **only this layer** — if even one route held
@@ -192,7 +199,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
           return errorResponse(404, 'NotFound', fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: packageId }));
         }
         const snapshot =
-          packageId !== undefined && MUTATING.has(request.method) && !UNDO_PATTERNS.has(found.route.pattern)
+          packageId !== undefined &&
+          MUTATING.has(request.method) &&
+          !UNDO_PATTERNS.has(found.route.pattern) &&
+          !UNDO_BARRIER_PATTERNS.has(found.route.pattern)
             ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name, SIDECAR_PATTERNS.has(found.route.pattern))
             : undefined;
         const response = await found.route.handle({ request: inbound, params: found.params });
@@ -204,6 +214,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
             'Forbidden',
             tr('데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.'),
           );
+        }
+        if (packageId !== undefined && response.status < 300 && MUTATING.has(request.method) && UNDO_BARRIER_PATTERNS.has(found.route.pattern)) {
+          undo.forget(packageId);
         }
         if (snapshot && packageId !== undefined && response.status < 300) {
           if (request.method === 'DELETE' && found.route.pattern === '/packages/:packageId') undo.forget(packageId);
