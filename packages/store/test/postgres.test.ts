@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from 'vitest';
 //    It is boot time, not logic, so the timeout is raised generously for this file only
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 import {
+  INTEGRATION_SCHEMA_SQL,
   PostgresStore,
   runAsActor,
   SCHEMA_SQL,
@@ -74,6 +75,8 @@ describe('schema version number (schema_version)', () => {
    *    on 2026-10-02. When bumping the version, **strip it here too**.
    */
   const V1_SCHEMA = SCHEMA_SQL
+    // v9 — integration tables (strip first: their actor_id/actor_name lines would match the v4 patterns below)
+    .replace(INTEGRATION_SCHEMA_SQL, '')
     // v2 — bundle attachment role
     .replace(
       "CHECK (role IN ('thumbnail', 'supplementary', 'extra', 'bundle'))",
@@ -166,6 +169,57 @@ describe('schema version number (schema_version)', () => {
       },
     ]);
     expect((await store.readValues('p1'))[0]?.receivedAt).toBe('2026-10-13T00:05:00.000Z');
+    // v9 — integration tables; every model write above already inserted an event, or it would have failed
+    expect((await store.readEvents({ after: 0, limit: 100 })).items.map((event) => event.type)).toContain(
+      'kr.vexplor.aas.model.submodel.updated.v1',
+    );
+    await store.putExternalRefs('p1', { schema: 'vexplor.externalRefs/1', subjects: [] });
+    await store.putRuntimeState('k', 1, 'p1');
+  });
+
+  it('v8 DB → v9 — integration tables appear, existing data stays; running the upgrade twice is harmless', async () => {
+    const db = new PGlite();
+    const v8 = SCHEMA_SQL.replace(INTEGRATION_SCHEMA_SQL, '');
+    expect(v8).not.toBe(SCHEMA_SQL);
+    expect(v8).not.toContain('integration_event');
+    for (const statement of v8.split(';')) if (statement.trim()) await db.query(statement);
+    await db.query(SCHEMA_VERSION_TABLE);
+    await db.query('INSERT INTO schema_version (version) VALUES (8)');
+    await db.query("INSERT INTO aas_package (id, name, revision) VALUES ('p1', 'old.aasx', 4)");
+
+    const store = new PostgresStore(clientOf(db));
+    await store.init();
+    expect(store.schemaVersion).toBe(SCHEMA_VERSION);
+    const versions = (await db.query<{ version: number }>('SELECT version FROM schema_version ORDER BY version')).rows;
+    expect(versions.map((row) => row.version)).toContain(9);
+    await store.createIdentifiable('p1', { modelType: 'Submodel', id: 'urn:x:sm' });
+    const [event] = (await store.readEvents({ after: 0, limit: 10 })).items;
+    expect(event).toMatchObject({ type: 'kr.vexplor.aas.model.submodel.created.v1', packageRevision: 5 });
+
+    // The same statements once more (idempotent): a second start, and the v9 migration run by hand
+    for (const statement of INTEGRATION_SCHEMA_SQL.split(';')) if (statement.trim()) await db.query(statement);
+    const again = new PostgresStore(clientOf(db));
+    await again.init();
+    expect(again.schemaVersion).toBe(SCHEMA_VERSION);
+    expect((await again.readEvents({ after: 0, limit: 10 })).items).toHaveLength(1);
+    expect((await db.query('SELECT version FROM schema_version')).rows).toHaveLength(versions.length);
+  });
+
+  it('the v9 script has no semicolon inside a comment or a string — statements are split on it', () => {
+    for (const statement of INTEGRATION_SCHEMA_SQL.split(';')) {
+      const sql = statement.trim();
+      if (sql === '') continue;
+      expect(sql).toMatch(/^CREATE (TABLE|INDEX) IF NOT EXISTS /);
+      expect(sql).not.toMatch(/--/);
+    }
+  });
+
+  it('a DB exactly one version ahead is refused too (v10 for this v9 program)', async () => {
+    const db = new PGlite();
+    await new PostgresStore(clientOf(db)).init();
+    await db.query('INSERT INTO schema_version (version) VALUES ($1)', [SCHEMA_VERSION + 1]);
+    const later = new PostgresStore(clientOf(db));
+    await expect(later.init()).rejects.toBeInstanceOf(SchemaVersionError);
   });
 
   it('v1 tables from before versioning get their constraints migrated too — IF NOT EXISTS alone does not fix them', async () => {
