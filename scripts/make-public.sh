@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# 공개 저장소에 올릴 폴더를 **따로 뽑는다** — 이 저장소 자체는 건드리지 않는다.
+# **Extracts a separate folder** to push to the public repository — this repository itself is left untouched.
 #
-#   bash scripts/make-public.sh            # 뽑고 검사한다            → out/public
-#   bash scripts/make-public.sh --verify   # + 뽑은 폴더에서 설치·빌드·시험까지 돌려 본다
+#   bash scripts/make-public.sh            # extract and check            → out/public
+#   bash scripts/make-public.sh --verify   # + install, build and test inside the extracted folder
 #
-# 🔴 **이 저장소를 그대로 공개하면 안 된다.** 남의 저작물(PDF)·사업 자료·내부 기록이 섞여 있고,
-#    지운다 해도 **이력에 남는다**(예전 커밋에 토큰이 박혔던 적이 있다). 그래서 깎아 내지 않고
-#    허용한 것만 새 폴더로 뽑아, 거기서 **이력 없는 첫 커밋**으로 시작한다.
+# Important: **this repository must not be published as-is.** It mixes in third-party works (PDF), business material and internal records,
+#    and even deleted files **stay in history** (a token was once committed in an old commit). So instead of trimming down,
+#    only what is allowed is extracted into a new folder, which starts from a **first commit with no history**.
 #
-# 🔴 커밋된 것(HEAD)만 나간다. 작업 중인 변경·무시된 파일(out/ · .env)은 따라가지 않는다 —
-#    「뽑은 것」과 「검토한 것」이 같아야 하기 때문이다. 먼저 커밋하고 돌릴 것.
+# Important: only committed content (HEAD) goes out. Work-in-progress changes and ignored files (out/ · .env) do not follow —
+#    because "what was extracted" must equal "what was reviewed". Commit first, then run.
 #
-# 🔴 여기서 **올리지는 않는다.** 공개는 되돌릴 수 없으니 마지막 한 걸음은 사람이 한다(끝에 안내).
+# Important: this script **does not push.** Publishing cannot be undone, so the last step is done by a person (instructions at the end).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,19 +24,19 @@ for arg in "$@"; do
   esac
 done
 
-# 나가는 것 — **여기 없는 것은 나가지 않는다.** 새 파일을 공개하려면 여기에 적어야 한다.
+# What goes out — **anything not listed here does not go out.** To publish a new file, list it here.
 ALLOW=(
-  # 뿌리
+  # root
   .dockerignore .env.example .gitattributes .gitignore .github
   Caddyfile.example Dockerfile docker-compose.yml
   LICENSE NOTICE README.md README.ko.md CONTRIBUTING.md SECURITY.md THIRD-PARTY-NOTICES.md
   package.json package-lock.json tsconfig.json tsconfig.base.json vitest.config.ts
-  # 코드 · 시험
+  # code · tests
   apps packages tests templates
-  # 문서 — 쓰는 사람용만. 개발 기록·규칙 실측 자료는 싣지 않는다
+  # docs — user-facing only. Development logs and rule measurement material are not included
   docs/사용법.md docs/설치.md docs/배포_호스팅.md docs/규칙_목록.md docs/images docs/spec
   docs/usage.md docs/install.md docs/deployment.md docs/rules.md
-  # 도구
+  # tools
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs
   scripts/scan-fixture-names.py scripts/check-public-tree.mjs scripts/make-public.sh
@@ -53,17 +53,17 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 echo "▶ 1/4 뽑기 — HEAD에서 허용한 것만"
-# 🔴 공개 저장소의 이력(.git)은 **지키고** 내용만 갈아 끼운다. 통째로 지우면 두 번째 공개부터
-#    이력이 끊겨 「첫 공개」만 거듭하게 된다. 내용은 전부 지우고 다시 뽑는다 — 이 저장소에서
-#    지운 파일이 공개 쪽에 남아 있으면 안 되기 때문이다(그 뒤 git add -A가 삭제까지 잡는다).
+# Important: **keep** the public repository's history (.git) and only swap the contents. Deleting it wholesale breaks
+#    history from the second publish on, so every publish becomes a "first publish". All content is cleared and re-extracted —
+#    files deleted in this repository must not linger on the public side (git add -A then also picks up deletions).
 #
-# 🔴 `.git`을 **옮기지 않는다 — 손대지 않는다.** 처음엔 「밖으로 옮기고 → 폴더를 지우고 →
-#    되돌려 놓는」 식으로 짰는데, 폴더를 지우다 실패하면(누가 그 안에 들어가 있으면 지워지지
-#    않는다) 이력이 밖에 나가 있는 채로 멈추고, **다음 실행이 그것을 지운다.** 실제로 겪었다.
-#    지킬 것을 옮기는 순간 잃을 수 있는 틈이 생긴다. 그 자리에 두고 나머지만 비운다.
+# Important: **do not move `.git` — do not touch it.** The first version did "move it out → delete the folder →
+#    move it back", but if deleting the folder fails (it cannot be deleted while someone is inside it)
+#    the history is left outside, and **the next run deletes it.** This actually happened.
+#    The moment you move what you must keep, a gap opens where it can be lost. Leave it in place and empty the rest.
 mkdir -p "$OUT"
 find "$OUT" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-# 🔴 git archive는 **커밋된 내용**만 내보낸다. 작업 폴더를 복사하면 무시된 파일이 딸려 간다
+# Important: git archive exports **committed content** only. Copying the working folder drags ignored files along
 git -c core.quotepath=off archive --format=tar HEAD -- "${ALLOW[@]}" | tar -x -C "$OUT"
 echo "   파일 $(find "$OUT" -type f -not -path "$OUT/.git/*" | wc -l)개"
 
@@ -76,8 +76,8 @@ if command -v python3 >/dev/null 2>&1 && python3 -c "" >/dev/null 2>&1; then PY=
 
 if [ "$VERIFY" = "1" ]; then
   echo "▶ 4/4 뽑은 폴더가 **혼자 서는가** — 설치·빌드·시험"
-  # 🔴 「여기서는 된다」는 확인이 아니다. 뺀 파일에 기대고 있었다면 뽑은 폴더에서만 깨진다.
-  #    전에 빌드한 자리에서만 도는 꾸러미를 낸 적이 있다 — 옮겨서 돌려 봐야 확인이다
+  # Important: "it works here" is not verification. If it relied on an excluded file, it breaks only in the extracted folder.
+  #    We once shipped a bundle that only ran where it had been built before — it is verified only after running it elsewhere
   ( cd "$OUT" && npm ci --no-audit --no-fund >/dev/null && bash scripts/ci.sh )
 else
   echo "▶ 4/4 (건너뜀) 혼자 서는지 보려면 --verify"

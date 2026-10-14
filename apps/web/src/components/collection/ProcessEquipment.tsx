@@ -1,6 +1,6 @@
 /**
- * 수집 칸 — 공정(묶음) 파일 — 공정 자체에는 읽어 올 값이 없다. 매달린 설비 목록을 보여 주고 여기서 바로 연결·수집한다.
- * components/Collection.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석·판정은 옮기기 전 글자 그대로다.
+ * Collection pane — process (bundle) file — the process itself has no values to read. Shows the list of attached equipment and connects/collects right here.
+ * Split out of components/Collection.tsx (componentization, 2026-10-13) — markup, comments, and logic are verbatim from before the move.
  */
 import { tr } from '../../i18n.js';
 import { T } from '../T.js';

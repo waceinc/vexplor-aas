@@ -1,6 +1,6 @@
 /**
- * API 클라이언트 — 수집 — 연결(AID) · 수집값 · 표준 API 내보내기 · 자동 수집 · OPC UA 내주기 · 가상 PLC
- * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
+ * API client — collection — connections (AID) · collected values · standard API export · auto collection · OPC UA serving · virtual PLC
+ * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
 import type { AidInterfaceView, CollectedValueView, LiveMapping, CycleReportView } from './types.js';
 import { request } from './http.js';
@@ -10,7 +10,7 @@ export const collectionApi = {
     request(`/packages/${packageId}/interfaces`),
   values: (packageId: string, limit = 200): Promise<{ result: CollectedValueView[] }> =>
     request(`/packages/${packageId}/values?limit=${limit}`),
-  /** 한 태그의 기간 값 — 하루 상태 막대가 쓴다. from 포함 · to 미포함(ISO), 수신 시각 기준(값이 일정한 태그도 잡힌다) */
+  /** Time-range values of one tag — used by the daily status bar. from inclusive · to exclusive (ISO), by receive time (so constant-valued tags are caught too) */
   valuesBetween: (
     packageId: string,
     query: { property: string; from: string; to: string; limit?: number },
@@ -20,15 +20,15 @@ export const collectionApi = {
         `&to=${encodeURIComponent(query.to)}&limit=${query.limit ?? 20000}&basis=received`,
     ),
   /**
-   * 수집값이 모델의 어느 요소에 얹히는지 — 연결 상태 점검.
-   * BaSyx DataBridge와 달리 우리는 모델에 되쓰지 않으므로, **이름이 맞는지**가 관건이다.
+   * Which model element each collected value lands on — a connection health check.
+   * Unlike the BaSyx DataBridge we do not write back into the model, so **whether the names match** is what matters.
    */
   liveMapping: (
     packageId: string,
   ): Promise<LiveMapping> => request(`/packages/${packageId}/live`),
   /**
-   * 수집 연결(AID) 만들기 — 접속 주소와 태그 목록으로 규격대로 짓는다.
-   * 응답의 nameMisses는 모델 요소와 이름이 안 맞는 태그다(live 내보내기가 안 되는 것).
+   * Create a collection connection (AID) — built per the spec from the endpoint address and the tag list.
+   * nameMisses in the response are tags whose names do not match any model element (they cannot be exported live).
    */
   createAid: (
     packageId: string,
@@ -36,7 +36,7 @@ export const collectionApi = {
       endpoint: string;
       title?: string;
       tags: { name: string; href: string; key?: string; type?: string; unit?: string; form?: Record<string, string> }[];
-      /** 모델에 없는 태그의 자리를 OperationalData에 함께 세운다. 없으면 만들지 않는다 */
+      /** Also create slots in OperationalData for tags missing from the model. If absent, nothing is created */
       createMissing?: { group: string; subgroup: string };
     },
   ): Promise<{
@@ -45,7 +45,7 @@ export const collectionApi = {
     nameMatches: number;
     nameMisses: string[];
     elementsAdded: string[];
-    /** 다른 서브모델에 같은 이름이 있어 만들지 않은 것 — 만들면 값이 어디에도 안 얹힌다 */
+    /** Not created because another submodel has the same name — if created, the value would land nowhere */
     elementsConflicted?: string[];
   }> =>
     request(`/packages/${packageId}/aid`, {
@@ -53,9 +53,9 @@ export const collectionApi = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }),
-  /** 자동 수집 상태 — 돌고는 있는 건가 */
+  /** Auto-collection status — is it actually running */
   collectStatus: (): Promise<{
-    /** 수집(과 가상 PLC)을 쓸 수 있는 서버인가 */
+    /** Does this server support collection (and the virtual PLC) */
     collect?: boolean;
     running: boolean;
     intervalMs?: number;
@@ -69,8 +69,8 @@ export const collectionApi = {
     };
   }> => request('/collect-status'),
   /**
-   * 설비를 훑어 태그 목록을 가져온다 — NodeId를 손으로 치지 않게 하는 자리.
-   * 못 붙으면 502와 사유가 온다.
+   * Browses the device and fetches its tag list — so nobody has to type NodeIds by hand.
+   * If it cannot connect, a 502 with the reason comes back.
    */
   browseDevice: (
     endpoint: string,
@@ -92,8 +92,8 @@ export const collectionApi = {
       body: JSON.stringify({ endpoint }),
     }),
   /**
-   * OPC UA 노출 상태(M6·M7) — 우리가 지금 밖으로 무엇을 내주고 있는가.
-   * 꺼져 있으면 running:false와 사유가 온다(오류가 아니다).
+   * OPC UA exposure status (M6·M7) — what we are currently serving to the outside.
+   * When off, running:false and the reason come back (this is not an error).
    */
   opcuaStatus: (): Promise<{
     running: boolean;
@@ -104,10 +104,10 @@ export const collectionApi = {
     lastError?: string;
     reason?: string;
   }> => request('/opcua-status'),
-  /** 지금 한 번 수집한다. 수집 어댑터가 없는 배포에서는 501이 온다 */
+  /** Collect once now. Deployments without a collection adapter return 501 */
   collect: (packageId: string): Promise<CycleReportView> =>
     request(`/packages/${packageId}/collect`, { method: 'POST' }),
-  /** 내장 가상 PLC(시뮬레이션)에 이 설비를 붙이고 수집 연결을 만든다 */
+  /** Attach this asset to the built-in virtual PLC (simulation) and create a collection connection */
   simulate: (packageId: string): Promise<{ machine: string; endpoint: string; title: string; tags: number }> =>
     request(`/packages/${packageId}/simulate`, { method: 'POST' }),
 };

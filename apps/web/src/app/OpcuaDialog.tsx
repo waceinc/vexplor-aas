@@ -1,7 +1,7 @@
 /**
- * 내주기 창 — 이 도구가 OPC UA 서버로 값을 내주고 있을 때, 그 주소가 **어떤 종류의 주소인지** 못박는다.
- * 🔴 사고의 원인이 「주소가 두 개인데 둘 다 그냥 '주소'로 보인 것」이었다(내주는 주소를 설비 주소 칸에 넣었다).
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화).
+ * Serving dialog — while this tool serves values as an OPC UA server, it pins down **what kind of address** that address is.
+ * Important: the incident was caused by "two addresses that both just looked like 'address'" (the serving address was entered in the equipment address field).
+ * Split out of App.tsx (componentization, 2026-10-13).
  */
 import { T } from '../components/T.js';
 import { tr } from '../i18n.js';

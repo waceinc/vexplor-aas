@@ -1,6 +1,6 @@
 /**
- * 수집 칸 — 연결(인터페이스) 하나 — 이름 · 프로토콜 · 연결 상태 · 주소 · 항목별 최근 값과 시각.
- * components/Collection.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석·판정은 옮기기 전 글자 그대로다.
+ * Collection pane — one connection (interface) — name · protocol · connection state · address · latest value and time per item.
+ * Extracted from components/Collection.tsx (2026-10-13 componentization) — markup · comments · judgements moved verbatim at the time.
  */
 import type { AidInterfaceView, CollectedValueView } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
@@ -16,14 +16,14 @@ interface Props {
   latest: Map<string, CollectedValueView>;
   waitingTags: Set<string>;
   failedTags: Map<string, string>;
-  /** 지금 시각(ms) — 몇 초마다 바뀌어 「N분 전」과 끊김 판정이 저절로 따라간다 */
+  /** Current time (ms) — changes every few seconds so "N min ago" and the stale judgement follow automatically */
   nowMs: number;
-  /** 이 창 안에 들어온 값은 받는 중(freshness.ts) */
+  /** Values that arrived within this window count as receiving (freshness.ts) */
   windowMs: number;
 }
 
 export function InterfaceCard({ descriptor, status, latest, waitingTags, failedTags, nowMs, windowMs }: Props): React.JSX.Element {
-  // 항목마다 신선도 — 머리줄 합계와 줄 표시가 같은 판정을 쓴다
+  // Freshness per item — the header total and the row markers use the same judgement
   const fresh = new Map(
     descriptor.properties.map((property) => [property.name, freshnessOf(latest.get(`${descriptor.name}/${property.name}`), nowMs, windowMs)]),
   );
@@ -33,12 +33,12 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
       <div className="interface-head">
         <b>{descriptor.title ?? descriptor.name}</b>
         <span className="chip">{descriptor.protocol}</span>
-        {/* 색만으로 나누지 않는다 — 점 + 글자 */}
+        {/* Do not distinguish by color alone — dot + text */}
         <span className={`conn ${status.kind}`} title={tr('마지막 수집 시도의 결과입니다')}>
           <span className="dot" aria-hidden="true" />
           {status.label}
         </span>
-        {/* 값 신선도 합계 — 무엇이 끊겼는지 표를 훑지 않아도 보인다. 색만으로 나누지 않는다(글자로 적는다) */}
+        {/* Value freshness totals — shows what has dropped without scanning the table. Not by color alone (written as text) */}
         <span
           className="fresh-sum"
           title={fill(tr('받는 중 = {0}분 안에 들어온 값 · 끊김 = 마지막 값은 있으나 그 뒤로 안 들어옴 · 값 없음 = 한 번도 안 들어옴'), { 0: Math.round(windowMs / 60_000) })}
@@ -70,7 +70,7 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
                 <td>
                   <span className="tag-name">{property.name}</span>
                   {property.unit && <span className="unit"> {property.unit}</span>}
-                  {/* 주소는 줄로 내려 둔다 — 값이 밀려나면 수집이 되는지 알 수 없다 */}
+                  {/* The address goes on its own line — if the value gets pushed out, you cannot tell whether collection works */}
                   <div className="mono address" title={property.href ?? ''}>
                     {property.href ?? tr('주소 없음')}
                   </div>
@@ -82,14 +82,14 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
                       {badValue && <span className="unit"> {value.quality}</span>}
                     </>
                   ) : failed !== undefined ? (
-                    /* 읽으러 갔다가 실패한 것 — 사유(StatusCode)를 짧게 같이 쓴다. title에만 두면
-                       마우스를 올려야 보여서 「왜」를 못 읽고 지나쳤다(초보자 시연 실측) */
+                    /* A read attempt that failed — show the reason (StatusCode) briefly alongside. When it lived only in title,
+                       it appeared only on hover, so people passed by without reading "why" (measured in a beginner demo) */
                     <span title={failed}><T k={'읽기 실패{0}'} v={[<span className="dim"> — {shortReason(failed)}</span>]} />
                     </span>
                   ) : waiting ? (
                     /*
-                     * 🔴 「값 대기」 — 고장이 아니다. 색을 빼고(흐린 글자) **글자로 말한다**:
-                     *    노랑으로 칠하면 옆줄의 진짜 실패와 구별되지 않는다
+                     * Important: "awaiting value" — not a failure. No color (dimmed text); **it says so in words**:
+                     *    painted yellow it would be indistinguishable from a real failure on the next row
                      */
                     <span
                       className="waiting"

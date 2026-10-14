@@ -1,6 +1,6 @@
 /**
- * 머리글 밑 알림 띠 묶음 — 탈퇴 확인 · 체험판 · 견본 잠김 · 오류 · 토큰 · 충돌 · 알림 · 교정 결과.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화). 띠 하나하나의 모양은 ui/Banner 가 맡는다.
+ * Banner strips under the header — account-deletion confirmation · trial · locked sample · error · token · conflict · notice · fix results.
+ * Split out of App.tsx (componentization, 2026-10-13). Each strip's look is handled by ui/Banner.
  */
 import type { FixReport } from '../api.js';
 import { T } from '../components/T.js';
@@ -9,7 +9,7 @@ import { Banner } from '../ui/Banner.js';
 
 interface Props {
   t: (text: string) => string;
-  /** 탈퇴 확인을 묻는 중 */
+  /** Asking to confirm account deletion */
   confirmQuit: boolean;
   onQuit: () => void;
   onCancelQuit: () => void;
@@ -20,7 +20,7 @@ interface Props {
   onCloseSampleLocked: () => void;
   error?: string;
   onCloseError: () => void;
-  /** 서버가 인증을 켜 두었는데 토큰이 없거나 틀렸을 때의 안내 */
+  /** Guidance when the server has auth enabled but the token is missing or wrong */
   needsToken?: string;
   onToken: (token: string | undefined) => void;
   conflict?: string;
@@ -35,7 +35,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
   const { t } = props;
   return (
     <>
-      {/* 탈퇴 확인 — 되돌릴 수 없다. 무엇이 남고 무엇이 사라지는지 적는다 */}
+      {/* Account-deletion confirmation — irreversible. State what stays and what disappears */}
       {props.confirmQuit && (
         <Banner kind="demo-bar" role="alertdialog">
           ⚠️ <b>{t('정말 탈퇴하시겠습니까?')}</b>{' '}
@@ -50,10 +50,10 @@ export function StatusBanners(props: Props): React.JSX.Element {
       )}
 
       {/*
-        체험판 띠 — 무엇이 막혀 있고 올린 것이 어떻게 되는지를 먼저 말한다.
-        🔴 처음에는 「다른 사람에게도 보입니다」였다. 작업 공간을 로그인마다 가른 뒤로는
-           사실이 아니다(2026-10-04). 대신 **로그인을 새로 하면 빈 칸에서 시작한다**는 것을
-           적는다 — 데모 계정은 로그인이 곧 작업 공간이라, 모르면 「파일이 사라졌다」가 된다.
+        Trial strip — states up front what is blocked and what happens to uploaded files.
+        Important: it originally said "visible to others too". Since workspaces were split per login
+           that is no longer true (2026-10-04). Instead it says that **a new login starts from an empty workspace** —
+           for the demo account each login is its own workspace, and without knowing that users think "my files disappeared".
       */}
       {props.demoLocked && (
         <Banner kind="demo-bar">
@@ -85,7 +85,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
         </Banner>
       )}
 
-      {/* 오류는 헤더 안이 아니라 아래 띠로 — 헤더 안에 있으면 버튼을 밀어내며 줄이 꺾였다 */}
+      {/* Errors go in a strip below, not inside the header — inside the header they pushed buttons aside and wrapped the row */}
       {props.error && (
         <Banner kind="error-bar" role="alert" onClose={props.onCloseError} closeText={tr('닫기')}>
           {props.error}
@@ -98,7 +98,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
           onSubmit={(event) => {
             event.preventDefault();
             const input = new FormData(event.currentTarget).get('token');
-            // 새로고침하지 않는다 — 편집하다 토큰이 만료된 경우 화면을 잃지 않아야 한다
+            // Do not reload — if the token expires mid-edit, the screen must not be lost
             props.onToken(typeof input === 'string' ? input : undefined);
           }}
         >
@@ -112,7 +112,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
 
       {props.conflict && (
         <div className="conflict">
-          {/* 화면의 값을 밀어 넣지 않는다 — 남의 편집을 덮어쓰는 게 가장 나쁜 결과다 */}
+          {/* Do not force-push the on-screen values — overwriting someone else's edit is the worst outcome */}
           {tr('다른 곳에서 이 서브모델이 먼저 바뀌었습니다.')} <b>{tr('내 수정은 저장하지 않았습니다.')}</b>{' '}
           {props.conflict}
           <button

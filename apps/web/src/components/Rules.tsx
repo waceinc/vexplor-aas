@@ -1,11 +1,11 @@
 /**
- * 규칙·규약 화면 — **"무슨 근거로 통과라고 하는가"**.
+ * Rules · conventions screen — **"on what basis do we call it a pass"**.
  *
- * 검수자·발주처가 판정 근거를 묻는 자리다. 문서에만 적혀 있으면 실제로 도는 규칙과
- * 어긋날 수 있으므로, **서버에서 지금 도는 규칙을 그대로 받아** 그린다.
+ * This is where reviewers and clients ask for the basis of a judgement. If it were written only in documents it could drift
+ * from the rules actually running, so it **receives the rules currently running on the server as is** and draws them.
  *
- * 🔴 판정 주체를 흐리지 않는다. 이 도구의 린터는 **제출 전에 걸러 주는 것**이고,
- *    합격 판정은 KOSMO Validator와 aas-test-engines가 한다 — 그 사실을 맨 위에 둔다.
+ * Important: do not blur who judges. This tool's linter **filters before submission**;
+ *    the pass verdict comes from KOSMO Validator and aas-test-engines — that fact goes at the very top.
  */
 import { useEffect, useState } from 'react';
 import { api, type RuleCatalog } from '../api.js';
@@ -42,7 +42,7 @@ export function Rules({ onClose }: Props): React.JSX.Element {
         <button onClick={onClose}>{tr('닫기')}</button>
       </div>
 
-      {/* 🔴 맨 위에 둔다 — 이 도구가 합격을 결정하지 않는다 */}
+      {/* Important: at the very top — this tool does not decide the pass */}
       <section>
         <h3>{tr('합격은 누가 정하는가')}</h3>
         <dl className="verdict-list">
@@ -57,7 +57,7 @@ export function Rules({ onClose }: Props): React.JSX.Element {
 
       <section>
         <h3>{tr('규약 — 새로 만들 때 이 형식을 따릅니다')}</h3>
-        {/* 🔴 값이 어디서 왔는지 보여 준다. 정책 파일로 바꿨는데 안 먹었으면 여기서 드러난다 */}
+        {/* Important: show where the value came from. If a policy-file change did not take effect, it shows up here */}
         {(() => {
           const changed = catalog.sources.filter((entry) => entry.from !== 'default');
           return changed.length === 0 ? (
@@ -102,7 +102,7 @@ export function Rules({ onClose }: Props): React.JSX.Element {
       <section>
         <h3><T k={'규칙 {0}종'} v={[catalog.rules.length]} /></h3>
         <div className="row-buttons">
-          {/* 🔴 고른 값('all')과 보이는 글자(「전체」)를 가른다 — 값을 번역하면 영어일 때 어느 것과도 안 맞는다 */}
+          {/* Important: keep the chosen value ('all') separate from the visible text ("All") — translating the value would match nothing on the English screen */}
           {(['all', 'L1', 'L2', 'L3'] as const).map((key) => (
             <button
               key={key}

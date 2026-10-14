@@ -1,58 +1,58 @@
 /**
- * 배포(Publish) 엔진 — 기획서 M7. **AAS 계층 → OPC UA 노드 트리**.
+ * Publish engine — spec M7. **AAS hierarchy -> OPC UA node tree**.
  *
- * 왜 이것이 있어야 하는가(기획서 Ⅱ-3):
- *   「BaSyx가 하는 일이 AASX를 임포트해 OPC UA 서버의 값을 채우는 것뿐이라면,
- *     중간 매개체를 두는 대신 **저작 도구 자체가 OPC UA 서버가 되는 것**이 단순하다」
- * 즉 우리는 설비에서 값을 긁어와(M8) 그 값을 **다시 내주는 중계소**가 된다.
- * REST(Part 2)로도 현재값은 읽히지만 그건 물어봐야 답한다 — 상위 앱 N개가 **구독**으로
- * 받아 가려면 OPC UA 서버가 있어야 한다(기획서 Ⅲ-3 「구독 기반 N개 앱 동시 배포」).
+ * Why this must exist (spec II-3):
+ *   "If all BaSyx does is import AASX and fill an OPC UA server's values,
+ *     it is simpler for **the authoring tool itself to become the OPC UA server** than to keep an intermediary"
+ * In other words, we scrape values from equipment (M8) and become **a relay that serves those values back out**.
+ * Current values can also be read via REST (Part 2), but that only answers when asked — for N upstream apps to receive
+ * them via **subscriptions**, an OPC UA server is required (spec III-3 "subscription-based simultaneous delivery to N apps").
  *
- * 🔴 이 파일은 node-opcua를 부르지 않는다. **계획만 세운다** — 서버 없이 시험하기 위해서다.
- *    실체화는 server.ts가 한다(M6).
+ * Important: this file does not call node-opcua. **It only builds a plan** — so it can be tested without a server.
+ *    Materialization is done by server.ts (M6).
  *
- * 설계에서 정한 것 — 뒤집지 말 것:
- *  ① **NodeId는 Part 2 idShortPath와 같은 경로를 쓴다.** 같은 요소를 REST와 OPC UA에서
- *     다른 이름으로 부르면 현장에서 대조가 안 된다.
- *  ② **전부 읽기 전용이다.** 값 동기화 A안(파일이 원본) — OPC UA로 값을 바꿔 모델에 스며들면
- *     그 순간 A안이 깨진다. Package Explorer가 정확히 그 함정에 빠져 있다(§2-2).
- *  ③ **idShort가 없는 자식도 버리지 않는다.** SML 자식은 익명일 수 있다(AASd-120) —
- *     이름이 없다고 빼면 트리가 원본과 달라진다. 규격대로 `[n]`으로 가리킨다.
+ * Design decisions — do not reverse:
+ *  ① **NodeIds use the same path as the Part 2 idShortPath.** If the same element has different names
+ *     in REST and OPC UA, they cannot be cross-checked in the field.
+ *  ② **Everything is read-only.** Value sync option A (the file is the source of truth) — if values changed via
+ *     OPC UA leak into the model, option A breaks at that moment. Package Explorer falls into exactly that trap (§2-2).
+ *  ③ **Children without an idShort are not dropped.** SML children may be anonymous (AASd-120) —
+ *     dropping them for lacking a name makes the tree diverge from the original. Referenced as `[n]` per the spec.
  */
 import type { Environment, Submodel, SubmodelElement } from '@aas/core';
 
-/** 우리가 쓰는 OPC UA 자료형 — 모델의 xs:* 를 이 다섯으로 좁힌다 */
+/** OPC UA data types we use — the model's xs:* types are narrowed to these five */
 export type OpcDataType = 'Boolean' | 'Double' | 'Int32' | 'Int64' | 'String';
 
 export interface PublishNode {
-  /** browseName. 형제끼리 겹치지 않는다 */
+  /** browseName. Unique among siblings */
   name: string;
-  /** ns=1;s=<이 값> — Part 2 idShortPath와 같은 경로다 */
+  /** ns=1;s=<this value> — the same path as the Part 2 idShortPath */
   nodeId: string;
   kind: 'folder' | 'variable';
-  /** variable일 때만 */
+  /** Only for variables */
   dataType?: OpcDataType;
-  /** AAS는 값을 문자열로 담는다. 형 변환은 서버가 한다 */
+  /** AAS holds values as strings. Type conversion is done by the server */
   value?: string;
-  /** 어느 AAS 요소에서 왔는지 — 사람이 대조할 때 */
+  /** Which AAS element it came from — for human cross-checking */
   modelType?: string;
   children: PublishNode[];
 }
 
 export interface PublishPlan {
   packageId: string;
-  /** 폴더 이름 — 설비 이름 */
+  /** Folder name — the equipment name */
   name: string;
   children: PublishNode[];
-  /** 실체화될 변수 수 — 로그와 시험의 근거 */
+  /** Number of variables to be materialized — used by logs and tests */
   variables: number;
 }
 
 /**
- * xs:* → OPC UA 자료형.
+ * xs:* -> OPC UA data type.
  *
- * 🔴 모르는 것은 String으로 떨어뜨린다. 숫자로 넘겨짚었다가 파싱에 실패하면
- *    **값이 조용히 사라진다** — 문자열로라도 보이는 편이 낫다.
+ * Important: unknown types fall back to String. Guessing a number and then failing to parse
+ *    **silently loses the value** — better to show it, even as a string.
  */
 export function opcTypeOf(valueType: string | undefined): OpcDataType {
   switch (valueType) {
@@ -82,7 +82,7 @@ export function opcTypeOf(valueType: string | undefined): OpcDataType {
   }
 }
 
-/** 값이 실려 나가는 종류. 담는 요소는 폴더가 된다 */
+/** Kinds that carry a value out. Container elements become folders */
 const VALUED = new Set(['Property', 'MultiLanguageProperty', 'Range', 'Blob', 'File']);
 
 function childrenOf(node: SubmodelElement): { items: SubmodelElement[]; isList: boolean } | undefined {
@@ -98,18 +98,18 @@ function childrenOf(node: SubmodelElement): { items: SubmodelElement[]; isList: 
   return undefined;
 }
 
-/** 요소에서 내보낼 값 문자열 하나를 고른다 */
+/** Picks the single value string to export from an element */
 function valueOf(node: SubmodelElement): string | undefined {
   const record = node as unknown as Record<string, unknown>;
   if (node.modelType === 'MultiLanguageProperty') {
-    // 첫 언어를 쓴다. OPC UA 쪽에 언어 개념을 억지로 옮기지 않는다
+    // Use the first language. The language concept is not forced onto the OPC UA side
     const list = record['value'];
     if (!Array.isArray(list) || list.length === 0) return undefined;
     const first = list[0] as { text?: unknown };
     return typeof first?.text === 'string' ? first.text : undefined;
   }
   if (node.modelType === 'Range') {
-    // 구간은 하나의 값이 아니다 — 사람이 읽을 수 있게 붙여 둔다
+    // A range is not a single value — join it into a human-readable form
     const min = record['min'];
     const max = record['max'];
     if (min === undefined && max === undefined) return undefined;
@@ -120,11 +120,11 @@ function valueOf(node: SubmodelElement): string | undefined {
 }
 
 /**
- * 형제끼리 이름이 겹치지 않게 한다.
+ * Keeps sibling names from colliding.
  *
- * 🔴 OPC UA는 같은 부모 밑에서 browseName이 겹치면 **덮어써 잃는다.**
- *    AAS는 idShort 중복을 허용하는 결함 파일이 실제로 있다(KOSMO 실측) —
- *    그런 파일이 들어와도 노드가 사라지지 않아야 한다.
+ * Important: in OPC UA, duplicate browseNames under the same parent **get overwritten and lost.**
+ *    Defective AAS files with duplicate idShorts really exist (measured in KOSMO data) —
+ *    nodes must not disappear even when such a file comes in.
  */
 function uniqueName(taken: Set<string>, wanted: string): string {
   if (!taken.has(wanted)) {
@@ -149,13 +149,13 @@ function buildElements(
 ): PublishNode[] {
   const taken = new Set<string>();
   return items.map((node, index) => {
-    // SML의 자식은 규격상 인덱스로 가리킨다(익명일 수 있다) — model.ts와 같은 규칙
+    // Per the spec, SML children are referenced by index (they may be anonymous) — same rule as model.ts
     const name = uniqueName(taken, node.idShort ?? `[${index}]`);
-    // 🔴 경로 조각도 **겹치지 않게 한 이름**을 쓴다. idShort 중복은 실제로 있는 결함이고
-    //    (KOSMO-CD-5), 그대로 두면 NodeId가 겹쳐 노드 하나가 통째로 사라진다.
-    //    정상 파일에서는 name === idShort라 Part 2 idShortPath와 한 글자도 다르지 않다.
+    // Important: path segments also use **the de-duplicated name**. Duplicate idShorts are a real defect
+    //    (KOSMO-CD-5); left as-is, NodeIds collide and an entire node disappears.
+    //    In well-formed files name === idShort, so it does not differ from the Part 2 idShortPath by a single character.
     const segment = parentIsList ? `[${index}]` : name;
-    // 🔴 최상위에는 앞의 '.'을 붙이지 않는다
+    // Important: no leading '.' at the top level
     const path = parentIsList
       ? `${parentPath}${segment}`
       : parentPath === ''
@@ -180,7 +180,7 @@ function buildElements(
       name,
       nodeId: `${prefix}${path}`,
       kind: 'variable' as const,
-      // Range·MLP는 xs 자료형이 없거나 뜻이 달라 문자열로 낸다
+      // Range and MLP have no xs data type (or it means something else), so they are emitted as strings
       dataType:
         node.modelType === 'Property' ? opcTypeOf(typeof valueType === 'string' ? valueType : undefined) : 'String',
       ...(value === undefined ? {} : { value }),
@@ -190,14 +190,14 @@ function buildElements(
   });
 }
 
-/** 서브모델 하나를 폴더 하나로 */
+/** One submodel -> one folder */
 export function planForSubmodel(
   submodel: Submodel,
   packageId: string,
   counter: { variables: number },
   taken: Set<string>,
 ): PublishNode {
-  // 🔴 idShort가 없는 서브모델도 있다. id로 가리켜 트리에서 사라지지 않게 한다
+  // Important: some submodels have no idShort. Reference them by id so they do not vanish from the tree
   const label = submodel.idShort ?? submodel.id;
   const prefix = `${packageId}/${submodel.id}/`;
   return {
@@ -210,11 +210,11 @@ export function planForSubmodel(
 }
 
 /**
- * 파일 한 벌을 노드 계획으로.
+ * One file -> a node plan.
  *
- * 값을 얹으려면 `overlayEnvironment`로 수집값을 덧씌운 Environment를 넘긴다 —
- * 이 함수는 **모델에 적힌 것을 그대로** 옮길 뿐, 시계열을 따로 읽지 않는다.
- * (두 곳에서 값을 고르면 REST와 OPC UA가 다른 값을 말하게 된다)
+ * To include values, pass an Environment with collected values overlaid via `overlayEnvironment` —
+ * this function only carries over **what is written in the model**; it does not read the time series separately.
+ * (picking values in two places would make REST and OPC UA report different values)
  */
 export function planForPackage(
   environment: Environment,
@@ -225,7 +225,7 @@ export function planForPackage(
   const children = (environment.submodels ?? []).map((submodel) =>
     planForSubmodel(submodel, options.packageId, counter, taken),
   );
-  // 이름은 AAS의 idShort가 가장 사람 말에 가깝다. 없으면 파일명
+  // For the name, the AAS idShort is closest to human language. Falls back to the file name
   const shell = environment.assetAdministrationShells?.[0];
   return {
     packageId: options.packageId,
@@ -235,7 +235,7 @@ export function planForPackage(
   };
 }
 
-/** 계획 안의 모든 변수 노드를 평평하게 — 서버가 값을 갱신할 때 쓴다 */
+/** Flattens all variable nodes in the plan — used when the server updates values */
 export function flattenVariables(plan: PublishPlan): PublishNode[] {
   const out: PublishNode[] = [];
   const walk = (nodes: readonly PublishNode[]): void => {

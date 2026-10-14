@@ -1,6 +1,6 @@
 /**
- * 레퍼런스 번들 — ④ 문서·첨부 — Use-Case · 가이던스 · 참고 자료(번들을 다시 열어도 남는다).
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — ④ documents & attachments — Use-Case · guidance · reference material (persists when the bundle is reopened).
+ * Split out of components/BundlePanel.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { useRef, useState } from 'react';
 import { api, type BundleView } from '../../api.js';
@@ -10,14 +10,14 @@ import { T } from '../T.js';
 interface Props {
   packageId: string;
   view: BundleView | undefined;
-  /** 첨부를 올리거나 지운 뒤 번들을 다시 읽게 한다 */
+  /** After uploading or removing an attachment, have the bundle reloaded */
   onChanged: () => void;
 }
 
 export function AttachmentSection({ packageId, view, onChanged }: Props): React.JSX.Element {
-  /** 첨부 작업의 오류 — 화면 전체를 오류로 바꾸지 않는다 */
+  /** Errors from attachment actions — do not turn the whole screen into an error */
   const [note, setNote] = useState<string>();
-  // i18n-ignore — 화면 글자가 아니라 **번들 ZIP 안의 폴더 이름**이다. 옮기면 서버가 모르는 폴더가 된다
+  // i18n-ignore — not screen text but **folder names inside the bundle ZIP**. Translating them would make folders the server does not know
   const [uploadFolder, setUploadFolder] = useState('01_UseCase문서');
   const fileInput = useRef<HTMLInputElement>(null);
   const attachments = view?.attachments ?? [];

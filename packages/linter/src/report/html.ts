@@ -1,24 +1,24 @@
 /**
- * HTML 검증 결과서 — 기획서 Phase 3 산출물("Validator 검증 결과서 출력").
+ * HTML validation report — a Phase 3 deliverable of the plan ("output a Validator validation report").
  *
- * PDF는 따로 만들지 않는다. **브라우저 인쇄가 곧 PDF**이고, PDF 라이브러리를 하나 들이면
- * 한글 글꼴 내장까지 따라붙는다(기획서 Ⅲ-2 라이선스·Ⅷ 인코딩). 그래서 인쇄 스타일을 함께 넣는다.
+ * No separate PDF is produced. **Browser printing is the PDF**, and adding a PDF library would drag in
+ * Korean font embedding as well (plan Ⅲ-2 licensing · Ⅷ encoding). So print styles are included.
  *
- * 이 문서는 **우리 린터의 결과**다. KOSMO Validator 출력이 아니라는 점을 문서 안에 밝힌다 —
- * 제출처가 둘을 혼동하면 곤란하다.
+ * This document is **the output of our linter**. It states inside the document that it is not KOSMO Validator output —
+ * it would be a problem if the recipient confused the two.
  */
 import { BRAND_LOGO_DATA_URI, BRAND_NAME } from '../docs/brand.js';
 import type { LinterPolicy } from '../policy.js';
 import type { Finding, LintResult, Severity } from '../types.js';
 import { currentLang, fill, tr } from '@aas/core';
 
-/** 등급 글자 — 언어가 요청마다 다르므로 부를 때 옮긴다 */
+/** Severity labels — translated at call time because the language differs per request */
 const severityLabel = (severity: Severity): string =>
   ({ error: tr('위반'), warning: tr('경고'), info: tr('참고') })[severity];
-/** 지적 목록은 심한 것부터 — 참고가 맨 위에 서면 검수자가 그것부터 읽는다(2026-09-09 실측) */
+/** Findings list ordered most severe first — if info sits at the top, reviewers read it first (measured 2026-09-09) */
 const SEVERITY_RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
 
-/** 값이 그대로 문서에 박히므로 반드시 막는다 — idShort·메시지에 <>&가 들어올 수 있다 */
+/** Values are embedded in the document verbatim, so this must be escaped — idShorts and messages can contain <>& */
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -28,15 +28,15 @@ export function escapeHtml(value: string): string {
 }
 
 export interface HtmlReportOptions {
-  /** 대상 파일명 */
+  /** Target file name */
   title: string;
-  /** 결과서 생성 시각(ISO). 호출부가 넘긴다 — 렌더러는 시간을 만들지 않는다 */
+  /** Report generation time (ISO). Passed by the caller — the renderer does not create timestamps */
   generatedAt: string;
-  /** 어떤 규정 해석으로 검사했는지 함께 싣는다 */
+  /** Also include which regulatory interpretation the check used */
   policy?: LinterPolicy;
-  /** 문서 아래에 붙일 비고 */
+  /** Notes to append at the bottom of the document */
   note?: string;
-  /** IRI 이관 대장(새 IRI → 원본 IRI) — KOSMO 우선 정책으로 옮긴 것을 제출물에 같이 밝힌다 */
+  /** IRI migration ledger (new IRI → original IRI) — discloses in the submission what was moved under the KOSMO-first policy */
   relocations?: Record<string, string>;
 }
 

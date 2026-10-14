@@ -1,7 +1,7 @@
 /**
- * 계정 — 내 계정 설정(누구나) — 표시 이름 · 회사명 · 이메일 · 비밀번호.
- * components/Accounts.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
- * 성공·실패 알림은 Accounts 의 act 가 맡는다(서버가 준 문구 그대로).
+ * Accounts — my account settings (anyone) — display name · company name · email · password.
+ * Split out of components/Accounts.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
+ * Success and failure notices are handled by Accounts' act (the server's message as is).
  */
 import { useState } from 'react';
 import { api, type AuthState } from '../../api.js';
@@ -13,20 +13,20 @@ interface Props {
   working: boolean;
   act: Act;
   onError: (message: string) => void;
-  /** 내 비밀번호를 바꾸면 로그인이 새로 잡힌다 — 화면이 다시 읽게 한다 */
+  /** Changing my password re-establishes the login — makes the screen re-read */
   onChanged: () => void;
   t: (text: string) => string;
 }
 
 export function MySettings({ me, working, act, onError, onChanged, t }: Props): React.JSX.Element {
   const roleName = (role: Role): string => roleLabel(role, t);
-  // 내 정보
+  // My info
   const [myName, setMyName] = useState(me.displayName);
   const [myCompany, setMyCompany] = useState(me.company ?? '');
   const [myEmail, setMyEmail] = useState(me.email ?? '');
   const profileChanged = myName.trim() !== me.displayName || myCompany.trim() !== (me.company ?? '') || myEmail.trim() !== (me.email ?? '');
 
-  // 내 비밀번호
+  // My password
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');

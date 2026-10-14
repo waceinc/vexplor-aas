@@ -1,8 +1,8 @@
 /**
- * AASX 쓰기 — 기획서 M2.
+ * AASX writing — spec M2.
  *
- * 파트 · 관계 · Content_Types 세 곳을 항상 함께 갱신한다(PKG-THUMB-PART).
- * 골든 파일(01-롤포밍기)과 동일한 관계 ID 규칙을 따른다: origin=r1, thumbnail=r3, spec=r0.
+ * Always updates all three places together: parts, relationships and Content_Types (PKG-THUMB-PART).
+ * Follows the same relationship ID rule as the golden file (01 roll-forming machine): origin=r1, thumbnail=r3, spec=r0.
  */
 import { serializeEnvironment } from '@aas/core';
 import { strToU8, zipSync, type Zippable } from 'fflate';
@@ -20,18 +20,18 @@ import {
 import { ORIGIN_PART, type AasxPackage } from './package.js';
 
 export interface WriteOptions {
-  /** data.json 들여쓰기. 기본 2 */
+  /** data.json indentation. Default 2 */
   indent?: number;
   /**
-   * ZIP 엔트리 수정시각(Unix epoch ms). 지정하면 출력이 결정론적이 된다.
-   * 회귀 테스트와 CI 재현성을 위해 기본값을 고정해 둔다.
+   * ZIP entry modification time (Unix epoch ms). Setting it makes the output deterministic.
+   * The default is fixed for regression tests and CI reproducibility.
    */
   mtime?: number;
-  /** 압축 레벨 0~9. 기본 6 */
+  /** Compression level 0-9. Default 6 */
   level?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 }
 
-/** 결정론적 출력을 위한 기본 타임스탬프 (2026-01-01T00:00:00Z) */
+/** Default timestamp for deterministic output (2026-01-01T00:00:00Z) */
 export const DETERMINISTIC_MTIME = 1767225600000;
 
 export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Array {
@@ -46,13 +46,13 @@ export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Ar
     contentTypes.overrides.set(part, contentType);
   };
 
-  // ① AAS 본문
+  // ① AAS body
   addPart(specPart, strToU8(serializeEnvironment(pkg.environment, { indent })), 'application/json');
 
-  // ② origin 파트 (내용 없음 — 존재 자체가 AASX임을 표시한다)
+  // ② origin part (empty — its presence alone marks the file as AASX)
   addPart(ORIGIN_PART, new Uint8Array(0), 'text/plain');
 
-  // ③ 썸네일 · 첨부 파일
+  // ③ Thumbnail and attachments
   const rootRels: Relationship[] = [
     { id: 'r1', type: REL_TYPE.origin, target: ORIGIN_PART, targetMode: 'Internal' },
   ];
@@ -73,13 +73,13 @@ export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Ar
     });
   });
 
-  // ④ 보존 대상 기타 파트
+  // ④ Other preserved parts
   for (const [part, data] of pkg.extraParts) {
     if (parts.has(part)) continue;
     addPart(part, data, guessContentType(part));
   }
 
-  // ⑤ 관계 파일 3종 — 파트를 다 채운 뒤에 만든다
+  // ⑤ The three relationship files — built after all parts are filled in
   const originRelsPart = relsPathFor(ORIGIN_PART);
   const specRelsPart = relsPathFor(specPart);
   const originRels: Relationship[] = [
@@ -90,7 +90,7 @@ export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Ar
   addPart(originRelsPart, strToU8(buildRelationships(originRels)), RELS_CONTENT_TYPE);
   addPart(specRelsPart, strToU8(buildRelationships(specRels)), RELS_CONTENT_TYPE);
 
-  // ⑥ [Content_Types].xml — 자기 자신은 Override 대상이 아니다
+  // ⑥ [Content_Types].xml — it does not get an Override for itself
   const ctXml = buildContentTypes(contentTypes);
 
   const zippable: Zippable = {};

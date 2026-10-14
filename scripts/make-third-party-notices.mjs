@@ -1,30 +1,30 @@
 /**
- * 의존성의 라이선스를 모아 THIRD-PARTY-NOTICES.md를 만든다.
+ * Collects dependency licenses and generates THIRD-PARTY-NOTICES.md.
  *
- *     node scripts/make-third-party-notices.mjs          # 파일을 쓴다
- *     node scripts/make-third-party-notices.mjs --check  # 쓰지 않고 판정만 (CI용)
+ *     node scripts/make-third-party-notices.mjs          # write the file
+ *     node scripts/make-third-party-notices.mjs --check  # verdict only, no write (for CI)
  *
- * 🔴 **실행에 딸려 가는 것**(런타임)에 카피레프트(GPL·LGPL·AGPL)가 있으면 종료코드 1.
- *    Apache-2.0으로 내놓은 프로그램에 그런 것이 섞이면 받는 사람이 조건을 지킬 수 없다.
- *    OPC UA를 Python(asyncua, LGPL-3.0)이 아니라 node-opcua(MIT)로 고른 이유가 이것이고,
- *    의존성은 언제든 바뀌므로 **사람의 기억이 아니라 검사로** 지킨다.
+ * Important: exit code 1 if anything **shipped for execution** (runtime) is copyleft (GPL, LGPL, AGPL).
+ *    If such code is mixed into a program released under Apache-2.0, recipients cannot meet its terms.
+ *    This is why OPC UA uses node-opcua (MIT) rather than Python (asyncua, LGPL-3.0), and since dependencies
+ *    can change at any time, this is enforced **by a check, not by people's memory**.
  *
- * 근거는 package-lock.json이다 — 실제로 깔리는 판과 라이선스가 거기 적혀 있다.
- * 개발용(시험·빌드 도구)은 배포물에 들어가지 않으므로 목록만 싣고 판정하지 않는다.
+ * The source of truth is package-lock.json — it records the versions actually installed and their licenses.
+ * Development-only packages (test and build tools) do not ship, so they are listed but not judged.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
 const checkOnly = process.argv.includes('--check');
 
-/** 받는 사람에게 소스 공개 의무를 지우는 것들 */
+/** Licenses that impose source-disclosure obligations on recipients */
 const COPYLEFT = /\b(A?GPL|LGPL|SSPL|EUPL|CC-BY-SA|CC-BY-NC)\b/i;
 
 /**
- * package.json에 라이선스를 **적지 않은** 꾸러미 — 사람이 직접 열어 확인한 결과다.
+ * Packages whose package.json **does not state** a license — the result of a person opening and checking them.
  *
- * 🔴 「아마 MIT겠지」로 채우지 않는다. 꾸러미 안의 파일을 읽고 근거를 함께 적는다.
- *    판이 바뀌면 다시 확인해야 하므로 **판 번호까지** 맞을 때만 쓴다.
+ * Important: never fill in "probably MIT". Read the files inside the package and record the evidence.
+ *    A new version must be re-checked, so an entry applies only when **the version number** matches too.
  */
 const VERIFIED = {
   'dequeue@1.0.5': { license: 'BSD-2-Clause', evidence: 'LICENSE 파일 — "This is the 2-Clause BSD license"' },
@@ -37,7 +37,7 @@ const development = new Map();
 const unknown = [];
 
 for (const [path, entry] of Object.entries(lock.packages ?? {})) {
-  // 뿌리와 우리 워크스페이스(packages/*, apps/*)는 제3자가 아니다
+  // The root and our workspaces (packages/*, apps/*) are not third-party
   if (!path.includes('node_modules/')) continue;
   if (entry.link) continue;
   const name = path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length);

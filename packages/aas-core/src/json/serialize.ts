@@ -1,13 +1,13 @@
 /**
- * Environment → AAS V3.0 JSON.
+ * Environment -> AAS V3.0 JSON.
  *
- * 파서와 짝을 이루는 무손실 직렬화기. 입력 객체의 키 순서를 그대로 유지한다
- * (골든 파일 왕복 시 불필요한 diff를 만들지 않기 위함).
+ * A lossless serializer paired with the parser. Preserves the key order of the input object
+ * (to avoid unnecessary diffs when round-tripping golden files).
  */
 import type { Environment } from '../types/environment.js';
 
 export interface SerializeOptions {
-  /** 들여쓰기 칸 수. 0이면 한 줄로 출력한다. 기본 2 */
+  /** Number of indentation spaces. 0 outputs a single line. Default 2 */
   indent?: number;
 }
 
@@ -17,9 +17,9 @@ export function serializeEnvironment(env: Environment, options: SerializeOptions
 }
 
 /**
- * 의미적 비교용 정규 형식.
- * 객체 키를 정렬해 직렬화하므로, 키 순서만 다른 두 Environment가 같은 문자열이 된다.
- * 배열 순서는 AAS에서 의미를 가지므로(SubmodelElementList.orderRelevant) 정렬하지 않는다.
+ * Canonical form for semantic comparison.
+ * Object keys are sorted when serializing, so two Environments that differ only in key order produce the same string.
+ * Array order is meaningful in AAS (SubmodelElementList.orderRelevant), so arrays are not sorted.
  */
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(sortKeys(value));

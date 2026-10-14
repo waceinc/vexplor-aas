@@ -1,7 +1,7 @@
 /**
- * 오른쪽 칸 — 수집(OPC UA). 파일을 고르든 요소를 고르든 연결 상태는 늘 보인다.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업 · 클래스 이름 · 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름의 props 로 받는다.
+ * Right pane — collection (OPC UA). Connection status stays visible whether a file or an element is selected.
+ * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
+ * and the state and actions it uses arrive as props with the same names.
  */
 import { Collection } from '../components/Collection.js';
 import { tr } from '../i18n.js';
@@ -13,12 +13,12 @@ export function RightPane(props: Pick<Screen, 'adding' | 'autoCollect' | 'busy' 
   return (
     <>
       {/*
-        오른쪽 칸 — 수집(OPC UA)이 상시 자리한다.
-        🔴 파일을 고르든 요소를 고르든 **연결 상태는 늘 보여야 한다**. 값이 들어오는지,
-           밖으로 내주고 있는지는 편집 중에도 알아야 하는 정보다.
+        Right pane — permanent home of collection (OPC UA).
+        Important: whether a file or an element is selected, **connection status must always be visible**. Whether values are coming in
+           or being served out is information needed even while editing.
       */}
       <div className="right-pane">
-        {/* 새 파일을 만드는 동안은 이전 파일의 수집 안내를 걷는다 — "이 파일"이 무엇인지 헷갈렸다(2026-09-07) */}
+        {/* While creating a new file, hide the previous file's collection guidance — it was unclear what "this file" referred to (2026-09-07) */}
         {adding === 'new' && (
           <div className="collection empty">
             <h3>{tr('← 수집 — 설비에서 받아 오기')}</h3>

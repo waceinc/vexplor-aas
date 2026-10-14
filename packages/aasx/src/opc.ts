@@ -1,9 +1,9 @@
 /**
- * OPC(Open Packaging Conventions) 파트 처리.
+ * OPC (Open Packaging Conventions) part handling.
  *
- * AASX는 OPC ZIP이며, 다음 3곳이 서로 정합해야 파일이 유효하다(린터 명세 PKG-THUMB-PART):
- *   ① 실제 파트(ZIP 엔트리)  ② _rels 관계 선언  ③ [Content_Types].xml Override
- * 하나라도 빠지면 Package Explorer는 열지만 Validator는 떨어뜨린다.
+ * AASX is an OPC ZIP; the file is valid only if these three agree with each other (linter spec PKG-THUMB-PART):
+ *   ① the actual part (ZIP entry)  ② the _rels relationship declaration  ③ the [Content_Types].xml Override
+ * If any one is missing, Package Explorer still opens it but the Validator rejects it.
  */
 import { XMLParser } from 'fast-xml-parser';
 
@@ -24,7 +24,7 @@ export const RELS_CONTENT_TYPE = 'application/vnd.openxmlformats-package.relatio
 export interface Relationship {
   id: string;
   type: string;
-  /** 절대 파트명(선행 '/' 포함)으로 정규화해 보관한다 */
+  /** Stored normalized as an absolute part name (with leading '/') */
   target: string;
   targetMode?: string;
 }
@@ -41,7 +41,7 @@ function asArray<T>(v: T | T[] | undefined): T[] {
   return Array.isArray(v) ? v : [v];
 }
 
-/** 상대 Target을 소유 파트 기준 절대 파트명으로 바꾼다 */
+/** Converts a relative Target into an absolute part name relative to the owning part */
 export function resolveTarget(target: string, ownerDir: string): string {
   if (target.startsWith('/')) return target;
   const base = ownerDir.endsWith('/') ? ownerDir : `${ownerDir}/`;
@@ -55,7 +55,7 @@ export function resolveTarget(target: string, ownerDir: string): string {
   return `/${out.join('/')}`;
 }
 
-/** .rels XML을 파싱한다. ownerDir은 관계 파일이 기술하는 파트가 있는 디렉터리('/' 또는 '/aasx') */
+/** Parses .rels XML. ownerDir is the directory of the part the relationship file describes ('/' or '/aasx') */
 export function parseRelationships(xml: string, ownerDir: string): Relationship[] {
   const doc = parser.parse(xml) as Record<string, unknown>;
   const root = doc['Relationships'] as Record<string, unknown> | undefined;
@@ -80,7 +80,7 @@ export function escapeXml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => XML_ESCAPE[c] ?? c);
 }
 
-/** .rels XML을 생성한다. 골든 파일과 동일한 속성 순서(Target, Id, Type, TargetMode)를 따른다 */
+/** Builds .rels XML. Uses the same attribute order as the golden file (Target, Id, Type, TargetMode) */
 export function buildRelationships(rels: Relationship[]): string {
   const items = rels
     .map((r) => {
@@ -95,9 +95,9 @@ export function buildRelationships(rels: Relationship[]): string {
 }
 
 export interface ContentTypes {
-  /** 확장자(소문자, '.' 제외) → MIME */
+  /** Extension (lowercase, without '.') -> MIME */
   defaults: Map<string, string>;
-  /** 절대 파트명 → MIME */
+  /** Absolute part name -> MIME */
   overrides: Map<string, string>;
 }
 
@@ -131,7 +131,7 @@ export function buildContentTypes(ct: ContentTypes): string {
   return `<?xml version='1.0' encoding='UTF-8'?>\n<Types xmlns="${NS.contentTypes}">${defaults}${overrides}</Types>`;
 }
 
-/** 파트에 적용되는 MIME을 돌려준다 (Override 우선, 없으면 확장자 Default) */
+/** Returns the MIME that applies to a part (Override first, otherwise the extension Default) */
 export function contentTypeOf(ct: ContentTypes, partName: string): string | undefined {
   const override = ct.overrides.get(partName);
   if (override !== undefined) return override;
@@ -157,17 +157,17 @@ export function guessContentType(partName: string): string {
   return MIME_BY_EXT[partName.slice(dot + 1).toLowerCase()] ?? 'application/octet-stream';
 }
 
-/** ZIP 엔트리명('aasx/data.json') → 절대 파트명('/aasx/data.json') */
+/** ZIP entry name ('aasx/data.json') -> absolute part name ('/aasx/data.json') */
 export function toPartName(entry: string): string {
   return entry.startsWith('/') ? entry : `/${entry}`;
 }
 
-/** 절대 파트명('/aasx/data.json') → ZIP 엔트리명('aasx/data.json') */
+/** Absolute part name ('/aasx/data.json') -> ZIP entry name ('aasx/data.json') */
 export function toEntryName(part: string): string {
   return part.startsWith('/') ? part.slice(1) : part;
 }
 
-/** 파트의 관계 파일 경로를 돌려준다. '/aasx/data.json' → '/aasx/_rels/data.json.rels' */
+/** Returns the path of a part's relationship file. '/aasx/data.json' -> '/aasx/_rels/data.json.rels' */
 export function relsPathFor(part: string): string {
   const idx = part.lastIndexOf('/');
   const dir = part.slice(0, idx);
@@ -175,7 +175,7 @@ export function relsPathFor(part: string): string {
   return `${dir}/_rels/${name}.rels`;
 }
 
-/** 관계 파일이 기술하는 대상 디렉터리. '/aasx/_rels/data.json.rels' → '/aasx' */
+/** Target directory described by a relationship file. '/aasx/_rels/data.json.rels' -> '/aasx' */
 export function ownerDirOfRels(relsPart: string): string {
   const idx = relsPart.indexOf('/_rels/');
   return idx <= 0 ? '/' : relsPart.slice(0, idx);

@@ -1,11 +1,11 @@
 /**
- * API 클라이언트.
+ * API client.
  *
- * 서버 경로는 IDTA Part 2를 따른다(docs/spec/part2/). 식별자는 base64url로 인코딩해 넣는다.
- * 파일 해석은 전부 서버가 한다 — 브라우저는 바이트를 올리고 결과를 받을 뿐이다(기획서 Ⅷ).
+ * Server paths follow IDTA Part 2 (docs/spec/part2/). Identifiers are base64url-encoded into the path.
+ * All file parsing happens on the server — the browser only uploads bytes and receives results (plan doc VIII).
  *
- * 2026-10-13 컴포넌트화 — 주제별로 api/ 에 나눴다(타입 · 요청 틀 · 로그인 · 파일 · 모델 편집 · 문서용 자료 · 첨부 ·
- * 수집 · 번들 · 형식 반영). 쓰는 쪽은 예전처럼 이 파일에서 api 와 타입을 가져온다.
+ * 2026-10-13 componentization — split by topic into api/ (types · request wrapper · login · files · model editing · document data · attachments ·
+ * collection · bundles · type derivation). Callers still import api and the types from this file as before.
  */
 import { attachmentApi } from './api/attachments.js';
 import { authApi } from './api/auth.js';

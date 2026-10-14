@@ -1,13 +1,13 @@
 /**
- * 레퍼런스 번들 — ② 데이터 연계 — 운전 데이터 공통 항목 매트릭스(semanticId 로 묶은 항목 × 설비).
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — ② data linkage — matrix of common operating-data items (items grouped by semanticId × equipment).
+ * Split out of components/BundlePanel.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { useMemo, useState } from 'react';
 import type { BundleView, LinkageItemView } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
 import { T } from '../T.js';
 
-/** 공통 항목만 볼지 — 번들의 핵심은 「2대 이상이 함께 가진 것」이다 */
+/** Whether to show only common items — the core of the bundle is "what two or more units have in common" */
 type Scope = 'common' | 'all';
 
 const shortSemantic = (id: string): string => {
@@ -33,8 +33,8 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
   }, [view, scope]);
 
   /**
-   * 설비 → (이름 → 그 이름이 쓰는 semanticId들). 「없다」와 「같은 이름이 다른 semanticId로 있다」를
-   * 구분하려고 둔다 — 빈칸으로 두면 평가자는 「그 설비에는 가동상태가 없다」로 읽는다(FDS 실측)
+   * Equipment → (name → the semanticIds that name uses). Kept to distinguish "absent" from "the same name exists with a different semanticId"
+   * — left as a blank cell, an evaluator reads it as "that equipment has no operating state" (measured on FDS)
    */
   const namesByMember = useMemo(() => {
     const index = new Map<string, Map<string, Set<string>>>();
@@ -52,7 +52,7 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
     return index;
   }, [view]);
 
-  /** 확인할 점이 걸린 semanticId — 매트릭스 줄에 ⚠ 표시 */
+  /** semanticIds with an open point to check — marked ⚠ on the matrix row */
   const flagged = useMemo(() => {
     const map = new Map<string, 'warning' | 'info'>();
     for (const finding of view?.linkage.findings ?? []) {
@@ -127,7 +127,7 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
                     {columns.map((name) => {
                       const points = item.points[name] ?? [];
                       const other = points.some((p) => p.idShort !== item.label);
-                      // 이 줄엔 없지만 같은 이름이 다른 semanticId로 있는가
+                      // Not in this row, but does the same name exist with a different semanticId?
                       const elsewhere =
                         points.length === 0
                           ? [...(namesByMember.get(name)?.get(item.label) ?? [])].filter((id) => id !== item.semanticId)

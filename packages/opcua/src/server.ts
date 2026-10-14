@@ -1,18 +1,18 @@
 /**
- * OPC UA 서버 내장 — 기획서 M6.
+ * Embedded OPC UA server — spec M6.
  *
- * 기획서 Ⅲ-3의 그림이 이 파일이 있는 이유다:
+ * The diagram in spec III-3 is why this file exists:
  *
- *   수집 클라이언트 ──write──▶ **OPC UA 서버** ──subscribe──▶ App 1 · App 2 · App N
+ *   Collection client ──write──▶ **OPC UA server** ──subscribe──▶ App 1 · App 2 · App N
  *
- * 우리는 이미 왼쪽(M8 수집)을 갖고 있다. 오른쪽이 비어 있었다 —
- * Part 2 REST로 현재값을 읽을 수는 있지만 **물어봐야 답한다.** 상위 앱이 여러 개면
- * 저마다 폴링하게 되고, 값이 바뀐 순간을 아무도 모른다. 구독이 필요한 이유다.
+ * We already have the left side (M8 collection). The right side was empty —
+ * current values can be read via Part 2 REST, but **it only answers when asked.** With several upstream apps,
+ * each ends up polling, and nobody knows the moment a value changed. That is why subscriptions are needed.
  *
- * 🔴 전부 **읽기 전용**이다. 값 동기화 A안(파일이 원본) — OPC UA로 값을 써서 모델에
- *    스며들면 그 순간 A안이 깨진다. Package Explorer가 정확히 그 함정에 빠져 있다.
- * 🔴 기본은 꺼져 있다. 켜는 순간 **인증 없는 포트가 하나 열린다** — HTTP 쪽 토큰 인증과
- *    성격이 다르므로, 켜는 것은 배포자가 명시적으로 정해야 한다(`OPCUA_SERVER=on`).
+ * Important: everything is **read-only**. Value sync option A (the file is the source of truth) — if values written via
+ *    OPC UA leak into the model, option A breaks at that moment. Package Explorer falls into exactly that trap.
+ * Important: off by default. Turning it on **opens a port without authentication** — different in nature from the
+ *    HTTP-side token auth, so enabling it must be an explicit decision by the deployer (`OPCUA_SERVER=on`).
  */
 import {
   DataType,
@@ -28,48 +28,48 @@ import { tr } from '@aas/core';
 import { flattenVariables, type OpcDataType, type PublishNode, type PublishPlan } from './publish.js';
 
 /**
- * 🔴 이 도구가 띄운 서버임을 **프로토콜 수준에서** 알리는 표식.
+ * Important: a marker that announces, **at the protocol level**, that this server was started by this tool.
  *
- * 왜 필요한가: 「설비에서 불러오기」에 이 서버의 주소를 넣으면 우리가 내준 AAS 내용이
- * 「수집할 태그」로 되돌아온다 — 실제로 사용자가 그렇게 했고, 화면 안내가 그 동선을
- * 만들고 있었다(내보내기 주소가 수집 조작부 바로 옆에 떠 있었다).
- * 주소 문자열 비교로는 못 막는다: 호스트명·IP가 달라도 같은 서버이고, 반대로
- * 같은 포트라도 남의 설비일 수 있다. **상대에게 물어보는 것**이 유일하게 맞는 방법이다.
+ * Why: if this server's address is entered into "Import from equipment", the AAS content we serve
+ * comes back as "tags to collect" — a user actually did this, and the UI guidance was creating that path
+ * (the export address was shown right next to the collection controls).
+ * Comparing address strings cannot prevent it: different hostnames/IPs can be the same server, and conversely
+ * the same port can belong to someone else's equipment. **Asking the peer** is the only correct method.
  */
 export const PRODUCT_URI = 'urn:kr:aas-authoring-tool:publisher';
 
 export interface AasOpcUaServerOptions {
-  /** 기본 4840 — OPC UA 표준 포트 */
+  /** Default 4840 — the standard OPC UA port */
   port?: number;
   resourcePath?: string;
-  /** 무엇을 내줄지. 저장소를 이 패키지가 알 필요는 없어서 함수로 받는다 */
+  /** What to serve. Taken as a function since this package doesn't need to know about the store */
   load: () => Promise<PublishPlan[]>;
-  /** 주소공간을 다시 읽는 주기(ms). 0이면 수동(`refresh()`)만 */
+  /** Interval (ms) for re-reading the address space. 0 means manual (`refresh()`) only */
   refreshMs?: number;
-  /** 광고할 호스트. 비우면 node-opcua 기본 */
+  /** Host to advertise. Empty means the node-opcua default */
   hostname?: string;
 }
 
 export interface ServerStatus {
   running: boolean;
-  /** 이 프로세스의 applicationUri — 「자기 자신인가」 판정의 기준 */
+  /** applicationUri of this process — the basis for the "is it ourselves?" check */
   instanceUri?: string;
   endpoint?: string;
-  /** 지금 내주고 있는 파일 수 */
+  /** Number of files currently being served */
   packages: number;
-  /** 지금 내주고 있는 변수 노드 수 */
+  /** Number of variable nodes currently being served */
   variables: number;
   lastRefresh?: string;
   lastError?: string;
 }
 
 /**
- * 문자열 값 하나를 Variant로.
+ * One string value -> Variant.
  *
- * 🔴 값이 없는 것은 오류가 아니다. 우리 산출물은 Type/Template이라 **빈 값이 정상**이고,
- *    수집이 붙기 전에는 대부분 비어 있다. 그래서 `BadWaitingForInitialData`로 낸다 —
- *    "아직 안 들어왔다"와 "읽다 실패했다"를 상위 앱이 구분할 수 있어야 한다.
- * 🔴 자료형이 안 맞으면 0으로 채우지 않는다. 잘못된 숫자를 내주는 것이 침묵보다 나쁘다.
+ * Important: a missing value is not an error. Our outputs are Types/Templates, so **empty values are normal**,
+ *    and most are empty until collection is attached. So we report `BadWaitingForInitialData` —
+ *    upstream apps must be able to tell "not arrived yet" from "the read failed".
+ * Important: on a data type mismatch we do not fill in 0. Serving a wrong number is worse than silence.
  */
 export function toVariant(
   dataType: OpcDataType,
@@ -126,7 +126,7 @@ export function toVariant(
   }
 }
 
-/** 계획의 뼈대가 바뀌었는지 — 값만 바뀐 것과 구분한다 */
+/** Whether the plan's structure changed — distinguished from value-only changes */
 function shapeOf(plans: readonly PublishPlan[]): string {
   return plans
     .map((plan) => `${plan.packageId}|${flattenVariables(plan).map((node) => node.nodeId).join(',')}`)
@@ -136,13 +136,13 @@ function shapeOf(plans: readonly PublishPlan[]): string {
 export class AasOpcUaServer {
   private server: OPCUAServer | undefined;
   private root: UAObject | undefined;
-  /** nodeId 문자열 → 변수 핸들 */
+  /** nodeId string -> variable handle */
   private readonly variables = new Map<string, UAVariable>();
   private shape = '';
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = true;
   private status: ServerStatus = { running: false, packages: 0, variables: 0 };
-  /** 이 프로세스의 신원 — 기동마다 새로 만든다 */
+  /** Identity of this process — regenerated on every start */
   private readonly instanceUri = `urn:aas-authoring-tool:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 
   constructor(private readonly options: AasOpcUaServerOptions) {}
@@ -158,16 +158,16 @@ export class AasOpcUaServer {
       port,
       resourcePath,
       /*
-       * 신원을 명시한다. 비워 두면 node-opcua가 `urn:{hostname}:NodeOPCUA-Server`를 쓰는데,
-       * 그건 호스트명에 매여 있어 판별에 못 쓴다.
-       *  productUri     — 이 도구 전부에서 같다. "저작도구가 띄운 서버"임을 말한다
-       *  applicationUri — 이 프로세스 하나. "**바로 나 자신**"임을 말한다
-       * 덤: applicationUri를 주면 자체서명 인증서 SAN에 URI가 들어가 SAN 경고도 줄어든다.
+       * Identity is set explicitly. If left empty, node-opcua uses `urn:{hostname}:NodeOPCUA-Server`,
+       * which is tied to the hostname and useless for identification.
+       *  productUri     — the same across all instances of this tool. Says "a server started by the authoring tool"
+       *  applicationUri — this one process only. Says "**exactly myself**"
+       * Bonus: giving an applicationUri puts the URI into the self-signed certificate SAN, which also reduces SAN warnings.
        */
       serverInfo: {
         applicationUri: this.instanceUri,
         productUri: PRODUCT_URI,
-        // i18n-ignore — OPC UA 서버 이름(서버가 뜰 때 한 번 정해져 접속하는 모든 앱에 같은 값으로 보인다)
+        // i18n-ignore — OPC UA server name (fixed once at server startup and shown with the same value to every connecting app)
         applicationName: { text: 'VEXPLOR AAS Studio - AAS 내주기' },
       },
       buildInfo: {
@@ -183,7 +183,7 @@ export class AasOpcUaServer {
     const addressSpace = this.server.engine.addressSpace;
     if (!addressSpace) throw new Error(tr('주소공간을 만들지 못했습니다.'));
     const namespace = addressSpace.getOwnNamespace();
-    // 최상위 폴더 하나로 모은다 — 우리 것이 남의 노드와 섞이지 않게
+    // Gather everything under one top-level folder — so our nodes don't mix with others'
     this.root = namespace.addObject({
       organizedBy: addressSpace.rootFolder.objects,
       browseName: 'AAS',
@@ -216,10 +216,10 @@ export class AasOpcUaServer {
   }
 
   /**
-   * 주소공간을 지금 상태에 맞춘다.
+   * Brings the address space in line with the current state.
    *
-   * 값만 바뀌었으면 **노드를 다시 만들지 않는다** — 다시 만들면 구독이 끊어지고,
-   * 붙어 있던 앱들이 매번 재구독해야 한다. 뼈대가 바뀌었을 때만 다시 세운다.
+   * If only values changed, **nodes are not recreated** — recreating them drops subscriptions,
+   * and connected apps would have to resubscribe every time. Rebuild only when the structure changed.
    */
   async refresh(): Promise<void> {
     if (!this.server || !this.root) return;
@@ -242,7 +242,7 @@ export class AasOpcUaServer {
       };
       delete this.status.lastError;
     } catch (error) {
-      // 🔴 새로 고침이 실패해도 서버는 살려 둔다 — 붙어 있는 앱을 떨구지 않는다
+      // Important: keep the server alive even if a refresh fails — do not drop connected apps
       this.status = {
         ...this.status,
         lastError: error instanceof Error ? error.message : String(error),
@@ -257,7 +257,7 @@ export class AasOpcUaServer {
     }, interval);
   }
 
-  /** 뼈대를 다시 세운다 — 기존 노드는 지우고 새로 만든다 */
+  /** Rebuilds the structure — deletes existing nodes and creates new ones */
   private rebuild(plans: readonly PublishPlan[]): void {
     const addressSpace = this.server?.engine.addressSpace;
     if (!addressSpace || !this.root) return;
@@ -296,7 +296,7 @@ export class AasOpcUaServer {
         browseName: node.name,
         nodeId: `s=${node.nodeId}`,
         dataType: node.dataType ?? 'String',
-        // 🔴 읽기 전용 — A안을 프로토콜 수준에서 강제한다
+        // Important: read-only — enforces option A at the protocol level
         accessLevel: 'CurrentRead',
         userAccessLevel: 'CurrentRead',
         minimumSamplingInterval: 0,
@@ -306,7 +306,7 @@ export class AasOpcUaServer {
     }
   }
 
-  /** 값 하나를 밀어 넣는다 — 구독이 걸려 있으면 여기서 발화한다 */
+  /** Pushes one value — fires here if a subscription is active */
   private writeValue(node: PublishNode): void {
     const variable = this.variables.get(node.nodeId);
     if (!variable) return;

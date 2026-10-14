@@ -1,19 +1,19 @@
 /**
- * AID 서브모델 만들기 — 화면에서 「수집 연결」을 만드는 자리.
+ * Building the AID submodel — where the UI creates a "collection connection".
  *
- * 왜 필요한가: 수집이 되려면 파일 안에 AID(IDTA-02017)가 있어야 하는데, 그 구조가
- * 4~5단 중첩이라 「요소 추가」로 사람이 쌓는 것은 사실상 불가능하다. 지금까지는
- * 시연 스크립트로만 만들 수 있었다 — 실제 설비를 붙일 길이 없었다는 뜻이다.
+ * Why: collection requires an AID (IDTA-02017) inside the file, but its structure is
+ * nested 4–5 levels deep, so building it by hand via "Add element" is practically impossible. Until now
+ * it could only be created by demo scripts — meaning there was no way to attach real equipment.
  *
- * 🔴 semanticId는 **IDTA 공식 템플릿(IDTA-02017-1-0)에서 그대로** 가져온다.
- *    손으로 지으면 표준 용어가 빠져 KOSMO-SME-3이 요소 수만큼 뜬다(실측).
- * 🔴 이렇게 만든 AID는 `parseAid()`가 반드시 도로 읽을 수 있어야 한다 —
- *    만들기와 읽기가 어긋나면 "만들었는데 수집이 안 된다"가 된다. 시험이 왕복을 고정한다.
+ * Important: semanticIds are taken **verbatim from the official IDTA template (IDTA-02017-1-0).**
+ *    Hand-written ones miss the standard terms, and KOSMO-SME-3 fires once per element (observed).
+ * Important: an AID built here must always be readable back by `parseAid()` —
+ *    if build and parse diverge, you get "created it but collection doesn't work". Tests pin the round trip.
  */
 import type { SubmodelElement } from '@aas/core';
 import { fill, tr } from '@aas/core';
 
-/** IDTA-02017-1-0 템플릿의 표준 semanticId */
+/** Standard semanticIds from the IDTA-02017-1-0 template */
 const TERM = {
   interface: 'https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Interface',
   endpointMetadata: 'https://admin-shell.io/idta/AssetInterfacesDescription/1/0/EndpointMetadata',
@@ -35,26 +35,26 @@ const TERM = {
 
 export interface AidTagInput {
   /**
-   * 항목 이름 — 요소의 idShort가 된다.
-   * 🔴 모델의 요소 idShort와 **같아야** 수집값이 표준 API(`live=true`)로 나간다.
+   * Item name — becomes the element's idShort.
+   * Important: it must **match** the model element's idShort for collected values to be served via the standard API (`live=true`).
    */
   name: string;
-  /** 읽을 주소. OPC UA면 NodeId (예: ns=1;s=Machine.MotorSpeed) */
+  /** Address to read. NodeId for OPC UA (e.g. ns=1;s=Machine.MotorSpeed) */
   href: string;
-  /** 자산 쪽 식별자 (예: PLC 주소 D100). 몰라도 된다 */
+  /** Asset-side identifier (e.g. PLC address D100). Optional */
   key?: string;
   /** float · integer · string · boolean */
   type?: string;
-  /** UCUM 단위 (rpm · Cel · ea …) */
+  /** UCUM unit (rpm · Cel · ea …) */
   unit?: string;
   /**
-   * 프로토콜 고유 폼 항목(2026-10-14) — Modbus 는 modv_*(entity · function · type · 바이트 순서 · unitID),
-   * MQTT 는 mqv_*(controlPacket · qos · retain). 이름은 FORM_FIELDS 에 있는 것만 받는다. OPC UA 에는 쓰지 않는다.
+   * Protocol-specific form fields (2026-10-14) — Modbus uses modv_* (entity · function · type · byte order · unitID),
+   * MQTT uses mqv_* (controlPacket · qos · retain). Only names listed in FORM_FIELDS are accepted. Not used for OPC UA.
    */
   form?: Readonly<Record<string, string>>;
 }
 
-/** 접속 주소로 정하는 프로토콜 — AID 인터페이스 이름도 이것으로 짓는다(parseAid 의 protocolOf 와 짝) */
+/** Protocol determined from the endpoint address — also used to name the AID interface (pairs with protocolOf in parseAid) */
 export type AidBuildProtocol = 'OPCUA' | 'MODBUS' | 'MQTT';
 export function endpointProtocol(endpoint: string): AidBuildProtocol | undefined {
   if (/^opc\.tcp:\/\/.+/i.test(endpoint)) return 'OPCUA';
@@ -71,8 +71,8 @@ const INTERFACE_NAME: Record<AidBuildProtocol, string> = {
 const PROTOCOL_LABEL: Record<AidBuildProtocol, string> = { OPCUA: 'OPC UA', MODBUS: 'Modbus TCP', MQTT: 'MQTT' };
 
 /**
- * 폼 항목과 그 어휘(W3C WoT 바인딩). 원문은 이름공간만 정하고 항목별 IRI 를 따로 두지 않는다 —
- * 그래서 항목 IRI 를 지어내지 않고, 자체 IRI(cd/{이름}) + 이름공간 IRI 를 supplemental 로 단다.
+ * Form fields and their vocabulary (W3C WoT bindings). The source spec defines only the namespace, not per-field IRIs —
+ * so we do not invent field IRIs; we attach our own IRI (cd/{name}) plus the namespace IRI as supplemental.
  */
 const MODBUS_NS = 'https://www.w3.org/2019/wot/modbus';
 const MQTT_NS = 'https://www.w3.org/2019/wot/mqtt';
@@ -89,14 +89,14 @@ const FORM_FIELDS: Record<string, { protocol: AidBuildProtocol; ns: string; valu
 };
 
 export interface AidBuildInput {
-  /** 장비명 — AAS의 idShort. 서브모델 id에 들어간다 */
+  /** Equipment name — the AAS idShort. Included in the submodel id */
   assetName: string;
-  /** KOSMO 자체 IRI 뿌리 */
+  /** Root of KOSMO's own IRIs */
   iriBase: string;
-  /** 접속 주소 — opc.tcp:// · modbus+tcp:// · mqtt:// · mqtts:// */
+  /** Endpoint address — opc.tcp:// · modbus+tcp:// · mqtt:// · mqtts:// */
   endpoint: string;
   tags: readonly AidTagInput[];
-  /** 인터페이스 표시 이름. 기본은 "{장비명} 제어반 (OPC UA)" */
+  /** Interface display name. Defaults to "{equipment name} control panel (OPC UA)" */
   title?: string;
 }
 
@@ -108,10 +108,10 @@ const ref = (value: string) => ({
 });
 
 /**
- * 🔴 kosmo-first 짝 — semanticId는 자체 IRI(cd/{idShort}), IDTA 원본은 supplemental로 보존.
- * 전에는 IDTA IRI를 semanticId로 직접 썼는데, 그러면 도구가 만든 AID가 도구 규칙
- * (KOSMO-SME-3: 자체 CD 필요)에 태어나자마자 13건 걸렸다(실측). 계층(hierarchy.ts)과
- * 같은 패턴으로 맞춘다 — 「고치기」가 이관하면 IDTA 표시가 사라지는 문제도 함께 없어진다.
+ * Important: kosmo-first pair — semanticId is our own IRI (cd/{idShort}); the IDTA original is kept as supplemental.
+ * Previously the IDTA IRI was used directly as the semanticId, so an AID created by the tool violated the tool's own rule
+ * (KOSMO-SME-3: own CD required) 13 times right from creation (observed). Aligned with the same pattern as the
+ * hierarchy (hierarchy.ts) — this also removes the problem of the IDTA marking disappearing when "Fix" migrates it.
  */
 const pair = (iriBase: string, idShort: string, idtaTerm: string) => ({
   semanticId: ref(`${iriBase}/cd/${idShort}/1/0`),
@@ -134,7 +134,7 @@ const prop = (iriBase: string, idShort: string, idtaTerm: string, value: string)
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 const TYPES = new Set(['float', 'integer', 'string', 'boolean']);
 
-/** 들어온 값을 먼저 본다 — 틀린 AID를 만들어 놓고 수집이 안 되는 것보다 여기서 멈추는 게 낫다 */
+/** Validates input first — better to stop here than to build a wrong AID and then fail to collect */
 export function checkAidInput(input: AidBuildInput): void {
   const protocol = endpointProtocol(input.endpoint);
   if (!protocol) {
@@ -152,11 +152,11 @@ export function checkAidInput(input: AidBuildInput): void {
     }
     if (seen.has(tag.name)) throw new AidBuildError(fill(tr('태그 이름이 겹칩니다: {0}'), { 0: tag.name }));
     seen.add(tag.name);
-    // 🔴 href가 아예 없으면(API를 직접 부른 호출) 500이 났다 — 빈 주소와 같이 400으로 알린다(2026-09-30)
+    // Important: a missing href (direct API calls) used to cause a 500 — now reported as 400, same as an empty address (2026-09-30)
     if (typeof tag.href !== 'string' || tag.href.trim() === '') {
       throw new AidBuildError(fill(tr('{0}의 읽을 주소(NodeId)가 비었습니다.'), { 0: tag.name }));
     }
-    // 주소 모양 — Modbus 는 「주소」·「unit/주소」(+ ?quantity=n), MQTT 는 와일드카드 없는 토픽(마지막 값을 읽는다)
+    // Address format — Modbus: "address" or "unit/address" (+ ?quantity=n); MQTT: a topic without wildcards (reads the last value)
     if (protocol === 'MODBUS' && !/^(modbus\+tcp:\/\/[^/]+)?\/?(\d+\/)?\d+(\?quantity=\d+)?$/i.test(tag.href.trim())) {
       throw new AidBuildError(fill(tr('{0}의 Modbus 주소가 이상합니다: {1} — 예: 40 · 1/40 · 1/40?quantity=2'), { 0: tag.name, 1: tag.href }));
     }
@@ -181,8 +181,8 @@ export function checkAidInput(input: AidBuildInput): void {
 }
 
 /**
- * AID 서브모델을 만든다.
- * 🔴 서브모델의 semanticId는 자기 id를 쓴다 — KOSMO가 admin-shell.io IRI를 거부한다(규정 충돌 ①).
+ * Builds the AID submodel.
+ * Important: the submodel's semanticId uses its own id — KOSMO rejects admin-shell.io IRIs (rule conflict ①).
  */
 export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> {
   const base = input.iriBase;
@@ -230,9 +230,9 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
 }
 
 /**
- * AID가 쓰는 자체 용어의 ConceptDescription — 골든 파일과 같은 모양
- * (IEC 61360 명세 + isCaseOf로 IDTA 원본을 가리킨다). 이것이 함께 들어가야
- * KOSMO-SME-3(자체 IRI면 CD 필요)을 태어날 때부터 통과한다.
+ * ConceptDescriptions for the own terms the AID uses — same shape as the golden file
+ * (IEC 61360 specification + isCaseOf pointing to the IDTA original). Including these is what makes
+ * it pass KOSMO-SME-3 (own IRI requires a CD) from the moment it is created.
  */
 const IEC61360 =
   'https://admin-shell.io/DataSpecificationTemplates/DataSpecificationIec61360/3/0';
@@ -257,7 +257,7 @@ function aidConcept(iriBase: string, idShort: string, idtaTerm: string): Record<
   };
 }
 
-/** 이 AID가 쓰는 용어 전부의 CD — 태그 이름(장비마다 다름)까지 포함 */
+/** CDs for every term this AID uses — including tag names (which differ per equipment) */
 export function aidConceptDescriptions(input: AidBuildInput): Record<string, unknown>[] {
   const protocol = endpointProtocol(input.endpoint) ?? 'OPCUA';
   const fixed: [string, string][] = [
@@ -275,7 +275,7 @@ export function aidConceptDescriptions(input: AidBuildInput): Record<string, unk
     ['key', TERM.key],
     ['unit', TERM.unit],
   ];
-  // 쓴 폼 항목의 용어 — 한 번씩만
+  // Terms for the form fields used — once each
   const formKeys = [...new Set(input.tags.flatMap((tag) => Object.keys(tag.form ?? {})))].filter((key) => FORM_FIELDS[key]);
   for (const key of formKeys) fixed.push([key, FORM_FIELDS[key]!.ns]);
   const out = fixed.map(([idShort, term]) => aidConcept(input.iriBase, idShort, term));

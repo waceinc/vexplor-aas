@@ -1,19 +1,19 @@
 /**
- * 정적 파일 서빙 — 저작 UI(@aas/web)의 빌드 결과를 API와 **같은 포트**에서 내준다.
+ * Static file serving — serves the authoring UI (@aas/web) build output on the **same port** as the API.
  *
- * 왜 nginx를 따로 두지 않았나.
- *  ① 배포처가 폐쇄망 공장 서버다. 컨테이너가 하나면 반입·기동·점검이 한 번에 끝난다
- *  ② 같은 출처가 되어 CORS도, 개발용 프록시 설정도 필요 없어진다
- *  ③ 여기서 하는 일은 「파일을 그대로 준다」뿐이라, 웹서버를 들일 만큼 복잡하지 않다
+ * Why there is no separate nginx:
+ *  ① The deployment target is an air-gapped factory server. With a single container, transfer, startup and inspection are done in one go
+ *  ② Being the same origin removes the need for CORS and for dev proxy configuration
+ *  ③ All this does is "serve files as-is", not complex enough to bring in a web server
  *
- * 🔴 정적 파일에는 토큰을 요구하지 않는다. 화면이 떠야 사용자가 토큰을 **넣을 수** 있다.
- *    비밀은 전부 API 쪽에 있고, 여기서 나가는 것은 누구나 받을 수 있는 앱 껍데기다.
+ * Important: static files do not require a token. The screen must load for the user to be able to **enter** a token.
+ *    All secrets are on the API side; what goes out here is the app shell anyone may receive.
  */
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 
-/** 확장자 → content-type. 목록에 없으면 내주지 않는다(추측해서 내보내지 않는다) */
+/** Extension → content-type. Not served if absent from the list (we do not guess) */
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -30,7 +30,7 @@ const TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.map': 'application/json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
-  // 견본(public/samples) — 「견본으로 시작하기」가 받아 간다
+  // Samples (public/samples) — fetched by "Start from a sample"
   '.zip': 'application/zip',
   '.aasx': 'application/asset-administration-shell-package',
 };
@@ -39,26 +39,26 @@ export interface StaticFile {
   path: string;
   contentType: string;
   size: number;
-  /** 파일명에 해시가 박힌 것만 오래 캐시한다 */
+  /** Only files with a hash baked into the name are cached long-term */
   cacheControl: string;
 }
 
 /**
- * 요청 경로를 뿌리 안의 실제 파일로 옮긴다. 밖으로 나가면 `undefined`.
+ * Map the request path to a real file under the root. `undefined` if it escapes.
  *
- * Zip Slip과 같은 종류의 문제다(기획서 Ⅷ) — 거기서 배운 대로 **읽는 자리에서** 막는다.
+ * The same class of problem as Zip Slip (plan Ⅷ) — as learned there, block it **at the point of reading**.
  */
 export async function resolveStatic(root: string, urlPath: string): Promise<StaticFile | undefined> {
   let decoded: string;
   try {
     decoded = decodeURIComponent(urlPath);
   } catch {
-    return undefined; // 깨진 퍼센트 인코딩 — 해석하지 않는다
+    return undefined; // malformed percent-encoding — do not interpret it
   }
   if (decoded.includes('\0')) return undefined;
 
   const base = resolve(root);
-  // 앞의 `/`를 떼고 뿌리에 붙인다. `..`이 섞여 있어도 아래 검사에서 걸린다
+  // Strip the leading `/` and join to the root. Even if `..` is mixed in, the check below catches it
   const wanted = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
   const candidate = resolve(join(base, wanted));
   if (candidate !== base && !candidate.startsWith(base + sep)) return undefined;
@@ -74,8 +74,8 @@ export async function resolveStatic(root: string, urlPath: string): Promise<Stat
   const contentType = TYPES[extname(candidate).toLowerCase()];
   if (!contentType) return undefined;
 
-  // Vite가 assets/ 아래 파일명에 해시를 박는다 — 내용이 바뀌면 이름이 바뀌므로 오래 캐시해도 안전하다.
-  // index.html은 그렇지 않다. 캐시되면 새 판을 올려도 옛 화면이 남는다
+  // Vite bakes hashes into file names under assets/ — the name changes when the content changes, so long caching is safe.
+  // index.html is not like that. If it is cached, the old screen remains even after a new version is deployed
   const hashed = /[/\\]assets[/\\]/.test(candidate);
   return {
     path: candidate,
@@ -89,7 +89,7 @@ export function openStatic(file: StaticFile): NodeJS.ReadableStream {
   return createReadStream(file.path);
 }
 
-/** SPA 되돌림 — 없는 경로로 들어와도 앱 껍데기는 준다(새로고침·즐겨찾기 대비) */
+/** SPA fallback — serve the app shell even for unknown paths (for refreshes and bookmarks) */
 export function isDocumentRequest(method: string, accept: string | undefined): boolean {
   return (method === 'GET' || method === 'HEAD') && (accept ?? '').includes('text/html');
 }

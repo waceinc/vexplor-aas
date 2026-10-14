@@ -1,6 +1,6 @@
 /**
- * 구성 트리 — 설비(또는 부품) 넣기 줄 — 올려 둔 파일에서 고르거나 · PC 에서 가져오거나 · 이름만 적는다. 대수와 호기별.
- * components/HierarchyTree.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Composition tree — equipment (or part) add row — pick from uploaded files · import from the PC · or just type a name. Count and per-unit.
+ * Split out of components/HierarchyTree.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 import { useEffect, useRef, useState } from 'react';
 import type { PackageDescription } from '../../api.js';
@@ -26,18 +26,18 @@ export function AssetAdder({ path, siblings, terms, candidates, onImportFile, bu
   const [name, setName] = useState('');
   const [count, setCount] = useState('1');
   const [split, setSplit] = useState(false);
-  /** PC에서 올리는 중 — 몇 MB면 몇 초 걸린다. 그동안 같은 버튼을 다시 누르지 못하게 한다 */
+  /** Uploading from the PC — a few MB takes a few seconds. Meanwhile the same button cannot be pressed again */
   const [importing, setImporting] = useState(false);
   const adderRef = useRef<HTMLDivElement>(null);
   const diskRef = useRef<HTMLInputElement>(null);
-  // 그 자리로 스크롤한다(입력 줄이 다른 자리로 옮겨 가면 Hierarchy 가 key 를 바꿔 새로 그린다 — 값도 비워진다)
-  // 중괄호로 감싸 아무것도 돌려주지 않는다 — 요즘 크롬은 scrollIntoView 가 Promise 를 돌려줘, 그대로 돌려주면
-  // React 가 그것을 정리 함수로 알고 줄이 닫힐 때 불러 화면 전체가 멈췄다(2026-10-14 실측). jsdom 에는 scrollIntoView 가 없다
+  // Scroll to that spot (when the input row moves elsewhere, Hierarchy changes the key and redraws it — the value is cleared too)
+  // Wrapped in braces so nothing is returned — current Chrome's scrollIntoView returns a Promise; returning it made
+  // React treat it as a cleanup function and call it when the row closed, freezing the whole screen (measured 2026-10-14). jsdom has no scrollIntoView
   useEffect(() => {
     void adderRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }, []);
   const countN = Math.max(1, Number(count) || 1);
-  // 설비 — 올려 둔 파일에서 고르거나, 이름만
+  // Equipment — pick from uploaded files, or just a name
   const picked = candidates.find((c) => c.packageId === file);
   const fileNameTaken = picked !== undefined && siblings.includes(picked.assetName ?? '');
   const canFile = file !== '' && !fileNameTaken;
@@ -77,13 +77,13 @@ export function AssetAdder({ path, siblings, terms, candidates, onImportFile, bu
             hidden
             onChange={(event) => {
               const chosen = event.target.files?.[0];
-              event.target.value = ''; // 같은 파일을 다시 골라도 change가 오게
+              event.target.value = ''; // so change fires even when the same file is picked again
               if (!chosen) return;
               setImporting(true);
               void onImportFile(chosen)
                 .then((packageId) => {
-                  if (packageId === undefined) return; // 실패는 밖(App)이 알린다
-                  setFile(packageId); // 올리자마자 골라진 상태 — 「넣기」만 누르면 된다
+                  if (packageId === undefined) return; // failures are reported by the outside (App)
+                  setFile(packageId); // selected as soon as it is uploaded — just press "Add"
                   setName('');
                 })
                 .finally(() => setImporting(false));

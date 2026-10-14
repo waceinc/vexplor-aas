@@ -1,8 +1,8 @@
 /**
- * 저장 레코드 ↔ AAS 구조 변환.
+ * Conversion between stored records and AAS structures.
  *
- * 무손실이 유일한 목표다. 파생 컬럼(idShort·semanticId 등)은 **조회 편의를 위한 사본**이며,
- * 되돌릴 때는 언제나 content(원본 JSON)만 쓴다 — 파생과 원본이 어긋나면 원본이 이긴다(A안).
+ * Losslessness is the only goal. Derived columns (idShort, semanticId, etc.) are **copies for query convenience**;
+ * restoring always uses content (the original JSON) only — if derived and original disagree, the original wins (Option A).
  */
 import type { AasxFile, AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
@@ -17,7 +17,7 @@ import {
   type PackageRecord,
 } from './types.js';
 
-/** content에서 뽑아내는 조회용 컬럼 */
+/** Query columns extracted from content */
 export interface DerivedColumns {
   modelType: IdentifiableModelType;
   id: string;
@@ -37,7 +37,7 @@ function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-/** Reference의 첫 키 값 — 린터의 firstKeyValue와 같은 규칙 */
+/** First key value of a Reference — same rule as the linter's firstKeyValue */
 function firstKeyValue(reference: unknown): string | undefined {
   const ref = asRecord(reference);
   const keys = ref?.['keys'];
@@ -74,7 +74,7 @@ export function deriveColumns(content: Record<string, unknown>): DerivedColumns 
   return derived;
 }
 
-/** Environment → 저장 레코드의 재료. 배열 순서를 ordinal로 남긴다 */
+/** Environment → raw material for stored records. Array order is kept as ordinal */
 export function flattenEnvironment(
   env: Environment,
 ): { content: Record<string, unknown>; ordinal: number }[] {
@@ -91,8 +91,8 @@ export function flattenEnvironment(
 }
 
 /**
- * 저장 레코드 → Environment.
- * modelType별로 ordinal 오름차순 — 원본 배열 순서가 그대로 살아난다.
+ * Stored records → Environment.
+ * Ascending ordinal per modelType — the original array order is restored as-is.
  */
 export function toEnvironment(records: readonly IdentifiableRecord[]): Environment {
   const env: Environment = {};
@@ -108,7 +108,7 @@ export function toEnvironment(records: readonly IdentifiableRecord[]): Environme
   return env;
 }
 
-/** AASX 패키지의 비모델 파트를 레코드로 편다 */
+/** Flattens the non-model parts of an AASX package into records */
 export function flattenPackageFiles(pkg: AasxPackage): PackageFileRecord[] {
   const files: PackageFileRecord[] = [];
   if (pkg.thumbnail) {
@@ -128,7 +128,7 @@ export function flattenPackageFiles(pkg: AasxPackage): PackageFileRecord[] {
   return files;
 }
 
-/** 레코드 → AASX 패키지. writeAasx에 그대로 넘길 수 있는 형태 */
+/** Records → AASX package. In a form that can be passed straight to writeAasx */
 export function toAasxPackage(
   record: PackageRecord,
   files: readonly PackageFileRecord[],
@@ -144,7 +144,7 @@ export function toAasxPackage(
     } else if (f.role === 'supplementary') {
       supplementaryFiles.push({ part: f.part, contentType: f.contentType, data: f.data });
     } else if (f.role === 'bundle') {
-      // 번들 첨부는 AASX 파트가 아니다 — 넣으면 공정 파일 해시가 바뀐다
+      // Bundle attachments are not AASX parts — including them would change the process file hash
       continue;
     } else {
       extraParts.set(f.part, f.data);

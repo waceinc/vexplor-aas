@@ -1,8 +1,9 @@
 /**
- * Modbus TCP 클라이언트 — 읽기 함수 넷(01 코일 · 02 입력 비트 · 03 보유 레지스터 · 04 입력 레지스터)만.
+ * Modbus TCP client — only the four read functions (01 coils, 02 discrete inputs, 03 holding registers, 04 input registers).
  *
- * 쓰기는 넣지 않는다 — 이 도구는 설비 값을 **받아 오기만** 한다(수집 A안). 요청은 MBAP 머리(거래 번호 · 길이 · unit)를
- * 붙여 보내고, 응답은 거래 번호로 짝을 맞춘다. 장치가 예외(기능 번호 + 0x80)로 답하면 그 이름을 사유로 돌려준다.
+ * No writes — this tool **only fetches** equipment values (collection option A). Requests are sent with an MBAP header
+ * (transaction id, length, unit), and responses are matched by transaction id. If the device answers with an exception
+ * (function code + 0x80), its name is returned as the reason.
  */
 import { Socket } from 'node:net';
 import { fill, tr } from '@aas/core';
@@ -60,7 +61,7 @@ export class ModbusTcpClient {
     });
   }
 
-  /** 낱말(레지스터) 또는 비트(0·1) 목록을 돌려준다 */
+  /** Returns a list of words (registers) or bits (0/1) */
   async read(unitId: number, entity: ModbusEntity, address: number, quantity: number): Promise<number[]> {
     const fc = FUNCTION[entity];
     const pdu = await this.request(unitId, Buffer.from([fc, address >> 8, address & 0xff, quantity >> 8, quantity & 0xff]));

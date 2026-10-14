@@ -1,15 +1,15 @@
 /**
- * AID 해석 검증.
+ * AID parsing tests.
  *
- * 시험용 AID는 IDTA-02017-1-0 공식 템플릿의 구조를 그대로 따랐다
- * (EndpointMetadata.base · InteractionMetadata.properties.<이름>.forms.href).
- * OPC UA 인터페이스는 AID 1.1이 더하는 것이라 같은 뼈대에 프로토콜 항목만 얹어 만들었다.
+ * The test AID follows the structure of the official IDTA-02017-1-0 template exactly
+ * (EndpointMetadata.base / InteractionMetadata.properties.<name>.forms.href).
+ * The OPC UA interface is an AID 1.1 addition, so it reuses the same skeleton with only protocol fields added.
  */
 import type { Environment } from '@aas/core';
 import { findAidSubmodels, parseAid, protocolOf, readableProperties } from '@aas/collector';
 import { describe, expect, it } from 'vitest';
 
-/** SMC 만들기 도우미 — 시험이 구조를 그대로 드러내도록 */
+/** SMC builder helper — keeps the structure visible in the tests */
 const smc = (idShort: string, value: unknown[]): Record<string, unknown> => ({
   modelType: 'SubmodelElementCollection',
   idShort,
@@ -64,7 +64,7 @@ const environment = {
                 prop('observable', 'false'),
                 smc('forms', [prop('href', 'ns=2;s=Machine.AlarmActive')]),
               ]),
-              // 주소가 없는 항목 — 수집 대상이 아니다
+              // An item without an address — not a collection target
               smc('설명만있는것', [prop('type', 'string')]),
             ]),
           ]),
@@ -88,15 +88,15 @@ const environment = {
   ],
 } as unknown as Environment;
 
-describe('AID 서브모델 찾기', () => {
-  it('semanticId로 찾는다 — 버전이 1.0이든 1.1이든', () => {
+describe('Finding the AID submodel', () => {
+  it('finds it by semanticId — whether version 1.0 or 1.1', () => {
     expect(findAidSubmodels(environment)).toHaveLength(1);
   });
 
-  it('🔴 이관된 AID도 찾는다 — KOSMO 제출본에서는 semanticId가 자체 IRI로 바뀐다', () => {
-    // AID의 표준 semanticId는 admin-shell.io IRI인데 KOSMO는 화이트리스트 밖이라 거부한다.
-    // 「고치기」가 자기 id로 옮기면(이관 대장에 원본을 남기고) semanticId로는 못 찾게 되므로
-    // idShort가 유일한 근거가 된다. 수집이 제출본에서도 살아 있으려면 이걸 반드시 지켜야 한다
+  it('also finds a migrated AID — in KOSMO submissions the semanticId becomes our own IRI', () => {
+    // The standard AID semanticId is an admin-shell.io IRI, which KOSMO rejects as outside its whitelist.
+    // Once "Fix" moves it to our own id (keeping the original in the migration log), it can no longer be found by semanticId,
+    // so idShort is the only handle. This must hold for collection to keep working on submitted files
     const relocated = JSON.parse(JSON.stringify(environment)) as Environment;
     const submodel = relocated.submodels![0]!;
     submodel.semanticId = {
@@ -108,31 +108,31 @@ describe('AID 서브모델 찾기', () => {
     expect(parseAid(relocated)).toHaveLength(2);
   });
 
-  it('AID가 없는 파일에서는 빈 목록', () => {
+  it('returns an empty list for a file without AID', () => {
     const plain = { submodels: [{ modelType: 'Submodel', id: 'x', idShort: 'TechnicalData' }] };
     expect(findAidSubmodels(plain as unknown as Environment)).toHaveLength(0);
     expect(parseAid(plain as unknown as Environment)).toHaveLength(0);
   });
 });
 
-describe('AID 해석', () => {
+describe('AID parsing', () => {
   const interfaces = parseAid(environment);
 
-  it('인터페이스마다 프로토콜과 접속 주소를 뽑는다', () => {
+  it('extracts protocol and endpoint address per interface', () => {
     expect(interfaces.map((i) => [i.name, i.protocol, i.base])).toEqual([
       ['InterfaceTemplateForOPCUA', 'OPCUA', 'opc.tcp://192.168.0.10:4840'],
       ['InterfaceTemplateForHTTP', 'HTTP', 'http://192.168.0.20/api'],
     ]);
   });
 
-  it('프로토콜은 이름과 접속 주소 양쪽으로 알아본다', () => {
+  it('detects the protocol from both name and endpoint address', () => {
     expect(protocolOf('InterfaceTemplateForOPCUA')).toBe('OPCUA');
     expect(protocolOf('무명인터페이스', 'opc.tcp://x')).toBe('OPCUA');
     expect(protocolOf('무명인터페이스', 'modbus+tcp://x')).toBe('MODBUS');
     expect(protocolOf('무명인터페이스')).toBe('UNKNOWN');
   });
 
-  it('property의 주소·타입·단위·관측 가능 여부를 읽는다', () => {
+  it('reads property address, type, unit and observability', () => {
     const opcua = interfaces[0]!;
     const speed = opcua.properties.find((p) => p.name === 'MotorSpeed')!;
     expect(speed).toMatchObject({
@@ -144,8 +144,8 @@ describe('AID 해석', () => {
     });
   });
 
-  it('forms의 프로토콜 고유 항목은 이름을 가리지 않고 그대로 담는다', () => {
-    // AID 1.1의 OPC UA 용어가 확정되면 이 자리를 읽는다
+  it('keeps protocol-specific forms fields as is, regardless of name', () => {
+    // Once AID 1.1 OPC UA terminology is finalized, this is where it is read
     const speed = interfaces[0]!.properties.find((p) => p.name === 'MotorSpeed')!;
     expect(speed.formFields).toEqual({
       contentType: 'application/json',
@@ -155,7 +155,7 @@ describe('AID 해석', () => {
     expect(voltage.formFields['htv_methodName']).toBe('GET');
   });
 
-  it('주소가 없는 항목은 수집 대상에서 뺀다 — 읽을 곳이 없다', () => {
+  it('excludes items without an address from collection — nothing to read', () => {
     const opcua = interfaces[0]!;
     expect(opcua.properties.map((p) => p.name)).toContain('설명만있는것');
     expect(readableProperties(opcua).map((p) => p.name)).toEqual(['MotorSpeed', 'AlarmActive']);

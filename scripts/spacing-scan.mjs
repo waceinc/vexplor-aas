@@ -1,26 +1,26 @@
 /**
- * 화면 간격 검사 — 간격에 숫자를 직접 적은 곳과, 간격 단계 밖의 배수를 찾는다.
+ * UI spacing check — finds spacing written as raw numbers and multiples outside the spacing scale.
  *
- *     node scripts/spacing-scan.mjs            # 목록
- *     node scripts/spacing-scan.mjs --check    # 하나라도 있으면 종료코드 1 (CI용)
+ *     node scripts/spacing-scan.mjs            # list
+ *     node scripts/spacing-scan.mjs --check    # exit code 1 if anything is found (for CI)
  *
- * 약속(apps/web/src/styles/aas.css 머리말과 같다):
- *   - 간격(margin · padding · gap · inset · top/right/bottom/left)은 --spacing(4px)의 배수로만 쓴다
- *   - 배수는 표준 단계 0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 5 · 6 · 8 · 10 · 12 · 16 만
- *   - 자리마다 같아야 하는 간격은 이름 붙은 토큰(--space-pane · --space-dialog · …)으로
- *   - 화면 코드(.tsx)의 style 에 여백 숫자를 적지 않는다 — 클래스와 토큰으로
- *   - 세로 여백 · 사이 간격(margin · gap)은 4 · 8 · 12 · 16 · 24 · 32px 리듬 — 1.5 · 2.5 · 5배를 쓰지 않는다
- *   - 줄 간격은 --leading-tight · normal · relaxed 세 가지(또는 1)
- * 왜 도구인가: 2026-10-14 실측에서 칸마다 여백이 6 · 13 · 14px 로 갈렸고, 설정 창은 1px 였다. 눈으로는 고친 만큼만 고쳐진다.
+ * Conventions (same as the header of apps/web/src/styles/aas.css):
+ *   - Spacing (margin, padding, gap, inset, top/right/bottom/left) uses only multiples of --spacing (4px)
+ *   - Multiples only from the standard scale 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12, 16
+ *   - Spacing that must match across places uses named tokens (--space-pane, --space-dialog, ...)
+ *   - No spacing numbers in `style` in UI code (.tsx) — use classes and tokens
+ *   - Vertical margins and gaps (margin, gap) follow a 4/8/12/16/24/32px rhythm — no 1.5x, 2.5x or 5x
+ *   - Line height is one of --leading-tight / normal / relaxed (or 1)
+ * Why a tool: a 2026-10-14 measurement found padding varying between 6, 13 and 14px across panels, and 1px in the settings dialog. Fixing by eye only fixes what you happen to see.
  *
- * 예외는 그 줄에 `spacing-ignore — 까닭`을 적는다(CSS 는 주석, TSX 는 // 주석).
+ * Exceptions carry `spacing-ignore — reason` on that line (a comment in CSS, a // comment in TSX).
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const STYLES = 'apps/web/src/styles';
 const SRC = 'apps/web/src';
-/** shadcn 이 만든 부품(Tailwind 클래스)과 글꼴 정의는 대상이 아니다 */
+/** shadcn-generated components (Tailwind classes) and font definitions are out of scope */
 const SKIP = [/apps\/web\/src\/drive\/ui\/kit\//, /pretendard-alias\.css$/];
 const SCALE = new Set(['0', '0.5', '1', '1.5', '2', '2.5', '3', '4', '5', '6', '8', '10', '12', '16', '24']);
 const SPACING_PROP = /(?<![\w-])(margin(?:-[a-z]+)?|padding(?:-[a-z]+)?|gap|row-gap|column-gap|inset(?:-[a-z]+)?|top|right|bottom|left)\s*:\s*([^;{}]+)/g;
@@ -46,18 +46,18 @@ export function scanCss(file) {
         const n = String(Math.abs(Number(factor[1])));
         if (!SCALE.has(n)) problems.push({ line: index + 1, kind: '단계 밖', text: `${prop}: ${value.trim()}` });
       }
-      // 세로 여백 · 사이 간격은 더 좁은 단계 — 4 · 8 · 12 · 16 · 24 · 32px 리듬(1.5 · 2.5 · 5배는 쓰지 않는다)
+      // Vertical margins and gaps use a narrower scale — 4/8/12/16/24/32px rhythm (no 1.5x, 2.5x or 5x)
       if (/^(margin|gap|row-gap|column-gap)/.test(prop) && /var\(--spacing\)\s*\*\s*-?(1\.5|2\.5|5)\b/.test(value)) {
         problems.push({ line: index + 1, kind: '세로 리듬 밖', text: `${prop}: ${value.trim()}` });
       }
-      // calc(var(--spacing) …) · var(--…) 를 뺀 나머지에 0 이 아닌 길이가 있으면 숫자를 직접 적은 것이다
+      // A non-zero length left after removing calc(var(--spacing) …) and var(--…) means a raw number was written
       const rest = value.replace(/var\([^)]*\)/g, '').replace(/\*\s*-?[\d.]+/g, '');
       if (/(?<![\w.#-])-?(?:\d*\.)?\d+(px|rem|em)\b/.test(rest) && !/(?<![\w.#-])-?0(px|rem|em)?\b/.test(rest.trim())) {
         problems.push({ line: index + 1, kind: '숫자 간격', text: `${prop}: ${value.trim()}` });
       }
     }
   });
-  // 줄 간격 — 토큰(--leading-tight · normal · relaxed) 또는 1(아이콘 한 줄)만
+  // Line height — only tokens (--leading-tight / normal / relaxed) or 1 (single icon line)
   readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
     if (line.includes('spacing-ignore')) return;
     for (const match of line.replace(/\/\*.*?\*\//g, '').matchAll(/line-height\s*:\s*([^;{}]+)/g)) {
@@ -74,11 +74,11 @@ export function scanTsx(file) {
   const problems = [];
   readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
     if (line.includes('spacing-ignore')) return;
-    // style={{ paddingLeft: 8 … }} · margin: '12px' — 여백을 화면 코드에 숫자로
+    // style={{ paddingLeft: 8 … }} · margin: '12px' — spacing as raw numbers in UI code
     for (const match of line.matchAll(/\b(padding|margin|gap|rowGap|columnGap)[A-Za-z]*\s*:\s*([^,}]+)/g)) {
       if (/(^|[^\w.])\d/.test(match[2]) && !/var\(/.test(match[2])) problems.push({ line: index + 1, kind: '코드 여백', text: match[0].trim() });
     }
-    // Tailwind 임의값 간격 p-[13px] · gap-[6px]
+    // Tailwind arbitrary-value spacing p-[13px] · gap-[6px]
     for (const match of line.matchAll(/\b-?(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap|gap-x|gap-y|space-x|space-y|top|left|right|bottom|inset)-\[[^\]]+\]/g)) {
       problems.push({ line: index + 1, kind: '임의값 클래스', text: match[0] });
     }

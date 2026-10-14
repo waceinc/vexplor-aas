@@ -1,14 +1,14 @@
 /**
- * App 을 이루는 훅들의 층 — 아래 층이 위 층의 결과를 이름 그대로 받아 쓴다(2026-10-13 컴포넌트화).
+ * Layers of hooks that make up App — each lower layer consumes the upper layer's results under the same names (componentization, 2026-10-13).
  *
- *   Base     화면 상태 훅들(문서 · 처리 상태 · 화면 · 로그인 · 도움말 · 칸 너비 · 테마)
- *   Model    Base 로 계산한 트리 · 지적 합산 · 고른 요소 · 건수        (useTreeModel)
- *   Core     실행 틀(run) · 파일 읽기(loadPackage) · 처음 읽기 · 저장 대상 (useCore)
- *   Actions  파일 · 요소 · 구성 · 수집 · 고치기 동작                    (use*Actions)
- *   Full     위 전부 — 화면 효과(useAppBehavior)가 쓴다
- *   Screen   Full + 화면 효과의 계산값(도움말 문맥 · 시작하기 항목) — 화면 조각(*Pane · Overlays)이 쓴다
+ *   Base     screen-state hooks (document · busy state · view · login · help · pane widths · theme)
+ *   Model    tree · findings totals · selected element · counts computed from Base   (useTreeModel)
+ *   Core     run wrapper (run) · file loading (loadPackage) · initial load · save target   (useCore)
+ *   Actions  file · element · composition · collection · fix actions                    (use*Actions)
+ *   Full     all of the above — used by screen effects (useAppBehavior)
+ *   Screen   Full + values computed by screen effects (help context · getting-started items) — used by screen pieces (*Pane · Overlays)
  *
- * 각 훅은 Pick<층, 쓰는 이름> 만 받는다 — 무엇에 기대는지가 서명에 드러난다.
+ * Each hook takes only Pick<Layer, names it uses> — its dependencies show in its signature.
  */
 import type { useTheme } from '../theme.js';
 import type { useDocumentState } from './useDocumentState.js';

@@ -1,10 +1,10 @@
 /**
- * 공정 단위 — 계층 구조.
+ * Process unit — hierarchy structure.
  *
- * 보는 것은 셋이다.
- *  ① 공정 뼈대가 **태어나자마자 위반 0건**인가 (설비 뼈대와 같은 기준)
- *  ② 설비를 매달고 빼는 것이 앞뒤가 맞는가
- *  ③ 끈이 끊어진 파일을 규칙이 잡아내는가 — 이걸 못 잡으면 규칙이 있으나 마나다
+ * Three things are checked.
+ *  (1) Does the process scaffold have **0 violations right after creation** (same bar as the equipment scaffold)
+ *  (2) Is attaching and detaching equipment consistent
+ *  (3) Do the rules catch a file with broken links — if they cannot, the rules are pointless
  */
 import {
   addChild,
@@ -29,13 +29,13 @@ function errorsOf(environment: ReturnType<typeof process>['environment']) {
   return lint(environment, ALL_RULES).findings.filter((f) => f.severity === 'error');
 }
 
-describe('공정 뼈대', () => {
-  it('태어나자마자 위반 0건이다', () => {
+describe('process scaffold', () => {
+  it('has 0 violations right after creation', () => {
     const { environment } = process();
     expect(errorsOf(environment)).toEqual([]);
   });
 
-  it('계층 서브모델과 진입점·ArcheType이 들어 있다', () => {
+  it('contains the hierarchy submodel, entry point and ArcheType', () => {
     const { environment, index } = process();
     const elements = environment.submodels![index]!.submodelElements as Record<string, unknown>[];
     expect(elements.map((e) => e['idShort'])).toEqual(['WeldingProcess', 'ArcheType']);
@@ -43,13 +43,13 @@ describe('공정 뼈대', () => {
     expect(elements[1]!['value']).toBe('Full');
   });
 
-  it('계층 용어의 ConceptDescription을 함께 넣는다 — 없으면 KOSMO-SME-3 위반이다', () => {
+  it('includes ConceptDescriptions for the hierarchy terms — without them it violates KOSMO-SME-3', () => {
     const { environment } = process();
     const names = (environment.conceptDescriptions ?? []).map((c) => c.idShort);
     expect(names).toEqual(['EntryNode', 'Node', 'HasPart', 'ArcheType', 'BulkCount']);
   });
 
-  it('설비 뼈대는 그대로다 — 계층 내용도 ConceptDescription도 넣지 않는다', () => {
+  it('leaves the equipment scaffold unchanged — adds neither hierarchy content nor ConceptDescriptions', () => {
     const environment = scaffoldEnvironment({ assetName: 'TestMachine' });
     expect(environment.conceptDescriptions).toBeUndefined();
     const hierarchy = environment.submodels!.find((s) => s.idShort === HIERARCHY_SUBMODEL_ID_SHORT);
@@ -58,8 +58,8 @@ describe('공정 뼈대', () => {
   });
 });
 
-describe('설비 매달기', () => {
-  it('Entity와 HasPart 관계가 짝으로 생긴다', () => {
+describe('attaching equipment', () => {
+  it('creates an Entity and a HasPart relationship as a pair', () => {
     const { environment, index } = process();
     const next = addChild(
       environment.submodels![index]!,
@@ -76,7 +76,7 @@ describe('설비 매달기', () => {
     expect(statements[0]!['globalAssetId']).toBe(asset('RollFormingMachine'));
   });
 
-  it('여러 대면 BulkCount가 붙는다', () => {
+  it('adds BulkCount when there are multiple units', () => {
     const { environment, index } = process();
     const next = addChild(
       environment.submodels![index]!,
@@ -90,7 +90,7 @@ describe('설비 매달기', () => {
     expect(bulk['value']).toBe('3');
   });
 
-  it('설비를 매달아도 위반이 생기지 않는다', () => {
+  it('attaching equipment introduces no violations', () => {
     const { environment, index } = process();
     let submodel = environment.submodels![index]!;
     submodel = addChild(submodel, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
@@ -99,13 +99,13 @@ describe('설비 매달기', () => {
     expect(errorsOf(environment)).toEqual([]);
   });
 
-  it('같은 설비를 두 번 매달지 못한다', () => {
+  it('cannot attach the same equipment twice', () => {
     const { environment, index } = process();
     const once = addChild(environment.submodels![index]!, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
     expect(() => addChild(once, { name: 'CutPress', globalAssetId: asset('RollFormer') }, BASE)).toThrow(/이미 매달린/);
   });
 
-  it('같은 이름을 두 번 쓰지 못한다', () => {
+  it('cannot use the same name twice', () => {
     const { environment, index } = process();
     const once = addChild(environment.submodels![index]!, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
     expect(() => addChild(once, { name: 'RollFormer', globalAssetId: asset('Other') }, BASE)).toThrow(
@@ -113,7 +113,7 @@ describe('설비 매달기', () => {
     );
   });
 
-  it('뺄 때 관계도 함께 빠진다 — 하나만 지우면 짝이 안 맞는 파일이 된다', () => {
+  it('detaching also removes the relationship — removing only one leaves a mismatched file', () => {
     const { environment, index } = process();
     let submodel = addChild(environment.submodels![index]!, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
     submodel = addChild(submodel, { name: 'CutPress', globalAssetId: asset('CutPress') }, BASE);
@@ -127,13 +127,13 @@ describe('설비 매달기', () => {
     expect(errorsOf(environment)).toEqual([]);
   });
 
-  it('없는 것을 빼려 하면 알려 준다', () => {
+  it('reports an attempt to detach something that does not exist', () => {
     const { environment, index } = process();
     expect(() => removeChild(environment.submodels![index]!, '없음')).toThrow(/없는 이름/);
   });
 });
 
-describe('끊어진 계층을 규칙이 잡는다', () => {
+describe('rules catch a broken hierarchy', () => {
   const brokenSubmodel = (mutate: (entry: Record<string, unknown>) => void) => {
     const { environment, index } = process();
     let submodel = addChild(environment.submodels![index]!, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
@@ -143,14 +143,14 @@ describe('끊어진 계층을 규칙이 잡는다', () => {
     return errorsOf(environment).map((f) => f.ruleId);
   };
 
-  it('HIER-2 — 가리키는 설비 주소가 빠지면 잡는다', () => {
+  it('HIER-2 — catches a missing referenced equipment address', () => {
     const ids = brokenSubmodel((entry) => {
       delete (entry['statements'] as Record<string, unknown>[])[0]!['globalAssetId'];
     });
     expect(ids).toContain('HIER-2');
   });
 
-  it('HIER-2 — 자기 자신을 부분품으로 매달면 잡는다', () => {
+  it('HIER-2 — catches attaching itself as its own part', () => {
     const ids = brokenSubmodel((entry) => {
       (entry['statements'] as Record<string, unknown>[])[0]!['globalAssetId'] =
         entry['globalAssetId'];
@@ -158,7 +158,7 @@ describe('끊어진 계층을 규칙이 잡는다', () => {
     expect(ids).toContain('HIER-2');
   });
 
-  it('관계 이름은 자유다 — 참조만 맞으면 통과한다(실측 파일들이 그렇다)', () => {
+  it('relationship names are free-form — passes as long as references match (as in the observed files)', () => {
     const { environment, index } = process();
     const submodel = addChild(
       environment.submodels![index]!,
@@ -167,12 +167,12 @@ describe('끊어진 계층을 규칙이 잡는다', () => {
     );
     const entry = (submodel.submodelElements as Record<string, unknown>[])[0]!;
     const statements = entry['statements'] as Record<string, unknown>[];
-    statements[1]!['idShort'] = 'HasPart_공정_롤포밍';   // 이름을 아무렇게나 바꿔도
+    statements[1]!['idShort'] = 'HasPart_공정_롤포밍';   // even with an arbitrary renamed idShort
     environment.submodels![index] = submodel;
     expect(errorsOf(environment).map((f) => f.ruleId)).not.toContain('HIER-3');
   });
 
-  it('HIER-3 — 관계만 지우면 잡는다', () => {
+  it('HIER-3 — catches removing only the relationship', () => {
     const ids = brokenSubmodel((entry) => {
       entry['statements'] = (entry['statements'] as Record<string, unknown>[]).filter(
         (s) => s['modelType'] !== 'RelationshipElement',
@@ -181,7 +181,7 @@ describe('끊어진 계층을 규칙이 잡는다', () => {
     expect(ids).toContain('HIER-3');
   });
 
-  it('HIER-3 — 자식만 지우면 남은 관계를 잡는다', () => {
+  it('HIER-3 — catches the leftover relationship when only the child is removed', () => {
     const ids = brokenSubmodel((entry) => {
       entry['statements'] = (entry['statements'] as Record<string, unknown>[]).filter(
         (s) => s['modelType'] !== 'Entity',
@@ -190,14 +190,14 @@ describe('끊어진 계층을 규칙이 잡는다', () => {
     expect(ids).toContain('HIER-3');
   });
 
-  it('HIER-1 — ArcheType 값이 규격 밖이면 잡는다', () => {
+  it('HIER-1 — catches an ArcheType value outside the spec', () => {
     const { environment, index } = process();
     const elements = environment.submodels![index]!.submodelElements as Record<string, unknown>[];
     elements[1]!['value'] = '아무거나';
     expect(errorsOf(environment).map((f) => f.ruleId)).toContain('HIER-1');
   });
 
-  it('설비 파일에는 이 규칙이 걸리지 않는다 — 계층 내용이 없으면 그냥 지나간다', () => {
+  it('these rules do not fire on equipment files — without hierarchy content they just pass', () => {
     const environment = scaffoldEnvironment({ assetName: 'TestMachine' });
     const ids = lint(environment, ALL_RULES).findings.map((f) => f.ruleId);
     expect(ids.filter((id) => id.startsWith('HIER-'))).toEqual([]);

@@ -1,7 +1,7 @@
 /**
- * 트리 계산 — 화면에 그릴 줄 · 찾기 · 지적 합산과 배지 · 고른 요소와 길 · 설비 목록 · 위반·경고·고칠 건수.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름으로 받는다(c 에서 꺼낸다).
+ * Tree computation — rows to draw · search · finding totals and badges · selected element and its path · equipment list · violation/warning/fixable counts.
+ * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
+ * the state and actions it uses arrive under the same names (taken from c).
  */
 import { useMemo } from 'react';
 import { type EquipmentRow } from '../components/Collection.js';
@@ -12,9 +12,9 @@ import type { Base } from './context.js';
 export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' | 'fixCount' | 'hierarchy' | 'linked' | 'linkedFindings' | 'query' | 'selectedKey' | 'shells' | 'submodels'>) {
   const { concepts, expanded, findings, fixCount, hierarchy, linked, linkedFindings, query, selectedKey, shells, submodels } = c;
   /**
-   * 이 파일이 설비 한 대인가, 공정·회사(묶음)인가 — 표준 필드 AssetInformation.assetType(…/type/*)으로 판정.
-   * 🔴 화면은 이 둘을 다른 도구처럼 대한다(사용자 2026-09-08): 설비 파일은 「서브모델·부품」을 넣고,
-   *    공정 파일은 「설비·층」을 넣는다. 판정은 여기 한 곳에서만 한다
+   * Is this file a single piece of equipment, or a process/company (bundle)? Decided by the standard field AssetInformation.assetType (…/type/*).
+   * Important: the screen treats the two like different tools (user 2026-09-08): equipment files take "submodels · components",
+   *    process files take "equipment · levels". The decision is made here and nowhere else
    */
   const fileUnit: 'equipment' | 'composite' = String(
     shells[0]?.assetInformation?.['assetType'] ?? '',
@@ -23,10 +23,10 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
     : 'equipment';
 
   const roots = useMemo(() => {
-    // 5번 HierarchicalStructures 서브모델 — 같은 이름이 설비 파일에도 회사 파일에도 있어 "왜 위에도 있나"가 됐다.
-    // 주어가 다르다(설비: 부품 / 회사: 공정·설비). 종류 옆에 그 말을 단다
+    // Submodel no. 5, HierarchicalStructures — the same name appears in equipment files and company files, prompting "why is it up there too?".
+    // The subject differs (equipment: components / company: processes · equipment). Attach that wording next to the kind
     const composite = String(shells[0]?.assetInformation?.['assetType'] ?? '').includes('/type/');
-    // 설비 파일에는 달지 않는다 — 「부품 구성 (BOM)」 문구는 빼 달라고 했다(사용자 2026-09-09). 회사 파일에서만 헷갈리는 자리다
+    // Not attached in equipment files — the user asked to drop the "Component structure (BOM)" wording (user 2026-09-09). Only company files are confusing here
     const explain = (nodes: TreeNode[]): TreeNode[] =>
       composite
         ? nodes.map((node) =>
@@ -41,9 +41,9 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
           )
         : nodes;
     /**
-     * 수집 연결(AID) 서브모델에 우리말 한 줄 — 「이 서브모델은 뭐야? 장비 AASX에는 없던 건데」(사용자 2026-09-30).
-     * 제출하는 참조모델에는 원래 없고, 「수집 연결 만들기」·「가상 PLC로 연결」이 붙인다. 붙은 파일은 시연본이다.
-     * 공정 화면은 설비 파일의 서브모델까지 이어 그리므로 트리 전체를 훑는다
+     * One plain-language line for the collection connection (AID) submodel — "what is this submodel? the equipment AASX didn't have it" (user 2026-09-30).
+     * The submitted reference model does not have it; "Create collection connection" / "Connect to virtual PLC" add it. A file carrying it is a demo copy.
+     * The process view draws the equipment files' submodels too, so scan the whole tree
      */
     const noteAid = (nodes: TreeNode[]): TreeNode[] =>
       nodes.map((node) =>
@@ -62,27 +62,27 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
       );
     const base = noteAid(explain(buildTree({ shells, submodels, conceptDescriptions: concepts })));
     if (!hierarchy?.entryNode || hierarchy.children.length === 0) return base;
-    // 🔴 설비 파일(부품 BoM)에서는 최상단 ⚙/· 줄을 그리지 않는다(2026-09-09 사용자 검토 "HierarchicalStructures
-    //    영역에 포함되게 하면 되지 않나"). 부품은 이미 5번 HierarchicalStructures 서브모델 안에 표준 Entity 트리로
-    //    있고, 편집은 가운데 「부품 구성 (BoM)」이 맡는다 — 최상단 줄은 같은 것을 한 번 더 보여 줄 뿐이었고
-    //    파일이 없으니 눌러도 갈 데가 없었다. 2026-09-08에 되돌렸던 것을 사용자 검토로 다시 걷는다.
-    //    공정 파일은 다르다 — 그 줄이 파일을 건너 설비의 서브모델까지 이어 붙이는 자리다(「공정 → 장비 → 서브모델」)
+    // Important: equipment files (component BoM) do not draw the top-level ⚙/· rows (user review 2026-09-09: "couldn't it just go inside the
+    //    HierarchicalStructures area?"). Components already exist as a standard Entity tree inside submodel no. 5, HierarchicalStructures,
+    //    and editing is handled by the middle "Component structure (BoM)" — the top-level rows only showed the same thing again,
+    //    and with no file behind them, clicking led nowhere. What was reverted on 2026-09-08 is removed again after user review.
+    //    Process files differ — there those rows splice across files into the equipment's submodels ("process → equipment → submodel")
     if (fileUnit === 'equipment') return base;
-    // 설비 가지는 AAS 노드 바로 다음에 둔다 — 「공정 → 장비 → 서브모델」 순서로 읽힌다
+    // Place equipment branches right after the AAS node — so it reads in "process → equipment → submodel" order
     const assets = noteAid(linked.map((info) => buildLinkedAsset(info, '/linked', { part: false })));
-    const cut = shells.length; // shell 노드들 바로 뒤
+    const cut = shells.length; // right after the shell nodes
     return [...base.slice(0, cut), ...assets, ...base.slice(cut)];
-    // 🔴 hierarchy·linked가 빠지면 자식 서브모델을 읽어 와도 트리가 다시 안 그려진다(실측)
+    // Important: without hierarchy · linked, the tree is not redrawn even after child submodels are read (measured)
   }, [shells, submodels, concepts, hierarchy, linked]);
   /**
-   * 찾기 — 한 파일에 요소가 200개를 넘어 눈으로 훑는 것은 무리다.
-   * 찾는 동안에는 **걸러진 트리**를 그린다(찾은 노드 + 거기까지 가는 길).
+   * Search — a file has over 200 elements, too many to scan by eye.
+   * While searching, draw a **filtered tree** (matched nodes + the path to them).
    */
   const searching = query.trim() !== '';
   const search = useMemo(() => searchTree(roots, query), [roots, query]);
   /**
-   * 수집 연결에서 이름을 맞출 대상 — 값을 가질 수 있는 잎 요소의 idShort.
-   * AID 서브모델 자신의 요소(base·href…)는 뺀다 — 그 이름에 맞추면 안 된다.
+   * Targets to match names against in a collection connection — the idShort of leaf elements that can hold values.
+   * Exclude the AID submodel's own elements (base · href…) — names must not be matched to those.
    */
   const leafNames = useMemo(() => {
     const names = new Set<string>();
@@ -104,8 +104,8 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
     [searching, search, roots, expanded],
   );
   /**
-   * 화면에 이어 붙인 설비 파일들 — 공정(묶음)을 열면 ⚙ 가지마다 하나씩.
-   * 지적 합산과 「자동 고치기」가 같은 목록을 본다 — 둘이 갈라지면 "지적은 보이는데 못 고친다"가 된다.
+   * Equipment files spliced into the screen — one per ⚙ branch when a process (bundle) is opened.
+   * Finding totals and "Auto-fix" look at the same list — if they diverge, it becomes "findings are visible but cannot be fixed".
    */
   const mounts = useMemo(() => {
     const found: { pid: string; key: string; name: string }[] = [];
@@ -121,13 +121,13 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
     return found;
   }, [linked]);
   /**
-   * 지금 파일 + 연결 파일들의 지적을 한 목록으로.
-   * pointer에 트리의 mount 자리(/linked/…)를 붙여 클릭하면 그 요소로 점프한다.
+   * Findings of the current file + linked files as one list.
+   * The tree mount point (/linked/…) is prefixed to the pointer so clicking jumps to that element.
    *
-   * 🔴 연결 파일 지적의 `fixable`을 끄지 않는다(2026-10-01 사용자 지적으로 바로잡음).
-   *    예전에는 꺼 두어 공정 파일에서 「자동 고치기」가 늘 비활성이었다. 그런데 같은 화면의
-   *    값 편집·서브모델 추가는 **그 설비 파일로 저장된다**(targetOf) — 고치기만 막은 것은
-   *    앞뒤가 맞지 않았다. 이제 고치기도 파일별로 나눠 각자의 원본에 쓴다.
+   * Important: do not turn off `fixable` on linked-file findings (corrected after a user report on 2026-10-01).
+   *    It used to be off, so "Auto-fix" was always disabled in process files. Yet on the same screen
+   *    value edits and submodel additions **are saved to that equipment file** (targetOf) — blocking only fixes
+   *    was inconsistent. Now fixes are also split per file and written to each source.
    */
   const allFindings = useMemo(() => {
     if (Object.keys(linkedFindings).length === 0) return findings;
@@ -143,11 +143,11 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
     }
     return merged;
   }, [findings, linkedFindings, mounts]);
-  // 🔴 트리 배지(색·숫자)도 합산본을 본다 — 묶음에서 ⚙ 가지의 위반 위치가
-  //    "건수는 오른쪽에 있는데 왼쪽엔 없는" 반쪽이었다(2026-08-26 사용자 제보)
+  // Important: tree badges (color · number) also use the merged list — in a bundle, violations in ⚙ branches were
+  //    half-shown: "the count is on the right but not on the left" (user report 2026-08-26)
   const findingsByNode = useMemo(() => attachFindings(roots, allFindings), [roots, allFindings]);
   const tally = useMemo(() => tallyFindings(roots, findingsByNode), [roots, findingsByNode]);
-  /** 접혀 있어도 찾을 수 있게 위치로 색인해 둔다 */
+  /** Indexed by position so it can be found even when collapsed */
   const byPointer = useMemo(() => {
     const map = new Map<string, TreeNode>();
     const walk = (nodes: readonly TreeNode[]): void => {
@@ -160,7 +160,7 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
     return map;
   }, [roots]);
   const selected = selectedKey === undefined ? undefined : byPointer.get(selectedKey);
-  /** 고른 요소까지의 길 — 인스펙터 제목에 "어디의 요소인지"를 보여 준다 */
+  /** Path to the selected element — shows "where the element belongs" in the inspector title */
   const selectedTrail = useMemo(() => {
     if (!selected) return [];
     const trail: string[] = [];
@@ -168,7 +168,7 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
       for (const node of nodes) {
         const next = [...acc, node.label];
         if (node.key === selected.key) {
-          trail.push(...next.slice(0, -1)); // 자기 이름은 제목이 이미 크게 쓴다
+          trail.push(...next.slice(0, -1)); // the title already shows its own name prominently
           return true;
         }
         if (walk(node.children, next)) return true;
@@ -179,8 +179,8 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
     return trail;
   }, [roots, selected]);
   /**
-   * 공정 파일의 오른쪽 칸 — 매달린 설비와 수집 연결 상태(2026-10-01 사용자 피드백).
-   * 그룹·하위 묶음은 내려가고, 설비 파일 밑(부품 BoM)은 내려가지 않는다
+   * Right pane of a process file — attached equipment and collection connection status (user feedback 2026-10-01).
+   * Descends into groups and sub-bundles, but not below equipment files (component BoM)
    */
   const equipmentRows = useMemo((): EquipmentRow[] => {
     const rows: EquipmentRow[] = [];
@@ -205,11 +205,11 @@ export function useTreeModel(c: Pick<Base, 'concepts' | 'expanded' | 'findings' 
   const equipmentName = (pid: string): string => equipmentRows.find((row) => row.packageId === pid)?.name ?? pid;
   const errors = allFindings.filter((f) => f.severity === 'error').length;
   const warnings = allFindings.filter((f) => f.severity === 'warning').length;
-  // 「자동 고치기」가 실제로 손대는 것만 센다 — 고칠 수 있는 위반과 **경고**(2026-09-07부터. 파일마다
-  //    AASd-120 경고 1건이 늘 남아 사람이 "왜 안 지워지나" 물었다. 경고를 고쳐도 KOSMO엔 영향이 없다).
-  // 🔴 연결 설비 파일의 지적도 센다(2026-10-01) — 공정 파일에서도 고칠 수 있게 됐다.
-  //    단추 숫자는 미리보기가 실제로 고치겠다고 한 수인데, 그 선계산은 **지금 파일 것만** 받는다.
-  //    그래서 연결 지적이 있으면 규칙의 fixable 표시로 센다 — 팝업을 열면 정확한 수가 나온다.
+  // Count only what "Auto-fix" actually touches — fixable violations and **warnings** (since 2026-09-07. Every file
+  //    always kept one AASd-120 warning and people asked "why won't it go away?". Fixing warnings has no effect on KOSMO).
+  // Important: findings in linked equipment files are counted too (2026-10-01) — they became fixable from process files.
+  //    The button count is what the preview said it would actually fix, but that precomputation covers **only the current file**.
+  //    So when there are linked findings, count by the rules' fixable flag — opening the popup gives the exact number.
   const linkedFixable = allFindings.filter(
     (f) => f.fixable && f.severity !== 'info' && f.pointer.startsWith('/linked/'),
   ).length;

@@ -1,12 +1,12 @@
 /**
- * M6·M7 전 과정 — **우리 도구가 OPC UA 서버가 된다**.
+ * M6/M7 end to end — **our tool becomes an OPC UA server**.
  *
- * 기획서 Ⅲ-3의 그림을 그대로 시험한다:
- *   수집값 ──▶ 우리 서버 ──subscribe──▶ 상위 앱
+ * Tests the diagram in plan section III-3 as is:
+ *   collected values ──▶ our server ──subscribe──▶ upstream app
  *
- * 🔴 이 시험의 핵심은 읽기가 아니라 **구독**이다. 읽기만 되면 Part 2 REST로 충분하고,
- *    OPC UA 서버를 세울 이유가 없다. 값이 바뀔 때 **서버가 먼저 알려 주는지**가 관건이다.
- * 🔴 그리고 **쓰기가 막히는지** — 값 동기화 A안을 프로토콜 수준에서 지키는지 본다.
+ * Important: the core of this test is **subscription**, not reads. If reads were enough, Part 2 REST would do
+ *    and there would be no reason to run an OPC UA server. The crux is whether **the server notifies first** on change.
+ * Important: and whether **writes are blocked** — checks that value sync option A holds at the protocol level.
  */
 import type { Environment } from '@aas/core';
 import {
@@ -24,7 +24,7 @@ import { AasOpcUaServer, planForPackage, type PublishPlan } from '../src/index.j
 
 const PID = 'pkg-1';
 
-/** 설비 한 벌 — 정적 제원 하나 + 현장에서 바뀌는 값 하나 */
+/** One device — one static spec value + one value that changes on site */
 function environmentWith(speed: string | undefined): Environment {
   return {
     assetAdministrationShells: [
@@ -59,7 +59,7 @@ let server: AasOpcUaServer;
 let endpoint: string;
 let client: OPCUAClient;
 let session: ClientSession;
-/** 수집기가 값을 바꾸는 것을 흉내 낸다 */
+/** Simulates the collector changing a value */
 let speed: string | undefined = '1200.5';
 
 const SPEED_NODE = `ns=1;s=${PID}/https://ktl/sm/tech/MotorSpeed`;
@@ -93,16 +93,16 @@ afterAll(async () => {
   await server?.stop();
 });
 
-describe('AAS를 OPC UA로 내주기', () => {
-  it('서버가 서고 상태를 말한다', () => {
+describe('exposing AAS over OPC UA', () => {
+  it('the server comes up and reports its status', () => {
     const status = server.currentStatus();
     expect(status.running).toBe(true);
     expect(status.packages).toBe(1);
     expect(status.variables).toBe(3);
   });
 
-  it('AAS 계층이 그대로 브라우징된다 — AAS > 설비 > 서브모델 > 항목', async () => {
-    // 상위 앱이 실제로 하는 일이 이것이다: 주소를 몰라도 훑어서 찾는다
+  it('the AAS hierarchy is browsable as is — AAS > device > submodel > element', async () => {
+    // This is what upstream apps actually do: browse to find things without knowing addresses
     const names = async (nodeId: string): Promise<string[]> =>
       (await session.browse(nodeId)).references?.map((ref) => ref.browseName.name ?? '') ?? [];
 
@@ -113,7 +113,7 @@ describe('AAS를 OPC UA로 내주기', () => {
     );
   });
 
-  it('정적 제원(모델에 적힌 값)을 읽는다', async () => {
+  it('reads static specs (values written in the model)', async () => {
     const read = await session.read({
       nodeId: `ns=1;s=${PID}/https://ktl/sm/tech/ManufacturerName`,
       attributeId: AttributeIds.Value,
@@ -122,14 +122,14 @@ describe('AAS를 OPC UA로 내주기', () => {
     expect(read.value.value).toBe('한국기계');
   });
 
-  it('수집값을 자료형 그대로 읽는다 — 문자열이 아니라 Double', async () => {
+  it('reads collected values in their data type — Double, not a string', async () => {
     const read = await session.read({ nodeId: SPEED_NODE, attributeId: AttributeIds.Value });
     expect(read.statusCode).toBe(StatusCodes.Good);
     expect(read.value.dataType).toBe(DataType.Double);
     expect(read.value.value).toBeCloseTo(1200.5);
   });
 
-  it('🔴 아직 안 들어온 값은 "없음"이라고 말한다 — 0으로 지어내지 않는다', async () => {
+  it('Important: a value not yet received is reported as "none" — not invented as 0', async () => {
     const read = await session.read({
       nodeId: `ns=1;s=${PID}/https://ktl/sm/tech/NotCollectedYet`,
       attributeId: AttributeIds.Value,
@@ -137,19 +137,19 @@ describe('AAS를 OPC UA로 내주기', () => {
     expect(read.statusCode).toBe(StatusCodes.BadWaitingForInitialData);
   });
 
-  it('🔴 쓰기가 막힌다 — 값 동기화 A안(파일이 원본)을 프로토콜에서 지킨다', async () => {
+  it('Important: writes are blocked — value sync option A (file is the source) is enforced in the protocol', async () => {
     const status = await session.write({
       nodeId: SPEED_NODE,
       attributeId: AttributeIds.Value,
       value: { value: new Variant({ dataType: DataType.Double, value: 9999 }) },
     });
     expect(status).not.toBe(StatusCodes.Good);
-    // 막혔으니 값도 그대로여야 한다
+    // Blocked, so the value must be unchanged
     const read = await session.read({ nodeId: SPEED_NODE, attributeId: AttributeIds.Value });
     expect(read.value.value).toBeCloseTo(1200.5);
   });
 
-  it('🔴 값이 바뀌면 구독자에게 밀려 온다 — 이것이 REST로 못 하는 일이다', async () => {
+  it('Important: value changes are pushed to subscribers — this is what REST cannot do', async () => {
     const subscription = await session.createSubscription2({
       requestedPublishingInterval: 100,
       requestedLifetimeCount: 100,
@@ -171,7 +171,7 @@ describe('AAS를 OPC UA로 내주기', () => {
       if (typeof dataValue.value.value === 'number') seen.push(dataValue.value.value);
     });
 
-    // 첫 통지(현재값)를 받을 때까지 기다린다
+    // Wait until the first notification (current value) arrives
     await new Promise<void>((resolve) => {
       const wait = setInterval(() => {
         if (seen.length > 0) {
@@ -182,7 +182,7 @@ describe('AAS를 OPC UA로 내주기', () => {
     });
     expect(seen[0]).toBeCloseTo(1200.5);
 
-    // 수집기가 새 값을 넣었다고 치고 — 아무도 묻지 않았는데 알려 와야 한다
+    // Pretend the collector wrote a new value — it must be notified without anyone asking
     speed = '1450.25';
     await server.refresh();
 
@@ -202,7 +202,7 @@ describe('AAS를 OPC UA로 내주기', () => {
     await subscription.terminate();
   }, 20_000);
 
-  it('🔴 뼈대가 그대로면 노드를 다시 만들지 않는다 — 다시 만들면 구독이 끊긴다', async () => {
+  it('Important: does not rebuild nodes when the structure is unchanged — rebuilding drops subscriptions', async () => {
     const before = server.currentStatus().variables;
     await server.refresh();
     expect(server.currentStatus().variables).toBe(before);

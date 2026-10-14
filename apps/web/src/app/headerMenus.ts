@@ -1,7 +1,7 @@
 /**
- * 머리글 메뉴의 항목 목록 — 「파일」 · 「설정」 · 「서브모델」 · 「내보내기」.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화). 항목 코드는 옮기기 전과 글자 그대로이고, 쓰는 상태·동작은
- * 같은 이름으로 받는다. 메뉴의 모양·여닫기는 components/Menu.tsx 가 맡는다.
+ * Item lists for the header menus — "File" · "Settings" · "Submodel" · "Export".
+ * Split out of App.tsx (componentization, 2026-10-13). The item code is verbatim from before the move, and the state and actions it uses
+ * arrive under the same names. Menu look and open/close are handled by components/Menu.tsx.
  */
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { api, currentToken, setToken, type AuthState } from '../api.js';
@@ -47,7 +47,7 @@ export function fileMenuItems({ t, busy, demoLocked, packages, fileInput, bundle
       disabled: busy,
     },
     {
-      // 첫 화면에만 두면 파일이 하나라도 생긴 뒤에는 다시 못 연다 — 지운 견본을 되살릴 길도 여기다
+      // If this lived only on the start screen it could not be reopened once any file exists — it is also the way to restore a deleted sample
       label: demoLocked ? `🔒 ${t('견본 열기')}` : t('견본 열기'),
       title: tr('다 채워진 설비 1종과 공정 구성을 열어 둘러봅니다 — 고쳐도 되는 연습용입니다'),
       onClick: () => void onOpenSample(),
@@ -93,7 +93,7 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
       title: tr('화면 색을 밝게 · 어둡게 바꿉니다 — 이 브라우저에 기억합니다'),
       onClick: theme.toggle,
     },
-    // 데모 계정으로 보고 있다 — 자기 계정을 만들면 내려받을 수 있다
+    // Viewing with the demo account — creating your own account enables downloads
     ...(auth?.demo !== undefined && auth.signupAllowed === true
       ? [
           {
@@ -104,7 +104,7 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
           },
         ]
       : []),
-    // 계정을 아직 안 쓰는 서버 — 여기서 시작한다
+    // Server not yet using accounts — start here
     ...(auth?.setupNeeded && !auth.authenticated
       ? [
           {
@@ -115,8 +115,8 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
           },
         ]
       : []),
-    // 계정 — 🔴 데모 계정에는 없다(여럿이 쓰는 공용 입구라 바꿀 수 없다)
-    //    관리자는 「계정 관리」(사람들)와 「내 계정 설정」(내 것)을 따로 본다(2026-10-08)
+    // Account — Important: not shown for the demo account (a shared entry point used by many, so it cannot be changed)
+    //    Admins see "Manage accounts" (people) and "My account settings" (their own) separately (2026-10-08)
     ...(auth?.user && auth.demo === undefined
       ? [
           ...(auth.user.role === 'admin'
@@ -137,7 +137,7 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
           },
         ]
       : []),
-    // 로그인한 사람 — 이름과 로그아웃을 같은 자리에
+    // Signed-in user — name and sign-out in the same place
     ...(auth?.user
       ? [
           {
@@ -154,9 +154,9 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
         ]
       : []),
     /*
-     * 탈퇴 — 🔴 데모 계정에는 보이지 않는다(여럿이 쓰는 계정이라 서버도 거절한다).
-     * 되돌릴 수 없으므로 한 번 묻는다. 지워도 **누가 고쳤나는 남는다** —
-     * 그 이름은 사람 표를 참조하지 않고 그때 베껴 둔 값이다.
+     * Delete account — Important: hidden for the demo account (it is shared, so the server refuses too).
+     * Irreversible, so ask once. Even after deletion **who made each change remains** —
+     * that name is a copy taken at the time, not a reference to the users table.
      */
     ...(auth?.user && auth.demo === undefined
       ? [
@@ -181,7 +181,7 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
             title: tr('이 브라우저에 저장된 접근 토큰을 지웁니다 — 공용 PC에서 자리를 뜰 때'),
             onClick: () => {
               setToken(undefined);
-              void bootstrap(); // 토큰이 사라졌으니 서버가 다시 물어 올 것이다
+              void bootstrap(); // The token is gone, so the server will ask again
             },
           },
         ]

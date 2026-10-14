@@ -1,10 +1,10 @@
 /**
- * 수집 항목 자리 만들기 검증 — 「AID는 만들었는데 값이 안 나간다」를 없애는 기능.
+ * Tests for creating collection-item slots — the feature that eliminates "the AID exists but no values come out".
  *
- * 보는 것 셋:
- *  ① KTL 계층(OperationalData > 대분류 > 소분류 > Prop)을 지키는가 — 골든 파일과 같은 모양인가
- *  ② 🔴 **이미 있는 것을 건드리지 않는가** — 사람이 한 일과 쌓인 값을 지우면 안 된다
- *  ③ semanticId 키 타입이 맞는가 — 틀리면 basyx가 서브모델을 통째로 드롭한다
+ * Three things checked:
+ *  (1) Does it keep the KTL hierarchy (OperationalData > category > subcategory > Prop) — same shape as the golden file?
+ *  (2) Important: **does it leave existing content untouched** — human work and accumulated values must not be erased
+ *  (3) Is the semanticId key type correct — if wrong, basyx drops the whole submodel
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -30,20 +30,20 @@ const emptySubmodel = (): Record<string, unknown> => ({
 });
 
 describe('runtimeValueType', () => {
-  it('AID 타입을 xs 자료형으로 옮긴다', () => {
+  it('maps AID types to xs data types', () => {
     expect(runtimeValueType('integer')).toBe('xs:int');
     expect(runtimeValueType('boolean')).toBe('xs:boolean');
     expect(runtimeValueType('string')).toBe('xs:string');
     expect(runtimeValueType('float')).toBe('xs:double');
   });
 
-  it('🔴 모르면 xs:double — 수집되는 것 대부분이 측정값이다', () => {
+  it('defaults to xs:double when unknown — most collected values are measurements', () => {
     expect(runtimeValueType(undefined)).toBe('xs:double');
   });
 });
 
 describe('mergeRuntimeGroup', () => {
-  it('🔴 KTL 계층 그대로 만든다 — 대분류 > 소분류 > Property', () => {
+  it('builds the KTL hierarchy as is — category > subcategory > Property', () => {
     const result = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'MotorSpeed', href: 'ns=1;s=a', type: 'float' }]));
     const group = (result.submodel['submodelElements'] as Record<string, unknown>[])[0];
     expect(group).toMatchObject({ modelType: 'SubmodelElementCollection', idShort: 'ProcessMonitoring' });
@@ -57,7 +57,7 @@ describe('mergeRuntimeGroup', () => {
     expect(result.added).toEqual(['MotorSpeed']);
   });
 
-  it('🔴 semanticId는 ModelReference + ConceptDescription 키 — 골든 파일 실측 형태', () => {
+  it('semanticId is a ModelReference + ConceptDescription key — the shape measured in the golden file', () => {
     const result = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'MotorSpeed', href: 'x' }]));
     const group = (result.submodel['submodelElements'] as Record<string, unknown>[])[0];
     const sub = (group?.['value'] as Record<string, unknown>[])[0];
@@ -68,27 +68,27 @@ describe('mergeRuntimeGroup', () => {
     });
   });
 
-  it('🔴 자료형에 맞는 예시 값이 들어간다 — 빈 값은 KOSMO-SME-4 위반이다', () => {
+  it('fills an example value matching the data type — an empty value violates KOSMO-SME-4', () => {
     const leaf = (input: Parameters<typeof mergeRuntimeGroup>[1]): Record<string, unknown> => {
       const result = mergeRuntimeGroup(emptySubmodel(), input);
       const group = (result.submodel['submodelElements'] as Record<string, unknown>[])[0];
       return ((group?.['value'] as Record<string, unknown>[])[0]?.['value'] as Record<string, unknown>[])[0]!;
     };
-    // Template의 **예시 칸**이지 측정값이 아니다 — 수집이 붙으면 live/OPC UA에서 덮인다
+    // This is the Template's **example slot**, not a measurement — overwritten from live/OPC UA once collection runs
     expect(leaf(base([{ name: 'A', href: 'x', type: 'float' }]))['value']).toBe('0.0');
     expect(leaf(base([{ name: 'A', href: 'x', type: 'integer' }]))['value']).toBe('0');
     expect(leaf(base([{ name: 'A', href: 'x', type: 'boolean' }]))['value']).toBe('false');
     expect(leaf(base([{ name: 'A', href: 'x', type: 'string' }]))['value']).toBe('N/A');
   });
 
-  /** CD 안의 dataSpecificationContent를 꺼낸다 */
+  /** Extract dataSpecificationContent from a CD */
   const specOf = (result: ReturnType<typeof mergeRuntimeGroup>, name: string): Record<string, unknown> => {
     const cd = result.conceptDescriptions.find((item) => item['idShort'] === name)!;
     const spec = (cd['embeddedDataSpecifications'] as Record<string, unknown>[])[0];
     return spec?.['dataSpecificationContent'] as Record<string, unknown>;
   };
 
-  it('🔴 CD의 dataType이 valueType과 맞는다 — 안 맞으면 KOSMO-SME-5 (실측으로 걸렸다)', () => {
+  it('CD dataType matches valueType — a mismatch is KOSMO-SME-5 (caught in real measurement)', () => {
     const result = mergeRuntimeGroup(
       emptySubmodel(),
       base([{ name: 'MotorSpeed', href: 'x', type: 'float', unit: 'rpm' }]),
@@ -97,15 +97,15 @@ describe('mergeRuntimeGroup', () => {
     expect(specOf(result, 'MotorSpeed')['unit']).toBe('rpm');
   });
 
-  it('🔴 단위를 모르면 MEASURE가 아니라 COUNT로 낸다 — AASc-3a-009 (실측으로 걸렸다)', () => {
-    // 「12.5」가 kW인지 A인지 모르는데 MEASURE라고 적으면 만든 순간 위반이 뜬다.
-    // 단위를 지어내는 것은 더 나쁘다 — 틀린 단위는 안 붙은 것보다 위험하다.
+  it('emits COUNT instead of MEASURE when the unit is unknown — AASc-3a-009 (caught in real measurement)', () => {
+    // If we don't know whether "12.5" is kW or A and still write MEASURE, a violation appears the moment it is created.
+    // Inventing a unit is worse — a wrong unit is more dangerous than none.
     const result = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'MotorSpeed', href: 'x', type: 'float' }]));
     expect(specOf(result, 'MotorSpeed')['dataType']).toBe('REAL_COUNT');
     expect(specOf(result, 'MotorSpeed')).not.toHaveProperty('unit');
   });
 
-  it('🔴 이미 있는 이름은 건드리지 않는다 — 쌓인 값과 사람이 한 일을 지우지 않는다', () => {
+  it('leaves existing names untouched — never erases accumulated values or human work', () => {
     const existing = {
       ...emptySubmodel(),
       submodelElements: [
@@ -128,12 +128,12 @@ describe('mergeRuntimeGroup', () => {
     ]));
     expect(result.kept).toEqual(['MotorSpeed']);
     expect(result.added).toEqual(['AlarmActive']);
-    // 원래 자리의 값이 그대로다
+    // The value in the original slot is unchanged
     const old = (((result.submodel['submodelElements'] as Record<string, unknown>[])[0]?.['value'] as Record<string, unknown>[])[0]?.['value'] as Record<string, unknown>[])[0];
     expect(old?.['value']).toBe('1200');
   });
 
-  it('대분류·소분류가 이미 있으면 그 안에 합친다 — 두 번 만들지 않는다', () => {
+  it('merges into existing category/subcategory — never creates them twice', () => {
     const first = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'A', href: 'x' }]));
     const second = mergeRuntimeGroup(first.submodel, base([{ name: 'B', href: 'y' }]));
     const roots = second.submodel['submodelElements'] as Record<string, unknown>[];
@@ -143,25 +143,25 @@ describe('mergeRuntimeGroup', () => {
     expect((sub[0]?.['value'] as Record<string, unknown>[]).map((n) => n['idShort'])).toEqual(['A', 'B']);
   });
 
-  it('CD를 함께 낸다 — 대분류·소분류·항목 전부 (KOSMO-SME-3)', () => {
+  it('emits CDs too — for category, subcategory and every item (KOSMO-SME-3)', () => {
     const result = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'MotorSpeed', href: 'x', unit: 'rpm' }]));
     expect(result.conceptDescriptions.map((cd) => cd['idShort'])).toEqual([
       'ProcessMonitoring',
       'CollectedValues',
       'MotorSpeed',
     ]);
-    // 표준 사전에 대응이 없으므로 가리킬 원본이 없다
+    // No counterpart in the standard dictionary, so there is no source to point to
     expect(result.conceptDescriptions[0]).not.toHaveProperty('isCaseOf');
   });
 
-  it('전부 이미 있으면 아무것도 만들지 않는다', () => {
+  it('creates nothing when everything already exists', () => {
     const first = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'A', href: 'x' }]));
     const second = mergeRuntimeGroup(first.submodel, base([{ name: 'A', href: 'x' }]));
     expect(second.added).toEqual([]);
     expect(second.conceptDescriptions).toEqual([]);
   });
 
-  it('🔴 빈 SMC를 남기지 않는다 — V3.0 스키마가 빈 배열을 거부한다', () => {
+  it('leaves no empty SMC — the V3.0 schema rejects empty arrays', () => {
     const result = mergeRuntimeGroup(emptySubmodel(), base([{ name: 'A', href: 'x' }]));
     const walk = (nodes: Record<string, unknown>[]): void => {
       for (const node of nodes) {
@@ -174,7 +174,7 @@ describe('mergeRuntimeGroup', () => {
     walk(result.submodel['submodelElements'] as Record<string, unknown>[]);
   });
 
-  it('요소 이름으로 못 쓰는 것은 미리 막는다', () => {
+  it('rejects invalid element names up front', () => {
     expect(() => mergeRuntimeGroup(emptySubmodel(), { ...base([{ name: '한글이름', href: 'x' }]) })).toThrow(
       RuntimeBuildError,
     );
@@ -183,7 +183,7 @@ describe('mergeRuntimeGroup', () => {
     ).toThrow(RuntimeBuildError);
   });
 
-  it('입력 서브모델을 고치지 않는다 — 사본을 돌려준다', () => {
+  it('does not mutate the input submodel — returns a copy', () => {
     const original = emptySubmodel();
     mergeRuntimeGroup(original, base([{ name: 'A', href: 'x' }]));
     expect(original).not.toHaveProperty('submodelElements');

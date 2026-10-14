@@ -1,4 +1,4 @@
-/** 린터 실행기 — 전수 수집 후 일괄 보고(명세 §6-4) */
+/** Linter runner - collects everything, then reports in one batch (spec §6-4) */
 import { collectElements, indexIdentifiables, type Environment } from '@aas/core';
 import { DEFAULT_POLICY, type LinterPolicy } from './policy.js';
 import type {
@@ -13,11 +13,11 @@ import type {
 
 export interface LintOptions {
   policy?: Partial<LinterPolicy>;
-  /** L1 패키지 검사용 정보. 없으면 해당 규칙은 조용히 건너뛴다 */
+  /** Information for L1 package checks. If absent, those rules are silently skipped */
   package?: PackageContext;
-  /** 실행할 규칙을 제한한다 (규칙 ID 접두 매칭) */
+  /** Restrict which rules run (rule ID prefix match) */
   only?: string[];
-  /** 제외할 규칙 */
+  /** Rules to exclude */
   exclude?: string[];
 }
 
@@ -48,7 +48,7 @@ export function lint(
     });
   }
 
-  // 문서 순서대로 읽히도록 경로 기준 정렬 — Validator 리포트와 대조하기 쉬워진다
+  // Sort by path so results read in document order - makes them easier to compare against the Validator report
   findings.sort((a, b) => a.pointer.localeCompare(b.pointer) || a.ruleId.localeCompare(b.ruleId));
 
   const countByRule: Record<string, number> = {};

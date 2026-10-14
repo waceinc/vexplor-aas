@@ -1,14 +1,14 @@
 /**
- * 🔴 **자기 자신 훑기 차단** — 실제로 일어난 사고를 막는 자리.
+ * Important: **blocking self-browse** — guards against an incident that actually happened.
  *
- * 사용자가 「설비 주소」에 우리 도구 자신의 OPC UA 주소를 넣고 훑었고, 우리가 내주던
- * AAS 내용(제조사명·일련번호 같은 명판 정보) 79개가 「수집할 태그」로 나왔다.
- * 화면이 그 동선을 만들고 있었다 — 내보내기 주소가 수집 조작부 바로 옆에 떠 있었다.
+ * A user entered our own tool's OPC UA address as the "device address" and browsed it, and the 79 AAS items we serve
+ * (nameplate info such as manufacturer name and serial number) came back as "tags to collect".
+ * The screen invited that path — the export address was shown right next to the collection controls.
  *
- * 🔴 경고가 아니라 **차단**이다. 담아서 만들면 모델에 항목과 CD가 수십 개씩 서는데,
- *    「연결삭제」는 AID만 지운다 — 되돌릴 길이 없다.
- * 🔴 주소 문자열 비교로는 못 막는다. 호스트명·IP가 달라도 같은 서버다.
- *    그래서 **상대에게 물어본다**(applicationUri · productUri).
+ * Important: this is a **block**, not a warning. Adding them creates dozens of entries and CDs in the model,
+ *    while "Delete link" removes only the AID — there is no way back.
+ * Important: comparing address strings cannot catch it. Different hostnames/IPs can be the same server.
+ *    So we **ask the other side** (applicationUri · productUri).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AasOpcUaServer, browseDevice, planForPackage, SelfBrowseError } from '../src/index.js';
@@ -63,8 +63,8 @@ afterAll(async () => {
   await device?.stop();
 });
 
-describe('자기 자신 훑기', () => {
-  it('🔴 우리 서버를 훑으려 하면 막는다 — 명판 정보가 「수집할 태그」로 돌아오는 사고', async () => {
+describe('self-browse', () => {
+  it('Important: blocks browsing our own server — the incident where nameplate info came back as "tags to collect"', async () => {
     const selfUri = ours.currentStatus().instanceUri!;
     expect(selfUri).toBeTruthy();
 
@@ -74,19 +74,19 @@ describe('자기 자신 훑기', () => {
     );
   }, 30_000);
 
-  it('막힌 이유를 구별해 말한다 — 바로 나 자신인가, 다른 대의 같은 도구인가', async () => {
+  it('distinguishes why it was blocked — this very instance, or the same tool on another machine', async () => {
     const selfUri = ours.currentStatus().instanceUri!;
     const mine = await browseDevice({ endpoint: ourEndpoint, selfUri }).catch((e: unknown) => e);
     expect((mine as SelfBrowseError).kind).toBe('self');
 
-    // selfUri를 안 주면(=다른 프로세스에서 본 것) productUri로 같은 도구임을 알아낸다
+    // Without selfUri (= seen from another process), productUri reveals it is the same tool
     const other = await browseDevice({ endpoint: ourEndpoint }).catch((e: unknown) => e);
     expect(other).toBeInstanceOf(SelfBrowseError);
     expect((other as SelfBrowseError).kind).toBe('sibling');
     expect((other as SelfBrowseError).message).toContain('다른 컴퓨터');
   }, 30_000);
 
-  it('🔴 진짜 설비는 그대로 훑는다 — 차단이 정상 동작을 막으면 안 된다', async () => {
+  it('Important: still browses real devices — the block must not stop normal operation', async () => {
     const selfUri = ours.currentStatus().instanceUri!;
     const result = await browseDevice({ endpoint: device.endpoint, selfUri });
     expect(result.nodes.map((node) => node.name)).toContain('MotorSpeed');

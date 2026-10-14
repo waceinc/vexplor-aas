@@ -1,28 +1,31 @@
 /**
- * 형식 → 호기 반영 — 형식(원본) 파일을 고치면 그 변경을 호기 파일로 내려보내되, 현장에서 고친 값은 지킨다(2026-10-13).
+ * Type -> unit propagation - when a type (master) file is edited, push the change down to the unit files while
+ * preserving values edited on site (2026-10-13).
  *
- * 개념은 digital-twin 실운영(스피폭스 설비 약 300대)에서 왔다 — 설비 값을 「마스터 + 차이」로 보고, 마스터를 고치면
- * 마지막으로 반영한 마스터 사본과 견주어 바뀐 것만 내려보내며, 현장에서 손댄 것은 건너뛴다
- * (digital-twin_AAS_참조분석_2026-10-13.md §2-1). 코드는 옮기지 않고 3자 비교로 새로 썼다.
+ * The concept comes from digital-twin production use (about 300 machines at Speefox) - equipment values are treated as
+ * "master + diff"; when the master changes, it is compared against the master copy last propagated, only what changed is
+ * pushed down, and anything touched on site is skipped (digital-twin_AAS_참조분석_2026-10-13.md §2-1).
+ * No code was ported; it was rewritten as a three-way comparison.
  *
- * 세 값을 견준다 — base(마지막으로 반영한 때의 형식) · theirs(지금 형식) · mine(지금 호기).
- *   형식이 바뀌었고(base ≠ theirs) 호기가 base 그대로면 → 반영
- *   형식이 바뀌었고 호기도 base 와 다르면 → 건너뜀(현장에서 고친 값) — 같은 값으로 바뀌었으면 이미 반영됨
- *   형식에 새로 생겼고 호기에 없으면 → 넣기(부모 자리가 없으면 건너뜀)
- *   형식에서 사라졌고 호기 쪽이 base 그대로면 → 빼기, 고쳤으면 건너뜀
+ * Three values are compared - base (the type at the last propagation), theirs (the current type), mine (the current unit).
+ *   type changed (base != theirs) and unit still equals base -> apply
+ *   type changed and unit also differs from base -> skip (value edited on site) - if it changed to the same value, already applied
+ *   newly added in type and absent in unit -> insert (skip if the parent slot is missing)
+ *   removed from type and unit still equals base -> remove; if edited, skip
  *
- * 비교 단위는 **서브모델 idShort + 요소 경로**다. 호기를 만들 때 id 가 새 이름으로 개명되므로(clone.ts) id 로는 짝이 안 맞는다.
- * 견주는 내용은 잎 요소의 값 칸(value · min · max · contentType · valueType)이다. 묶음(컬렉션·리스트·Entity)은 자리만 본다.
- * 복제 때 개명된 참조값(Asset 주소 등)은 처음부터 호기 값이 base 와 달라 「호기 고유 값」으로 건너뛴다 — 그게 맞다.
+ * The comparison key is **submodel idShort + element path**. Ids are renamed when a unit is created (clone.ts), so ids do not match up.
+ * What is compared is the value fields of leaf elements (value, min, max, contentType, valueType). Containers (collection, list,
+ * Entity) are compared by position only. Reference values renamed during cloning (Asset address, etc.) differ from base in the
+ * unit from the start and are skipped as "unit-specific values" - which is correct.
  */
 import type { Environment } from '@aas/core';
 
 type Node = Record<string, unknown>;
 
-/** 깊은 복사 — 모델은 JSON 이라 이것으로 충분하다(린터는 브라우저·노드 공용이라 structuredClone 에 기대지 않는다) */
+/** Deep copy - the model is JSON so this is enough (the linter is shared by browser and Node, so it does not rely on structuredClone) */
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-/** 경로 → 비교용 문자열. 묶음은 `{"modelType":…}` 만 */
+/** Path -> comparison string. Containers produce only `{"modelType":…}` */
 export type DerivationSnapshot = Record<string, Record<string, string>>;
 
 export type ChangeKind = 'changed' | 'added' | 'removed';
@@ -30,14 +33,14 @@ export type ChangeAction = 'apply' | 'skip' | 'same';
 export type SkipReason = 'edited-here' | 'parent-missing' | 'submodel-missing';
 
 export interface DerivationChange {
-  /** 고유 열쇠 — `서브모델idShort/경로` */
+  /** Unique key - `submodelIdShort/path` */
   key: string;
   submodel: string;
   path: string;
   kind: ChangeKind;
   action: ChangeAction;
   reason?: SkipReason;
-  /** 사람이 읽는 값 — 없으면 그 자리가 없다 */
+  /** Human-readable value - absent means the slot does not exist */
   base?: string;
   theirs?: string;
   mine?: string;
@@ -66,7 +69,7 @@ function sorted(value: unknown): unknown {
   return value;
 }
 
-/** 요소 하나의 비교용 문자열 — 잎은 값 칸, 묶음은 종류만 */
+/** Comparison string for one element - value fields for leaves, kind only for containers */
 export function comparable(element: Node): string {
   if (childrenOf(element)) return JSON.stringify({ modelType: element['modelType'] });
   const picked: Node = { modelType: element['modelType'] };
@@ -74,7 +77,7 @@ export function comparable(element: Node): string {
   return JSON.stringify(sorted(picked));
 }
 
-/** 사람이 읽는 값 — 표에 그대로 쓴다 */
+/** Human-readable value - used as-is in the table */
 export function readable(text: string | undefined): string | undefined {
   if (text === undefined) return undefined;
   const parsed = JSON.parse(text) as Node;
@@ -95,7 +98,7 @@ function walk(items: Node[], prefix: string, list: boolean, visit: (path: string
   });
 }
 
-/** 환경 → 서브모델 idShort 마다 경로 → 비교용 문자열 */
+/** Environment -> per submodel idShort, path -> comparison string */
 export function snapshotOf(environment: Environment): DerivationSnapshot {
   const out: DerivationSnapshot = {};
   for (const submodel of (environment.submodels ?? []) as unknown as Node[]) {
@@ -115,7 +118,7 @@ const parentOf = (path: string): string => {
   return dot < 0 ? '' : path.slice(0, dot);
 };
 
-/** 경로 아래(자신 포함)가 base 와 같은가 — 뺄 때 고친 것이 섞였으면 빼지 않는다 */
+/** Is everything under the path (including itself) equal to base - when removing, do not remove if edited values are mixed in */
 function subtreeSame(base: Record<string, string>, mine: Record<string, string>, path: string): boolean {
   const under = (entries: Record<string, string>): string =>
     JSON.stringify(
@@ -128,8 +131,8 @@ function subtreeSame(base: Record<string, string>, mine: Record<string, string>,
 }
 
 /**
- * 반영 계획. 서브모델 idShort 로 짝을 짓는다 — 호기에만 있는 서브모델(수집 연결 등)은 보지 않는다.
- * 결과에는 「이미 같음」(same)도 넣지 않는다 — 사람이 볼 것만.
+ * Propagation plan. Pairs submodels by idShort - submodels that exist only in the unit (collection links, etc.) are ignored.
+ * "Already equal" (same) entries are not included in the result either - only what a person needs to see.
  */
 export function planDerivation(base: DerivationSnapshot, theirsEnv: Environment, mineEnv: Environment): DerivationChange[] {
   const theirs = snapshotOf(theirsEnv);
@@ -143,7 +146,7 @@ export function planDerivation(base: DerivationSnapshot, theirsEnv: Environment,
     for (const path of [...touched].sort()) {
       const bv = b[path];
       const tv = t[path];
-      if (bv === tv) continue; // 형식이 그대로다
+      if (bv === tv) continue; // The type is unchanged
       const key = `${submodel}/${path}`;
       const mv = m?.[path];
       const shown = { ...(bv !== undefined ? { base: readable(bv)! } : {}), ...(tv !== undefined ? { theirs: readable(tv)! } : {}), ...(mv !== undefined ? { mine: readable(mv)! } : {}) };
@@ -152,7 +155,7 @@ export function planDerivation(base: DerivationSnapshot, theirsEnv: Environment,
         continue;
       }
       if (bv !== undefined && tv !== undefined) {
-        if (mv === tv) continue; // 이미 같은 값
+        if (mv === tv) continue; // Already the same value
         changes.push({ key, submodel, path, kind: 'changed', ...(mv === bv ? { action: 'apply' as const } : { action: 'skip' as const, reason: 'edited-here' as const }), ...shown });
       } else if (bv === undefined && tv !== undefined) {
         if (mv === tv) continue;
@@ -161,7 +164,7 @@ export function planDerivation(base: DerivationSnapshot, theirsEnv: Environment,
           continue;
         }
         const parent = parentOf(path);
-        // 부모가 이번에 함께 들어오는 경우는 부모를 넣으면 따라온다 — 따로 넣지 않는다
+        // If the parent is also being inserted this time, it comes along with the parent - do not insert it separately
         if (parent !== '' && b[parent] === undefined && t[parent] !== undefined) continue;
         if (parent !== '' && m[parent] === undefined) {
           changes.push({ key, submodel, path, kind: 'added', action: 'skip', reason: 'parent-missing', ...shown });
@@ -170,7 +173,7 @@ export function planDerivation(base: DerivationSnapshot, theirsEnv: Environment,
         changes.push({ key, submodel, path, kind: 'added', action: 'apply', ...shown });
       } else if (bv !== undefined && tv === undefined) {
         if (mv === undefined) continue;
-        // 부모가 함께 빠지면 부모를 빼면 따라간다
+        // If the parent is also removed, it goes along with the parent
         const parent = parentOf(path);
         if (parent !== '' && b[parent] !== undefined && t[parent] === undefined) continue;
         changes.push({ key, submodel, path, kind: 'removed', ...(subtreeSame(b, m, path) ? { action: 'apply' as const } : { action: 'skip' as const, reason: 'edited-here' as const }), ...shown });
@@ -180,7 +183,7 @@ export function planDerivation(base: DerivationSnapshot, theirsEnv: Environment,
   return changes;
 }
 
-/** 경로의 요소와 그 부모 목록 · 자리 */
+/** The element at the path, its parent list, and its position */
 function locate(submodel: Node, path: string): { holder: Node[]; index: number; element?: Node } | undefined {
   let items = (submodel['submodelElements'] ?? (submodel['submodelElements'] = [])) as Node[];
   const segments = path.match(/[^.[\]]+|\[\d+\]/g) ?? [];
@@ -200,8 +203,8 @@ function locate(submodel: Node, path: string): { holder: Node[]; index: number; 
 }
 
 /**
- * 넣을 자리 — 형식에서 바로 앞에 있던 이웃 중 호기에도 있는 것 **바로 뒤**. 없으면 맨 앞.
- * 리스트 자식은 자리 번호가 곧 이름이라 그 번호 자리에 넣는다.
+ * Insert position - **right after** the nearest preceding sibling in the type that also exists in the unit. If none, at the start.
+ * List children are named by their index, so they are inserted at that index.
  */
 function insertionIndex(fromHolder: Node[], fromIndex: number, intoHolder: Node[], path: string): number {
   if (/\[\d+\]$/.test(path)) return Math.min(fromIndex, intoHolder.length);
@@ -218,8 +221,8 @@ function findSubmodel(environment: Environment, name: string): Node | undefined 
 }
 
 /**
- * 고른 「반영」 변경을 호기에 적용한 새 환경. 원본은 건드리지 않는다.
- * 순서: 빼기(뒤에서부터) → 바꾸기 → 넣기.
+ * A new environment with the selected "apply" changes applied to the unit. The original is left untouched.
+ * Order: removals (from the back) -> updates -> inserts.
  */
 export function applyDerivation(mineEnv: Environment, theirsEnv: Environment, changes: readonly DerivationChange[]): Environment {
   const next = clone(mineEnv);
@@ -254,8 +257,9 @@ export function applyDerivation(mineEnv: Environment, theirsEnv: Environment, ch
 }
 
 /**
- * 반영한 뒤의 base — 지금 형식이 기준이 된다. 다만 고르지 않은 「반영」 줄은 옛 base 를 남긴다 —
- * 그래야 다음에도 「반영할 것」으로 다시 보인다(지금 형식으로 덮으면 현장에서 고친 것처럼 보여 영영 묻힌다).
+ * The base after propagation - the current type becomes the reference. However, "apply" rows that were not selected keep the
+ * old base - so they show up again as "to apply" next time (overwriting with the current type would make them look like
+ * on-site edits and bury them for good).
  */
 export function nextSnapshot(base: DerivationSnapshot, theirsEnv: Environment, changes: readonly DerivationChange[], appliedKeys: ReadonlySet<string>): DerivationSnapshot {
   const out = clone(snapshotOf(theirsEnv));

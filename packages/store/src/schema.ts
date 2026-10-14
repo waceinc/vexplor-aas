@@ -1,15 +1,15 @@
 /**
- * PostgreSQL 스키마 (기획서 M1 · 값 동기화 A안).
+ * PostgreSQL schema (spec M1 · value sync Option A).
  *
- * DDL을 파일이 아니라 문자열로 두는 이유는 배포 형태(도커 이미지·번들·서버리스)에 따라
- * 파일 경로가 흔들리기 때문이다. 운영 DBA에게 넘길 때는 이 상수를 그대로 덤프하면 된다.
+ * The DDL is kept as a string rather than a file because file paths shift depending on the deployment
+ * form (Docker image, bundle, serverless). When handing it to an operations DBA, just dump this constant.
  *
- * 설계 근거는 docs/PROGRESS.md §2-2. 요약하면
- *  ① content(jsonb)가 원본이고 나머지 컬럼은 파생이다. 어긋나면 원본이 이긴다.
- *  ② ordinal이 없으면 무손실 export가 성립하지 않는다.
- *  ③ id에 UNIQUE를 걸지 않는다 — 결함 파일도 손실 없이 받아야 린터가 지적할 수 있다.
+ * Design rationale is in docs/PROGRESS.md §2-2. In short:
+ *  ① content (jsonb) is the original and the other columns are derived. If they disagree, the original wins.
+ *  ② Without ordinal, a lossless export is not possible.
+ *  ③ No UNIQUE on id — defective files must also be accepted without loss so the linter can flag them.
  */
-// i18n-ignore — SQL 문(안의 한국어는 SQL 주석)
+// i18n-ignore — SQL statement (the Korean inside is SQL comments)
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS aas_package (
   id          text PRIMARY KEY,
@@ -105,17 +105,17 @@ CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, p
 `;
 
 /**
- * 스키마 판 번호.
+ * Schema version number.
  *
- * 표가 어느 판인지 DB 자체에 적어 둔다. 판올림한 프로그램이 옛 DB를 만나면 `MIGRATIONS`를
- * 차례로 적용하고, 반대로 **DB가 프로그램보다 새로우면 기동을 거부한다** — 옛 코드가 새 표를
- * 반쯤 읽고 조용히 잃는 것이 가장 나쁜 사고다(basyx가 그랬다).
+ * The version of the tables is recorded in the DB itself. When an upgraded program meets an old DB it applies
+ * `MIGRATIONS` in order, and conversely **if the DB is newer than the program, startup is refused** — old code
+ * half-reading new tables and silently losing data is the worst kind of incident (basyx did that).
  *
- * 규약:
- *  - `SCHEMA_SQL`은 항상 **최신 판의 완성형**이고 멱등(IF NOT EXISTS)이다. 빈 DB는 이것 하나로 최신이 된다.
- *  - 판을 올릴 때는 ① SCHEMA_SQL을 고치고 ② 같은 변경을 `MIGRATIONS`에 ALTER로 한 칸 더한다
- *    ③ `SCHEMA_VERSION`을 올린다. 마이그레이션은 앞 판의 표를 새 판으로 만들어야 하며 멱등이어야 한다.
- *  - `schema_version`이 없는 기존 DB는 1판으로 본다(판 번호를 도입한 2026-09-04 시점의 표가 1판이다).
+ * Conventions:
+ *  - `SCHEMA_SQL` is always the **complete form of the latest version** and idempotent (IF NOT EXISTS). An empty DB becomes current with this alone.
+ *  - To bump the version: ① edit SCHEMA_SQL ② add the same change to `MIGRATIONS` as one more ALTER entry
+ *    ③ bump `SCHEMA_VERSION`. A migration must turn the previous version's tables into the new version and must be idempotent.
+ *  - An existing DB without `schema_version` is treated as version 1 (the tables as of 2026-09-04, when version numbers were introduced, are version 1).
  */
 export const SCHEMA_VERSION = 8;
 
@@ -127,12 +127,12 @@ CREATE TABLE IF NOT EXISTS schema_version (
 `;
 
 /**
- * 판 n-1 → n 으로 올리는 문장들. 판 1은 기준(baseline)이라 항목이 없다.
- * 🔴 **멱등이어야 한다** — 판 번호 도입 전의 DB(0)에도 차례로 다시 돌린다.
+ * Statements that upgrade from version n-1 → n. Version 1 is the baseline, so it has no entry.
+ * Important: **must be idempotent** — they are re-run in order even on DBs from before version numbers were introduced (0).
  */
 export const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
   {
-    // 2판 (2026-09-30) — 레퍼런스 번들 첨부(role 'bundle'). 열 제약의 자동 이름은 <표>_<열>_check
+    // Version 2 (2026-09-30) — reference bundle attachments (role 'bundle'). The auto-generated column constraint name is <table>_<column>_check
     version: 2,
     sql: `
 ALTER TABLE aas_package_file DROP CONSTRAINT IF EXISTS aas_package_file_role_check;
@@ -142,15 +142,15 @@ ALTER TABLE aas_package_file ADD CONSTRAINT aas_package_file_role_check
   },
   {
     /*
-     * 3판 (2026-10-02) — 사용자 계정. 토큰 하나를 돌려 쓰던 것을 사람 단위로 바꾼다.
+     * Version 3 (2026-10-02) — user accounts. Replaces a single shared token with per-person accounts.
      *
-     * 🔴 **세션 표는 두지 않는다.** 저장소 구현이 셋(memory·folder·postgres)이라 세션까지
-     *    영속시키면 셋 다 손봐야 하는데, 이 도구는 서버 한 대가 전제다. 세션은 그 서버의
-     *    메모리에 둔다 — 서버를 내리면 다시 로그인한다. 폐쇄망에서 치를 만한 값이다.
-     * 🔴 비밀번호는 **해시만** 둔다(scrypt, Node 내장). 원문은 어디에도 남기지 않는다.
+     * Important: **no sessions table.** There are three store implementations (memory, folder, postgres), so persisting
+     *    sessions would mean touching all three, while this tool assumes a single server. Sessions live in that server's
+     *    memory — restarting the server means logging in again. An acceptable cost on a closed network.
+     * Important: passwords are stored **as hashes only** (scrypt, built into Node). The plaintext is kept nowhere.
      */
     version: 3,
-    // i18n-ignore — SQL 문(안의 한국어는 SQL 주석)
+    // i18n-ignore — SQL statement (the Korean inside is SQL comments)
     sql: `
 CREATE TABLE IF NOT EXISTS app_user (
   id            text PRIMARY KEY,
@@ -169,11 +169,11 @@ CREATE TABLE IF NOT EXISTS app_user (
   },
   {
     /*
-     * 4판 (2026-10-02) — 감사 기록의 「누가」. 이력에 바꾼 사람을 적는다.
+     * Version 4 (2026-10-02) — the "who" of the audit log. Records the person who made each change in history.
      *
-     * 🔴 **NULL을 허용한다.** 이 판 이전에 쌓인 이력에는 바꾼 사람이 없다. 그것을
-     *    「알 수 없음」이 아닌 아무 값으로 채우면 없던 사실을 지어내는 것이다.
-     * 🔴 외래키를 걸지 않는다 — 계정을 지웠다고 감사 기록이 함께 사라지면 안 된다.
+     * Important: **NULL is allowed.** History accumulated before this version has no changer. Filling it with
+     *    any value other than "unknown" would invent facts that never existed.
+     * Important: no foreign key — deleting an account must not make the audit log disappear with it.
      */
     version: 4,
     sql: `
@@ -183,12 +183,12 @@ ALTER TABLE identifiable_history ADD COLUMN IF NOT EXISTS actor_name text;
   },
   {
     /*
-     * 5판 (2026-10-04) — 회원가입. 연락처를 **선택**으로 받는다.
+     * Version 5 (2026-10-04) — sign-up. Contact details are accepted as **optional**.
      *
-     * 🔴 NULL을 허용한다. 사내망에서 관리자가 만들어 주는 계정에는 연락처가 없고,
-     *    없는 것을 빈 문자열로 채우면 「안 적었다」와 「빈 값」이 섞인다.
-     * 🔴 개인정보다 — 받기 시작하면 처리방침·동의·보관기간·파기가 따라온다.
-     *    그래서 **안 받아도 돌아가게** 두었다(docs/배포_호스팅.md).
+     * Important: NULL is allowed. Accounts created by an admin on an internal network have no contact details, and
+     *    filling the missing value with an empty string would mix "not entered" with "empty value".
+     * Important: this is personal data — once collected, a privacy policy, consent, retention period and disposal follow.
+     *    That is why it was left **working without collecting it** (docs/배포_호스팅.md).
      */
     version: 5,
     sql: `
@@ -197,13 +197,13 @@ ALTER TABLE app_user ADD COLUMN IF NOT EXISTS email text;
   },
   {
     /*
-     * 6판 (2026-10-04) — 작업 공간. 패키지에 주인을 적는다.
+     * Version 6 (2026-10-04) — workspaces. Records an owner on each package.
      *
-     * 🔴 **NULL이 「공용」이다.** 이 판 이전의 패키지는 전부 NULL이 되고, 그래서 옛 DB를
-     *    올려도 **아무 것도 달라지지 않는다** — 모두가 전부를 보던 그대로다.
-     *    주인을 지어내 채우면 멀쩡히 같이 쓰던 파일이 한 사람 것이 되어 버린다.
-     * 🔴 app_user를 참조하지 않는다. 주인은 계정만이 아니다 — 체험 계정은 로그인마다
-     *    작업 공간이 따로라 `visitor:…` 같은 열쇠가 온다.
+     * Important: **NULL means "shared".** Packages from before this version all become NULL, so upgrading an old DB
+     *    **changes nothing** — everyone still sees everything, as before.
+     *    Inventing owners to fill it would turn files that were being shared just fine into one person's property.
+     * Important: does not reference app_user. Owners are not only accounts — trial accounts get a separate
+     *    workspace per login, so a key like `visitor:…` arrives.
      */
     version: 6,
     sql: `
@@ -213,10 +213,10 @@ CREATE INDEX IF NOT EXISTS aas_package_owner_idx ON aas_package (owner);
   },
   {
     /*
-     * 7판 (2026-10-06) — 회원가입에서 회사명을 받고, 개인정보 수집 동의 시각을 적는다.
+     * Version 7 (2026-10-06) — sign-up collects a company name and records the time of consent to personal data collection.
      *
-     * 🔴 NULL을 허용한다. 관리자가 만든 계정·처리방침 없는 서버의 가입에는 둘 다 없다.
-     * 🔴 동의 시각은 증빙이다 — 화면의 체크가 아니라 서버가 받은 때를 적는다.
+     * Important: NULL is allowed. Neither exists for admin-created accounts or sign-ups on servers without a privacy policy.
+     * Important: the consent time is evidence — record when the server received it, not the on-screen checkbox.
      */
     version: 7,
     sql: `
@@ -226,11 +226,11 @@ ALTER TABLE app_user ADD COLUMN IF NOT EXISTS consent_at timestamptz;
   },
   {
     /*
-     * 8판 (2026-10-13) — 수집값마다 **이 도구가 실제로 읽어 온 시각**을 적는다(신선도 판정의 근거).
+     * Version 8 (2026-10-13) — records, for each collected value, **the time this tool actually read it** (the basis for freshness checks).
      *
-     * 🔴 observed_at 은 장비가 준 시각(OPC UA SourceTimestamp)이라 값이 바뀔 때만 움직인다 —
-     *    값이 일정한 태그는 매번 잘 읽어도 시각이 멈춰 「끊김」으로 보였다.
-     * 🔴 NULL을 허용한다. 옛 기록에는 없다 — 지어내 채우지 않고 화면이 observed_at 으로 대신한다.
+     * Important: observed_at is the time given by the device (OPC UA SourceTimestamp), so it only moves when the value changes —
+     *    tags with a constant value were read fine every time, yet their timestamp froze and they looked "disconnected".
+     * Important: NULL is allowed. Old records lack it — it is not invented; the UI falls back to observed_at.
      */
     version: 8,
     sql: `
@@ -240,24 +240,24 @@ ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS received_at timestamptz;
 ];
 
 /**
- * 수집값 테이블에 대하여.
+ * About the collected-value table.
  *
- * A안에서 수집값은 모델을 **참조만** 하고 절대 되쓰지 않는다. 참조 방향이 단방향이라는 점이
- * 이 DDL의 핵심이다 — 모델 → 수집값 방향의 참조는 없다.
+ * Under Option A, collected values only **reference** the model and never write back to it. The one-way
+ * reference direction is the core of this DDL — there is no reference in the model → collected-value direction.
  *
- * 위치는 AID가 정한다(interface_name · property_name). 모델의 idShortPath를 쓰지 않는 이유는
- * **모델을 편집해도 수집이 끊기지 않게** 하기 위해서다. AID가 곧 계약이다.
+ * The location is determined by the AID (interface_name · property_name). The model's idShortPath is not used
+ * so that **editing the model does not break collection**. The AID is the contract.
  *
- * TimescaleDB를 쓸 때는 확장을 켠 뒤 `HYPERTABLE_SQL` 한 줄을 더한다(일반 PostgreSQL에서는 필요 없다).
+ * When using TimescaleDB, enable the extension and then add the single `HYPERTABLE_SQL` line (not needed on plain PostgreSQL).
  *
- * 🔴 **캐스팅을 반드시 붙인다.** TimescaleDB 2.x에는 `create_hypertable` 과부하가 둘 있어
- * (`regclass, dimension_info` / `regclass, name`), 따옴표 문자열만 주면 `unknown`이라
- * 어느 쪽인지 못 정하고 "function ... does not exist"로 실패한다(2.29.2 실측).
- * 신형 `by_range('observed_at')`는 2.13 이상에서만 되므로, 넓게 도는 구형 시그니처를 쓴다.
+ * Important: **always include the casts.** TimescaleDB 2.x has two `create_hypertable` overloads
+ * (`regclass, dimension_info` / `regclass, name`); given only quoted strings the type is `unknown`,
+ * so it cannot pick one and fails with "function ... does not exist" (measured on 2.29.2).
+ * The newer `by_range('observed_at')` only works on 2.13+, so the widely supported legacy signature is used.
  *
- * 🔴 전용 스키마를 쓴다면 **`search_path`에 `public`을 남겨야 한다.**
- * TimescaleDB 함수는 확장이 설치된 스키마(보통 public)에 있어서,
- * `SET search_path TO myschema`만 하면 `create_hypertable`을 찾지 못한다(실측).
+ * Important: if you use a dedicated schema, **keep `public` in `search_path`.**
+ * TimescaleDB functions live in the schema where the extension is installed (usually public),
+ * so `SET search_path TO myschema` alone cannot find `create_hypertable` (measured).
  */
 export const HYPERTABLE_SQL =
   "SELECT create_hypertable('collected_value'::regclass, 'observed_at'::name, if_not_exists => TRUE);";

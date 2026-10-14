@@ -1,6 +1,6 @@
-/** 영어 사전 — core. 열쇠 = 한국어 원문 그대로, 값 = 영어. 자리 표시({0} · <b>)는 원문과 똑같이 */
+/** English dictionary - core. Key = the Korean source text verbatim, value = English. Placeholders ({0}, <b>) must match the source exactly */
 export const EN_CORE: Record<string, string> = {
-  // ── json/deserialize.ts — AAS JSON 읽기 ──
+  // ── json/deserialize.ts — reading AAS JSON ──
   'AAS JSON 파싱 실패 ({0}건)': 'AAS JSON parsing failed ({0} issues)',
   'SubmodelElement는 객체여야 합니다.': 'A SubmodelElement must be an object.',
   'modelType이 없습니다.': 'modelType is missing.',

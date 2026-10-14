@@ -1,5 +1,5 @@
 /**
- * 템플릿 요구 수준 API — 열린 파일의 서브모델마다 IDTA 템플릿의 「필수 · 선택」을 돌려준다.
+ * Template requirement level API — for each submodel of the open file, returns "mandatory / optional" from the IDTA template.
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -24,7 +24,7 @@ async function call(handle: ReturnType<typeof createApi>, path: string): Promise
   return { status: response.status, body: response.body as Body };
 }
 
-/** 시험 파일의 서브모델 하나를 템플릿으로 바꾼다 — kind=Template + 요소마다 개수 조건 */
+/** Turns one submodel of the test file into a template — kind=Template plus a cardinality on each element */
 function asTemplate(submodel: Json, required: readonly string[]): Json {
   const copy = structuredClone(submodel);
   copy['kind'] = 'Template';
@@ -37,14 +37,14 @@ function asTemplate(submodel: Json, required: readonly string[]): Json {
   return copy;
 }
 
-describe('템플릿 요구 수준 API', () => {
-  it('템플릿이 있으면 semanticId 로 짝을 지어 경로마다 필수·선택을 준다', async () => {
+describe('template requirement level API', () => {
+  it('with a template, matches by semanticId and gives mandatory/optional per path', async () => {
     const store = new InMemoryStore();
     const instance = fixture();
     const target = await store.importPackage({ name: '설비.aasx', package: instance });
     const nameplate = instance.environment.submodels!.find((sm) => sm.idShort === 'DigitalNameplate')! as unknown as Json;
 
-    // 템플릿 파일 — 다른 파일로 보관함에 있다
+    // The template file — kept in the library as a separate file
     const templatePkg = fixture();
     templatePkg.environment.submodels = [asTemplate(nameplate, ['ManufacturerName', 'SerialNumber']) as never];
     await store.importPackage({ name: 'IDTA_Nameplate_template.aasx', package: templatePkg });
@@ -57,12 +57,12 @@ describe('템플릿 요구 수준 API', () => {
     expect(entry).toBeTruthy();
     expect(entry.elements['ManufacturerName']).toEqual({ cardinality: 'One', required: true });
     expect(entry.elements['YearOfConstruction']).toEqual({ cardinality: 'ZeroToOne', required: false });
-    // 템플릿이 없는 서브모델은 결과에 없다 — 화면은 「모름」
+    // Submodels without a template are absent from the result — the UI shows "unknown"
     const technical = instance.environment.submodels!.find((sm) => sm.idShort === 'TechnicalData')!;
     expect(body.result.find((r) => r.submodelId === technical.id)).toBeUndefined();
   });
 
-  it('템플릿이 하나도 없으면 빈 목록 — 오류가 아니다', async () => {
+  it('no templates at all gives an empty list — not an error', async () => {
     const store = new InMemoryStore();
     const target = await store.importPackage({ name: '설비.aasx', package: fixture() });
     const { status, body } = await call(createApi(store), `/packages/${target.id}/requirements`);
@@ -70,7 +70,7 @@ describe('템플릿 요구 수준 API', () => {
     expect(body).toEqual({ result: [], templates: 0 });
   });
 
-  it('템플릿을 고치면 다음 조회에 반영된다 — 캐시는 리비전으로 판단한다', async () => {
+  it('editing a template is reflected in the next query — the cache keys on revision', async () => {
     const store = new InMemoryStore();
     const instance = fixture();
     const target = await store.importPackage({ name: '설비.aasx', package: instance });
@@ -92,7 +92,7 @@ describe('템플릿 요구 수준 API', () => {
     expect(second.body.result[0]!.elements['SerialNumber']!.required).toBe(true);
   });
 
-  it('없는 파일은 404', async () => {
+  it('an unknown file is 404', async () => {
     const { status } = await call(createApi(new InMemoryStore()), '/packages/nope/requirements');
     expect(status).toBe(404);
   });

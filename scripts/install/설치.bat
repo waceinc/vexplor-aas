@@ -1,6 +1,6 @@
 @echo off
-REM VEXPLOR AAS Studio 설치 (윈도우) — 이 파일을 두 번 클릭하십시오.
-REM 🔴 한글이 깨지지 않게 코드페이지를 UTF-8로 바꾼다
+REM VEXPLOR AAS Studio install (Windows) — double-click this file.
+REM Important: switch the code page to UTF-8 so Korean text is not garbled
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
@@ -11,7 +11,7 @@ echo   VEXPLOR AAS Studio 설치
 echo ================================================
 echo.
 
-REM ── ① Docker 확인 ─────────────────────────────
+REM ── (1) Check Docker ─────────────────────────────
 where docker >nul 2>&1
 if errorlevel 1 (
   echo [X] Docker Desktop이 설치돼 있지 않습니다.
@@ -31,7 +31,7 @@ if errorlevel 1 (
 )
 echo [OK] Docker 확인
 
-REM ── ② 설정 파일 ───────────────────────────────
+REM ── (2) Settings file ───────────────────────────────
 if not exist ".env" (
   copy /y ".env.example" ".env" >nul
   echo.
@@ -50,7 +50,7 @@ if not exist ".env" (
   exit /b 0
 )
 
-REM 비밀번호가 비었는지 — 비면 데이터베이스가 뜨지 않는다
+REM Whether the password is empty — if empty, the database does not start
 findstr /r "^POSTGRES_PASSWORD=..*" .env >nul
 if errorlevel 1 (
   echo [X] .env 의 POSTGRES_PASSWORD 가 비어 있습니다. 채운 뒤 다시 실행하십시오.
@@ -59,9 +59,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM 접속 토큰은 없어도 된다. 사내에서 누구나 열고 고쳐도 되는 것이 기본 쓰임새다.
-REM 다만 프로그램에는 "토큰이 없으면 이 컴퓨터에서만 연다"는 안전장치가 있어서,
-REM 토큰 없이 여러 사람이 쓰려면 AAS_ALLOW_OPEN=1이 있어야 한다. 없으면 넣어 준다.
+REM An access token is optional. The default use case is in-house, where anyone may open and edit.
+REM But the program has a safeguard: "without a token, listen on this computer only",
+REM so several people using it without a token need AAS_ALLOW_OPEN=1. Add it if missing.
 findstr /r "^AAS_ALLOW_OPEN=" .env >nul
 if errorlevel 1 (
   echo.>> .env
@@ -79,7 +79,7 @@ if errorlevel 1 (
   echo.
 )
 
-REM ── ③ 이미지 불러오기 ─────────────────────────
+REM ── (3) Load images ─────────────────────────
 echo.
 echo [..] 프로그램을 불러옵니다. 몇 분 걸립니다. 창을 닫지 마십시오.
 docker load -i images.tar.gz
@@ -89,7 +89,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM ── ④ 실행 ────────────────────────────────────
+REM ── (4) Run ────────────────────────────────────
 echo.
 echo [..] 실행합니다.
 docker compose up -d
@@ -100,7 +100,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM 포트 읽기 (없으면 8080)
+REM Read the port (8080 if absent)
 set PORT=8080
 for /f "tokens=2 delims==" %%a in ('findstr /r "^APP_PORT=" .env') do set PORT=%%a
 

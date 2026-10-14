@@ -1,7 +1,7 @@
 /**
- * 값 편집 동작 — 값 · 이름 · semanticId · 첨부 · 대표 사진 · AssetInformation · 용어. 구조 편집은 useStructureActions.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름으로 받는다(c 에서 꺼낸다).
+ * Value editing actions — value · name · semanticId · attachment · thumbnail · AssetInformation · concept. Structural edits live in useStructureActions.
+ * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
+ * the state and actions it uses arrive under the same names (taken from c).
  */
 import { api } from '../api.js';
 import { fill, tr } from '../i18n.js';
@@ -11,8 +11,8 @@ import type { Core } from './context.js';
 export function useElementActions(c: Pick<Core, 'loadPackage' | 'packageId' | 'run' | 'setNotice' | 'setSelectedKey' | 'shell' | 'shellRevisions' | 'targetOf'>) {
   const { loadPackage, packageId, run, setNotice, setSelectedKey, shell, shellRevisions, targetOf } = c;
   /**
-   * 값 표 저장 — 서브모델 JSON에 바뀐 값을 얹어 **한 번의 PATCH**로 보낸다.
-   * 줄마다 patchValue를 부르면 revision이 어긋나 두 번째부터 409가 난다.
+   * Save the value table — apply changed values onto the submodel JSON and send **one PATCH**.
+   * Calling patchValue per row makes revisions drift and returns 409 from the second call on.
    */
   const onBulkSaveValues = async (
     node: TreeNode,
@@ -35,15 +35,15 @@ export function useElementActions(c: Pick<Core, 'loadPackage' | 'packageId' | 'r
       await api.patchValue(pid, node.submodelId, node.idShortPath!, value, revision);
       return true;
     });
-    // 저장 결과는 서버에서 다시 읽어 확인한다 — 화면 상태를 믿지 않는다
+    // Verify the save by re-reading from the server — do not trust screen state
     if (done) await loadPackage(packageId);
   };
   /**
-   * 이름(idShort) 바꾸기.
+   * Rename (idShort).
    *
-   * 요소는 통째로 PUT하고(부분 갱신으로는 이름을 못 바꾼다), 서브모델은 PATCH한다.
-   * 🔴 이름이 바뀌면 그 아래 모든 요소의 경로가 바뀐다 — 그래서 저장 뒤 **서버에서 다시 읽는다.**
-   * 선택도 새 경로로 옮겨 준다. 안 그러면 방금 고친 요소가 화면에서 사라진다.
+   * Elements are PUT whole (a partial update cannot rename); submodels are PATCHed.
+   * Important: a rename changes the path of every element beneath it — so **re-read from the server** after saving.
+   * Move the selection to the new path too, or the element just edited vanishes from the screen.
    */
   const onRename = async (node: TreeNode, nextName: string): Promise<void> => {
     if (!packageId) return;
@@ -64,14 +64,14 @@ export function useElementActions(c: Pick<Core, 'loadPackage' | 'packageId' | 'r
       return true;
     });
     if (!done) return;
-    // 트리에서의 자리는 그대로이므로(순서가 바뀌지 않는다) 같은 위치를 다시 고른다
+    // Its place in the tree is unchanged (order does not change), so select the same position again
     setSelectedKey(node.key);
     setNotice(fill(tr('이름을 「{0}」(으)로 바꿨습니다.'), { 0: nextName }));
     await loadPackage(packageId);
   };
   /**
-   * 첨부 붙이기 — HandoverDocumentation의 매뉴얼 PDF가 여기로 들어간다.
-   * 서버가 패키지 파트를 만들고 File.value까지 함께 고치므로, 화면은 다시 읽기만 하면 된다.
+   * Attach a file — HandoverDocumentation manual PDFs go here.
+   * The server creates the package part and updates File.value too, so the screen only needs to re-read.
    */
   const onUploadAttachment = async (node: TreeNode, file: File): Promise<void> => {
     if (!packageId || !node.idShortPath) return;
@@ -110,11 +110,11 @@ export function useElementActions(c: Pick<Core, 'loadPackage' | 'packageId' | 'r
     });
     if (done) await loadPackage(packageId);
   };
-  /** semanticId는 $value로 못 고친다 — 요소 전체를 PUT한다 */
+  /** semanticId cannot be changed via $value — PUT the whole element */
   const onSaveSemanticId = async (node: TreeNode, semanticId: string): Promise<void> => {
     if (!packageId) return;
     const reference = { type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: semanticId }] };
-    // 🔴 서브모델도 semanticId를 가진다(표준 템플릿 IRI — KOSMO가 거기까지 본다). 요소와 달리 PATCH다
+    // Important: submodels also carry a semanticId (the standard template IRI — KOSMO checks it). Unlike elements it is a PATCH
     if (node.modelType === 'Submodel') {
       const done = await run(async () => {
         await api.patchSubmodel(targetOf(node).pid, node.submodelId, { semanticId: reference }, targetOf(node).revision);
@@ -137,7 +137,7 @@ export function useElementActions(c: Pick<Core, 'loadPackage' | 'packageId' | 'r
     });
     if (done) await loadPackage(packageId);
   };
-  /** 대표 사진 교체 — 임시 그림(/thumbnail.png)을 실제 장비 사진으로 */
+  /** Replace the thumbnail — the placeholder (/thumbnail.png) with a real equipment photo */
   const onUploadThumbnail = async (file: File): Promise<void> => {
     if (!packageId || !shell) return;
     const done = await run(async () => {

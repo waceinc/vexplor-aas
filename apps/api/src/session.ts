@@ -1,13 +1,13 @@
 /**
- * 로그인 세션 — **서버 메모리에** 둔다.
+ * Login sessions — kept **in server memory**.
  *
- * 🔴 저장소(DB)에 두지 않은 이유: 구현이 셋(memory·folder·postgres)이라 세션까지 영속시키면
- *    셋 다 손봐야 하는데, 이 도구는 **서버 한 대**가 전제다(설치판은 아예 한 PC).
- *    서버를 내리면 다시 로그인한다 — 폐쇄망 공장에서 치를 만한 값이다.
- *    여러 대로 늘릴 때가 오면 그때 저장소로 옮긴다(그 자리가 여기 한 곳뿐이다).
+ * Important: why not in the store (DB): there are three implementations (memory, folder, postgres), so persisting sessions
+ *    would mean touching all three, while this tool assumes **a single server** (the installed edition is a single PC).
+ *    Restarting the server means logging in again — a price worth paying in an air-gapped factory.
+ *    When the time comes to scale to multiple servers, move this to the store then (this is the only place to change).
  *
- * 🔴 쿠키에 사용자 id를 담지 않는다. **추측 불가능한 열쇠**만 담고 서버가 들고 있는 표에서 찾는다.
- *    서명 쿠키(JWT 등)로 하면 로그아웃·강제 잠금이 즉시 먹지 않는다.
+ * Important: the cookie does not hold the user id. It holds only an **unguessable key**, looked up in a table the server keeps.
+ *    With signed cookies (JWT etc.), logout and forced lockout would not take effect immediately.
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { tr } from '@aas/core';
@@ -15,33 +15,33 @@ import { tr } from '@aas/core';
 export interface Session {
   userId: string;
   createdAt: number;
-  /** 마지막으로 쓴 때 — 이 시각부터 유휴 시간을 센다 */
+  /** Last time used — idle time is counted from this moment */
   seenAt: number;
   /**
-   * 이 로그인만의 이름 — 체험 계정의 **작업 공간 열쇠**가 된다(2026-10-04).
+   * A name unique to this login — becomes the demo account's **workspace key** (2026-10-04).
    *
-   * 체험 계정은 여럿이 같이 쓰는 한 계정이라, 계정으로 가르면 모두가 한 칸에 들어간다.
-   * 로그인마다 따로 주면 같은 계정으로 들어와도 서로의 파일을 보지 못한다.
-   * 🔴 세션 열쇠 자체를 쓰지 않는다 — 그 값은 쿠키에 담기는 비밀이고, 작업 공간 열쇠는
-   *    DB에 적힌다. 비밀을 저장소에 베껴 두지 않으려고 따로 뽑는다.
+   * The demo account is a single account shared by many, so partitioning by account puts everyone in one slot.
+   * Giving one per login means people entering with the same account cannot see each other's files.
+   * Important: the session key itself is not used — that value is a secret carried in the cookie, while the workspace key
+   *    is written to the DB. It is generated separately so the secret is not copied into the store.
    */
   visitor: string;
 }
 
-/** 아무 것도 안 해도 이만큼 지나면 끊는다 */
-const IDLE_MS = 8 * 60 * 60 * 1000; // 8시간 — 하루 일과
-/** 아무리 써도 이만큼 지나면 다시 로그인 */
-const ABSOLUTE_MS = 7 * 24 * 60 * 60 * 1000; // 7일
+/** Disconnect after this much time with no activity */
+const IDLE_MS = 8 * 60 * 60 * 1000; // 8 hours — one workday
+/** Log in again after this much time no matter how much it is used */
+const ABSOLUTE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export class SessionStore {
   private readonly sessions = new Map<string, Session>();
 
   constructor(private readonly now: () => number = () => Date.now()) {}
 
-  /** 새 세션. 돌려주는 열쇠가 쿠키에 담긴다 */
+  /** New session. The returned key goes into the cookie */
   create(userId: string): string {
     this.sweep();
-    // 32바이트(256비트) — 찍어서 맞출 수 없다
+    // 32 bytes (256 bits) — cannot be guessed
     const key = randomBytes(32).toString('base64url');
     const at = this.now();
     this.sessions.set(key, { userId, createdAt: at, seenAt: at, visitor: randomBytes(12).toString('hex') });
@@ -49,9 +49,9 @@ export class SessionStore {
   }
 
   /**
-   * 열쇠로 찾는다. 살아 있으면 `seenAt`을 갱신한다(쓰는 동안은 안 끊긴다).
-   * 🔴 비교는 Map이 한다 — 열쇠가 256비트 난수라 시간 분석으로 맞출 수 없다.
-   *    (토큰처럼 사람이 정한 짧은 값이면 timingSafeEqual이 필요하지만 여기는 아니다)
+   * Look up by key. If alive, refresh `seenAt` (it does not expire while in use).
+   * Important: the comparison is done by the Map — the key is a 256-bit random value, so timing analysis cannot guess it.
+   *    (A short human-chosen value like a token would need timingSafeEqual, but not here)
    */
   get(key: string | undefined): Session | undefined {
     if (!key) return undefined;
@@ -70,14 +70,14 @@ export class SessionStore {
     if (key) this.sessions.delete(key);
   }
 
-  /** 그 사람의 세션을 전부 끊는다 — 잠그거나 비밀번호를 바꿨을 때 */
+  /** Drop all of that person's sessions — when locked or the password changed */
   dropUser(userId: string): void {
     for (const [key, session] of this.sessions) {
       if (session.userId === userId) this.sessions.delete(key);
     }
   }
 
-  /** 만료된 것을 치운다 — 세션을 만들 때마다 한 번. 따로 타이머를 두지 않는다 */
+  /** Clear expired ones — once each time a session is created. No separate timer */
   private sweep(): void {
     const at = this.now();
     for (const [key, session] of this.sessions) {
@@ -93,31 +93,31 @@ export class SessionStore {
 }
 
 /**
- * 로그인 시도 제한 — 같은 로그인 이름으로 연달아 틀리면 잠시 막는다.
+ * Login attempt limit — briefly blocks repeated failures with the same login name.
  *
- * 🔴 **IP가 아니라 로그인 이름으로** 센다. 공장 안은 NAT 하나로 묶여 IP가 같은 경우가 많아
- *    IP로 세면 한 사람이 틀릴 때 전원이 막힌다.
- * 🔴 막혀도 "그 계정은 있다"를 알려 주지 않는다 — 응답은 똑같이 「로그인하지 못했습니다」다.
+ * Important: counts **by login name, not IP**. Inside a factory everything is often behind one NAT with the same IP,
+ *    so counting by IP would block everyone when one person makes mistakes.
+ * Important: even when blocked, it does not reveal "that account exists" — the response is the same "could not log in".
  */
 export class LoginThrottle {
-  /** 「이 계정 × 이 주소」 — 한 사람이 비밀번호를 대입하는 것을 늦춘다 */
+  /** "This account x this address" — slows down one person guessing passwords */
   private readonly fails = new Map<string, { count: number; until: number }>();
-  /** 「이 계정」 전체 — 주소를 바꿔 가며 대입해도 결국 멈춘다 */
+  /** "This account" overall — guessing while rotating addresses still stops eventually */
   private readonly perLogin = new Map<string, { count: number; until: number }>();
 
   /**
-   * 🔴 예전에는 **계정 이름만** 셌다(2026-10-06 보안 점검). 그러면 아무나 남의 아이디로
-   *    다섯 번 틀려 그 사람을 5분씩 잠글 수 있다 — 공개 체험 서버에서는 체험 계정(admin)을
-   *    누구나 잠가 모든 방문자를 막을 수 있었다. 그래서 「계정 × 주소」로 세고, 계정 전체에는
-   *    훨씬 높은 상한(주소를 바꿔 가며 대입하는 것)만 둔다.
+   * Important: previously only **the account name** was counted (2026-10-06 security review). That let anyone fail
+   *    five times with someone else's id and lock them out for 5 minutes each — on the public demo server anyone could lock
+   *    the demo account (admin) and block every visitor. So we count by "account x address", and the account as a whole
+   *    only gets a much higher cap (against guessing while rotating addresses).
    */
   constructor(
     private readonly now: () => number = () => Date.now(),
-    /** 한 주소에서 이만큼 틀리면 */
+    /** After this many failures from one address */
     private readonly limit = 5,
-    /** 이만큼 막는다 */
+    /** block for this long */
     private readonly blockMs = 5 * 60 * 1000,
-    /** 주소를 가리지 않고 한 계정에 이만큼 틀리면(대입 공격) */
+    /** After this many failures on one account regardless of address (guessing attack) */
     private readonly loginLimit = 50,
     private readonly loginBlockMs = 15 * 60 * 1000,
   ) {}
@@ -161,28 +161,28 @@ export class LoginThrottle {
 }
 
 /**
- * 가입 속도 제한 — 공개 체험 서버에 봇이 붙는 것을 늦춘다(2026-10-04).
+ * Signup rate limit — slows down bots hitting the public demo server (2026-10-04).
  *
- * 🔴 로그인 제한(LoginThrottle)과 막는 것이 다르다. 저쪽은 **한 계정의 비밀번호**를
- *    찍어 보는 것을 막고, 이쪽은 **계정이 수천 개 생기는 것**을 막는다. 키로 쓸 계정이
- *    아직 없으니 접속 주소로 센다.
+ * Important: this blocks something different from the login limit (LoginThrottle). That one blocks guessing
+ *    **one account's password**; this one blocks **thousands of accounts being created**. There is no account
+ *    to use as a key yet, so it counts by client address.
  *
- * 🔴 전체 상한을 함께 둔다. `X-Forwarded-For`는 속일 수 있어 주소별 상한만으로는
- *    봇을 못 막는다. 전체 상한은 속일 수 없지만, 한도에 닿으면 **멀쩡한 사람도 막힌다** —
- *    공개 서버에서는 계정이 무한히 생기는 쪽이 더 나쁘다고 보고 고른 값이다.
- *    한도에 닿으면 기동 로그에 남으니 운영자가 `AAS_SIGNUP=off`로 끌 수 있다.
+ * Important: a global cap is kept too. `X-Forwarded-For` can be spoofed, so per-address caps alone
+ *    cannot stop bots. The global cap cannot be spoofed, but when it is reached **legitimate people are blocked too** —
+ *    a value chosen on the view that endlessly created accounts are worse on a public server.
+ *    Reaching the cap is recorded in the startup log, so the operator can turn it off with `AAS_SIGNUP=off`.
  */
 export class SignupThrottle {
-  /** 가입이 일어난 시각들(전체) */
+  /** Times signups happened (global) */
   private readonly all: number[] = [];
-  /** 주소별 가입 시각들 */
+  /** Signup times per address */
   private readonly byAddress = new Map<string, number[]>();
 
   constructor(
     private readonly now: () => number = () => Date.now(),
-    /** 한 시간에 서버 전체에서 받을 수 있는 가입 수 */
+    /** Signups the whole server accepts per hour */
     private readonly globalLimit = 30,
-    /** 한 시간에 한 주소에서 받을 수 있는 가입 수 */
+    /** Signups accepted from one address per hour */
     private readonly addressLimit = 5,
     private readonly windowMs = 60 * 60 * 1000,
   ) {}
@@ -193,7 +193,7 @@ export class SignupThrottle {
     return times;
   }
 
-  /** 막혔으면 사람이 읽을 사유, 아니면 undefined */
+  /** A human-readable reason if blocked, otherwise undefined */
   blocked(address: string | undefined): string | undefined {
     if (this.fresh(this.all).length >= this.globalLimit) {
       return tr('지금은 가입을 받을 수 없습니다 — 잠시 뒤에 다시 시도하십시오.');
@@ -205,7 +205,7 @@ export class SignupThrottle {
     return undefined;
   }
 
-  /** 가입이 **성공했을 때** 센다 — 실패는 계정을 만들지 않으니 셀 이유가 없다 */
+  /** Counted when a signup **succeeds** — failures create no account, so no reason to count them */
   took(address: string | undefined): void {
     const at = this.now();
     this.all.push(at);

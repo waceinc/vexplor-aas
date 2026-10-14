@@ -1,7 +1,7 @@
 /**
- * 연결 부품 — 화면 조각(AppHeader · StatusBanners · Welcome · Splitter)에 App 의 상태·동작을 이어 준다.
- * App.tsx 에서 props 를 엮던 자리를 옮겼다(2026-10-13 컴포넌트화) — 엮는 코드는 옮기기 전과 같다.
- * 조각 자체는 상태를 모르고 props 만 받는다(그래야 따로 시험하고 고칠 수 있다).
+ * Connected components — wire App's state and actions into the screen pieces (AppHeader · StatusBanners · Welcome · Splitter).
+ * Moved here from where App.tsx assembled the props (componentization, 2026-10-13) — the wiring code is unchanged.
+ * The pieces themselves know nothing about state and only take props (so they can be tested and changed in isolation).
  */
 import { api, setToken } from '../api.js';
 import { Rules } from '../components/Rules.js';
@@ -98,7 +98,7 @@ export function Banners(s: Pick<S, 't' | 'confirmQuit' | 'setConfirmQuit' | 'boo
   );
 }
 
-/** 규칙·규약 — 지적 목록·내주기와 같은 팝업. 예전엔 헤더 밑 띠로 끼어들어 본문을 밀어냈다(2026-09-09 디자인 검토) */
+/** Rules and conventions — a popup like the findings list and serving dialog. It used to be a strip under the header that pushed the content down (design review, 2026-09-09) */
 export function RulesDialog({ showRules, setShowRules }: Pick<S, 'showRules' | 'setShowRules'>): React.JSX.Element | null {
   if (!showRules) return null;
   return (
@@ -108,7 +108,7 @@ export function RulesDialog({ showRules, setShowRules }: Pick<S, 'showRules' | '
   );
 }
 
-/* 첫 화면 — 열린 파일이 없거나, 로고로 나왔을 때(보는 파일 없음). 빈 세 칸만 띄워 두면 처음 쓰는 사람은 손댈 곳을 찾지 못한다 */
+/* Start screen — when no file is open, or after leaving via the logo (no file being viewed). Showing three empty panes leaves first-time users with nowhere to start */
 export function WelcomeScreen(s: Pick<S, 't' | 'lang' | 'packages' | 'adding' | 'busy' | 'policy' | 'loadPackage' | 'setAdding' | 'fileInput' | 'bundleInput' | 'onOpenSample' | 'onImportForTree' | 'onCreatePackage'>): React.JSX.Element {
   const { policy, loadPackage, setAdding, fileInput, bundleInput, onOpenSample, onCreatePackage } = s;
   return (
@@ -134,7 +134,7 @@ export function WelcomeScreen(s: Pick<S, 't' | 'lang' | 'packages' | 'adding' | 
   );
 }
 
-/** 칸 사이 손잡이 — 왼쪽(트리|가운데) · 오른쪽(가운데|오른쪽 칸) */
+/** Pane splitters — left (tree | middle) · right (middle | right pane) */
 export function PaneSplitter({ side, shownPanes, movePane, setPanes, commitPanes }: { side: 'left' | 'right' } & Pick<S, 'shownPanes' | 'movePane' | 'setPanes' | 'commitPanes'>): React.JSX.Element {
   return side === 'left' ? (
     <Splitter

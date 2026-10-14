@@ -15,13 +15,13 @@ import re
 import sys
 import zipfile
 
-# 실제 상호·상표로 보이는 것. 🔴 「Example Manufacturer」처럼 꾸민 이름은 걸리지 않게 둔다
+# What looks like real company names and trademarks. Important: made-up names such as "Example Manufacturer" are left unmatched
 BRANDS = re.compile(
     r"두산|Doosan|DOOSAN|SIMPAC|심팩|Samick|삼익|Atlas ?Copco|AtlasCopco|아틀라스|Henrob|Tucker|"
     r"B[oö]llhoff|Stanley|현대|Hyundai|기아자동차|삼성|포스코|POSCO|LS ?일렉|Siemens|지멘스|"
     r"Mitsubishi|미쓰비시|Fanuc|화낙|\bABB\b|KUKA|Universal Robots|Rainbow Robotics|레인보우|뉴로메카|Neuromeka"
 )
-# 사람·회사에 닿는 연락처
+# Contact details that lead to people or companies
 CONTACT = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+|\+82[\d -]{8,}|\b0\d{1,2}-\d{3,4}-\d{4}\b")
 
 
@@ -61,7 +61,7 @@ def main() -> int:
         archive = zipfile.ZipFile(path)
         found: set[str] = set()
         for name in archive.namelist():
-            # 파트 이름 자체에도 실제 이름이 들 수 있다(첨부 파일명)
+            # The part name itself can carry a real name (attachment file name)
             if BRANDS.search(name) or CONTACT.search(name):
                 found.add(f"[파트 이름] {name}")
             if not (name.endswith(".json") or name.endswith(".xml") or name.endswith(".rels")):

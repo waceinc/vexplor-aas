@@ -1,11 +1,11 @@
 /**
- * 공정 단위 API.
+ * Process-level API.
  *
- * 🔴 이 시험의 요점: **설비 파일을 고르기만 하면 매달리는가.**
- * 이름과 Asset 주소를 손으로 옮겨 적게 하면 거기서 오타가 난다 —
- * 그 끈이 공정 파일과 설비 파일을 잇는 유일한 연결이라 틀리면 조용히 끊긴다.
+ * Important: the point of this test: **does equipment attach just by picking its file?**
+ * Making people copy the name and Asset address by hand is where typos creep in —
+ * that link is the only connection between the process file and the equipment file, so if it is wrong it breaks silently.
  *
- * 그리고 **설비 파일을 망가뜨리지 않는가.** 공정 기능이 설비 쪽 동작을 바꾸면 안 된다.
+ * And **does it leave the equipment file intact?** Process features must not change equipment-side behavior.
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -25,7 +25,7 @@ function harness() {
     rawPath: string,
     body?: unknown,
   ): Promise<{ status: number; body: any }> => {
-    // 실서버(toApiRequest)처럼 질의 인자를 뗀다 — 안 떼면 경로 대조가 어긋나 404가 된다
+    // Strip query parameters like the real server (toApiRequest) does — otherwise path matching fails and it becomes 404
     const [path, queryText] = rawPath.split('?');
     const query = Object.fromEntries(new URLSearchParams(queryText ?? ''));
     const response = await handle({
@@ -41,14 +41,14 @@ function harness() {
   return { store, call };
 }
 
-describe('공정 만들기', () => {
+describe('creating a process', () => {
   let h: ReturnType<typeof harness>;
   beforeEach(async () => {
     h = harness();
     await h.store.init();
   });
 
-  it('unit=process면 계층이 채워진 채로 태어난다', async () => {
+  it('with unit=process it is born with the hierarchy filled in', async () => {
     const created = await h.call('POST', '/packages/new', {
       assetName: 'WeldingProcess',
       unit: 'process',
@@ -61,7 +61,7 @@ describe('공정 만들기', () => {
     expect(hierarchy.body.children).toEqual([]);
   });
 
-  it('태어나자마자 위반 0건이다', async () => {
+  it('has 0 violations right from birth', async () => {
     const created = await h.call('POST', '/packages/new', {
       assetName: 'WeldingProcess',
       unit: 'process',
@@ -70,14 +70,14 @@ describe('공정 만들기', () => {
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
   });
 
-  it('unit을 주지 않으면 종전대로 설비다 — 기존 동작을 바꾸지 않는다', async () => {
+  it('without unit it is equipment as before — existing behavior is unchanged', async () => {
     const created = await h.call('POST', '/packages/new', { assetName: 'TestMachine' });
     const hierarchy = await h.call('GET', `/packages/${created.body.packageId}/hierarchy`);
     expect(hierarchy.body.entryNode).toBeNull();
   });
 });
 
-describe('설비 매달기', () => {
+describe('attaching equipment', () => {
   let h: ReturnType<typeof harness>;
   let processId: string;
   let machineId: string;
@@ -95,7 +95,7 @@ describe('설비 매달기', () => {
     processId = created.body.packageId;
   });
 
-  it('올려 둔 설비를 고르면 이름과 Asset 주소를 그 파일에서 읽는다', async () => {
+  it('picking uploaded equipment reads the name and Asset address from that file', async () => {
     const added = await h.call('POST', `/packages/${processId}/hierarchy/nodes`, {
       sourcePackageId: machineId,
     });
@@ -106,7 +106,7 @@ describe('설비 매달기', () => {
     );
   });
 
-  it('두 대를 매달고도 위반이 없다', async () => {
+  it('has no violations even with two units attached', async () => {
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machineId });
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: robotId });
 
@@ -119,7 +119,7 @@ describe('설비 매달기', () => {
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
   });
 
-  it('손으로 적어 넣을 수도 있다 — 아직 파일이 없는 설비를 미리 적을 때', async () => {
+  it('can also be entered by hand — for listing equipment that has no file yet', async () => {
     const added = await h.call('POST', `/packages/${processId}/hierarchy/nodes`, {
       name: 'FuturePress',
       globalAssetId: 'https://www.smart-factory.kr/ids/asset/FuturePress/1/0',
@@ -130,7 +130,7 @@ describe('설비 매달기', () => {
     expect(hierarchy.body.children[0].bulkCount).toBe(3);
   });
 
-  it('같은 설비를 두 번 매달지 못한다', async () => {
+  it('cannot attach the same equipment twice', async () => {
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machineId });
     const again = await h.call('POST', `/packages/${processId}/hierarchy/nodes`, {
       sourcePackageId: machineId,
@@ -138,14 +138,14 @@ describe('설비 매달기', () => {
     expect(again.status).toBe(400);
   });
 
-  it('자기 자신을 매달지 못한다', async () => {
+  it('cannot attach itself', async () => {
     const self = await h.call('POST', `/packages/${processId}/hierarchy/nodes`, {
       sourcePackageId: processId,
     });
     expect(self.status).toBe(400);
   });
 
-  it('뺄 때 관계도 함께 빠진다 — 위반이 남지 않는다', async () => {
+  it('removing it also removes the relationship — no violations remain', async () => {
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machineId });
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: robotId });
 
@@ -158,12 +158,12 @@ describe('설비 매달기', () => {
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
   });
 
-  it('없는 것을 빼려 하면 404다', async () => {
+  it('removing something that does not exist is 404', async () => {
     const removed = await h.call('DELETE', `/packages/${processId}/hierarchy/nodes/NoSuchThing`);
     expect(removed.status).toBe(404);
   });
 
-  it('설비 파일의 계층도 읽힌다 — 설비도 부품 계층을 갖고 있다', async () => {
+  it('the hierarchy of an equipment file is readable too — equipment also has a part hierarchy', async () => {
     const hierarchy = await h.call('GET', `/packages/${machineId}/hierarchy`);
     expect(hierarchy.body.entryNode.name).toBe('RollFormingMachine');
     expect(hierarchy.body.children.map((c: any) => c.name)).toEqual([
@@ -171,19 +171,19 @@ describe('설비 매달기', () => {
       'RollStandUnit',
       'CutOffPress',
     ]);
-    // BulkCount가 그대로 읽힌다(RollStandUnit 12대)
+    // BulkCount is read as is (12 RollStandUnits)
     expect(hierarchy.body.children[1].bulkCount).toBe(12);
   });
 });
 
 /**
- * 이력·되돌리기.
+ * History and undo.
  *
- * 🔴 요점: **실수를 복구할 수 있는가.** 저장소는 처음부터 변경 전 내용을 쌓아 왔는데
- * 꺼내 쓸 길이 없었다 — 실사용 검증(직접 제작)에서 확인된 구멍이다.
- * 되돌리기 자체도 이력에 남아야 한다 — 되돌린 것을 또 되돌릴 수 있어야 안전망이다.
+ * Important: the point: **can mistakes be recovered?** The store had accumulated pre-change content from the start,
+ * but there was no way to get it back out — a hole found in real-use validation (building one ourselves).
+ * Undo itself must also be recorded in history — being able to undo an undo is what makes it a safety net.
  */
-describe('이력과 되돌리기', () => {
+describe('history and undo', () => {
   let h: ReturnType<typeof harness>;
   let packageId: string;
   const SM = 'https://www.smart-factory.kr/ids/sm/RollFormingMachine/TechnicalData/2/1';
@@ -195,11 +195,11 @@ describe('이력과 되돌리기', () => {
     packageId = (await h.store.importPackage({ name: 'g.aasx', package: golden() })).id;
   });
 
-  it('고치면 이력이 생기고, 그 판으로 되돌릴 수 있다', async () => {
+  it('editing creates history, and you can revert to that revision', async () => {
     const before = await h.store.getIdentifiable(packageId, 'Submodel', SM);
     const beforeCount = (before!.content['submodelElements'] as unknown[]).length;
 
-    // 요소를 전부 비우는 파괴적 편집 (실수 시나리오)
+    // Destructive edit that clears every element (mistake scenario)
     await h.store.updateIdentifiable(packageId, 'Submodel', SM, {
       ...before!.content,
       submodelElements: [{ idShort: 'Oops', modelType: 'Property', valueType: 'xs:string' }],
@@ -208,10 +208,10 @@ describe('이력과 되돌리기', () => {
     const history = await h.call('GET', `/packages/${packageId}/history/${encode(SM)}`);
     expect(history.status).toBe(200);
     expect(history.body.result).toHaveLength(1);
-    // elementCount는 재귀 집계(하위 포함)라 최상위 개수보다 크다 — 있는지만 본다
+    // elementCount is a recursive total (including descendants), so it exceeds the top-level count — only check that it exists
     expect(history.body.result[0].elementCount).toBeGreaterThan(beforeCount);
 
-    // 되돌린다
+    // Revert
     const restored = await h.call(
       'POST',
       `/packages/${packageId}/history/${encode(SM)}/restore`,
@@ -221,12 +221,12 @@ describe('이력과 되돌리기', () => {
     const after = await h.store.getIdentifiable(packageId, 'Submodel', SM);
     expect((after!.content['submodelElements'] as unknown[]).length).toBe(beforeCount);
 
-    // 🔴 되돌리기 자체도 이력에 남는다 — 되돌린 것을 또 되돌릴 수 있다
+    // Important: the revert itself is recorded in history — a revert can be reverted again
     const again = await h.call('GET', `/packages/${packageId}/history/${encode(SM)}`);
     expect(again.body.result).toHaveLength(2);
   });
 
-  it('없는 시각으로 되돌리려 하면 404다', async () => {
+  it('reverting to a nonexistent timestamp is 404', async () => {
     const bad = await h.call(
       'POST',
       `/packages/${packageId}/history/${encode(SM)}/restore`,
@@ -237,19 +237,19 @@ describe('이력과 되돌리기', () => {
 });
 
 /**
- * 회사 단위와 순환 방지.
- * 계층은 재귀다(RAMI 4.0: 기업→공장→스테이션→설비) — 회사는 공정과 같은 구조에
- * 이름표(assetType)만 다르다. 재귀가 되면서 순환(A⊃B⊃A)이 실제로 만들 수 있는
- * 실수가 됐다 — 서버가 막아야 한다.
+ * Company level and cycle prevention.
+ * The hierarchy is recursive (RAMI 4.0: enterprise → factory → station → equipment) — a company has the same structure as a process,
+ * only the label (assetType) differs. Once it became recursive, a cycle (A⊃B⊃A) became a mistake that can
+ * actually be made — the server has to block it.
  */
-describe('회사 단위와 순환 방지', () => {
+describe('company level and cycle prevention', () => {
   let h: ReturnType<typeof harness>;
   beforeEach(async () => {
     h = harness();
     await h.store.init();
   });
 
-  it('회사를 만들면 계층만 들어가고 위반 0건이다', async () => {
+  it('creating a company adds only the hierarchy, with 0 violations', async () => {
     const created = await h.call('POST', '/packages/new', {
       assetName: 'OurFactory',
       unit: 'company',
@@ -259,7 +259,7 @@ describe('회사 단위와 순환 방지', () => {
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
   });
 
-  it('회사 → 공정 → (순환 시도) 회사를 넣으면 400이다', async () => {
+  it('company → process → (cycle attempt) adding the company is 400', async () => {
     const company = (
       await h.call('POST', '/packages/new', { assetName: 'OurFactory', unit: 'company' })
     ).body.packageId;
@@ -267,13 +267,13 @@ describe('회사 단위와 순환 방지', () => {
       await h.call('POST', '/packages/new', { assetName: 'PressLine', unit: 'process' })
     ).body.packageId;
 
-    // 회사에 공정을 넣는다 — 정상
+    // Add the process to the company — normal
     const ok = await h.call('POST', `/packages/${company}/hierarchy/nodes`, {
       sourcePackageId: line,
     });
     expect(ok.status).toBe(201);
 
-    // 공정에 회사를 넣으려 하면 — 순환이다
+    // Trying to add the company to the process — that is a cycle
     const cycle = await h.call('POST', `/packages/${line}/hierarchy/nodes`, {
       sourcePackageId: company,
     });
@@ -283,12 +283,12 @@ describe('회사 단위와 순환 방지', () => {
 });
 
 /**
- * 한 파일 안의 중첩 — 회사>공정>장비.
+ * Nesting within one file — company > process > machine.
  *
- * 🔴 요점: 층마다 파일을 만들 필요가 없다. 그룹(CoManagedEntity — 파일 없는 중간 마디)을
- * 만들고 그 밑에 설비를 넣는다. 골든 파일의 부품 중첩과 같은 문법이다.
+ * Important: the point: no need to create a file per level. Create a group (CoManagedEntity — an intermediate node with no file)
+ * and put equipment under it. Same syntax as the part nesting in the golden file.
  */
-describe('한 파일 안의 중첩 (그룹)', () => {
+describe('nesting within one file (groups)', () => {
   let h: ReturnType<typeof harness>;
   let companyId: string;
   let machineId: string;
@@ -302,7 +302,7 @@ describe('한 파일 안의 중첩 (그룹)', () => {
     ).body.packageId;
   });
 
-  it('그룹을 만들고 그 밑에 설비를 넣으면 중첩 트리로 나온다', async () => {
+  it('creating a group and putting equipment under it yields a nested tree', async () => {
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, {
       name: 'WeldingProcess',
       group: true,
@@ -318,16 +318,16 @@ describe('한 파일 안의 중첩 (그룹)', () => {
     expect(view.body.children).toHaveLength(1);
     const process = view.body.children[0];
     expect(process.name).toBe('WeldingProcess');
-    expect(process.globalAssetId).toBe(''); // 그룹은 파일이 없다
+    expect(process.globalAssetId).toBe(''); // a group has no file
     expect(process.children[0].name).toBe('RollFormingMachine');
     expect(process.children[0].bulkCount).toBe(2);
 
-    // 규칙도 통과해야 한다 — CoManagedEntity는 globalAssetId가 없어도 된다(AASd-014)
+    // It must also pass the rules — CoManagedEntity may lack a globalAssetId (AASd-014)
     const lint = await h.call('GET', `/packages/${companyId}/lint`);
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
   });
 
-  it('같은 설비를 서로 다른 그룹에는 넣을 수 있다 — 같은 그룹에는 못 넣는다', async () => {
+  it('the same equipment can go into different groups — but not twice into the same group', async () => {
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, { name: 'ProcA', group: true });
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, { name: 'ProcB', group: true });
     const first = await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, {
@@ -339,15 +339,15 @@ describe('한 파일 안의 중첩 (그룹)', () => {
       sourcePackageId: machineId,
       parentPath: ['ProcB'],
     });
-    expect(other.status).toBe(201); // 다른 공정에 같은 모델 — 실제로 있는 일이다
+    expect(other.status).toBe(201); // same model in another process — this really happens
     const dup = await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, {
       sourcePackageId: machineId,
       parentPath: ['ProcA'],
     });
-    expect(dup.status).toBe(400); // 같은 자리에 두 번은 안 된다
+    expect(dup.status).toBe(400); // not twice in the same spot
   });
 
-  it('그룹 속 그룹도 되고, 깊은 층에도 globalAssetId 키가 있다', async () => {
+  it('groups within groups work, and deep levels also have the globalAssetId key', async () => {
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, { name: 'ProcA', group: true });
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, {
       name: 'SubProc',
@@ -361,7 +361,7 @@ describe('한 파일 안의 중첩 (그룹)', () => {
 
     const view = await h.call('GET', `/packages/${companyId}/hierarchy`);
     const sub = view.body.children[0].children[0];
-    // 🔴 키가 빠지면 화면이 그룹을 설비로 착각한다 — 실측으로 잡힌 버그
+    // Important: if the key is missing the UI mistakes the group for equipment — a bug caught by real measurement
     expect(sub.globalAssetId).toBe('');
     expect(sub.children[0].name).toBe('RollFormingMachine');
     expect(typeof sub.children[0].globalAssetId).toBe('string');
@@ -369,7 +369,7 @@ describe('한 파일 안의 중첩 (그룹)', () => {
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
   });
 
-  it('중첩된 자식을 경로로 뺄 수 있다 — 관계도 함께 빠진다', async () => {
+  it('a nested child can be removed by path — the relationship goes with it', async () => {
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, { name: 'ProcA', group: true });
     await h.call('POST', `/packages/${companyId}/hierarchy/nodes`, {
       sourcePackageId: machineId,
@@ -388,12 +388,12 @@ describe('한 파일 안의 중첩 (그룹)', () => {
 });
 
 /**
- * 수집 연결(AID)의 자기모순 회귀 — 도구가 만든 것이 도구 규칙에 걸리면 안 된다.
- * 실측(2026-08-26 전문가 시연): IDTA IRI를 semanticId로 직접 써서 KOSMO-SME-3
- * 13건으로 태어났고, 「고치기」로 이관하면 IDTA 표시가 사라졌다.
+ * Self-contradiction regression for collection connections (AID) — what the tool creates must not violate the tool's own rules.
+ * Observed (2026-08-26 expert demo): using the IDTA IRI directly as semanticId made it born with
+ * 13 KOSMO-SME-3 violations, and migrating via "fix" made the IDTA marking disappear.
  */
-describe('AID는 태어나자마자 규칙을 지킨다', () => {
-  it('만들면 위반 0건이고 IDTA 원본은 supplemental로 남는다', async () => {
+describe('AID follows the rules right from birth', () => {
+  it('created with 0 violations, and the IDTA original remains as supplemental', async () => {
     const h = harness();
     await h.store.init();
     const pid = (await h.store.importPackage({ name: 'g.aasx', package: golden() })).id;
@@ -412,16 +412,16 @@ describe('AID는 태어나자마자 규칙을 지킨다', () => {
       (sm: { idShort?: string }) => sm.idShort === 'AssetInterfacesDescription',
     )!;
     const iface = aid.submodelElements[0];
-    // 자체 IRI가 semanticId, IDTA가 supplemental — kosmo-first 짝(계층과 같은 패턴)
+    // Own IRI as semanticId, IDTA as supplemental — the kosmo-first pairing (same pattern as the hierarchy)
     expect(iface.semanticId.keys[0].value).toContain('smart-factory.kr/ids/cd/');
     expect(iface.supplementalSemanticIds[0].keys[0].value).toContain('admin-shell.io/idta');
   });
 
   /**
-   * 🔴 수집 연결의 **나머지 절반** — 태그가 얹힐 자리까지 세워야 값이 밖으로 나간다.
-   * 그리고 그렇게 세운 것도 **태어나자마자 규칙을 지켜야** 한다. 위 시험과 같은 이유다.
+   * Important: the **other half** of a collection connection — values only go out once the slots for the tags are built too.
+   * And what is built that way must also **follow the rules right from birth**. Same reason as the test above.
    */
-  it('자리를 함께 세워도 위반 0건이고, KTL 계층을 지킨다', async () => {
+  it('building the slots too still gives 0 violations and keeps the KTL hierarchy', async () => {
     const h = harness();
     await h.store.init();
     const pid = (await h.store.importPackage({ name: 'g.aasx', package: golden() })).id;
@@ -430,20 +430,20 @@ describe('AID는 태어나자마자 규칙을 지킨다', () => {
       endpoint: 'opc.tcp://127.0.0.1:14840/UA/Test',
       tags: [
         { name: 'MotorSpeed', href: 'ns=1;s=Machine.MotorSpeed', type: 'float', unit: 'rpm' },
-        // 🔴 **단위 없는 실수 태그.** 화면에서 단위 칸을 없앴으므로 실제로는 이쪽이 보통이다 —
-        //    이걸 시험에 안 넣었다가 AASc-3a-009 위반 3건을 만들어 놓고 몰랐다(실측)
+        // Important: **a real-number tag without a unit.** Since the unit field was removed from the UI, this is actually the common case —
+        //    we left it out of the test and produced 3 AASc-3a-009 violations without noticing (observed)
         { name: 'MotorTemperature', href: 'ns=1;s=Machine.Temp', type: 'float' },
-        // 골든 파일에 이미 있는 이름 — 건드리면 안 된다
+        // A name that already exists in the golden file — must not be touched
         { name: 'CurrentLineSpeed', href: 'ns=1;s=Machine.Line', type: 'float' },
       ],
       createMissing: { group: 'ProcessMonitoring', subgroup: 'CollectedValues' },
     });
     expect(made.status).toBe(201);
     expect(made.body.elementsAdded).toEqual(['MotorSpeed', 'MotorTemperature']);
-    // 자리를 세웠으니 이름이 어긋나지 않는다 = 값이 표준 API로 나간다
+    // The slots are built, so names do not drift = values go out through the standard API
     expect(made.body.nameMisses).toEqual([]);
 
-    // 도구가 만든 것이 도구 규칙에 걸리면 안 된다
+    // What the tool creates must not violate the tool's own rules
     const lint = await h.call('GET', `/packages/${pid}/lint`);
     expect(lint.body.countBySeverity.error ?? 0).toBe(0);
 
@@ -452,7 +452,7 @@ describe('AID는 태어나자마자 규칙을 지킨다', () => {
       (sm: { idShort?: string }) => sm.idShort === 'OperationalData',
     )!;
 
-    // KTL 계층: OperationalData > 대분류 > 소분류 > Property (docs/rules/01 §2-2)
+    // KTL hierarchy: OperationalData > major category > minor category > Property (docs/rules/01 §2-2)
     const group = od.submodelElements.find(
       (n: { idShort?: string }) => n.idShort === 'ProcessMonitoring',
     )!;
@@ -460,14 +460,14 @@ describe('AID는 태어나자마자 규칙을 지킨다', () => {
     const prop = sub.value.find((n: { idShort?: string }) => n.idShort === 'MotorSpeed')!;
     expect(prop.modelType).toBe('Property');
     expect(prop.valueType).toBe('xs:double');
-    // 🔴 키 타입이 틀리면 basyx가 서브모델을 통째로 드롭한다 — 골든 파일과 같은 형태여야 한다
+    // Important: if the key type is wrong, basyx drops the whole submodel — it must have the same shape as the golden file
     expect(prop.semanticId.type).toBe('ModelReference');
     expect(prop.semanticId.keys[0].type).toBe('ConceptDescription');
-    // 🔴 예시 데이터가 들어간다. KOSMO-SME-4가 빈 값을 위반으로 보기 때문이다 —
-    //    Template의 예시 칸이지 측정값이 아니고, 수집이 붙으면 live/OPC UA에서 덮인다
+    // Important: sample data goes in, because KOSMO-SME-4 treats empty values as violations —
+    //    it is the Template's sample field, not a measured value, and is overwritten by live/OPC UA once collection is attached
     expect(prop.value).toBe('0.0');
 
-    // 🔴 이미 있던 것은 그대로다. 골든 파일의 CurrentLineSpeed는 제자리에 값까지 남아 있다
+    // Important: what already existed stays as is. The golden file's CurrentLineSpeed remains in place, value included
     const forming = group.value.find(
       (n: { idShort?: string }) => n.idShort === 'FormingParameter',
     )!;

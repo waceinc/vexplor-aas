@@ -1,9 +1,10 @@
 /**
  * AAS V3.0 JSON → Environment.
  *
- * 설계 원칙 — 무손실. 검수 기준이 "골든 파일을 불러 다시 저장했을 때 Validator 0건"이므로
- * 파서는 모르는 필드를 절대 버리지 않는다. 규칙 위반은 여기서 판단하지 않고 M5 린터가 맡는다.
- * (린터 명세 §6-2: basyx 왕복 로드는 SML 서브트리를 드롭하므로 직접 파싱한다)
+ * Design principle — lossless. Since the acceptance criterion is "0 Validator findings after loading and re-saving
+ * a golden file", the parser never discards unknown fields. Rule violations are not judged here; the M5 linter
+ * handles them.
+ * (Linter spec §6-2: a basyx round-trip load drops SML subtrees, so we parse directly)
  */
 import { AAS_SUBMODEL_ELEMENTS, type AasSubmodelElementType } from '../types/common.js';
 import type { ConceptDescription } from '../types/concept.js';
@@ -35,8 +36,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * SubmodelElement를 검증한다.
- * modelType 판별만 확인하고 나머지 필드는 원본 그대로 통과시킨다.
+ * Validates a SubmodelElement.
+ * Only checks the modelType discriminator and passes the remaining fields through unchanged.
  */
 function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): void {
   if (!isRecord(node)) {
@@ -53,7 +54,7 @@ function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): voi
     return;
   }
 
-  // 자식 컨테이너를 재귀 검사한다 — 드롭 없이 전부 살린다
+  // Recursively checks child containers — keeps everything, drops nothing
   const recurse = (field: string): void => {
     const children = node[field];
     if (children === undefined) return;
@@ -105,13 +106,13 @@ function checkIdentifiable(
 
 export interface ParseOptions {
   /**
-   * modelType이 빠진 Identifiable에 컨테이너 위치로부터 값을 채워 넣는다.
-   * AASX Package Explorer 산출물 중 최상위 modelType을 생략한 파일이 있어 기본 활성화한다.
+   * Fills in modelType for Identifiables missing it, based on their container position.
+   * Enabled by default because some AASX Package Explorer outputs omit the top-level modelType.
    */
   fillMissingModelType?: boolean;
 }
 
-/** JSON 문자열 또는 이미 파싱된 객체를 Environment로 변환한다 */
+/** Converts a JSON string or an already-parsed object to an Environment */
 export function parseEnvironment(input: string | unknown, options: ParseOptions = {}): Environment {
   const { fillMissingModelType = true } = options;
   const raw: unknown = typeof input === 'string' ? JSON.parse(input) : input;
@@ -159,7 +160,7 @@ export function parseEnvironment(input: string | unknown, options: ParseOptions 
   return env;
 }
 
-/** modelType이 SubmodelElement 계열인지 판별 */
+/** Determines whether a modelType belongs to the SubmodelElement family */
 export function isSubmodelElementType(t: string): t is AasSubmodelElementType {
   return SME_TYPES.has(t);
 }

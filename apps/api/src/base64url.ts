@@ -1,10 +1,10 @@
 import { fill, tr } from '@aas/core';
 /**
- * IDTA Part 2는 경로에 들어가는 식별자를 **base64url로 인코딩**하도록 정한다.
- * (id가 IRI·IRDI라 슬래시·#이 그대로 들어가면 경로가 깨진다)
+ * IDTA Part 2 specifies that identifiers placed in paths be **base64url-encoded**.
+ * (ids are IRIs/IRDIs, so raw slashes and # would break the path)
  *
- * 패딩(=)은 규격상 없어도 되고 붙어 있어도 되므로 읽을 때는 둘 다 받는다.
- * Buffer를 쓰지 않는 이유는 이 함수가 나중에 브라우저 쪽 클라이언트에서도 쓰이기 때문이다.
+ * Padding (=) is optional per the spec, so both forms are accepted when reading.
+ * Buffer is not used because this function will later also be used in the browser-side client.
  */
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

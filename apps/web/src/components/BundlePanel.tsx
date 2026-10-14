@@ -1,21 +1,21 @@
 /**
- * 레퍼런스 번들 — 공정 파일 하나를 「제출 꾸러미 한 벌」로 보는 화면.
+ * Reference bundle — the screen that treats one process file as "one complete submission package".
  *
- * 평가자가 묻는 세 가지에 한 화면으로 답한다(레퍼런스번들_추진방안 §2.3).
- *  ① 무엇이 들었나 — 공정 → 설비 구성과 설비마다 파일·버전·사전 점검
- *  ② 이어지나 — 공정 KPI의 재료(운전 데이터)를 설비들이 함께 갖고 있는가 (공통 항목 매트릭스)
- *  ③ 믿을 수 있나 — 내보낼 때 파일마다 SHA256을 manifest에 박는다
- * 그리고 두 가지를 더 지킨다(2026-09-30 검증 후 보완).
- *  ④ 시연 대신 — 수집 기록(실동작 증빙)을 싣고, 번들을 다시 열어도 이어받는다
- *  ⑤ 사람이 넣은 문서 — 여기서 올린 Use-Case·가이던스·참고 자료는 번들을 열었다 다시 내보내도 남는다
+ * Answers on one screen the three questions an evaluator asks (reference bundle plan §2.3).
+ *  (1) What is inside — process → equipment composition, and per machine its file · version · pre-check
+ *  (2) Does it connect — do the machines together hold the inputs (operating data) for the process KPIs (common-item matrix)
+ *  (3) Can it be trusted — on export, each file's SHA256 is stamped into the manifest
+ * And it guards two more (added after verification on 2026-09-30).
+ *  (4) Instead of a demo — it carries the collection record (evidence of real operation), and reopening the bundle carries it over
+ *  (5) Documents people add — Use-Case, guidance and reference material uploaded here survive opening and re-exporting the bundle
  *
- * 🔴 도구가 문서를 쓰지 않는다. 동의어도 추측하지 않는다 — semanticId가 같은데 이름이 다르거나,
- *    이름이 같은데 semanticId가 다르면 「확인할 점」으로 보여 주고 판단은 사람이 한다.
- * 🔴 KOSMO Validator는 **장비별 AASX를 만들 때** 받는 검증이다 — 번들에는 공식 검증기가 없다(추진방안 §2.3).
- *    여기 ✓는 번들에 넣은 모델을 이 도구가 다시 확인한 참고 표시다. 「번들도 Validator로 판정받는다」처럼
- *    읽히게 쓰지 않는다(사용자 2026-09-30 지적).
+ * Important: the tool does not write documents. Nor does it guess synonyms — when the semanticId is the same but the names differ,
+ *    or the names are the same but the semanticId differs, it shows a "Point to check" and a person decides.
+ * Important: the KOSMO Validator is the check you get **when making per-equipment AASX** — there is no official validator for bundles (plan §2.3).
+ *    The check marks here are reference marks from this tool re-checking the models put in the bundle. Do not word it so it reads
+ *    like "the bundle is also judged by the Validator" (user remark, 2026-09-30).
  *
- * 2026-10-13 컴포넌트화 — 구역마다 bundle/ 의 부품으로 나눴다. 여기는 번들을 읽고 숫자를 모으고 구역을 놓는다.
+ * 2026-10-13 componentization — each section was split into a part under bundle/. This file reads the bundle, gathers the numbers and places the sections.
  */
 import { useEffect, useState } from 'react';
 import { Dialog } from '../ui/Dialog.js';
@@ -43,13 +43,13 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
   const [code, setCode] = useState('RB01');
   const [title, setTitle] = useState('');
   const [version, setVersion] = useState('1.0.0');
-  /** 증빙 수준 — auto면 서버가 제안(시뮬레이션뿐일 때만 C) */
+  /** Evidence level — with auto the server proposes (C only when there is simulation alone) */
   const [evidenceLevel, setEvidenceLevel] = useState('auto');
-  /** 증빙 기간 — 비우면 전부. 시험하며 쌓인 잡음을 뺄 때 */
+  /** Evidence period — empty means all. For excluding noise accumulated during testing */
   const [evidenceMinutes, setEvidenceMinutes] = useState('');
-  /** 첨부를 올리거나 지운 뒤 다시 읽는다 */
+  /** Re-read after an attachment is uploaded or removed */
   const [tick, setTick] = useState(0);
-  /** 매트릭스의 강조 줄 — 확인할 점 목록에 마우스를 올려도 같은 줄이 강조된다 */
+  /** Highlighted matrix row — hovering the points-to-check list highlights the same row */
   const [focus, setFocus] = useState<string>();
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
         <h2><T k={'레퍼런스 번들 {0}'} v={[<span className="dim">— {view?.process.name ?? tr('읽는 중…')}</span>]} />
         </h2>
 
-        {/* 내보내기 — 한 화면에 파란 버튼은 하나 */}
+        {/* Export — one blue button per screen */}
         <BundleForm
           view={view}
           busy={busy}
@@ -141,7 +141,7 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
           <p className="bundle-demo-note"><T k={'⚡ <b>시연본 {0}대 포함</b> — 수집 연결(AID)이 붙어 있습니다. 시연용으로는 맞지만,<b> 정식 번들</b>에는 연결이 없는 원본 참조모델을 넣으십시오. 내보내면 README와 manifest에도 표시됩니다.'} v={[demos.length]} /></p>
         )}
 
-        {/* 한눈에 — 숫자 다섯 */}
+        {/* At a glance — five numbers */}
         <BundleStats
           members={members.length}
           ready={ready.length}

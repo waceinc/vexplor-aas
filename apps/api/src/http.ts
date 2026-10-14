@@ -1,29 +1,29 @@
 /**
- * 전송 계층에 매이지 않는 요청·응답 모양.
+ * Request/response shapes not tied to the transport layer.
  *
- * 핸들러를 node:http에서 떼어 두면 테스트가 소켓 없이 함수 호출로 끝난다.
- * 실제 서버는 server.ts의 얇은 어댑터가 맡는다.
+ * Keeping handlers detached from node:http lets tests run as plain function calls without sockets.
+ * The real server is handled by a thin adapter in server.ts.
  */
 
 export interface ApiRequest {
   method: string;
-  /** 질의문자열을 뗀 경로 */
+  /** Path with the query string removed */
   path: string;
   query: Record<string, string>;
   /**
-   * 같은 이름이 여러 번 온 질의 인자. 규격이 `?aasIds=..&aasIds=..` 형태를 쓰는 곳이 있다
-   * (serialization). 주지 않으면 query의 단일 값을 쓴다.
+   * Query parameters that appear multiple times. Some places in the spec use the `?aasIds=..&aasIds=..` form
+   * (serialization). If absent, the single value in query is used.
    */
   queryAll?: Record<string, string[]>;
-  /** JSON이면 파싱된 값, 파일 업로드면 바이트 */
+  /** The parsed value if JSON, bytes if a file upload */
   body?: unknown;
   headers: Record<string, string>;
   /**
-   * 로그인한 사람 — API가 세션을 풀어 **요청에 실어** 라우트로 보낸다(2026-10-02).
+   * The logged-in user — the API decodes the session and **attaches it to the request** before routing (2026-10-02).
    *
-   * 🔴 라우트가 세션을 스스로 다시 풀지 않게 하려는 것이다. 두 군데서 풀면 한쪽만 고쳐져
-   *    "화면에서는 관리자인데 이 API만 거절한다"가 된다. 푸는 곳은 api.ts 한 곳뿐이다.
-   * 🔴 없을 수 있다 — 토큰(API 키)으로 들어왔거나 인증이 꺼진 서버다.
+   * Important: this keeps routes from decoding the session again themselves. Decoding in two places means only one gets fixed,
+   *    ending up as "admin in the UI, but this one API refuses". The only place it is decoded is api.ts.
+   * Important: may be absent — the request came in with a token (API key) or the server has auth disabled.
    */
   principal?: {
     userId: string;
@@ -33,8 +33,8 @@ export interface ApiRequest {
     visitor: string;
   };
   /**
-   * 접속한 곳의 주소. 전송 계층(server.ts)이 채운다.
-   * 🔴 **세는 데만 쓴다** — 프록시 뒤에서는 믿을 수 없는 값이다(security.ts).
+   * Address of the connecting peer. Filled in by the transport layer (server.ts).
+   * Important: **use it only for counting** — behind a proxy it is not a trustworthy value (security.ts).
    */
   remoteAddress?: string;
 }
@@ -42,7 +42,7 @@ export interface ApiRequest {
 export interface ApiResponse {
   status: number;
   headers: Record<string, string>;
-  /** JSON 직렬화 대상이거나 그대로 내보낼 바이트 */
+  /** A JSON-serializable value or bytes sent out as-is */
   body?: unknown;
 }
 
@@ -61,14 +61,14 @@ export function noContent(): ApiResponse {
 export function bytes(status: number, data: Uint8Array, contentType: string, filename?: string): ApiResponse {
   const headers: Record<string, string> = { 'content-type': contentType };
   if (filename) {
-    // 한글 파일명은 ASCII로 접고 UTF-8 원본을 filename*로 함께 준다(기획서 Ⅷ 인코딩 항목)
+    // Non-ASCII (e.g. Korean) file names are folded to ASCII and the UTF-8 original is also given in filename* (plan Ⅷ encoding item)
     headers['content-disposition'] =
       `attachment; filename="download.aasx"; filename*=UTF-8''${encodeURIComponent(filename)}`;
   }
   return { status, headers, body: data };
 }
 
-/** IDTA Part 2의 Result/Message 오류 본문 */
+/** IDTA Part 2 Result/Message error body */
 export interface Message {
   code: string;
   messageType: 'Error' | 'Warning' | 'Info';
@@ -97,7 +97,7 @@ export function errorResponse(status: number, code: string, text: string): ApiRe
   return json(status, { messages: [message] });
 }
 
-/** Part 2의 페이지 응답 봉투 */
+/** Part 2 paged response envelope */
 export function pagedResponse<T>(items: T[], cursor?: string): ApiResponse {
   return json(200, {
     paging_metadata: cursor === undefined ? {} : { cursor },

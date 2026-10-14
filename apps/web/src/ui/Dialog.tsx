@@ -1,20 +1,20 @@
 /**
- * 대화상자 — 화면 위에 뜨는 창의 틀 하나.
+ * Dialog — the one frame for windows that float above the screen.
  *
- * 🔴 왜 만들었나(2026-10-13 컴포넌트화): 덮개(.modal-back) · 창(.modal) · 바깥 누르면 닫기 · 안쪽 클릭은 덮개로
- *    새지 않게 · role/aria 를 화면마다 손으로 적어 9곳에 같은 마크업이 있었다. 한 곳이 aria 를 빠뜨리면
- *    화면 낭독기가 창을 못 알아본다(실제로 번들 창 두 곳에 role 이 없었다). 틀은 여기 하나로 둔다.
- *    모양은 styles/aas.css 의 .modal-back · .modal(기준 Dialog 와 같은 결)이 맡는다.
+ * Important: why it was built (2026-10-13 componentization): overlay (.modal-back) · window (.modal) · close on outside click · inner clicks not
+ *    leaking to the overlay · role/aria were written by hand per screen, so the same markup existed in 9 places. If one place missed aria,
+ *    screen readers could not recognize the window (two bundle windows actually had no role). The frame lives here, once.
+ *    Its look comes from .modal-back · .modal in styles/aas.css (same style as the reference Dialog).
  */
 import type { ReactNode } from 'react';
 
 interface Props {
-  /** 화면 낭독기가 읽는 창 이름 */
+  /** Window name read by screen readers */
   label?: string;
-  /** .modal 에 덧붙일 클래스(창 폭·여백) — 예: 'wide' · 'fix-modal' */
+  /** Classes appended to .modal (window width · padding) — e.g. 'wide' · 'fix-modal' */
   className?: string;
   onClose: () => void;
-  /** 오른쪽 위 닫기 단추. 글자와, 같은 화면의 다른 「닫기」와 갈라 읽힐 이름 */
+  /** Close button at the top right. A name that reads distinct from the text and from other "Close" buttons on the same screen */
   close?: { text: string; label?: string };
   children: ReactNode;
 }

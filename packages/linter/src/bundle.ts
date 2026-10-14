@@ -1,64 +1,64 @@
 /**
- * 레퍼런스 번들 — 공정 하나에 묶인 설비들 사이의 **데이터 연계** 분석.
+ * Reference bundle — analysis of **data linkage** among the equipment grouped into one process.
  *
- * 번들은 「장비 산출물을 공정 단위로 묶은 것」이다(레퍼런스번들_추진방안 §2).
- * 묶는 것 자체는 계층(HierarchicalStructures)이 이미 한다. 번들이 더 요구하는 것은
- * **공정 KPI를 계산할 재료가 장비들에 실제로 있는가**다 — OEE는 여러 장비의 가동상태를,
- * 에너지 원단위는 여러 장비의 누적전력량을 모아야 나온다.
+ * A bundle is "equipment deliverables grouped by process" (레퍼런스번들_추진방안 §2).
+ * The grouping itself is already done by the hierarchy (HierarchicalStructures). What a bundle additionally
+ * requires is **whether the inputs for computing process KPIs actually exist in the equipment** — OEE needs the
+ * operating states of several machines, energy intensity needs the cumulative energy of several machines.
  *
- * 그래서 여기서는 설비마다 운전 데이터(OperationalData)의 Property를 모아
- * **semanticId로 묶는다.** 이름(idShort)이 아니라 semanticId다 — 이름은 사람이 짓고
- * semanticId는 뜻을 가리키기 때문이다.
+ * So here we collect the Properties of each machine's operational data (OperationalData) and
+ * **group them by semanticId.** semanticId, not name (idShort) — names are chosen by people,
+ * while a semanticId points to a meaning.
  *
- * 🔴 그런데 semanticId만 믿으면 틀린다 (2026-09-30 사업 참조모델 30종 실측).
- *  - ECLASS IRDI 하나(`0173-1#02-ABC132#004`)가 MachineState·AlarmCode·JudgmentResult처럼
- *    **서로 다른 개념에 재사용**된다 → 「같은 semanticId, 다른 이름」을 알린다
- *  - 같은 MachineState가 파일에 따라 KOSMO IRI · ECLASS IRDI로 갈린다
- *    → 「같은 이름, 다른 semanticId」를 알린다
- * 어느 쪽이 맞는지는 도구가 정하지 않는다. 연계 매핑은 **경로 + semanticId 쌍**으로 적게 한다.
+ * Important: but trusting semanticId alone is wrong (measured 2026-09-30 on 30 project reference models).
+ *  - A single ECLASS IRDI (`0173-1#02-ABC132#004`) is **reused for different concepts** such as
+ *    MachineState, AlarmCode, JudgmentResult → reports "same semanticId, different names"
+ *  - The same MachineState splits between a KOSMO IRI and an ECLASS IRDI depending on the file
+ *    → reports "same name, different semanticIds"
+ * The tool does not decide which is right. Linkage mappings are written as **path + semanticId pairs**.
  *
- * 🔴 동의어를 추측하지 않는다(MachineState ≈ RobotState 같은 것). 추측이 틀리면
- *    KPI가 조용히 틀린다. 사람이 채우도록 매핑표에 빈 칸을 준다.
+ * Important: synonyms are not guessed (e.g. MachineState ≈ RobotState). A wrong guess makes
+ *    the KPI silently wrong. The mapping table leaves blank cells for a person to fill.
  */
 import { fill, tr, type Environment, type SubmodelElement } from '@aas/core';
 import { csvCell } from './csv.js';
 
-/** 기본으로 훑는 서브모델 — 30종 전부가 가진 운전 데이터 서브모델 */
+/** Submodel scanned by default — the operational data submodel that all 30 models have */
 export const LINKAGE_SUBMODELS = ['OperationalData'] as const;
 
 export interface BundleMemberInput {
-  /** 계층에 적힌 이름 */
+  /** Name as written in the hierarchy */
   name: string;
   globalAssetId: string;
-  /** 설비 파일. 없으면(예정) 연계 분석에서 빠진다 */
+  /** Equipment file. If absent (planned), it is left out of the linkage analysis */
   environment?: Environment;
 }
 
-/** 한 설비 안에서 연계 재료가 되는 자리 하나 */
+/** One slot within a machine that serves as a linkage input */
 export interface LinkPoint {
   member: string;
-  /** 서브모델 idShort부터의 경로 — `OperationalData/ProcessMonitoring/MachineState` */
+  /** Path from the submodel idShort — `OperationalData/ProcessMonitoring/MachineState` */
   path: string;
   idShort: string;
   semanticId: string;
   valueType?: string;
-  /** ConceptDescription에서 찾은 단위 */
+  /** Unit found in the ConceptDescription */
   unit?: string;
 }
 
-/** semanticId 하나로 묶인 연계 항목 */
+/** Linkage item grouped by one semanticId */
 export interface LinkageItem {
   semanticId: string;
-  /** 대표 이름 — 가장 많이 쓰인 idShort */
+  /** Representative name — the most frequently used idShort */
   label: string;
-  /** 그 semanticId를 쓰는 이름들(대표 포함) */
+  /** Names that use this semanticId (including the representative) */
   names: string[];
-  /** ConceptDescription의 우리말(없으면 영어) 정의 이름 */
+  /** Definition name from the ConceptDescription, Korean (English if absent) */
   preferredName?: string;
   unit?: string;
-  /** 설비 이름 → 그 설비 안의 자리들 */
+  /** Equipment name → slots within that equipment */
   points: Record<string, LinkPoint[]>;
-  /** 몇 개 설비가 가졌나 */
+  /** How many machines have it */
   coverage: number;
 }
 
@@ -68,17 +68,17 @@ export interface LinkageFinding {
   kind: LinkageFindingKind;
   severity: 'warning' | 'info';
   message: string;
-  /** 관련 semanticId들 */
+  /** Related semanticIds */
   semanticIds: string[];
   names: string[];
 }
 
 export interface BundleLinkage {
-  /** 분석에 들어간 설비(파일이 있는 것) */
+  /** Equipment included in the analysis (those with a file) */
   members: string[];
-  /** 파일이 없어 빠진 설비 */
+  /** Equipment left out because it has no file */
   missing: string[];
-  /** coverage 내림차순 */
+  /** Sorted by coverage, descending */
   items: LinkageItem[];
   findings: LinkageFinding[];
 }
@@ -88,7 +88,7 @@ const firstKey = (reference: unknown): string | undefined => {
   return typeof value === 'string' && value !== '' ? value : undefined;
 };
 
-/** CD id → (이름, 단위). IEC 61360 데이터 명세에서 읽는다 */
+/** CD id → (name, unit). Read from the IEC 61360 data specification */
 function conceptIndex(environment: Environment): Map<string, { name?: string; unit?: string }> {
   const index = new Map<string, { name?: string; unit?: string }>();
   for (const cd of environment.conceptDescriptions ?? []) {
@@ -102,7 +102,7 @@ function conceptIndex(environment: Environment): Map<string, { name?: string; un
   return index;
 }
 
-/** 설비 하나의 연계 재료 — 지정 서브모델 안 Property 전부 */
+/** Linkage inputs of one machine — all Properties within the specified submodels */
 export function linkPointsOf(
   member: string,
   environment: Environment,
@@ -142,8 +142,8 @@ export function linkPointsOf(
 }
 
 /**
- * 번들 연계 분석.
- * 같은 설비가 계층에 두 번 나와도(두 공정에 같은 설비) 한 번만 센다.
+ * Bundle linkage analysis.
+ * If the same machine appears twice in the hierarchy (same machine in two processes), it is counted once.
  */
 export function bundleLinkage(
   inputs: readonly BundleMemberInput[],
@@ -196,7 +196,7 @@ export function bundleLinkage(
   items.sort((a, b) => b.coverage - a.coverage || a.label.localeCompare(b.label));
 
   const findings: LinkageFinding[] = [];
-  // ① 같은 semanticId, 다른 이름 — 뜻이 다른 것을 같은 것으로 볼 위험
+  // ① Same semanticId, different names — risk of treating different meanings as the same
   for (const item of items) {
     if (item.names.length < 2) continue;
     findings.push({
@@ -211,7 +211,7 @@ export function bundleLinkage(
       names: item.names,
     });
   }
-  // ② 같은 이름, 다른 semanticId — 같은 것을 다른 것으로 볼 위험
+  // ② Same name, different semanticIds — risk of treating the same thing as different
   const byName = new Map<string, Set<string>>();
   for (const item of items) {
     for (const name of item.names) {
@@ -235,12 +235,12 @@ export function bundleLinkage(
   return { members, missing, items, findings };
 }
 
-/** CSV 한 칸 — 쉼표·따옴표·줄바꿈을 감싼다 */
+/** One CSV cell — quotes commas, double quotes, and line breaks */
 const cell = (value: string): string => csvCell(value);
 
 /**
- * 연계 정의표(번들 04_데이터연계정의). 엑셀에서 바로 열리게 BOM을 붙인다.
- * 「연계 키」「KPI 용도」는 **사람이 채울 칸**이다 — 도구는 추측하지 않는다.
+ * Linkage definition table (bundle 04_데이터연계정의). Adds a BOM so it opens directly in Excel.
+ * The "linkage key" and "KPI usage" columns are **for a person to fill** — the tool does not guess.
  */
 export function linkageCsv(linkage: BundleLinkage): string {
   const header = [tr('연계 키(사람이 채움)'), tr('KPI 용도(사람이 채움)'), tr('대표 이름'), 'semanticId', tr('정의 이름'), tr('단위'), tr('보유 설비 수'), tr('설비'), tr('경로'), 'valueType'];

@@ -1,8 +1,8 @@
 /**
- * 하루 상태 — 설비마다 한 줄, 교대 시작(08시)부터 24시간 막대에 가동 · 정지 · 알람 · 전원 꺼짐 · 데이터 없음을 칠한다.
+ * Daily state — one row per machine; a 24-hour bar from shift start (08:00) painted with running · stopped · alarm · power off · no data.
  *
- * 상태 태그는 이름으로 고르되(하나만 맞을 때), 못 고르면 사람이 고른다. 값 → 상태 규칙은 「판정 규칙」에서 바꾼다
- * (고객마다 다르다 — 이 브라우저에만 남는다). 계산은 states.ts 가 한다. 시각은 수신 시각 기준이다.
+ * The state tag is picked by name (when exactly one matches); otherwise a person picks it. Value → state rules are changed in "Matching rules"
+ * (they differ per customer — stored only in this browser). states.ts does the calculation. Times are based on reception time.
  */
 import { useEffect, useState } from 'react';
 import { api } from '../../api.js';
@@ -16,11 +16,11 @@ export interface StateRow {
 
 interface Props {
   rows: readonly StateRow[];
-  /** 값 하나가 이어지는 최대 시간 — 신선도 창과 같다(이 시간 넘게 값이 없으면 데이터 없음) */
+  /** Maximum time one value lasts — same as the freshness window (no value for longer than this = no data) */
   holdMs: number;
   /**
-   * 수집값이 새로 들어올 때마다 바뀌는 값 — 바뀌면 막대를 다시 읽는다. 없으면 처음 한 번만 읽어
-   * 방금 수집한 값이 막대에 안 나왔다(2026-10-14 화면 실측)
+   * A value that changes whenever new collected values arrive — when it changes the bar is re-read. Without it the bar was read only once,
+   * so just-collected values did not show on the bar (measured on screen, 2026-10-14)
    */
   version?: string;
   t: (text: string) => string;
@@ -42,12 +42,12 @@ function loadRules(): StateRules {
     const saved = JSON.parse(localStorage.getItem(RULES_KEY) ?? 'null') as unknown;
     if (saved && typeof saved === 'object') return { ...DEFAULT_STATE_RULES, ...(saved as Partial<StateRules>) };
   } catch {
-    // 저장소를 못 쓰는 브라우저 — 기본 규칙으로 간다
+    // Browser that cannot use storage — fall back to the default rules
   }
   return DEFAULT_STATE_RULES;
 }
 
-/** 오늘 교대가 시작한 날 — 08시 전이면 어제 */
+/** The date today's shift started — yesterday if before 08:00 */
 function shiftDay(now: Date): Date {
   const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (now.getHours() < START_HOUR) day.setDate(day.getDate() - 1);
@@ -55,7 +55,7 @@ function shiftDay(now: Date): Date {
 }
 
 export function duration(ms: number): string {
-  if (ms > 0 && ms < 60_000) return tr('1분 미만'); // 「0분」이라 쓰면 없었던 것으로 읽힌다
+  if (ms > 0 && ms < 60_000) return tr('1분 미만'); // writing "0 min" reads as if it never happened
   const minutes = Math.round(ms / 60_000);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -74,7 +74,7 @@ export function DailyStates({ rows, holdMs, version = '', t }: Props): React.JSX
     try {
       localStorage.setItem(RULES_KEY, JSON.stringify(next));
     } catch {
-      // 저장 못 해도 이번 화면에는 적용된다
+      // Even if it cannot be saved, it applies to this screen
     }
   };
   const ticks = [0, 4, 8, 12, 16, 20].map((offset) => `${String((START_HOUR + offset) % 24).padStart(2, '0')}:00`);
@@ -167,7 +167,7 @@ function StateLine({ row, day, rules, holdMs, version, ticks }: { row: StateRow;
         )}
         {names && names.length === 0 && <span className="dim">{tr('수집 연결 없음')}</span>}
       </div>
-      {/* 시간 눈금은 막대 바로 위에 — 태그 고르는 칸이 사이에 끼면 눈금과 막대가 떨어져 읽힌다 */}
+      {/* Time ticks sit right above the bars — if the tag picker sits in between, ticks and bars read as separate */}
       <div className="state-ticks" aria-hidden="true">
         {ticks.map((tick) => (
           <span key={tick}>{tick}</span>

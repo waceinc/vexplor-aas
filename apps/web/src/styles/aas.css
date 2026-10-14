@@ -1,51 +1,51 @@
 /*
- * AAS Studio 화면 규칙 — components 층(Tailwind 유틸리티가 이긴다).
- * 2026-10-13 디자인 전환: 예전 다크 전용 팔레트(#14181d 바탕 · #4c9aff 강조)를 VEXPLOR Logic Studio 기준(drive.css 토큰)으로 옮겼다.
- *   색   → 테마 변수만(--background · --foreground · --muted-foreground · --border · --primary · --accent)
- *          뜻 색 → --teal(정상) · --warn(주의) · --fail(위반) · --cb(참고·연결) · --navy(표 머리) + 연한 배경 --okbg · --warnbg · --failbg
- *   반경 → var(--radius)(2px) — 원(50%)만 예외
- *   글자 → Tailwind 단계(--text-xs ~ --text-3xl)만. 본문은 data-scale="content"(80%) 안에서 그려진다
- * 생 색값은 문서 미리보기(흰 종이 위 검은 글자 — 붙여 넣었을 때의 모습)와 뜻 색 위의 흰 글자에만 남는다.
+ * AAS Studio screen rules — components layer (Tailwind utilities win).
+ * 2026-10-13 design switch: moved the old dark-only palette (#14181d background · #4c9aff accent) to the VEXPLOR Logic Studio baseline (drive.css tokens).
+ *   color  → theme variables only (--background · --foreground · --muted-foreground · --border · --primary · --accent)
+ *            semantic colors → --teal (ok) · --warn (caution) · --fail (violation) · --cb (reference/link) · --navy (table header) + light backgrounds --okbg · --warnbg · --failbg
+ *   radius → var(--radius) (2px) — circles (50%) are the only exception
+ *   text   → Tailwind steps only (--text-xs to --text-3xl). Content is drawn inside data-scale="content" (80%)
+ * Raw color values remain only in the document preview (black text on white paper — how it looks once pasted) and for white text on semantic colors.
  */
 
 :root { --aas-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /*
- * 간격 — 숫자를 직접 적지 않는다(2026-10-14). 모든 간격은 --spacing(4px)의 배수이고, 배수는 표준 단계
- * 0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 5 · 6 · 8 · 10 · 12 · 16 만 쓴다(scripts/spacing-scan.mjs 가 CI 에서 막는다).
- * 자리마다 같아야 하는 간격은 아래 이름으로 쓴다 — 머리줄 · 세 칸 · 창이 같은 여백을 갖는 것이 이 이름들로 보장된다.
+ * Spacing — never write raw numbers (2026-10-14). Every gap is a multiple of --spacing (4px), and the multiples are limited to the standard steps
+ * 0.5 · 1 · 1.5 · 2 · 2.5 · 3 · 4 · 5 · 6 · 8 · 10 · 12 · 16 (scripts/spacing-scan.mjs blocks anything else in CI).
+ * Gaps that must match across places use the names below — they guarantee the header, the three panes and dialogs share the same padding.
  */
 :root {
-  --space-pane: calc(var(--spacing) * 4);     /* 머리줄 · 트리 · 가운데 · 오른쪽 칸의 안쪽 여백 */
-  --space-dialog: calc(var(--spacing) * 6);   /* 대화상자 안쪽 여백(shadcn Dialog 와 같은 24px) */
-  --space-float: calc(var(--spacing) * 3);    /* 화면 가장자리에 붙는 떠 있는 판(도움말 · 시작 안내)과 가장자리 사이 */
-  --space-gap: calc(var(--spacing) * 2);      /* 나란히 놓인 단추 · 칩 사이 */
-  --space-stack: calc(var(--spacing) * 4);    /* 칸 안에서 위아래로 쌓인 블록 사이(요약 · 카드 · 판정 상자) */
-  --tree-indent: calc(var(--spacing) * 3);    /* 트리 한 단계 들여쓰기 */
-  --header-height: calc(var(--spacing) * 24); /* 머리줄 두 줄 — 떠 있는 판이 가리지 않을 높이 */
-  /* 상자 안 여백 — 테두리가 있는 것은 쓰임새에 맞는 이름 하나를 쓴다(2026-10-14: 34가지 → 6가지) */
-  --pad-chip: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2);  /* 칩 · 배지 · 작은 표시 */
+  --space-pane: calc(var(--spacing) * 4);     /* Inner padding of the header, tree, middle and right panes */
+  --space-dialog: calc(var(--spacing) * 6);   /* Dialog inner padding (24px, same as shadcn Dialog) */
+  --space-float: calc(var(--spacing) * 3);    /* Gap between a floating panel pinned to the screen edge (help · getting started) and the edge */
+  --space-gap: calc(var(--spacing) * 2);      /* Between side-by-side buttons / chips */
+  --space-stack: calc(var(--spacing) * 4);    /* Between blocks stacked vertically inside a pane (summary · card · verdict box) */
+  --tree-indent: calc(var(--spacing) * 3);    /* Tree indent per level */
+  --header-height: calc(var(--spacing) * 24); /* Two-row header — height a floating panel must not cover */
+  /* Box padding — anything with a border uses the one name that fits its role (2026-10-14: 34 variants → 6) */
+  --pad-chip: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2);  /* Chips · badges · small markers */
   --pad-cell-y: calc(var(--spacing) * 1.5);
   --pad-cell-x: calc(var(--spacing) * 2);
-  --pad-cell: var(--pad-cell-y) var(--pad-cell-x);                   /* 표 칸 */
-  --pad-row: calc(var(--spacing) * 1.5) 0;                           /* 목록 한 줄 */
-  --pad-compact: calc(var(--spacing) * 2) calc(var(--spacing) * 3);  /* 안내 띠 · 알림 · 작은 상자 */
-  --pad-card: calc(var(--spacing) * 3) calc(var(--spacing) * 4);     /* 카드 · 타일 · 판정 상자 · 입력 폼 상자 */
-  --pad-panel: calc(var(--spacing) * 4);                             /* 큰 판(규칙 · 구성 · 도움말) */
-  --pad-bar: calc(var(--spacing) * 2) var(--space-pane);            /* 화면 폭 띠(알림 · 오류 · 체험 · 충돌 · 토큰 · 교정 결과) — 좌우는 칸과 같은 줄 */
-  /* 줄 간격 — 세 가지만(2026-10-14: 8가지 → 3가지) */
-  --leading-tight: 1.25;    /* 제목 · 한 줄짜리 표시 */
-  --leading-normal: 1.5;    /* 본문 · 표 */
-  --leading-relaxed: 1.625; /* 긴 설명 · 안내문 */
+  --pad-cell: var(--pad-cell-y) var(--pad-cell-x);                   /* Table cells */
+  --pad-row: calc(var(--spacing) * 1.5) 0;                           /* One list row */
+  --pad-compact: calc(var(--spacing) * 2) calc(var(--spacing) * 3);  /* Notice strips · alerts · small boxes */
+  --pad-card: calc(var(--spacing) * 3) calc(var(--spacing) * 4);     /* Cards · tiles · verdict boxes · input form boxes */
+  --pad-panel: calc(var(--spacing) * 4);                             /* Large panels (rules · composition · help) */
+  --pad-bar: calc(var(--spacing) * 2) var(--space-pane);            /* Full-width strips (notice · error · trial · conflict · token · fix result) — left/right aligned with the panes */
+  /* Line heights — three only (2026-10-14: 8 variants → 3) */
+  --leading-tight: 1.25;    /* Titles · single-line labels */
+  --leading-normal: 1.5;    /* Body text · tables */
+  --leading-relaxed: 1.625; /* Long descriptions · guidance text */
 }
 :root {
-  /* 입력칸 테두리 — 패널 구분선과 같은 색이면 「어디에 입력할 수 있는지」가 안 보인다(예전 디자인 검토 실측). 글자색을 옅게 섞어 한 단 진하게 */
+  /* Input border — if it matches the panel divider color, you cannot tell where input is possible (measured in an earlier design review). Mix in a little text color to make it one step darker */
   --aas-line-strong: color-mix(in oklab, var(--foreground) 22%, transparent);
   --aas-line-soft: var(--border);
   --aas-accent-soft: color-mix(in oklab, var(--cb) 12%, transparent);
 }
 
-/* 예전 브라우저 기본 여백을 전제로 짠 화면이라, Tailwind preflight 가 지운 기본값을 앱 범위에서만 되살린다.
-   :where() 로 특이도 0 — 아래 화면 규칙이 값을 주면 그쪽이 이긴다. kit 부품(포털)은 .app 밖이라 닿지 않는다 */
+/* The screens were built assuming old browser default margins, so restore the defaults that Tailwind preflight removed, scoped to the app only.
+   :where() gives specificity 0 — any screen rule below that sets a value wins. Kit parts (portals) live outside .app and are unaffected */
 :where(.app) :where(p, ul, ol, dl, pre, blockquote, figure) { margin-block: calc(var(--spacing) * 3); }
 :where(.app) :where(ul, ol) { padding-inline-start: calc(var(--spacing) * 8); }
 :where(.app) :where(ul) { list-style: disc; }
@@ -61,7 +61,7 @@
 
 .app { display: flex; flex-direction: column; height: 100vh; font-size: var(--text-sm); line-height: var(--leading-relaxed); background: var(--background); color: var(--foreground); }
 
-/* 머리글 — 로직스튜디오 셸 머리글(h-14 · 아래 줄 · 흰 바탕). 두 줄: 윗줄은 어느 파일(과 상태), 아랫줄은 그 파일에 무엇을 하는가 */
+/* Header — Logic Studio shell header (h-14 · bottom border · white background). Two rows: top = which file (and its state), bottom = what to do with that file */
 header {
   display: flex;
   flex-direction: column;
@@ -72,11 +72,11 @@ header .bar { display: flex; align-items: center; gap: var(--space-gap); padding
 header .bar.work { min-height: calc(var(--spacing) * 11); border-top: 1px solid var(--border); }
 header strong { margin-right: calc(var(--spacing) * 2); }
 
-/* ── 기본 단추 · 입력칸 — shadcn Button(outline · sm) · Input 과 같은 치수 ──────────────────
-   kit 부품([data-slot])은 제 클래스를 가지므로 건드리지 않는다 */
+/* ── Base buttons · inputs — same dimensions as shadcn Button (outline · sm) · Input ──────────────────
+   Kit parts ([data-slot]) have their own classes, so leave them alone */
 :where(button, .button):where(:not([data-slot])) {
-  /* display·정렬은 주지 않는다 — 예전 화면의 단추 다수가 제 display:flex 와 왼쪽 정렬을 전제로 짜여 있다 */
-  /* 기준 화면은 Button 기본 크기(h-9 · px-4)다 — 머리글 32px · 본문 29px 실측(review_content 2026-10-13) */
+  /* Do not set display or alignment — many buttons on the old screens rely on their own display:flex and left alignment */
+  /* The baseline screen uses the default Button size (h-9 · px-4) — measured 32px in the header · 29px in content (review_content 2026-10-13) */
   min-height: calc(var(--spacing) * 9); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 4);
   font: inherit; font-size: var(--text-sm); font-weight: 500; line-height: var(--leading-tight);
   color: var(--foreground); background: var(--background);
@@ -93,13 +93,13 @@ header strong { margin-right: calc(var(--spacing) * 2); }
   min-height: calc(var(--spacing) * 9);
 }
 :where(:root.dark) :where(select, input, textarea):where(:not([data-slot])) { background: color-mix(in oklab, var(--input) 30%, transparent); }
-/* 칠 수 있는 칸은 단추보다 테두리가 또렷해야 한다 */
+/* Editable fields need a clearer border than buttons */
 :where(select, input:not([type='checkbox']):not([type='radio']), textarea):where(:not([data-slot])) { border-color: var(--aas-line-strong); }
 :where(input[type='checkbox'], input[type='radio']):where(:not([data-slot])) { min-height: 0; padding: 0; box-shadow: none; accent-color: var(--primary); width: 1em; height: 1em; }
-:where(input[type='file']):where(:not([data-slot])) { padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3); } /* 글자 시작점이 다른 입력칸(좌우 3)과 같게 */
+:where(input[type='file']):where(:not([data-slot])) { padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3); } /* Match the text start of other inputs (3 left/right) */
 :where(textarea):where(:not([data-slot])) { min-height: calc(var(--spacing) * 16); }
 ::placeholder { color: var(--muted-foreground); }
-/* 키보드로 다니는 사람에게 지금 어디인지 — shadcn 의 focus-visible 고리(ring 3px · 반투명) */
+/* Show keyboard users where they are — shadcn's focus-visible ring (3px ring · semi-transparent) */
 :where(button, .button, select, input, textarea, summary):where(:not([data-slot])):focus-visible {
   outline: none;
   border-color: var(--ring);
@@ -123,11 +123,11 @@ button.link { background: none; border: none; color: var(--muted-foreground); }
   border-bottom: 1px solid var(--border);
   color: var(--teal);
 }
-/* 알림은 중립색 — 초록은 「교정됐다」에만 쓴다. 지웠다는 알림까지 초록이면 색이 뜻을 잃는다 */
+/* Notices are neutral — green is reserved for "fixed". If even a "deleted" notice were green, the color would lose its meaning */
 .notice { padding: var(--pad-bar); background: var(--muted); border-bottom: 1px solid var(--border); color: var(--foreground); }
 .error-bar { padding: var(--pad-bar); background: var(--failbg); border-bottom: 1px solid var(--border); color: var(--fail); }
 
-/* 체험판 고지 — 닫을 수 없다. 닫아도 「올린 것이 남에게 보인다」는 사실이 바뀌지 않는다 */
+/* Trial notice — cannot be dismissed. Closing it would not change the fact that "what you upload is visible to others" */
 .demo-bar {
   padding: var(--pad-bar);
   background: var(--warnbg);
@@ -137,7 +137,7 @@ button.link { background: none; border: none; color: var(--muted-foreground); }
 .demo-bar b { color: var(--warn); }
 .demo-bar .link { color: var(--warn); text-decoration: underline; }
 
-/* 동의 칸 — 네모와 글이 한 줄에 붙어야 「무엇에 동의하는지」가 읽힌다 */
+/* Consent field — the box and its text must sit on one line so it reads "what you are agreeing to" */
 .login-form label.agree {
   flex-direction: row;
   align-items: flex-start;
@@ -147,24 +147,24 @@ button.link { background: none; border: none; color: var(--muted-foreground); }
 .login-form label.agree input { width: auto; margin-top: calc(var(--spacing) * 0.5); }
 .login-form label.agree a { color: var(--cb); }
 
-/* 열 너비는 App이 inline style로 준다(사용자가 끌어 조절). 여기 값은 스크립트가 없을 때의 보루 */
+/* Column widths come from App as inline styles (user drags to resize). Values here are the fallback when scripts are absent */
 main { display: grid; grid-template-columns: minmax(320px, 1.4fr) 6px minmax(260px, 1fr) 6px minmax(300px, 1fr); flex: 1; min-height: 0; }
 
-/* ── 칸 사이 손잡이 ─────────────────────────────────────── */
-/* 🔴 6px는 눈에는 얇아야 하지만 잡기에는 좁다 — ::before로 **집는 범위만** 넓힌다.
-      보이는 선은 그대로 두고 손이 닿는 자리를 좌우 4px씩 늘린다 */
+/* ── Pane resize handles ─────────────────────────────────────── */
+/* Important: 6px should look thin but is too narrow to grab — widen **only the hit area** with ::before.
+      Keep the visible line as is and extend the reachable area by 4px on each side */
 .splitter { position: relative; cursor: col-resize; background: var(--border);
   border: 0; padding: 0; touch-action: none; }
 .splitter::before { content: ''; position: absolute; inset: 0 calc(var(--spacing) * -1); }
 .splitter:hover, .splitter:focus-visible { background: var(--cb); }
-/* 키보드로 왔을 때 어디에 있는지 보여야 한다 */
+/* Keyboard users must see where they are */
 .splitter:focus-visible { outline: 2px solid var(--cb); outline-offset: -1px; }
-/* 끌 때 글자가 선택돼 파랗게 물드는 것을 막는다 */
+/* Prevent text from being selected and turning blue while dragging */
 body:has(.splitter:active) { user-select: none; cursor: col-resize; }
-/* 오른쪽 칸 — 수집(OPC UA). 지적 목록이 쓰던 자리다 */
+/* Right pane — collection (OPC UA). This used to be the findings list's spot */
 .right-pane { overflow: auto; min-height: 0; }
 
-/* ── 지적 목록 팝업 — 헤더의 「위반 N건」에서 연다 ─────────── */
+/* ── Findings list popup — opened from "N violations" in the header ─────────── */
 .status.chip { cursor: pointer; border: 1px solid var(--border); background: transparent; font: inherit; }
 .status.chip:hover { border-color: var(--cb); }
 .status.chip .sub { color: var(--muted-foreground); }
@@ -172,12 +172,12 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
   align-items: flex-start; justify-content: center; padding: calc(var(--spacing) * 12) calc(var(--spacing) * 4); z-index: 50; }
 .modal { position: relative; background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius); width: min(680px, 100%); max-height: 80vh; overflow: auto;
-  /* 여백은 틀이 준다 — shadcn Dialog 와 같은 24px. 창마다 따로 주면 어떤 창은 글자가 테두리에 붙는다(2026-10-14 실측: 설정 1px) */
+  /* The frame provides padding — 24px, same as shadcn Dialog. If each dialog sets its own, some end up with text touching the border (measured 2026-10-14: settings had 1px) */
   padding: var(--space-dialog);
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1); }
 .modal-close { position: absolute; z-index: 1; }
 .modal .findings { border: 0; }
-/* 내주기 — 수집(받기)과 방향이 다르다는 것이 색·화살표로 보여야 한다 */
+/* Publishing — must look different from collection (receiving) through color and arrow */
 .status.chip.out { border-color: var(--aas-line-strong); color: var(--muted-foreground); }
 .status.chip.out .sub { color: var(--muted-foreground); }
 .opcua-out h3 { margin: 0 0 calc(var(--spacing) * 2); }
@@ -189,7 +189,7 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 
 .tree { overflow: auto; border-right: 1px solid var(--border); }
 .tree .row { display: flex; align-items: center; gap: calc(var(--spacing) * 2); white-space: nowrap; cursor: default;
-  /* 들여쓰기 — 칸 여백에서 시작해 단계(--depth, TreeView 가 넣는다)마다 --tree-indent 씩 */
+  /* Indent — starts at the pane padding and adds --tree-indent per level (--depth, set by TreeView) */
   padding-left: calc(var(--space-pane) + var(--depth, 0) * var(--tree-indent)); }
 .tree .row:hover { background: var(--muted); }
 .tree .row.selected { background: var(--accent); }
@@ -197,12 +197,12 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 .twist.leaf { cursor: default; opacity: 0.35; }
 .label { font-weight: 500; }
 .type { color: var(--muted-foreground); font-size: var(--text-xs); }
-/* 값은 링크가 아니다 — 파랑 계열이면 눌러 보게 된다(디자인 점검). 호박색 = 데이터 */
+/* Values are not links — a blue tone invites clicking (design review). Amber = data */
 .value { color: var(--foreground); opacity: 0.85; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 .badge { margin-left: auto; margin-right: calc(var(--spacing) * 2); padding: 0 calc(var(--spacing) * 1.5); border-radius: var(--radius); font-size: var(--text-xs); }
 .badge.error { background: var(--fail); color: var(--on-accent); }
 .badge.warning { background: var(--warn); color: var(--on-accent); }
-/* 색만으로 위반/경고를 가르면 색약·흑백 인쇄에서 못 가른다 — 글자 접두를 같이 둔다 */
+/* Separating violation/warning by color alone fails for color-blind users and grayscale print — add a text prefix too */
 .badge.error::before { content: '✕ '; }
 .badge.warning::before { content: '⚠ '; }
 .badge.info { background: var(--muted-foreground); color: var(--on-accent); }
@@ -234,7 +234,7 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 .findings .info-fold { margin-top: calc(var(--spacing) * 3); }
 .findings .info-fold > summary { color: var(--muted-foreground); font-size: var(--text-sm); cursor: pointer; padding: calc(var(--spacing) * 1) 0; }
 .findings .info-fold[open] > summary { margin-bottom: calc(var(--spacing) * 2); }
-/* 흐린 보조 표기 — 종류의 규격 원문처럼, 있어야 하지만 주인공은 아닌 글 */
+/* Muted secondary text — like a kind's spec name: must be there but is not the focus */
 .dim { color: var(--muted-foreground); }
 .findings .message { margin-top: calc(var(--spacing) * 0.5); }
 .findings .remedy, .findings .policy { margin-top: calc(var(--spacing) * 0.5); color: var(--muted-foreground); font-size: var(--text-xs); }
@@ -242,19 +242,19 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 .skipped h3 { font-size: var(--text-sm); color: var(--muted-foreground); }
 .skipped li { cursor: default; }
 
-/* 추가 폼 · 동작 버튼 */
+/* Add forms · action buttons */
 .middle { display: flex; flex-direction: column; overflow: auto; }
-/* 🔴 flex 기본값(shrink:1)이 요약을 짜부라뜨려 타일이 잘렸다(실측 갈무리).
-   가운데 칸은 통째로 스크롤하는 곳 — 각 구역은 제 높이를 지킨다 */
+/* Important: the flex default (shrink:1) squashed the summary and clipped the tiles (measured screenshot).
+   The middle pane scrolls as a whole — each section keeps its own height */
 .middle > * { flex-shrink: 0; }
 .middle .inspector { border-right: none; }
 .add-form { padding: var(--pad-card); border-bottom: 1px solid var(--border); background: var(--muted); display: flex; flex-direction: column; gap: var(--space-stack); }
-/* 양식 안 블록 사이는 gap 하나 — 문단의 기본 margin 이 더해지면 문단 앞뒤만 43px 로 벌어진다 */
+/* One gap between blocks inside a form — adding paragraphs' default margin opens 43px only around paragraphs */
 .add-form > * { margin-block: 0; }
 .add-form > .row-buttons { margin-top: 0; }
 .add-form h3 { margin: 0; font-size: var(--text-sm); }
-/* 🔴 80px 고정 격자는 긴 한글 라벨을 꺾어 뒤죽박죽으로 만들었다(사용자 제보).
-   라벨 위·입력 아래로 쌓아 전부 좌측 한 줄기로 정렬한다 */
+/* Important: an 80px fixed grid wrapped long Korean labels into a jumble (user report).
+   Stack label above and input below so everything aligns on one left edge */
 .add-form label {
   display: flex;
   flex-direction: column;
@@ -270,7 +270,7 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 .row-buttons.actions { margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); }
 button.danger { color: var(--fail); }
 
-/* semanticId 입력과 그 자리 검증 */
+/* semanticId input and its inline validation */
 .editor.semantic { margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); }
 .editor label.stack { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
 .editor .row { display: flex; gap: calc(var(--spacing) * 3); }
@@ -280,17 +280,17 @@ button.danger { color: var(--fail); }
 .note.warning { color: var(--warn); }
 .note.error { color: var(--fail); }
 
-/* 동시 편집 충돌 */
+/* Concurrent edit conflict */
 .conflict { padding: var(--pad-bar); background: var(--warnbg); border-bottom: 1px solid var(--border); color: var(--warn); }
 
-/* 접근 토큰 — 인증이 켜진 서버에서 401을 받으면 뜬다 */
+/* Access token — shown when a server with auth enabled returns 401 */
 .token-bar { display: flex; align-items: center; gap: calc(var(--spacing) * 2); padding: var(--pad-bar); background: var(--warnbg); border-bottom: 1px solid var(--border); color: var(--warn); }
 .token-bar input { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); color: inherit; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 1.5); min-width: 220px; }
 
-/* 인스펙터 — 라벨이 길어도 잘리지 않게 한다(defaultThumbnail 등) */
+/* Inspector — keep long labels from being clipped (defaultThumbnail etc.) */
 .inspector dl { grid-template-columns: minmax(92px, max-content) 1fr; }
 
-/* 파일 요약 — 고르기 전 가운데 칸 */
+/* File summary — middle pane before anything is selected */
 .summary { padding: var(--space-pane); overflow: auto; }
 .summary h2 { margin: 0 0 calc(var(--spacing) * 0.5); font-size: var(--text-base); }
 .summary .sub { margin: 0 0 calc(var(--spacing) * 4); color: var(--muted-foreground); }
@@ -305,27 +305,27 @@ button.danger { color: var(--fail); }
 .summary .verdict.bad b { color: var(--fail); }
 .summary .hint { margin-top: calc(var(--spacing) * 3); }
 
-/* 지적 등급 — 색만으로 나누지 않는다 */
+/* Finding severity — not by color alone */
 .findings .level { font-size: var(--text-xs); padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1.5); border-radius: var(--radius); font-weight: 700; }
 .findings .level.error { background: color-mix(in oklab, var(--fail) 18%, transparent); color: var(--fail); }
 .findings .level.warning { background: color-mix(in oklab, var(--warn) 18%, transparent); color: var(--warn); }
 .findings .level.info { background: color-mix(in oklab, var(--muted-foreground) 18%, transparent); color: var(--muted-foreground); }
 
-/* 헤더 위계 — 왼쪽은 파일, 가운데는 편집, 오른쪽은 상태와 마무리 */
+/* Header hierarchy — left is the file, middle is editing, right is status and wrap-up */
 header .divider { width: 1px; height: 20px; background: var(--border); margin: 0 calc(var(--spacing) * 0.5); }
 header .spacer { margin-left: auto; }
 header .status { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); font-weight: 600; }
 header .status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 
-/* 트리 값 — 폭이 남으면 더 보여 준다 */
+/* Tree values — show more when there is spare width */
 .tree .value { max-width: 52%; }
 
-/* 좁은 화면에서 규칙 id가 두 줄로 쪼개지지 않게 한다 */
+/* Keep rule ids from splitting onto two lines on narrow screens */
 .findings .head { flex-wrap: nowrap; }
 .findings .rule, .findings .level, .findings .fixable { white-space: nowrap; }
 .findings .key { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 수집(M8) — 모델이 아니라 시계열이라는 것이 보이게 트리·속성과 떨어뜨려 둔다 */
+/* Collection (M8) — set apart from tree and properties so it reads as a time series, not the model */
 .collection { padding: 0 var(--space-pane) var(--space-pane); }
 .collection.empty { padding: var(--space-pane); }
 .collection h3 { font-size: var(--text-sm); margin: 0; }
@@ -340,7 +340,7 @@ header .status .dot { width: 8px; height: 8px; border-radius: 50%; background: c
 .collection td.bad { color: var(--warn); }
 .collection .unit { color: var(--muted-foreground); font-size: var(--text-xs); }
 
-/* 첫 화면 — 열린 파일이 없을 때 */
+/* Welcome screen — when no file is open */
 .welcome { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 10); text-align: center; }
 .welcome h1 { margin: 0; font-size: var(--text-2xl); }
 .welcome p { margin: 0; color: var(--muted-foreground); }
@@ -349,50 +349,50 @@ header .status .dot { width: 8px; height: 8px; border-radius: 50%; background: c
 .welcome li { padding: calc(var(--spacing) * 1) 0 calc(var(--spacing) * 1) calc(var(--spacing) * 4); position: relative; }
 .welcome li::before { content: '·'; position: absolute; left: calc(var(--spacing) * 1.5); }
 
-/* 수집 표 — 좁은 칸에서도 값과 시각이 먼저 보이게 */
+/* Collection table — value and timestamp show first even in a narrow pane */
 .collection .tag-name { font-weight: 500; }
 .collection .address { color: var(--muted-foreground); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 .collection th.value-col, .collection td.value-col { text-align: right; white-space: nowrap; padding-left: calc(var(--spacing) * 2); }
 .collection th.time-col, .collection td.time-col { text-align: right; white-space: nowrap; }
 
-/* 첨부 파일 — File·Blob 요소에 실제 파일을 붙이는 칸 */
+/* Attachments — the field that attaches a real file to a File/Blob element */
 .editor.attachment { margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); }
 .editor.attachment h3 { margin: 0; font-size: var(--text-sm); }
 
-/* 이름(idShort) 바꾸기 */
+/* Renaming (idShort) */
 .editor.rename { margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); }
 
-/* 트리에서 찾기 */
+/* Find in tree */
 .tree-pane { display: flex; flex-direction: column; min-height: 0; }
 .tree-pane .tree { border-right: none; flex: 1; min-height: 0; }
 .search { display: flex; align-items: center; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 2) var(--space-pane); border-bottom: 1px solid var(--border); background: var(--card); }
 .search input { flex: 1; min-width: 0; }
 .search .count { color: var(--muted-foreground); font-size: var(--text-xs); white-space: nowrap; }
 .search .count.none { color: var(--warn); }
-/* 찾은 줄 — 색만으로 나누지 않는다(왼쪽 띠를 함께 준다) */
+/* Matched row — not by color alone (also add a left bar) */
 .tree .row.hit { background: color-mix(in oklab, var(--cb) 10%, transparent); box-shadow: inset 3px 0 0 var(--cb); }
 .tree .row.hit .label { color: var(--cb); }
 
-/* 첫 화면 버튼 두 개 · 새 설비 폼 */
+/* The two welcome-screen buttons · new equipment form */
 .summary .row-buttons { justify-content: flex-start; margin-bottom: calc(var(--spacing) * 3); }
-/* 파일 성격 표시 — 설비 한 대인지 공정·회사인지 */
+/* File kind marker — one machine, or a process / company */
 .unit-badge { margin-left: calc(var(--spacing) * 2); vertical-align: 2px; font-size: var(--text-xs); font-weight: 600; padding: var(--pad-chip); border-radius: var(--radius); border: 1px solid var(--aas-line-strong); color: var(--muted-foreground); }
 .unit-badge.composite { color: var(--cb); border-color: var(--cb); }
-/* 「이 파일에 넣기」 — 종류별 버튼 한 줄 */
+/* "Add to this file" — one row of buttons per kind */
 .summary .add-row { display: flex; align-items: center; gap: calc(var(--spacing) * 2); flex-wrap: wrap; margin: 0 0 calc(var(--spacing) * 4); font-size: var(--text-sm); }
 .summary .add-row .dim { margin-right: calc(var(--spacing) * 1); }
 .summary .add-form { margin-top: calc(var(--spacing) * 3); border: 1px solid var(--border); border-radius: var(--radius); }
 button.big { padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4); font-size: var(--text-sm); }
 
-/* 문서용 자료 — 가이던스에 붙여넣을 그림·표 */
+/* Document material — figures and tables to paste into guidance */
 .doc-assets .diagram { margin-top: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 2.5); background: #ffffff; border-radius: var(--radius); overflow: auto; max-height: 60vh; }
 .doc-assets .diagram svg { display: block; }
 
-/* 구성요소 상세 정보 테이블 */
+/* Component detail table */
 .doc-table { margin-top: var(--space-stack); padding-top: var(--space-stack); border-top: 1px solid var(--border); }
 .doc-table h4 { margin: 0 0 calc(var(--spacing) * 1); font-size: var(--text-sm); }
 .doc-table .preview { max-height: 46vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); margin-top: calc(var(--spacing) * 2);
-  /* 🔴 문서에 붙였을 때와 같은 모습이어야 한다 — 흰 종이 위의 검은 글자 */
+  /* Important: must look exactly as it will when pasted into a document — black text on white paper */
   background: #ffffff; color: #111111; padding: var(--pad-compact); }
 .doc-table .preview table { margin-bottom: calc(var(--spacing) * 3); }
 .doc-table .preview td { color: #111111; }
@@ -407,16 +407,16 @@ button.big { padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4); font-si
 .doc-table .info-block dd { margin: 0; word-break: break-all; }
 .doc-table .to-write { margin: calc(var(--spacing) * 1) 0 0 calc(var(--spacing) * 4); padding: 0; color: var(--muted-foreground); font-size: var(--text-xs); }
 
-/* 수집값 → 표준 API 내보내기 상태 */
+/* Collected values → standard API publishing status */
 .live-map { margin-top: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 2.5); border-radius: var(--radius); background: var(--okbg); border-left: 3px solid var(--teal); font-size: var(--text-xs); }
 .live-map.none { background: var(--warnbg); border-left-color: var(--warn); }
 .live-map .unmatched { margin-top: calc(var(--spacing) * 1); color: var(--muted-foreground); }
 
-/* ── 회사 표시(브랜드) ─────────────────────────────────────── */
+/* ── Company mark (brand) ─────────────────────────────────────── */
 header .brand { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); margin-right: calc(var(--spacing) * 2); }
 header .brand img { height: 20px; width: auto; display: block; }
 header .brand .product { font-weight: 700; letter-spacing: -0.2px; }
-/* 헤더 묶음 이름 — 버튼이 많아지면 어디까지가 한 묶음인지 안 보인다 */
+/* Header group labels — with many buttons you cannot tell where one group ends */
 header .group-label {
   color: var(--muted-foreground);
   font-size: var(--text-xs);
@@ -427,7 +427,7 @@ header .group-label {
 
 .welcome-logo { height: 34px; width: auto; display: block; margin-bottom: calc(var(--spacing) * 3); }
 
-/* ── 글자 크기 — 발표·시연에서 보이도록 한 단계 올린다 ─────── */
+/* ── Font size — one step larger so it is legible in presentations and demos ─────── */
 .tree .row { font-size: var(--text-sm); }
 .type { font-size: var(--text-xs); }
 .findings .rule { font-size: var(--text-xs); }
@@ -437,50 +437,50 @@ header .group-label {
 .doc-table table { font-size: var(--text-xs); }
 .summary .tile span { font-size: var(--text-xs); }
 
-/* 🔴 좁은 화면에서 헤더가 글자 하나씩 세로로 쪼개졌다(1024px 이하 실측).
-   버튼은 줄바꿈하지 않고, 헤더 자체가 두 줄로 접히게 한다 */
+/* Important: on narrow screens the header split into one character per line (measured at 1024px and below).
+   Buttons do not wrap; the header itself folds into two rows instead */
 header button, header .button, header .group-label, header .status { white-space: nowrap; }
 header select { max-width: 260px; }
 
-/* ── 트리 계층을 글자로 나눈다 ──────────────────────────────
-   들여쓰기(14px)만으로는 스크롤 중에 어디가 서브모델 경계인지 안 보인다.
-   🔴 깊이가 아니라 **종류**로 나눈다 — 같은 종류는 어디 있든 같게 보여야 한다. */
+/* ── Distinguish tree levels typographically ──────────────────────────────
+   Indentation (14px) alone does not show where a submodel boundary is while scrolling.
+   Important: distinguish by **kind**, not depth — the same kind must look the same wherever it sits. */
 .tree .row .label { font-weight: 400; }
 
-/* AAS — 이 파일이 무슨 자산인지. 트리에서 제일 큰 글자 */
+/* AAS — what asset this file is. The largest text in the tree */
 .tree .row[data-model-type='AssetAdministrationShell'] .label {
   font-size: var(--text-base); font-weight: 800; letter-spacing: -0.2px;
 }
-/* 서브모델 · 개념정의 묶음 — 문서의 장(章)에 해당한다.
-   색을 준다 — 서브모델(파란 글자)과 그 밑 요소(흰 글자)가 한눈에 갈린다. 색만 믿지 않고 굵기·윗선도 그대로 둔다(색각 대비) */
+/* Submodel · concept description group — the equivalent of a chapter in a document.
+   Give it color — submodels (blue text) and their elements (white text) are told apart at a glance. Do not rely on color alone: keep the weight and top rule too (color-vision contrast) */
 .tree .row[data-model-type='Submodel'] .label { font-size: var(--text-sm); font-weight: 700; color: var(--cb); }
 .tree .row[data-model-type='Submodel'] .type { color: var(--cb); }
 /*
-  🔴 용어사전은 서브모델과 **성격이 다르다** — 내용이 아니라 그 내용이 쓰는 말의 뜻풀이이고,
-     대개 도구가 자동으로 만들어 사람이 직접 고칠 일이 없다.
-     같은 굵기로 나란히 두니 서브모델의 하나로 읽혔다(사용자 제보). 구분선으로 갈라 놓는다.
+  Important: the glossary is **different in nature** from submodels — it is not content but definitions of the terms the content uses,
+     and is usually generated by tools, so people rarely edit it by hand.
+     Placed side by side at the same weight it read as just another submodel (user report). Separate it with a divider.
 */
 .tree .row[data-model-type='ConceptDescriptionGroup'] { border-top: 1px solid var(--border); margin-top: calc(var(--spacing) * 1); }
 .tree .row[data-model-type='ConceptDescriptionGroup'] .label { font-size: var(--text-sm); font-weight: 600; color: var(--muted-foreground); }
 .tree .row[data-model-type='ConceptDescription'] .label { color: var(--muted-foreground); }
-/* 담는 요소 — 절(節) */
+/* Container elements — sections */
 .tree .row[data-model-type='SubmodelElementCollection'] .label,
 .tree .row[data-model-type='SubmodelElementList'] .label,
 .tree .row[data-model-type='Entity'] .label,
 .tree .row[data-model-type='AnnotatedRelationshipElement'] .label { font-weight: 600; }
 
-/* 서브모델은 위에 선을 그어 묶음이 어디서 시작하는지 보이게 한다
-   (행 높이는 그대로다 — box-sizing: border-box) */
+/* Draw a rule above each submodel so you can see where a group starts
+   (row height is unchanged — box-sizing: border-box) */
 .tree .row[data-model-type='Submodel'],
 .tree .row[data-model-type='ConceptDescriptionGroup'] { border-top: 1px solid var(--border); }
 .tree .row[data-model-type='AssetAdministrationShell'] { border-bottom: 1px solid var(--border); }
 
-/* 종류 이름은 뒤로 물린다 — 이름이 주인공이다 */
+/* Push the kind name back — the name is the focus */
 .tree .row[data-model-type='AssetAdministrationShell'] .type,
 .tree .row[data-model-type='Submodel'] .type { opacity: 0.75; }
 
 
-/* ── 규칙·규약 화면 ────────────────────────────────────────── */
+/* ── Rules / conventions screen ────────────────────────────────────────── */
 .rules { padding: var(--pad-panel); background: var(--card); border-bottom: 1px solid var(--border); max-height: 72vh; overflow: auto; }
 .rules-head { display: flex; align-items: center; gap: calc(var(--spacing) * 3); margin-bottom: calc(var(--spacing) * 2); }
 .rules-head h2 { margin: 0; font-size: var(--text-base); }
@@ -507,18 +507,18 @@ header select { max-width: 260px; }
 .rules .conflict-card .mark { color: var(--teal); }
 .rules .layer-note { margin: calc(var(--spacing) * 1) 0; }
 
-/* ── 수집 연결 만들기 ──────────────────────────────────────── */
+/* ── Create collection connection ──────────────────────────────────────── */
 .add-aid input.miss { border-color: var(--warn); }
-/* ── 수집 연결 만들기 — 두 걸음(주소 → 태그) ─────────────── */
+/* ── Create collection connection — two steps (address → tags) ─────────────── */
 .add-aid h3 { margin: 0 0 calc(var(--spacing) * 1); }
 .add-aid .step { margin-top: calc(var(--spacing) * 4); }
 .add-aid .step h4 { display: flex; align-items: center; gap: calc(var(--spacing) * 2); margin: 0 0 calc(var(--spacing) * 2); font-size: var(--text-sm); }
-/* 걸음 번호 — 몇 개를 어떤 차례로 하는지가 한눈에 보여야 한다 */
+/* Step numbers — how many steps and in what order must be visible at a glance */
 .add-aid .step .num { display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; border-radius: 50%; background: var(--cb); color: var(--on-accent); font-size: var(--text-xs); }
 .add-aid .step .count { color: var(--teal); font-weight: normal; font-size: var(--text-xs); }
 .add-aid .step .count.dim { color: var(--muted-foreground); }
-/* 방향 그림 — 초보에게는 글보다 이쪽이 빠르다 */
+/* Direction diagram — faster than text for beginners */
 .add-aid .flow { font-family: var(--aas-mono); font-size: var(--text-xs); color: var(--muted-foreground);
   background: var(--muted); border-radius: var(--radius); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 2.5); margin: 0 0 calc(var(--spacing) * 2); }
 .add-aid .flow .here { display: block; color: var(--cb); margin-top: calc(var(--spacing) * 0.5); }
@@ -527,7 +527,7 @@ header select { max-width: 260px; }
 .add-aid .step-line input { flex: 1; min-width: 0; }
 .add-aid .step-line button { white-space: nowrap; }
 .add-aid .hint.warn { color: var(--warn); }
-/* 담은 태그 — 한 줄에 이름·주소·타입 */
+/* Selected tags — name · address · type on one line */
 .picked-list { list-style: none; margin: 0 0 calc(var(--spacing) * 2); padding: 0; }
 .picked-list li { display: flex; gap: calc(var(--spacing) * 1); align-items: center; margin-bottom: calc(var(--spacing) * 1); }
 .picked-list li input:first-child { flex: 0 0 30%; min-width: 0; }
@@ -536,17 +536,17 @@ header select { max-width: 260px; }
 .add-aid .more { margin-top: var(--space-stack); border-top: 1px solid var(--border); padding-top: var(--space-stack); }
 .add-aid .more summary { cursor: pointer; font-size: var(--text-xs); color: var(--muted-foreground); }
 .add-aid .modal-actions { margin-top: calc(var(--spacing) * 4); }
-/* 「자리도 함께 만들기」 — 체크와 글이 한 줄에 붙어야 무엇을 켜는지 읽힌다 */
+/* "Also create the slots" — checkbox and text must sit on one line so it reads what you are turning on */
 .add-aid .check-line { display: flex; align-items: center; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 2) 0 calc(var(--spacing) * 1); }
 .add-aid .check-line input { width: auto; margin: 0; }
-/* 대분류·소분류는 같은 무게다 — 한쪽만 넓으면 둘 중 하나가 곁가지로 보인다 */
+/* Major and minor categories carry equal weight — if one is wider, the other looks like a side branch */
 .add-aid .group-line { display: flex; gap: calc(var(--spacing) * 1); }
 .add-aid .group-line input { flex: 1; min-width: 0; }
-/* ── 설비에서 훑어 온 태그 고르기 ─────────────────────────── */
+/* ── Picking tags browsed from the equipment ─────────────────────────── */
 .browsed { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--pad-compact); margin: calc(var(--spacing) * 2) 0; background: var(--muted); }
 .browsed-head { display: flex; align-items: center; gap: calc(var(--spacing) * 2); margin-bottom: calc(var(--spacing) * 2); }
 .browsed-head .warn { color: var(--warn); font-size: var(--text-xs); }
-/* 태그가 수백 개일 수 있다 — 목록이 화면을 밀어내지 않게 가둔다 */
+/* There can be hundreds of tags — contain the list so it does not push the screen away */
 .browsed-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; }
 .browsed-list li { border-bottom: 1px solid var(--border); }
 .browsed-list label { display: flex; align-items: center; gap: calc(var(--spacing) * 2); flex-wrap: wrap; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 0.5); cursor: pointer; }
@@ -555,12 +555,12 @@ header select { max-width: 260px; }
 .browsed-list .now { color: var(--teal); font-size: var(--text-xs); }
 .browsed-list .warn { color: var(--warn); font-size: var(--text-xs); }
 .browsed-list .address { flex-basis: 100%; font-size: var(--text-xs); color: var(--muted-foreground); }
-/* 🔴 목록이 스크롤로 잘리는 자리와 단추가 붙으면 마지막 줄에 겹쳐 보인다 — 경계를 준다 */
+/* Important: when buttons sit right where the list is cut off by scrolling, they appear to overlap the last row — add a boundary */
 .browsed-list { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .browsed > button { margin-top: calc(var(--spacing) * 2); }
 .collection .auto-note { margin: calc(var(--spacing) * 1) 0 calc(var(--spacing) * 2); font-size: var(--text-xs); color: var(--teal); }
 
-/* ── 지적 묶음 — 같은 규칙은 한 카드로 ─────────────────────── */
+/* ── Finding groups — one card per rule ─────────────────────── */
 .findings li.group { cursor: default; }
 .findings .count { font-size: var(--text-xs); color: var(--muted-foreground); }
 .findings .single { cursor: pointer; border-radius: var(--radius); padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1); margin: calc(var(--spacing) * 0.5) calc(var(--spacing) * -1) 0; }
@@ -572,15 +572,15 @@ header select { max-width: 260px; }
 .findings .targets li.active { border-color: var(--cb); color: var(--cb); }
 .findings li.group .remedy, .findings li.group .policy { margin-top: calc(var(--spacing) * 2); }
 
-/* ── 인스펙터 다듬기 ───────────────────────────────────────── */
-/* 어디의 요소인지 — 제목 위의 길 */
+/* ── Inspector polish ───────────────────────────────────────── */
+/* Where the element lives — the path above the title */
 .inspector .trail { color: var(--muted-foreground); font-size: var(--text-xs); margin-bottom: calc(var(--spacing) * 0.5); }
 .inspector .trail .sep { color: var(--muted-foreground); }
-/* 버튼이 폭을 다 먹으면 입력칸과 구별되지 않는다 — 내용 크기로 두고 왼쪽 정렬 */
+/* A full-width button looks like an input — size to content and align left */
 .editor button { align-self: flex-start; }
 .editor button.primary { padding: calc(var(--spacing) * 1) calc(var(--spacing) * 6); }
 
-/* 연결 상태 — 점 + 글자 (마지막 수집 시도의 결과) */
+/* Connection status — dot + text (result of the last collection attempt) */
 .collection .conn { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); margin-left: auto; font-size: var(--text-xs); font-weight: 600; }
 .collection .conn .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .collection .conn.ok { color: var(--teal); }
@@ -588,23 +588,23 @@ header select { max-width: 260px; }
 .collection .conn.bad { color: var(--fail); }
 .collection .conn.idle { color: var(--muted-foreground); font-weight: 400; }
 /*
- * 「값 대기」 — 아직 값이 안 들어온 태그. 🔴 실패(노랑)와 같은 색을 쓰지 않는다:
- * 산출물이 Type/Template이라 빈 값이 정상이고, 노랗게 칠하면 고장으로 읽힌다.
- * 색만으로 나누지도 않는다 — 글자로 「값 대기」라고 적는다(점+글자 원칙과 같다).
+ * "Awaiting value" — a tag with no value yet. Important: do not use the failure (yellow) color:
+ * the output is a Type/Template, so empty values are normal; painting them yellow reads as a fault.
+ * Do not rely on color alone either — write "awaiting value" in text (same as the dot + text rule).
  */
 .collection .waiting { color: var(--muted-foreground); font-size: var(--text-xs); }
 .collection .interface-head { display: flex; align-items: center; gap: calc(var(--spacing) * 2); }
 
-/* 수집 머리 — 단추를 오른쪽 끝으로 */
+/* Collection header — push the button to the right edge */
 .collection-head { display: flex; align-items: center; gap: calc(var(--spacing) * 2); }
 .collection-head .spacer { margin-left: auto; }
 
-/* 판 번호 — 있는 듯 없는 듯, 그러나 물어보면 바로 찾을 수 있게 */
+/* Version number — unobtrusive, but easy to find when asked */
 header .brand .version { color: var(--muted-foreground); font-size: var(--text-xs); font-weight: 400; margin-left: calc(var(--spacing) * 0.5); }
 
-/* ── 공정: 무엇으로 이루어졌나 ────────────────────────────────
-   설비를 매다는 자리. 목록은 「이름 · 대수 · Asset 주소」 순으로 읽힌다 —
-   주소는 길어서 흐리게 뒤로 뺀다(사람이 읽는 것은 이름이다). */
+/* ── Process: what it is made of ────────────────────────────────
+   Where equipment is attached. The list reads as "name · count · Asset address" —
+   addresses are long, so they are muted and pushed back (people read the name). */
 .unit-choice {
   display: flex;
   gap: calc(var(--spacing) * 2);
@@ -672,17 +672,17 @@ header .brand .version { color: var(--muted-foreground); font-size: var(--text-x
   margin-bottom: calc(var(--spacing) * 2);
 }
 
-/* ── 공정 만들기: 들어가는 설비 고르기 ────────────────────────
-   🔴 구성을 만들기 화면 안으로 가져온 자리다. 공정은 구성이 곧 정체라,
-   나중에 채우게 하면 "빈 공정을 만들어 놓고 뭘 해야 하나"에서 막힌다. */
+/* ── Create process: pick the equipment it contains ────────────────────────
+   Important: composition was moved into the create screen. A process is defined by its composition,
+   so deferring it leaves users stuck at "I made an empty process, now what?". */
 .pick-parts {
   margin: calc(var(--spacing) * 3) 0 calc(var(--spacing) * 3);
   padding: var(--pad-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-/* 구역 제목 — 어느 화면(초기화면 포함)에서든 같은 강조: 파란 왼막대 + 굵게.
-   🔴 .welcome p가 회색을 덮어쓰지 못하게 p.pick-title로 특이도를 맞춘다 */
+/* Section title — same emphasis on every screen (welcome included): blue left bar + bold.
+   Important: match specificity with p.pick-title so .welcome p cannot override it with gray */
 p.pick-title {
   margin: calc(var(--spacing) * 0.5) 0 calc(var(--spacing) * 2);
   font-size: var(--text-sm);
@@ -700,7 +700,7 @@ p.pick-title {
 }
 .pick-list li label {
   display: flex;
-  flex-direction: row; /* .add-form label이 세로(column)라 체크·이름·파일명이 줄줄이 떨어졌다(실측 2026-09-08) */
+  flex-direction: row; /* .add-form label is vertical (column), so checkbox, name and file name fell onto separate lines (measured 2026-09-08) */
   align-items: center;
   gap: calc(var(--spacing) * 2);
   padding: calc(var(--spacing) * 1) 0;
@@ -708,20 +708,20 @@ p.pick-title {
   color: var(--foreground);
   font-size: var(--text-sm);
 }
-/* 이름 칩 — 쉼표 나열 대신 */
+/* Name chips — instead of a comma list */
 .chips-field { margin: calc(var(--spacing) * 2) 0; }
 .chips-line { display: flex; gap: calc(var(--spacing) * 2); }
 .chips-line input { flex: 1; min-width: 0; }
 .chips { list-style: none; display: flex; flex-wrap: wrap; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 2) 0 0; padding: 0; }
 .chip { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); padding: var(--pad-chip); border-radius: var(--radius); background: var(--background); border: 1px solid var(--aas-line-strong); font-size: var(--text-xs); }
 .chip button { padding: 0 calc(var(--spacing) * 0.5); font-size: var(--text-xs); }
-/* 구성 트리 만들기 — 회사 → 공정 → 설비 */
+/* Build composition tree — company → process → equipment */
 .build-tree, .build-tree ul { list-style: none; margin: 0; padding: 0; }
 .build-tree > li > ul, .build-tree li > ul { margin-left: calc(var(--spacing) * 4); padding-left: calc(var(--spacing) * 2.5); border-left: 1px solid var(--border); }
 .build-row { display: flex; align-items: center; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 1) 0; font-size: var(--text-sm); min-width: 0; }
-/* 줄 안 글자는 꺾이지 않는다 — 「회사·묶음」「공정」이 세로로 한 글자씩 찍혔다(실측 2026-09-08). 긴 주소만 말줄임 */
+/* Row text never wraps — "company/group" and "process" were printed vertically one character at a time (measured 2026-09-08). Only long addresses get an ellipsis */
 .build-row > span, .build-row > button, .build-row > label { white-space: nowrap; }
-/* 줄 안 동작은 **버튼으로 보여야** 한다 — 글자 링크로 두니 "보라는 건지 누르라는 건지" 구분이 안 됐다(사용자 2026-09-08) */
+/* Row actions must **look like buttons** — as text links, users could not tell "look at this" from "click this" (user, 2026-09-08) */
 .build-row .act { font-size: var(--text-xs); line-height: var(--leading-normal); padding: var(--pad-chip); border: 1px solid var(--aas-line-strong); border-radius: var(--radius); background: var(--accent); color: var(--foreground); }
 .build-row .act:hover:not(:disabled) { border-color: var(--cb); color: var(--cb); }
 .build-row .act.danger { color: var(--fail); padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2); margin-left: auto; }
@@ -731,7 +731,7 @@ p.pick-title {
 .build-row > .build-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .build-row .hier-detail { white-space: normal; }
 .build-row .build-name { font-weight: 600; }
-/* 입력 줄이 열린 자리 — 어디 밑에 넣는 중인지 */
+/* Where the input row is open — shows what it is being added under */
 .build-row.focus { background: color-mix(in oklab, var(--cb) 10%, transparent); border-radius: var(--radius); }
 .hier-count.planned { background: color-mix(in oklab, var(--warn) 18%, transparent); color: var(--warn); }
 .hier-count.unopened { background: color-mix(in oklab, var(--muted-foreground) 18%, transparent); color: var(--muted-foreground); }
@@ -745,7 +745,7 @@ p.pick-title {
 .build-adder .build-count { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); font-size: var(--text-xs); }
 .build-adder .build-count input { width: 56px; }
 .build-adder .warn { flex-basis: 100%; margin: 0; }
-/* 선택·고급은 접어 둔다 — 대부분은 안 쓴다 */
+/* Optional / advanced is collapsed — most people never use it */
 .pick-advanced { margin: calc(var(--spacing) * 2) 0; }
 .pick-advanced > summary { cursor: pointer; font-size: var(--text-sm); color: var(--muted-foreground); padding: calc(var(--spacing) * 1) 0; }
 .pick-advanced[open] > summary { color: var(--foreground); margin-bottom: calc(var(--spacing) * 2); }
@@ -769,9 +769,9 @@ p.pick-title {
   white-space: pre-wrap;
 }
 
-/* ── 계층: 대수 입력과 자식 펼쳐 보기 ─────────────────────────
-   ㉯ 파일 구조는 참조형 그대로 두고(포함형은 KOSMO-AAS-4 위반 — 실측 78건),
-   사람이 보는 화면에서만 자식 설비의 서브모델을 이어 붙인다. */
+/* ── Hierarchy: count input and expanding children ─────────────────────────
+   (b) The file structure stays reference-based (embedding violates KOSMO-AAS-4 — 78 cases measured);
+   child equipment submodels are attached only in the on-screen view. */
 .hier-row {
   display: flex;
   align-items: baseline;
@@ -828,14 +828,14 @@ p.pick-title {
   width: 56px;
 }
 
-/* 🔴 위의 .hier-list li(flex 가로)가 펼친 상세와 부딪힌다 — 행(hier-row)과 상세는 세로로 쌓는다.
-   자식 선택자(>)여야 한다 — li로 쓰면 하위 서브모델 목록(.hier-sublist li)까지 덮어
-   이름과 개수가 붙어 보인다(실측). */
+/* Important: .hier-list li above (horizontal flex) collides with the expanded details — stack the row (hier-row) and details vertically.
+   It must be a child selector (>) — a plain li would also cover the nested submodel list (.hier-sublist li)
+   and the name and count would run together (measured). */
 .hier-list > li {
   display: block;
 }
 
-/* ── 파일 목록 — 쌓인 파일을 한눈에 보고 지운다 ──────────────── */
+/* ── File list — see accumulated files at a glance and delete them ──────────────── */
 .file-list {
   margin-bottom: calc(var(--spacing) * 4);
   padding: var(--pad-card);
@@ -884,7 +884,7 @@ p.pick-title {
   margin-left: auto;
 }
 
-/* ── 트리의 설비 가지(보기 전용) — 공정 → 장비 → 서브모델 ────── */
+/* ── Equipment branch in the tree (view only) — process → equipment → submodel ────── */
 .tree [data-model-type='LinkedAsset'] {
   font-weight: 600;
 }
@@ -892,24 +892,24 @@ p.pick-title {
   content: '⚙ ';
   opacity: 0.7;
 }
-/* 공정·라인(파일 없는 층)은 가운데 구성 트리와 같은 ▦ */
+/* Processes / lines (levels without a file) use the same ▦ as the middle composition tree */
 .tree [data-model-type='LinkedAsset'][data-linked-group]::before { content: '▦ '; }
-/* 부품(BoM) — 설비(⚙ 굵게)와 갈라 보이게: 흐린 색, 작은 점, 종류 Part. 「부품 (n)」 줄은 접힌 서랍 */
+/* Parts (BoM) — set apart from equipment (⚙ bold): muted color, small dot, kind Part. The "Parts (n)" row is a collapsed drawer */
 .tree [data-model-type='LinkedAsset'][data-linked-part] { font-weight: 400; color: var(--muted-foreground); }
 .tree [data-model-type='LinkedAsset'][data-linked-part]::before { content: '· '; opacity: 1; }
 .tree [data-model-type='LinkedAsset'][data-linked-part-group] { font-weight: 500; color: var(--muted-foreground); font-style: italic; }
 .tree [data-model-type='LinkedAsset'][data-linked-part-group]::before { content: '▤ '; }
 .file-list li button.danger {
-  white-space: nowrap; /* 「지우기」가 두 줄로 꺾이지 않게 */
+  white-space: nowrap; /* Keep "Delete" from wrapping onto two lines */
 }
 
-/* 편집기 닫기 — 이게 없으면 트리를 한 번 고른 뒤 설비 추가 화면으로 못 돌아간다 */
+/* Close editor — without it, once a tree node is selected you cannot get back to the add-equipment screen */
 .inspector-close {
   float: right;
   font-size: var(--text-xs);
 }
 
-/* 이력 패널 — 파일 목록과 같은 결 */
+/* History panel — same style as the file list */
 .history-panel {
   margin-bottom: calc(var(--spacing) * 4);
   padding: var(--pad-card);
@@ -925,7 +925,7 @@ p.pick-title {
 }
 .history-panel li:last-child { border-bottom: none; }
 .history-panel li button { margin-left: auto; white-space: nowrap; }
-/* 「누가」 — 긴 이름이 줄을 밀어내지 않게 잘라 둔다(전체는 title로 본다) */
+/* "Who" — truncate long names so they do not push the row (full value via title) */
 .history-panel li .who {
   color: var(--cb);
   max-width: 10em;
@@ -935,7 +935,7 @@ p.pick-title {
 }
 .inspector-history { float: right; margin-right: calc(var(--spacing) * 3); font-size: var(--text-xs); }
 
-/* 그룹(중간 마디)과 중첩 목록 — 회사>공정>장비를 한 파일 안에서 */
+/* Groups (intermediate nodes) and nested lists — company > process > equipment within one file */
 .hier-nested {
   margin-left: calc(var(--spacing) * 6);
 }
@@ -947,11 +947,11 @@ p.pick-title {
   color: var(--teal);
   font-weight: 600;
 }
-/* 줄 안의 동작 글자는 꺾이지 않는다 — 「＋ 설비」가 두 줄로 부러졌다(실측 2026-09-08) */
+/* Row action text never wraps — "+ Equipment" broke onto two lines (measured 2026-09-08) */
 .hier-row button, .hier-row .hier-target { white-space: nowrap; }
 .hier-modes button.on { background: var(--cb); border-color: var(--cb); color: var(--on-accent); }
 
-/* 다른 파일을 고치는 중 — 모르게 두면 안 된다 */
+/* Editing a different file — must never go unnoticed */
 .linked-banner {
   margin: 0 0 calc(var(--spacing) * 3);
   padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2.5);
@@ -960,7 +960,7 @@ p.pick-title {
   font-size: var(--text-xs);
 }
 
-/* ⚙ 설비 컨텍스트 — 고른 장비의 동작이 그 자리에 */
+/* ⚙ Equipment context — actions for the selected equipment, right there */
 .asset-context {
   padding: var(--pad-panel);
   border: 1px solid var(--border);
@@ -971,53 +971,53 @@ p.pick-title {
 .asset-actions { margin: calc(var(--spacing) * 3) 0; }
 
 
-/* 값 한꺼번에 입력 — 요소를 하나씩 눌러 40번 저장하게 하지 않는다 */
+/* Bulk value entry — do not make users click elements one by one and save 40 times */
 .bulk-values { margin-top: calc(var(--spacing) * 4); }
 .bulk-values table { width: 100%; border-collapse: collapse; margin: calc(var(--spacing) * 2) 0 calc(var(--spacing) * 3); }
 .bulk-values td { padding: var(--pad-cell-y) var(--pad-cell-x) var(--pad-cell-y) 0; }
 .bulk-values .bulk-label { font-size: var(--text-xs); color: var(--muted-foreground); max-width: 46%; }
 .bulk-values input { width: 100%; }
 .tiles-sub { margin-top: calc(var(--spacing) * 2); }
-.tiles-sub .tile b { font-size: var(--text-lg); } /* 구성(윗줄)이 주인공 — 합계는 한 단 작게 */
+.tiles-sub .tile b { font-size: var(--text-lg); } /* Composition (top row) is the focus — totals one step smaller */
 
-/* 새 설비 — 필수(번호 고정)와 선택(체크)을 갈라 보여 준다 */
+/* New equipment — show required (fixed numbering) and optional (checkbox) separately */
 .sm-plan { margin: 0; padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
 .sm-plan ol, .sm-plan ul { list-style: none; margin: 0 0 calc(var(--spacing) * 3); padding: 0; }
 .sm-plan > :last-child { margin-bottom: 0; }
 .sm-plan li { padding: calc(var(--spacing) * 0.5) 0; font-size: var(--text-sm); }
-/* 두 목록이 같은 세 열 — 체크 · 번호(폭 고정) · 이름. 번호 자릿수가 바뀌어도 이름 시작점이 같다 */
+/* Both lists share the same three columns — checkbox · number (fixed width) · name. Names start at the same point however many digits the number has */
 .sm-plan li > label { display: grid; grid-template-columns: auto 2.5ch 1fr; align-items: baseline; column-gap: var(--space-gap); margin: 0; }
 .sm-plan .sm-num { text-align: right; font-variant-numeric: tabular-nums; }
 
 
 
-/* 로고 = 처음 화면으로 (관습적 동작) */
+/* Logo = back to the start screen (conventional behavior) */
 .brand { cursor: pointer; }
 .brand:hover .product { color: var(--cb); }
 
 
-/* 🔴 환영 화면은 가운데 정렬이라 그 안의 만들기 폼 목록(필수 1~4)이 끌려가
-   가운데로 보였다(선택 줄은 flex라 좌측 → 뒤섞임). 폼은 어디서 열려도 좌측이다 */
+/* Important: the welcome screen is center-aligned, which dragged its create-form list (required 1–4) to the
+   center (optional rows are flex, so left → mixed). Forms are left-aligned wherever they open */
 .welcome .add-form,
 .add-form {
   text-align: left;
 }
 
-/* 호기별 나누기 — 대수 밑의 선택지 */
+/* Split by unit number — an option under the count */
 .hier-split { display: flex; gap: calc(var(--spacing) * 2); align-items: baseline; margin: calc(var(--spacing) * 1) 0 calc(var(--spacing) * 2); font-size: var(--text-xs); }
 .hier-split input { width: auto; }
 .pick-count .pick-split { display: inline-flex; align-items: baseline; gap: calc(var(--spacing) * 1); margin-left: calc(var(--spacing) * 2); font-size: var(--text-xs); }
 
-/* 가져오기 — 같은 이름이 있을 때 고르는 칸 */
+/* Import — field to choose when the same name already exists */
 .add-form fieldset.choice { border: 1px solid var(--warn); border-radius: var(--radius); padding: var(--pad-compact); margin: 0; display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
 .add-form fieldset.choice legend { color: var(--warn); font-weight: 600; padding: 0 calc(var(--spacing) * 1); }
 .add-form fieldset.choice label { display: flex; gap: calc(var(--spacing) * 2); align-items: flex-start; font-size: var(--text-sm); }
 .add-form fieldset.choice input[type='radio'] { margin-top: calc(var(--spacing) * 1); }
 
-/* ── 트리에서 바로 하는 편집 — 끌어서 순서 바꾸기 · 「⋯」 메뉴 (2026-09-04) ── */
+/* ── Editing directly in the tree — drag to reorder · "⋯" menu (2026-09-04) ── */
 .tree .row[draggable='true'] { cursor: grab; }
 .tree .row.dragging { opacity: 0.4; }
-/* 놓을 자리 — 행의 위/아래에 파란 줄 */
+/* Drop target — blue line above/below the row */
 .tree .row.drop-before { box-shadow: inset 0 2px 0 var(--cb); }
 .tree .row.drop-after { box-shadow: inset 0 -2px 0 var(--cb); }
 .tree .row .more {
@@ -1062,14 +1062,14 @@ p.pick-title {
 .row-buttons.actions .hint { font-size: var(--text-xs); flex-basis: 100%; }
 
 
-/* ── 2026-09-09 4차 검토 ─────────────────────────────────────── */
-/* 헤더 묶음 — 통째로 줄을 바꾼다. 1024px에서 「AASX 내려받기」만 셋째 줄로 떨어졌다 */
+/* ── 2026-09-09 4th review ─────────────────────────────────────── */
+/* Header group — wraps as a whole. At 1024px only "Download AASX" dropped to a third line */
 header .group { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); }
-/* 첫 화면 「이어서 작업하기」 — 올려 둔 파일이 있으면 그 목록이 주인공 */
+/* Welcome "Continue working" — if files were uploaded, that list is the focus */
 .welcome-files { width: min(560px, 100%); text-align: left; margin-top: calc(var(--spacing) * 2); }
-/* 🔴 접었다 펴는 제목 — 기본 삼각형(marker)을 끄고 ▼를 **제목 글자 바로 옆**에 둔다.
-      예전엔 오른쪽 끝에 두었는데 제목과 떨어져 무엇을 여는 단추인지 흐렸다(사용자 2026-10-01).
-      Safari는 ::marker를 안 먹어 ::-webkit-details-marker도 함께 끈다. */
+/* Important: collapsible title — turn off the default triangle (marker) and place ▼ **right next to the title text**.
+      It used to sit at the far right, away from the title, so it was unclear what the button opened (user, 2026-10-01).
+      Safari ignores ::marker, so ::-webkit-details-marker is turned off as well. */
 .welcome-files-title {
   margin: 0 0 calc(var(--spacing) * 2); font-size: var(--text-sm); font-weight: 700; color: var(--cb);
   padding-left: calc(var(--spacing) * 2); border-left: 3px solid var(--cb);
@@ -1083,7 +1083,7 @@ header .group { display: inline-flex; align-items: center; gap: calc(var(--spaci
 }
 .welcome-files[open] > .welcome-files-title::after { transform: rotate(180deg); }
 .welcome-files-title:hover { background: var(--accent); }
-/* 키보드로 왔을 때 어디 있는지 보이게 — 초점 테두리는 지우지 않는다 */
+/* Show keyboard users where they are — never remove the focus outline */
 .welcome-files-title:focus-visible { outline: 2px solid var(--cb); outline-offset: 2px; }
 .welcome-files ul { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); overflow: hidden; }
 .welcome-files li + li { border-top: 1px solid var(--border); }
@@ -1093,32 +1093,32 @@ header .group { display: inline-flex; align-items: center; gap: calc(var(--spaci
 .welcome-file .dim { font-size: var(--text-xs); }
 .welcome-file .file-date { margin-left: auto; }
 .welcome-files .hint { margin: calc(var(--spacing) * 2) 0 0; font-size: var(--text-xs); }
-/* 규칙·규약 팝업 — 다른 팝업과 같은 틀. 안쪽 .rules의 띠용 테두리·높이 제한은 걷는다 */
+/* Rules / conventions popup — same frame as other popups. Strip the strip-style border and height cap of the inner .rules */
 .modal.rules-modal { width: min(960px, 100%); }
 .modal.rules-modal .rules { border-bottom: 0; max-height: none; overflow: visible; }
 
-/* 첫 화면 목록은 안내 목록(.welcome li의 「·」)과 다르다 — 점·들여쓰기를 걷는다 */
+/* The welcome list differs from the guidance list (the "·" of .welcome li) — strip bullets and indent */
 .welcome-files li { padding: 0; }
 .welcome-files li::before { content: none; }
-/* 넓은 창(1920px)에서 가운데 칸이 남는 폭을 다 받는다 — 글줄이 한없이 길어지지 않게 내용 폭을 가둔다 */
+/* On wide windows (1920px) the middle pane takes all spare width — cap the content width so lines do not grow endlessly */
 .middle > * { max-width: 1040px; width: 100%; }
 
-/* 파일 목록 — 체크 박스 일괄 지우기 */
+/* File list — bulk delete with checkboxes */
 .file-list li input[type='checkbox'], .file-pick-all input { width: auto; margin: 0 calc(var(--spacing) * 0.5) 0 0; }
 .file-pick-all { display: flex; align-items: center; gap: calc(var(--spacing) * 2); font-size: var(--text-xs); margin: calc(var(--spacing) * -0.5) 0 calc(var(--spacing) * 2); }
 .file-bulk { display: flex; align-items: center; gap: calc(var(--spacing) * 3); flex-wrap: wrap; margin-top: calc(var(--spacing) * 1); }
 .file-bulk .hint { margin: 0; font-size: var(--text-xs); }
 
-/* 종류 옆 우리말 설명(HierarchicalStructures) — 규격명은 흐리게, 설명은 초록으로 눈에 걸리게 */
+/* Korean description next to the kind (HierarchicalStructures) — spec name muted, description in green to catch the eye */
 .tree .row .type.note { color: var(--teal); opacity: 1; font-size: var(--text-xs); font-weight: 500; white-space: nowrap; }
 
-/* 수집 머리 — 오른쪽 칸이 400px이면 「수집」이 「수 집」으로 꺾였다(2026-09-10 실측). 단추는 통째로 다음 줄로 */
+/* Collection header — with a 400px right pane, the title broke mid-word (measured 2026-09-10). Buttons move to the next line as a whole */
 .collection-head { flex-wrap: wrap; row-gap: var(--space-gap); }
-/* 단추 묶음은 한 덩어리로 줄을 바꾼다 — 하나만 둘째 줄로 떨어지지 않게 */
+/* Button groups wrap as a unit — so a single button never drops to the second line alone */
 .collection-head > .row-buttons, .collection-head > .actions { flex-wrap: nowrap; }
 .collection-head button { white-space: nowrap; }
 
-/* ── 자동 고치기 미리보기 팝업 ─────────────────────────────────── */
+/* ── Auto-fix preview popup ─────────────────────────────────── */
 .modal.fix-modal { width: min(1100px, 100%); }
 .fix-preview { padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4) calc(var(--spacing) * 4); }
 .fix-preview h2 { margin: 0 0 calc(var(--spacing) * 2); font-size: var(--text-base); }
@@ -1139,14 +1139,14 @@ header .group { display: inline-flex; align-items: center; gap: calc(var(--spaci
 .fix-preview .row-buttons.actions { margin-top: calc(var(--spacing) * 3); }
 .summary .hint.ledger { border-left: 3px solid var(--warn); padding-left: calc(var(--spacing) * 2); }
 
-/* 미리보기 — 표만 스크롤하고 「반영」 단추는 늘 보인다(항목이 100건이어도 단추를 찾아 내려가지 않게) */
+/* Preview — only the table scrolls; the "Apply" button stays visible (no scrolling to find it even with 100 items) */
 .modal.fix-modal { display: flex; flex-direction: column; max-height: 86vh; }
 .fix-preview { display: flex; flex-direction: column; min-height: 0; }
 .fix-preview .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; max-height: 56vh; }
 .fix-preview td.what { max-width: 440px; }
 
-/* ── 레퍼런스 번들 (2026-09-30) ─────────────────────────────────────────────
-   한 화면에 세 질문: 무엇이 들었나(카드) · 이어지나(매트릭스) · 확인할 점(목록) */
+/* ── Reference bundle (2026-09-30) ─────────────────────────────────────────────
+   Three questions on one screen: what is inside (cards) · does it connect (matrix) · what to check (list) */
 .modal.wide { width: min(1180px, 100%); max-height: 86vh; }
 .bundle-body { padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6) calc(var(--spacing) * 6); }
 .bundle-body h2 { margin: 0 0 calc(var(--spacing) * 4); font-size: var(--text-xl); }
@@ -1233,13 +1233,13 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .bundle-findings li.warning .badge { color: var(--warn); }
 .bundle-foot { margin-top: var(--space-stack); border-top: 1px solid var(--border); padding-top: var(--space-stack); }
 
-/* 시연본(수집 연결 포함) — 제출본과 섞이지 않게 (2026-09-30) */
+/* Demo build (with collection connections) — keep it from mixing with the submission build (2026-09-30) */
 .bundle-card .card-demo { font-size: var(--text-xs); color: var(--cb); background: color-mix(in oklab, var(--cb) 14%, transparent);
   border: 1px solid color-mix(in oklab, var(--cb) 45%, transparent); border-radius: var(--radius); padding: var(--pad-chip); margin: calc(var(--spacing) * 0.5) 0; }
 .bundle-demo-note { margin: calc(var(--spacing) * 3) 0 0; padding: var(--pad-compact); border-radius: var(--radius); font-size: var(--text-sm);
   border: 1px solid color-mix(in oklab, var(--cb) 45%, transparent); background: color-mix(in oklab, var(--cb) 8%, transparent); }
 
-/* 실동작 증빙 (2026-09-30) — 시연을 대신하는 수집 기록 */
+/* Live operation evidence (2026-09-30) — collection records that stand in for a demo */
 .evidence-empty { padding: var(--pad-card); border: 1px dashed var(--warn); border-radius: var(--radius); font-size: var(--text-sm); }
 .evidence-empty ol { margin: calc(var(--spacing) * 2) 0 0; padding-left: calc(var(--spacing) * 5); color: var(--muted-foreground); }
 .evidence-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: calc(var(--spacing) * 2); }
@@ -1251,7 +1251,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .evidence-card .ev-iface { font-size: var(--text-xs); margin-top: calc(var(--spacing) * 0.5); }
 .evidence-card code { font-size: var(--text-xs); color: var(--muted-foreground); }
 
-/* 2026-09-30 검증 후 보완 — 표준 경고 칩 · 이어받은 증빙 · 첨부 · 가상 PLC */
+/* Post-verification additions 2026-09-30 — standard warning chip · inherited evidence · attachments · virtual PLC */
 .bundle-card .card-std { font-size: var(--text-xs); color: var(--warn); border: 1px solid color-mix(in oklab, var(--warn) 50%, transparent);
   border-radius: var(--radius); padding: var(--pad-chip); margin: calc(var(--spacing) * 0.5) 0; }
 .evidence-card.carried { border-left-color: var(--cb); }
@@ -1264,7 +1264,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .attach-table button.link { padding: 0; color: var(--cb); }
 .collection .simulate-box { margin-top: calc(var(--spacing) * 4); padding-top: calc(var(--spacing) * 2.5); border-top: 1px dashed var(--border); }
 
-/* 지적 목록 — 위반·경고 칸 분리 (2026-09-30 사용자 피드백) */
+/* Findings list — separate violation and warning columns (user feedback 2026-09-30) */
 .findings .findings-section { margin: calc(var(--spacing) * 3) 0 calc(var(--spacing) * 4); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); }
 .findings .findings-section.error { background: color-mix(in oklab, var(--fail) 6%, transparent); }
 .findings .findings-section.warning { background: color-mix(in oklab, var(--warn) 5%, transparent); }
@@ -1273,7 +1273,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .findings .findings-section .hint { margin: calc(var(--spacing) * 0.5) 0; }
 .findings .findings-section > ul { margin: 0; }
 
-/* 공정 파일의 수집 칸 — 설비 목록에서 바로 연결·수집 (2026-10-01) */
+/* Collection pane for process files — connect and collect straight from the equipment list (2026-10-01) */
 .collection .equip-list { list-style: none; margin: calc(var(--spacing) * 2) 0; padding: 0; display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
 .collection .equip-list li { padding: var(--pad-compact); border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 .collection .equip-list li.on { border-color: color-mix(in oklab, var(--teal) 45%, transparent); }
@@ -1288,7 +1288,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .collection .equip-actions button.link { margin-left: auto; }
 .collection .hint.small { font-size: var(--text-xs); }
 
-/* 헤더 드롭다운 메뉴 (2026-10-02) — 가끔 쓰는 것을 접어 둔다. 자주 쓰는 것은 밖에 남긴다 */
+/* Header dropdown menu (2026-10-02) — folds away rarely used actions. Frequently used ones stay outside */
 .menu-wrap { position: relative; display: inline-flex; }
 .menu-trigger .caret { margin-left: calc(var(--spacing) * 1); font-size: var(--text-xs); color: var(--muted-foreground); }
 .menu-trigger.on { background: var(--accent); border-color: var(--cb); }
@@ -1305,28 +1305,28 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 }
 .menu-pop button:hover:not(:disabled) { background: var(--accent); }
 .menu-pop button:disabled { opacity: 0.4; }
-/* 성격이 다른 묶음 앞에 가는 선 — 라벨 없이도 갈라 보인다 */
+/* Thin line before a group of a different nature — reads as separate even without a label */
 .menu-pop button.sep { border-top: 1px solid var(--border); margin-top: calc(var(--spacing) * 1); padding-top: calc(var(--spacing) * 2); }
-/* 묶음 사이 구분선 — 「① 편집」 같은 라벨을 걷어 내고 이것으로 가른다 */
+/* Divider between groups — replaces labels like "(1) Edit" */
 .bar .sep-line { width: 1px; height: 18px; background: var(--border); margin: 0 calc(var(--spacing) * 1); flex: none; }
-/* 오른쪽 끝 메뉴 — 왼쪽 기준이면 화면 밖으로 나간다(2026-10-02 실측: 131px 잘림) */
+/* Rightmost menu — left-anchored it runs off screen (measured 2026-10-02: 131px clipped) */
 .menu-pop.right { left: auto; right: 0; }
 
-/* 글자 로고 — VEXPLOR 로고 그림을 받기 전까지(2026-10-02). 받으면 <img>로 되돌린다 */
+/* Text logo — until the VEXPLOR logo image arrives (2026-10-02). Switch back to <img> once it does */
 .wordmark {
   font-weight: 800; letter-spacing: 1.5px; color: var(--cb);
   font-size: var(--text-lg); line-height: 1; white-space: nowrap;
 }
 .wordmark.big { font-size: var(--text-3xl); letter-spacing: 3px; display: block; margin-bottom: calc(var(--spacing) * 3); }
 
-/* 로그인 화면 (2026-10-02) — 다른 것이 없는 화면이라 가운데로 모은다 */
+/* Login screen (2026-10-02) — nothing else is on it, so center everything */
 .login-wrap { display: flex; align-items: center; justify-content: center; padding: calc(var(--spacing) * 10) calc(var(--spacing) * 4); }
 .login { width: min(380px, 100%); text-align: center; }
 .login h1 { margin: calc(var(--spacing) * 1) 0 calc(var(--spacing) * 3); font-size: var(--text-xl); }
 .login > p { color: var(--muted-foreground); margin: 0 0 calc(var(--spacing) * 4); }
 .login-form { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); text-align: left; margin-top: calc(var(--spacing) * 4); }
 .login-form label { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); font-size: var(--text-sm); color: var(--muted-foreground); }
-/* 칸 이름 옆에 필수 표시(*) · (선택)이 한 줄로 붙게 — 입력 칸과 도움말은 다음 줄로(2026-10-08) */
+/* Keep the required mark (*) / (optional) on one line with the field name — input and help text go on the next line (2026-10-08) */
 .login-form label:not(.agree) { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: calc(var(--spacing) * 1); row-gap: calc(var(--spacing) * 1); }
 .login-form label:not(.agree) > input,
 .login-form label:not(.agree) > select,
@@ -1336,10 +1336,10 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .login-form button { margin-top: calc(var(--spacing) * 2); }
 .login .note { margin: 0; text-align: left; }
 .login .hint { margin: calc(var(--spacing) * -1) 0 0; }
-/* 헤더의 사용자 메뉴 — 이름이 길어도 헤더를 밀지 않는다 */
+/* Header user menu — long names do not push the header */
 .who { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 계정 관리 — 표가 좁은 팝업 안에서 넘치지 않게 */
+/* Account management — keep the table from overflowing the narrow popup */
 .accounts { min-width: min(720px, 86vw); }
 .accounts-table { width: 100%; border-collapse: collapse; margin-bottom: calc(var(--spacing) * 3); }
 .accounts-table th, .accounts-table td { text-align: left; padding: var(--pad-cell); border-bottom: 1px solid var(--border); }
@@ -1348,8 +1348,8 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .accounts-table td.row-buttons { text-align: right; white-space: nowrap; }
 .accounts .reset-form { margin: 0 0 calc(var(--spacing) * 4); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); }
 
-/* 로그인 화면 — 로그인 카드가 주인공, 체험 안내는 그 아래(2026-10-06 디자인 검토)
-   파란 채움 단추는 화면에 하나만 둔다(로그인). 체험 단추는 테두리 단추다 */
+/* Login screen — the login card is the focus, the trial notice sits below it (design review 2026-10-06)
+   Only one filled blue button per screen (login). The trial button is an outline button */
 .login { width: min(400px, 100%); word-break: keep-all; }
 .login-form {
   padding: var(--space-dialog);
@@ -1396,7 +1396,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .demo-card li.locked { color: var(--warn); }
 .demo-card li.locked::before { content: '🔒'; left: 0; font-size: var(--text-xs); }
 
-/* 회원가입의 개인정보 수집·이용 동의 — 무엇을·왜·언제까지를 동의 칸 바로 위에 (2026-10-06) */
+/* Sign-up consent to personal data collection and use — what, why and for how long, right above the consent field (2026-10-06) */
 .login-form .consent {
   margin-top: calc(var(--spacing) * 1);
   padding: var(--pad-card);
@@ -1412,9 +1412,9 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .login-form .consent .hint { margin: 0 0 calc(var(--spacing) * 2); }
 .login-form .consent label.agree { flex-direction: row; gap: calc(var(--spacing) * 2); font-size: var(--text-sm); color: var(--foreground); }
 
-/* 계정 관리 — 칸이 많아도 창이 화면 밖으로 넘어가지 않게(2026-10-06 사용자) */
+/* Account management — keep the window on screen even with many fields (user, 2026-10-06) */
 .modal.accounts-modal { width: min(1120px, 100%); max-height: 88vh; }
-/* 내 계정 설정 — 칸 몇 개라 좁게. 계정 관리의 넓은 최소 너비를 물려받으면 칸이 창 밖으로 나간다(2026-10-08) */
+/* My account settings — only a few fields, so keep it narrow. Inheriting account management's wide min-width pushed fields outside the window (2026-10-08) */
 .modal.accounts-modal.mine-modal { width: min(520px, 100%); }
 .modal.accounts-modal .accounts { min-width: 0; }
 .accounts .table-scroll { overflow-x: auto; margin-bottom: calc(var(--spacing) * 3); }
@@ -1427,12 +1427,12 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .accounts details.mine > summary { cursor: pointer; color: var(--muted-foreground); font-size: var(--text-sm); padding: calc(var(--spacing) * 1.5) 0; }
 .accounts details.mine[open] > summary { color: var(--foreground); margin-bottom: calc(var(--spacing) * 2); }
 
-/* ── 화면 안 도움말 (2026-10-08) — 도움말 패널 · 따라 하기 안내 · 시작하기 목록 ── */
+/* ── In-app help (2026-10-08) — help panel · walkthrough guide · getting-started checklist ── */
 .help-trigger { font-size: var(--text-sm); }
 .help-trigger.on { border-color: var(--cb); color: var(--cb); }
 
 .help-panel {
-  /* 머리줄 두 줄(파일 · 검사 / 내보내기 · 내려받기)은 가리지 않는다 */
+  /* Do not cover the two-row header (file · check / export · download) */
   position: fixed; top: var(--header-height); right: var(--space-float); bottom: var(--space-float); width: min(380px, calc(100vw - var(--space-float) * 2)); z-index: 60;
   display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); padding: var(--pad-panel); overflow-y: auto;
   background: var(--card); border: 1px solid var(--aas-line-strong); border-radius: var(--radius);
@@ -1504,15 +1504,15 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
   .tour-spot, .tour-card, .gs-bar i { transition: none; }
 }
 
-/* ═══ 2026-10-13 디자인 전환 — 기준(로직스튜디오)과 뜻을 맞추는 덮어쓰기 ═══════════════════════════════
-   위 규칙은 예전 파일을 토큰으로 기계 변환한 것이다. 예전 「파랑」은 채움 단추·선택·링크·강조를 함께 맡았는데,
-   기준에서는 채움 단추가 검정(--primary)이고 파랑(--cb)은 「참고·연결」 뜻에만 쓴다. 그 차이를 여기서 고친다. */
+/* ═══ 2026-10-13 design switch — overrides that align meaning with the baseline (Logic Studio) ═══════════════════════════════
+   The rules above were machine-converted from the old file to tokens. The old "blue" covered filled buttons, selection, links and emphasis at once,
+   whereas in the baseline filled buttons are black (--primary) and blue (--cb) means only "reference/link". This section fixes that difference. */
 
-/* 채움 단추 — 화면에 하나(그 화면의 주 동작). shadcn Button default */
+/* Filled button — one per screen (that screen's primary action). shadcn Button default */
 :is(button, .button).primary:not([data-slot]) { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 :is(button, .button).primary:not([data-slot]):hover:not(:disabled) { background: color-mix(in oklab, var(--primary) 90%, transparent); color: var(--primary-foreground); }
 button:disabled { opacity: .5; cursor: default; }
-/* 글자 단추 — shadcn Button link/ghost */
+/* Text button — shadcn Button link/ghost */
 button.link:not([data-slot]) { background: none; border: none; box-shadow: none; color: var(--muted-foreground); min-height: 0; padding: 0 calc(var(--spacing) * 0.5); font-weight: 400; }
 button.link:not([data-slot]):hover:not(:disabled) { background: none; color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
 button.danger:not([data-slot]) { color: var(--fail); }
@@ -1520,26 +1520,26 @@ button.danger:not([data-slot]):hover:not(:disabled) { background: var(--failbg);
 button.big { min-height: calc(var(--spacing) * 9); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4); font-size: var(--text-sm); }
 .welcome button.big { min-height: calc(var(--spacing) * 10); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 6); }
 
-/* 켜진 갈래 단추(분할 선택) — 기준의 ToggleGroup 켜짐(bg-accent) 대신 또렷하게 채움 */
+/* Active segmented button (split choice) — clearly filled instead of the baseline ToggleGroup's on state (bg-accent) */
 .seg button.on, .hier-modes button.on { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
 .seg { border-radius: var(--radius); }
 .seg button:not([data-slot]) { box-shadow: none; min-height: calc(var(--spacing) * 7); }
 
-/* 머리글의 회사 표시 — 기준 셸처럼 검은 굵은 글자(파란 강조 없음) */
+/* Company mark in the header — bold black text like the baseline shell (no blue accent) */
 .wordmark { color: var(--foreground); letter-spacing: 0; font-weight: 700; font-size: var(--text-base); }
 .wordmark.big { font-size: var(--text-3xl); letter-spacing: 0; }
 header .brand .product { font-weight: 600; }
 .brand:hover .product { color: var(--foreground); }
 header .brand .version { color: var(--muted-foreground); }
 
-/* 상태 칩 — shadcn Badge(outline) + drive StatusTag 의 뜻 색 */
+/* Status chip — shadcn Badge (outline) + semantic colors of drive StatusTag */
 .status { border-radius: var(--radius); }
 .status.chip { border: 1px solid var(--border); background: var(--background); padding: var(--pad-chip); font-size: var(--text-xs); box-shadow: none; min-height: 0; }
 .status.chip:hover { border-color: var(--aas-line-strong); background: var(--accent); }
 .status.chip.ok { background: var(--okbg); border-color: color-mix(in oklab, var(--teal) 35%, transparent); color: var(--teal); }
 .status.chip.bad { background: var(--failbg); border-color: color-mix(in oklab, var(--fail) 35%, transparent); color: var(--fail); }
 
-/* 표 머리 — 기준과 같은 네이비 바탕 · 흰 글자. 세로선은 긋지 않는다 */
+/* Table header — navy background · white text, same as the baseline. No vertical rules */
 .rules thead th, .rules table:not(.conventions) th,
 .fix-preview th, .accounts-table th, .collection th, .attach-table th,
 .doc-table > table th, .doc-table .table-scroll th, table.matrix thead th {
@@ -1548,17 +1548,17 @@ header .brand .version { color: var(--muted-foreground); }
 .doc-table th { background: var(--navy); color: #fff; }
 .doc-table .preview th { background: transparent; color: #111111; }
 .rules .conventions th { background: transparent; color: var(--foreground); }
-/* 구획을 나누는 구분선은 위아래가 같다 — margin-top 과 padding-top 이 모두 --space-stack(삭제 단추 위만 10px로 붙어 있었다) */
-/* 표 칸은 머리글 · 본문 모두 --pad-cell 하나 — 머리글만 키우면 첫 열 글자가 위아래로 어긋난다 */
+/* Section dividers have equal space above and below — margin-top and padding-top are both --space-stack (only the delete button had 10px above it) */
+/* Table cells use a single --pad-cell for header and body — enlarging only the header misaligns the first column's text vertically */
 .collection :is(th, td), .rules :is(th, td), .accounts-table :is(th, td), .fix-preview :is(th, td) { padding: var(--pad-cell); }
 table.matrix thead .item-col { background: var(--navy); }
 
-/* 대화상자 — shadcn Dialog(흰 바탕 · 테두리 · shadow-lg · 덮개 bg-black/50) */
+/* Dialog — shadcn Dialog (white background · border · shadow-lg · overlay bg-black/50) */
 .modal { background: var(--background); border: 1px solid var(--border); }
 .modal-close:not([data-slot]) { border: none; box-shadow: none; background: transparent; color: var(--muted-foreground); }
 .modal-close:not([data-slot]):hover:not(:disabled) { background: var(--accent); color: var(--foreground); }
 
-/* 왼쪽 나무 — 기준 사이드 메뉴의 줄(마우스 올림·고른 줄 bg-accent) */
+/* Left tree — rows like the baseline side menu (hover and selected row bg-accent) */
 .tree-pane { background: var(--sidebar); border-right: 1px solid var(--sidebar-border); }
 .search { background: var(--sidebar); }
 .tree .row:hover { background: var(--sidebar-accent); }
@@ -1567,33 +1567,33 @@ table.matrix thead .item-col { background: var(--navy); }
 .tree .row[data-model-type='Submodel'] .label, .tree .row[data-model-type='Submodel'] .type { color: var(--cb); }
 .badge.error, .badge.warning, .badge.info { color: var(--on-accent); }
 
-/* 칸 사이 손잡이 — 보이는 선은 구분선 색, 잡으면 진하게 */
+/* Pane resize handle — visible line in divider color, darker while dragged */
 .splitter:hover, .splitter:focus-visible { background: var(--aas-line-strong); }
 .splitter:focus-visible { outline-color: var(--ring); }
 
-/* 카드형 구역 — 기준 Card(그림자 없음 · 2px) */
+/* Card-like sections — baseline Card (no shadow · 2px) */
 .summary .tile, .hierarchy, .file-list, .history-panel, .asset-context, .login-form, .demo-card { background: var(--card); box-shadow: none; }
 .summary .tile b { font-weight: 700; }
 
-/* 체험판 고지·경고 띠 — 기준 Alert 와 같은 결(연한 뜻 배경 · 뜻 글자) */
+/* Trial notice / warning strip — same style as baseline Alert (light semantic background · semantic text) */
 .demo-bar { color: var(--warn); }
 .demo-bar b, .demo-bar .link { color: var(--warn); }
 .error-bar { color: var(--fail); }
 
-/* 둘러보기·도움말 강조 — 예전 호박색을 기준의 주의 색으로 */
+/* Tour / help emphasis — the old amber becomes the baseline caution color */
 .tour-spot { border-color: var(--warn); }
 .tour-card { background: var(--popover); border-color: var(--border); }
 .gs-bar i { background: var(--teal); }
 
-/* 칸 사이 손잡이 — 잡는 폭(6px)은 그대로, 보이는 것은 가운데 1px 선(기준 셸의 구분선 굵기) */
+/* Pane resize handle — grab width (6px) unchanged; what you see is a 1px center line (baseline shell divider weight) */
 .splitter { background: linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat; }
 .splitter:hover, .splitter:focus-visible { background: linear-gradient(var(--aas-line-strong), var(--aas-line-strong)) center / 2px 100% no-repeat; }
 
-/* 머리글 회사 표시 — 기준 셸처럼 격자 아이콘 + 굵은 이름 */
+/* Header company mark — grid icon + bold name, like the baseline shell */
 header .brand svg { width: 1.15em; height: 1.15em; color: var(--foreground); }
 
-/* 머리글 드롭다운 — shadcn DropdownMenu 와 같은 모양(bg-popover · border · p-1 · shadow-md · 항목 px-2 py-1.5 text-sm · 올림 bg-accent).
-   동작은 예전 Menu 그대로 둔다 — Radix 메뉴는 pointerdown 으로 열려 기존 화면 테스트(click)와 맞지 않는다 */
+/* Header dropdown — same look as shadcn DropdownMenu (bg-popover · border · p-1 · shadow-md · items px-2 py-1.5 text-sm · hover bg-accent).
+   Behavior stays the old Menu — Radix menus open on pointerdown, which does not match the existing screen tests (click) */
 .menu-trigger .caret { width: 1em; height: 1em; margin-left: calc(var(--spacing) * 0.5); color: var(--muted-foreground); }
 .menu-trigger.on { background: var(--accent); border-color: var(--border); }
 .menu-pop, .tree-menu {
@@ -1608,39 +1608,39 @@ header .brand svg { width: 1.15em; height: 1.15em; color: var(--foreground); }
   justify-content: flex-start;
 }
 .menu-pop button:hover:not(:disabled), .tree-menu button:hover:not(:disabled) { background: var(--accent); color: var(--accent-foreground); }
-/* 묶음 사이 가는 선 — DropdownMenuSeparator(-mx-1 my-1 h-px bg-border) */
+/* Thin line between groups — DropdownMenuSeparator (-mx-1 my-1 h-px bg-border) */
 .menu-pop button.sep, .tree-menu button.danger { border-top: 0; margin-top: calc(var(--spacing) * 2); padding-top: calc(var(--spacing) * 1.5); position: relative; border-radius: var(--radius); }
 .menu-pop button.sep::before, .tree-menu button.danger::before { content: ''; position: absolute; left: calc(var(--spacing) * -1); right: calc(var(--spacing) * -1); top: calc(var(--spacing) * -1); height: 1px; background: var(--border); }
 .tree-menu button.danger { color: var(--fail); }
 .tree-menu button.danger:hover:not(:disabled) { background: var(--failbg); color: var(--fail); }
-/* Tailwind preflight 가 svg 를 block 으로 둔다 — 글자와 한 줄에 서야 하는 아이콘 단추는 inline-flex 로 */
+/* Tailwind preflight makes svg block — icon buttons that must sit inline with text use inline-flex */
 .menu-trigger, header .brand { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); }
 
-/* 스크롤 막대·기본 입력칸도 화면 색을 따른다 — 없으면 어두운 화면에서 나무 칸 아래 가로 막대가 흰 띠로 남는다 */
+/* Scrollbars and native inputs follow the screen colors too — otherwise in dark mode the horizontal scrollbar under the tree remains a white strip */
 :root { color-scheme: light; }
 :root.dark { color-scheme: dark; }
 
-/* ═══ 2026-10-13 검수 반영(review_visual · review_content) ═══════════════════════════════════ */
+/* ═══ 2026-10-13 review fixes (review_visual · review_content) ═══════════════════════════════════ */
 
-/* 대화상자 덮개 — 가운데 칸의 「내용 폭 1040px」 규칙(.middle > *)이 칸 안에서 연 덮개까지 묶어 화면 왼쪽 1040px 만 덮었다(실측).
-   덮개는 늘 화면 전체 · 다른 떠 있는 것(시작하기 55 · 도움말 60)보다 위, 둘러보기(80)보다 아래 */
+/* Dialog overlay — the middle pane's "content width 1040px" rule (.middle > *) also caught an overlay opened inside the pane, covering only the left 1040px of the screen (measured).
+   The overlay always covers the whole screen · above other floating things (getting started 55 · help 60), below the tour (80) */
 .modal-back, .middle > .modal-back { max-width: none; width: auto; z-index: 70; }
 
-/* 판정 배지 — drive StatusTag 와 같은 결(연한 뜻 배경 · 뜻 글자 · 옅은 테두리). 진하게 채우면 어두운 화면에서 흰 글자 대비가 2.3:1 로 떨어졌다 */
+/* Verdict badge — same style as drive StatusTag (light semantic background · semantic text · faint border). Solid fills dropped white-text contrast to 2.3:1 in dark mode */
 .badge { border: 1px solid transparent; font-weight: 600; }
 .badge.error { background: var(--failbg); color: var(--fail); border-color: color-mix(in oklab, var(--fail) 30%, transparent); }
 .badge.warning { background: var(--warnbg); color: var(--warn); border-color: color-mix(in oklab, var(--warn) 30%, transparent); }
 .badge.info { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
 
-/* 왼쪽 나무 — 기준 사이드 메뉴처럼 고른 줄은 바탕색만(검정 띠 없음). 서브모델(장) 이름은 「뜻 없는 파랑」 대신 구조 색(네이비) */
+/* Left tree — like the baseline side menu, the selected row gets background color only (no black strip). Submodel (chapter) names use the structure color (navy) instead of a "meaningless blue" */
 .tree .row.selected { box-shadow: none; }
 .tree .row[data-model-type='Submodel'] .label, .tree .row[data-model-type='Submodel'] .type { color: var(--navy); }
 .tree .row[data-model-type='Submodel'] .type { opacity: 1; }
 :root.dark .tree .row[data-model-type='Submodel'] .label, :root.dark .tree .row[data-model-type='Submodel'] .type { color: var(--cb); }
-/* 같은 깊이 줄의 시작점이 글 길이에 따라 최대 9px 어긋났다 — 펼침 표시가 긴 줄에서 눌려 줄었다(flex-shrink) */
+/* Row starts at the same depth were off by up to 9px depending on text length — the expand marker shrank on long rows (flex-shrink) */
 .tree .row .twist { flex: none; }
 
-/* 안내 상자 — 기준 Alert(테두리 상자 · 연한 뜻 배경). 왼쪽 3px 색 띠는 쓰지 않는다 */
+/* Notice box — baseline Alert (bordered box · light semantic background). No 3px left color strip */
 .opcua-out .note.warn, .add-aid .self-warn, .fix-preview .note.warn, .summary .hint.ledger, .help-note {
   border: 1px solid color-mix(in oklab, var(--warn) 30%, transparent) !important;
   background: var(--warnbg) !important;
@@ -1652,25 +1652,25 @@ header .brand svg { width: 1.15em; height: 1.15em; color: var(--foreground); }
 .live-map.none { border-color: color-mix(in oklab, var(--warn) 30%, transparent); }
 .summary .verdict.ok { border: 1px solid color-mix(in oklab, var(--teal) 30%, transparent); background: var(--okbg); }
 .summary .verdict.bad { border: 1px solid color-mix(in oklab, var(--fail) 30%, transparent); background: var(--failbg); }
-/* 구역 제목 — 기준 카드 제목처럼 굵은 본문색(파란 왼막대 없음) */
+/* Section title — bold foreground color like a baseline card title (no blue left bar) */
 p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var(--foreground); }
 
-/* 지적 구역 — 0건이면 뜻 배경을 걷는다(통과 상태를 빨강으로 칠하지 않는다) */
+/* Findings section — drop the semantic background at zero findings (never paint a passing state red) */
 .findings .findings-section.empty { background: transparent; }
 
-/* 닫기 단추 — 대화상자·편집기·도움말 모두 같은 모양(기준 Dialog 의 오른쪽 위 고스트 단추) */
+/* Close button — same look in dialogs, editors and help (the baseline Dialog's top-right ghost button) */
 .modal-close, .inspector-close, .help-head button, .add-aid > button:first-child {
   border: 0; box-shadow: none; background: transparent; color: var(--muted-foreground);
   min-height: calc(var(--spacing) * 7); padding: 0 calc(var(--spacing) * 2); font-size: var(--text-xs);
 }
 .modal-close:hover, .inspector-close:hover, .help-head button:hover { background: var(--accent); color: var(--foreground); }
-/* 닫기 단추는 창 여백 안 오른쪽 위 — 첫 제목 줄과 같은 높이(창마다 위치가 달랐다) */
+/* Close button at top right inside the dialog padding — level with the first title row (position differed per dialog) */
 .modal-close { top: var(--space-dialog); right: var(--space-dialog); }
-/* 창의 첫 블록 · 첫 제목은 위 margin 없이 — 창 여백(24px)만 남는다(설정 창 제목 위가 44px 였다) */
+/* A dialog's first block / first title has no top margin — only the dialog padding (24px) remains (the settings title had 44px above it) */
 .modal > :first-child:not(.modal-close), .modal > .modal-close + *,
 .modal > :is(:first-child, .modal-close + *) > :first-child { margin-top: 0; }
 
-/* 고르기 칸 — 기준 SelectTrigger(오른쪽 갈매기 · 입력칸과 같은 높이). 브라우저 기본 화살표를 걷는다 */
+/* Select field — baseline SelectTrigger (chevron on the right · same height as inputs). Remove the browser's default arrow */
 :where(select):where(:not([data-slot]):not([multiple])) {
   appearance: none;
   padding-right: calc(var(--spacing) * 8);
@@ -1681,12 +1681,12 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 }
 :where(select) option { background: var(--popover); color: var(--popover-foreground); }
 
-/* 가운데 칸 바로 밑에 붙는 카드(부품 구성 · 파일 목록 · 이력 · 설비 컨텍스트)는 요약(.summary) 밖이라 요약 안쪽 여백(4단)만큼
-   좌우가 위 타일·판정 상자보다 넓게 그려졌다(대표 지적 2026-10-13 · 전 화면 정렬 점검 — 파일 목록 13px). 같은 여백·같은 내용 폭으로 맞춘다.
-   편집 칸·추가 양식의 안쪽 여백도 요약과 같은 4단으로 — 화면이 바뀌어도 글 시작선이 같은 자리에 온다 */
+/* Cards attached right below the middle pane (parts composition · file list · history · equipment context) sit outside the summary (.summary), so they were drawn
+   wider left and right than the tiles and verdict box above by the summary's inner padding (4 steps) (product owner remark 2026-10-13 · full-screen alignment check — file list 13px). Give them the same padding and content width.
+   Edit panes and add forms also use the same 4-step inner padding as the summary — the text start line stays put as screens change */
 .middle > :is(.file-list, .history-panel, .asset-context) { width: auto; max-width: calc(1040px - var(--space-pane) * 2); margin: var(--space-stack) var(--space-pane) 0; }
 .middle > .inspector { padding-left: var(--space-pane); padding-right: var(--space-pane); }
-/* 추가 양식(요소 · 서브모델 · 가져오기 · 새로 만들기)도 칸 폭 띠가 아니라 같은 여백의 카드 — 띠로 두면 아래 카드보다 좌우 13px 넓었다(점검 실측) */
+/* Add forms (element · submodel · import · create new) are also cards with the same padding, not full-width strips — as strips they were 13px wider than the cards below (measured in the check) */
 .middle > .add-form { width: auto; max-width: calc(1040px - var(--space-pane) * 2); margin: var(--space-stack) var(--space-pane) 0; border: 1px solid var(--border); border-radius: var(--radius); padding: var(--pad-panel); }
 .middle > .hierarchy {
   width: auto;
@@ -1694,7 +1694,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
   margin: 0 var(--space-pane) var(--space-stack);
 }
 
-/* 값 신선도(2026-10-13) — 받는 중 · 끊김 · 값 없음. 기준 StatusTag 의 뜻 색, 글자로도 적는다 */
+/* Value freshness (2026-10-13) — receiving · disconnected · no value. Baseline StatusTag semantic colors, also written as text */
 .collection .fresh-sum { display: inline-flex; gap: calc(var(--spacing) * 2); margin-left: auto; font-size: var(--text-xs); }
 .collection .fresh { display: inline-block; padding: var(--pad-chip); border-radius: var(--radius); border: 1px solid transparent; font-size: var(--text-xs); white-space: nowrap; }
 .collection .fresh.live { background: var(--okbg); color: var(--teal); border-color: color-mix(in oklab, var(--teal) 30%, transparent); }
@@ -1703,7 +1703,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .collection .interface-head .conn { margin-left: 0; }
 .collection td.time-col.stale { color: var(--warn); }
 
-/* 값 표의 구분(2026-10-13) — 필수 · 수집 · 선택. 빈 필수 칸은 줄째 짚는다. 색만으로 나누지 않는다(글자로 적는다) */
+/* Value table categories (2026-10-13) — required · collected · optional. Empty required fields are flagged per row. Not by color alone (written as text) */
 .bulk-values .need-summary { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 1) 0 calc(var(--spacing) * 2); font-size: var(--text-xs); }
 .bulk-values .need-summary .check-line { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); margin: 0 0 0 calc(var(--spacing) * 2); }
 .bulk-values .need { display: inline-block; padding: var(--pad-chip); border-radius: var(--radius); border: 1px solid transparent; font-size: var(--text-xs); white-space: nowrap; }
@@ -1714,7 +1714,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .bulk-values td.bulk-need { width: 1%; white-space: nowrap; padding-right: calc(var(--spacing) * 2); }
 .bulk-values tr.missing input { border-color: var(--fail); }
 
-/* 형식 파일 카드(components/derivation) — 판정 줄 아래 한 줄. 반영할 것이 있으면 왼쪽 선을 푸른색으로 */
+/* Template file card (components/derivation) — one line under the verdict row. Blue-green left line when there is something to apply */
 .summary .derivation-card { display: flex; align-items: center; flex-wrap: wrap; gap: calc(var(--spacing) * 2); margin-top: calc(var(--spacing) * 3); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--text-sm); }
 .summary .derivation-card.off { border-style: dashed; padding: var(--pad-compact); }
 .summary .derivation-card.pending { border-left: 3px solid var(--cb); }
@@ -1730,7 +1730,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .derivation-dialog .derivation-table tr.skip td { color: var(--muted-foreground); }
 .derivation-dialog .derivation-table .reason { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--warn); margin-top: calc(var(--spacing) * 0.5); }
 
-/* CSV 에서 채우기(components/csvfill) — 형식 변경 확인 창과 같은 여백·표 */
+/* Fill from CSV (components/csvfill) — same padding and table as the template change confirmation dialog */
 .csv-fill h3 { margin: 0 0 calc(var(--spacing) * 1); }
 .csv-fill .csv-input { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 3) 0; }
 .csv-fill .csv-input textarea { width: 100%; font-family: var(--aas-mono); font-size: var(--text-xs); }
@@ -1746,7 +1746,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .csv-fill .modal-actions { margin-top: calc(var(--spacing) * 4); }
 .bulk-values .pick-title .csv-open { margin-left: calc(var(--spacing) * 2); font-weight: normal; }
 
-/* 하루 상태(components/collection/DailyStates) — 설비마다 한 줄, 08시부터 24시간 막대 */
+/* Daily states (components/collection/DailyStates) — one row per machine, a 24-hour bar starting at 08:00 */
 .daily-states { margin-top: var(--space-stack); border-top: 1px solid var(--border); padding-top: var(--space-stack); }
 .daily-states .daily-head { display: flex; align-items: center; gap: calc(var(--spacing) * 2); font-size: var(--text-sm); }
 .daily-states .daily-head h4 { margin: 0 calc(var(--spacing) * 2) 0 0; font-size: var(--text-sm); }
@@ -1772,43 +1772,43 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .daily-states .state-chip.state-run, .daily-states .state-chip.state-stop, .daily-states .state-chip.state-alarm,
 .daily-states .state-chip.state-off, .daily-states .state-chip.state-unknown, .daily-states .state-chip.state-none { background: none; }
 
-/* 수집 연결 — 패턴으로 여러 개(components/aid/AidPattern) */
+/* Collection connections — multiple via a pattern (components/aid/AidPattern) */
 .add-aid .aid-pattern { margin-top: calc(var(--spacing) * 3); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); }
 .add-aid .aid-pattern-grid { display: grid; grid-template-columns: 1fr 1fr repeat(3, 72px); gap: calc(var(--spacing) * 2); margin: calc(var(--spacing) * 2) 0; font-size: var(--text-xs); }
 .add-aid .aid-pattern-grid label { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
 @media (max-width: 640px) { .add-aid .aid-pattern-grid { grid-template-columns: 1fr 1fr; } }
 
-/* Modbus 태그 줄 — 종류 · 자료형 고르개가 더 붙는다. 관례 주소 바꾸기는 줄 아래로 내린다 */
+/* Modbus tag row — adds kind and data type selectors. The conventional address switch moves below the row */
 .picked-list li.modbus { flex-wrap: wrap; }
 .picked-list li.modbus select { width: 128px; }
 .picked-list li.modbus .modicon { order: 10; flex-basis: 100%; text-align: left; padding-left: calc(30% + var(--spacing) * 1); font-size: var(--text-xs); }
 .daily-states .state-rules > .link { align-self: flex-start; }
 .csv-fill .csv-input input[type='file'] { width: auto; border: none; padding: 0; background: none; box-shadow: none; font-size: var(--text-xs); color: var(--muted-foreground); }
 
-/* ── 대화상자 여백은 .modal 한 곳 (2026-10-14) ──────────────────────────────
-   창 안 감싸개가 따로 주던 여백을 창 안에서는 걷는다. 여기 없는 새 감싸개를 만들면 여백을 주지 말고 틀에 맡긴다 */
+/* ── Dialog padding lives in one place: .modal (2026-10-14) ──────────────────────────────
+   Padding that inner wrappers used to set is removed inside dialogs. Any new wrapper not listed here must not add padding — leave it to the frame */
 .modal .findings,
 .modal .rules,
 .modal .fix-preview,
 .modal .bundle-body,
 .modal.accounts-modal .accounts { padding: 0; }
 
-/* ── 가운데 칸의 세로 리듬 (2026-10-14) ─────────────────────────────────────
-   요약 칸 안 블록은 서로 --space-stack 만큼. 블록마다 따로 margin 을 주던 것(14 · 11 · 19 · 35px로 갈렸다)을 걷는다.
-   제목과 그 아래 부제만 붙여 둔다 — 한 덩어리다 */
+/* ── Vertical rhythm of the middle pane (2026-10-14) ─────────────────────────────────────
+   Blocks inside the summary pane are --space-stack apart. Remove the per-block margins (which varied: 14 · 11 · 19 · 35px).
+   Only a title and its subtitle stay together — they are one unit */
 .middle .summary > * { margin-top: 0; margin-bottom: 0; }
 .middle .summary > * + * { margin-top: var(--space-stack); }
 .middle .summary > h2 + .sub { margin-top: calc(var(--spacing) * 1); }
 .middle > .hierarchy:first-child { margin-top: var(--space-stack); }
 
-/* 라디오 · 체크박스가 든 label 은 어디서나 「단추 옆에 글자」. 세로 label 기본값이 단추와 글자를 두 줄로 갈랐다(가져오기 창) */
+/* A label containing a radio / checkbox is always "text next to the control". The vertical label default split control and text onto two lines (import dialog) */
 :where(.app) label:has(> input[type='radio'], > input[type='checkbox']):not(.sm-plan label) { display: flex; flex-direction: row; align-items: baseline; gap: var(--space-gap); }
-/* 지표 타일이 두 줄(공정 파일)이면 줄 사이도 타일 사이와 같게 */
+/* When metric tiles wrap to two rows (process file), the row gap matches the tile gap */
 .middle .summary > .tiles + .tiles { margin-top: calc(var(--spacing) * 2); }
-/* 판정 주체 목록 줄도 표 칸과 같은 여백 — 한 창의 두 목록이 첫 열 시작점이 달랐다 */
+/* Verdict-subject list rows use the same padding as table cells — the two lists in one dialog had different first-column starts */
 .rules .verdict-list > div { padding: var(--pad-cell); }
-/* 설정 — 언어 단추 아래 설명은 한 단계 띄운다(6px 로 붙어 있었다) */
+/* Settings — one step of space below the language buttons' description (it was stuck at 6px) */
 .settings .row-buttons + .note { margin-top: calc(var(--spacing) * 3); }
-/* 번들 절 안 설명 문단 사이는 한 단계 — 기본 문단 margin(12px)과 섞여 26px 로 벌어졌다 */
+/* One step between description paragraphs in a bundle section — mixing with the default paragraph margin (12px) opened 26px */
 .bundle-body h3 ~ p.small { margin-block: 0 calc(var(--spacing) * 2); }
 

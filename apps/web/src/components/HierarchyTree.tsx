@@ -1,18 +1,18 @@
 /**
- * 구성 트리 편집기 — 회사 → 공정 → (라인 →) 설비를 **한 트리에서** 그린다.
+ * Composition tree editor — draws company → process → (line →) equipment **in one tree**.
  *
- * 🔴 규칙은 하나다: 회사 줄의 「＋ 공정」으로 공정을 만들고, **그 공정 줄의 「＋ 설비」**로 밑에 설비를 넣는다.
- *    누른 줄 바로 밑에 입력 줄이 열리고, 넣은 것은 그 밑에 붙는다.
- *    공정 줄에 「＋ 공정」(하위 공정)까지 두었더니 "공정을 두 번 고르나" 하고 헷갈렸다 — 뺐다(사용자 2026-09-08).
- *    서버는 중첩을 받지만 화면은 회사 → (라인 →) 공정 → 설비까지 그린다. 라인은 회사 줄의 「＋ 라인」으로만
- *    만들고, 라인 줄에는 「＋ 공정」·「＋ 설비」가 붙는다(2026-10-14, digital-twin 5단계 개념 — 부품은 설비 파일 안 BoM).
- *    공정 줄에는 여전히 「＋ 설비」만 둔다 — 「공정 밑 공정」이 헷갈렸던 이유는 그대로다.
- *    「넣을 자리」「여기에 넣기」「직접 적기」「그룹 만들기」 같은 별도 개념은 없다 —
- *    같은 것을 만들 때(초안)와 만든 뒤(즉시 저장)에 다른 모양으로 보여 초보자가 두 번 배웠다
- *    (2026-09-08, UX·AAS 전문가 검토 결론: 트리 하나로 통일).
+ * Important: there is one rule: the company row's "+ Process" creates a process, and **that process row's "+ Equipment"** puts equipment under it.
+ *    An input row opens right below the clicked row, and what you add is attached under it.
+ *    We once also gave process rows "+ Process" (sub-process), and people wondered "do I pick the process twice?" — removed (user, 2026-09-08).
+ *    The server accepts nesting, but the screen draws company → (line →) process → equipment. Lines are created only with the
+ *    company row's "+ Line", and line rows get "+ Process" and "+ Equipment" (2026-10-14, digital-twin five-level concept — parts are the BoM inside the equipment file).
+ *    Process rows still carry only "+ Equipment" — the reason "process under process" was confusing still holds.
+ *    There are no separate concepts such as "Slot to add", "Add here", "Type directly" or "Make group" —
+ *    the same thing looked different while creating (draft) and after creating (immediate save), so beginners learned it twice
+ *    (2026-09-08, conclusion of the UX and AAS expert review: unify into one tree).
  *
- * 두 모드는 호출부가 정한다 — 초안(NewPackage: 메모리 트리를 고친다) · 즉시(Hierarchy: 줄마다 API를 부른다).
- * 이 컴포넌트는 둘을 구분하지 않는다. 입력 줄은 트리 전체에서 한 번에 하나만 열린다(adder).
+ * The caller decides between the two modes — draft (NewPackage: edits an in-memory tree) · immediate (Hierarchy: calls the API per row).
+ * This component does not distinguish them. Only one input row is open in the whole tree at a time (adder).
  */
 import type { PackageDescription } from '../api.js';
 import { tr } from '../i18n.js';
@@ -24,18 +24,18 @@ import { TERMS, type Adder, type DraftNode } from './hierarchy/terms.js';
 export { NODE_NAME_RE, nodeNameOk, type Adder, type DraftNode } from './hierarchy/terms.js';
 
 interface Props {
-  /** 낱말 셋 — 기본은 공정 파일. 설비 파일의 부품 구성이면 'equipment' */
+  /** Word set — defaults to a process file. 'equipment' for the part composition of an equipment file */
   unit?: keyof typeof TERMS;
   rootName: string;
-  /** 뿌리 줄의 종류 표시 — 「회사·묶음」 등 */
+  /** Kind label of the root row — "Company / bundle" etc. */
   rootLabel: string;
   rootAssetId?: string;
   nodes: readonly DraftNode[];
-  /** 「＋ 설비」에서 고를 수 있는 올려 둔 파일 */
+  /** Uploaded files that can be picked from "+ Equipment" */
   candidates: readonly PackageDescription[];
   /**
-   * PC 폴더의 .aasx를 그 자리에서 올린다 — 올린 파일의 packageId를 돌려주면 바로 골라진 상태가 된다.
-   * 🔴 없으면 버튼을 그리지 않는다. 「올려 둔 파일 없음」만 보고 막히던 자리다(사용자 2026-09-09).
+   * Uploads a .aasx from a PC folder in place — returning the uploaded file's packageId makes it selected right away.
+   * Important: without it the button is not drawn. This is where people got stuck seeing only "No uploaded files" (user, 2026-09-09).
    */
   onImportFile?: (file: File) => Promise<string | undefined>;
   busy: boolean;
@@ -45,11 +45,11 @@ interface Props {
   onAddFile: (parentPath: string[], packageId: string, count: number, split: boolean) => void;
   onAddPlanned: (parentPath: string[], name: string) => void;
   onRemove: (path: string[], node: DraftNode) => void;
-  /** 설비(file) 줄 끝에 덧붙일 것 — 즉시 모드의 ▸ 서브모델 펼치기·「파일 열기」 */
+  /** What to append at the end of an equipment (file) row — immediate mode's ▸ expand submodels / "Open file" */
   leafExtra?: (node: DraftNode, path: string[]) => React.ReactNode;
-  /** 뿌리에 아무것도 없을 때 한 줄 */
+  /** One line shown when the root has nothing */
   emptyHint?: string;
-  /** 번역기 (i18n.ts) */
+  /** Translator (i18n.ts) */
   t: (text: string) => string;
 }
 
@@ -72,7 +72,7 @@ export function HierarchyTree({
   emptyHint,
   t,
 }: Props): React.JSX.Element {
-  const terms = TERMS[unit]; // 🔴 번역기 t와 겹치지 않게 이름을 바꿨다(2026-10-02)
+  const terms = TERMS[unit]; // Important: renamed so it does not clash with the translator t (2026-10-02)
   const adderKey = adder ? `${adder.kind}:${adder.path.join('/')}` : '';
 
   const findChildren = (path: readonly string[]): readonly DraftNode[] => {
@@ -88,7 +88,7 @@ export function HierarchyTree({
   const open = (path: string[], kind: Adder['kind']): void => onAdderChange({ path, kind });
   const close = (): void => onAdderChange(undefined);
 
-  /** 열린 입력 줄 — 자리(adderKey)가 바뀌면 key 가 바뀌어 새로 그려지고 입력값도 비워진다 */
+  /** The open input row — when its position (adderKey) changes the key changes, so it is redrawn and the input is cleared */
   const renderAdder = (path: string[]): React.JSX.Element => {
     const siblings = findChildren(path).map((node) => node.name);
     return adder?.kind === 'group' || adder?.kind === 'line' ? (

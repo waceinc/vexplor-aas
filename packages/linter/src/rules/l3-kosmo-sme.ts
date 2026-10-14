@@ -1,9 +1,9 @@
 /**
- * L3 — KOSMO 사업 규칙 · SME #1 ~ #5.
+ * L3 — KOSMO project rules · SME #1 to #5.
  *
- * SME#3(ConceptDescription 매핑)은 실측 최다 결함이다.
- * 좁게 잡아 122건 → 56건으로 줄었다가 중간 계층 SMC 누락으로 재발했다(01번 15건, 03번 11건).
- * 그래서 대상 범위를 semanticId를 가질 수 있는 모든 요소로 넓게 잡는다(명세 §1 함정).
+ * SME#3 (ConceptDescription mapping) is the most frequent measured defect.
+ * A narrow scope cut it from 122 to 56, but it recurred because intermediate SMCs were missed (15 in file 01, 11 in file 03).
+ * So the scope is set wide: every element that can carry a semanticId (spec §1 pitfall).
  */
 import type { Property } from '@aas/core';
 import { fill, tr } from '@aas/core';
@@ -17,10 +17,10 @@ import {
   XS_TO_DATA_TYPE,
 } from '../util.js';
 
-// i18n-ignore — 근거 문서 파일 이름
+// i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §2④⑤ · 04_린터_규칙_명세.md §1';
 
-/** KOSMO SME#2 — 본 사업 산출물에서 쓰지 않기로 한 특수 요소 */
+/** KOSMO SME#2 — special elements this project's deliverables decided not to use */
 const EXCLUDED_ELEMENT_TYPES = new Set(['Operation', 'BasicEventElement', 'Capability']);
 
 export const kosmoSme1IdShort: Rule = {
@@ -35,7 +35,7 @@ export const kosmoSme1IdShort: Rule = {
       const isListChild = v.parent?.modelType === 'SubmodelElementList';
       const idShort = v.node.idShort;
 
-      // AASd-117: SML 직계 자식은 idShort가 없어도 된다 (AASd-120은 V3에서 삭제됨)
+      // AASd-117: direct children of an SML may lack idShort (AASd-120 was removed in V3)
       if (idShort === undefined || idShort === '') {
         if (isListChild) continue;
         report({
@@ -108,7 +108,7 @@ export const kosmoSme3ConceptMapping: Rule = {
       const value = firstKeyValue(node.semanticId);
 
       if (value === undefined) {
-        // SML 직계 자식(익명)은 부모의 semanticIdListElement를 따르므로 대상에서 제외한다
+        // Direct (anonymous) children of an SML follow the parent's semanticIdListElement, so they are excluded
         const isListChild = v.parent?.modelType === 'SubmodelElementList';
         if (isListChild && !node.idShort) continue;
 
@@ -129,9 +129,9 @@ export const kosmoSme3ConceptMapping: Rule = {
       }
 
       if (!ctx.index.conceptDescriptions.has(value)) {
-        // 표준 템플릿의 용어(W3C WoT·IDTA)는 우리가 CD를 만들 대상이 아니다 —
-        // 공식 템플릿이 CD를 제공하지 않기 때문이다(IDTA-02017 실측: CD 0개).
-        // 정책 preserve면 참고로만 남긴다(KTL §7: 표준 템플릿은 원본 그대로).
+        // Terms from standard templates (W3C WoT · IDTA) are not ours to create CDs for —
+        // because the official templates do not provide CDs (IDTA-02017 measured: 0 CDs).
+        // Under policy preserve, they are kept only as notes (KTL §7: standard templates stay as the original).
         const standard =
           ctx.policy.standardTemplateSemantics === 'preserve' && isStandardTerm(value);
         report({
@@ -203,14 +203,14 @@ export const kosmoSme5ValueTypeMatch: Rule = {
       const prop = v.node as Property;
 
       const semantic = firstKeyValue(prop.semanticId);
-      if (semantic === undefined) continue; // SME#3이 이미 보고한다
+      if (semantic === undefined) continue; // SME#3 already reports this
 
       const cd = ctx.index.conceptDescriptions.get(semantic);
-      if (!cd) continue; // SME#3이 이미 보고한다
+      if (!cd) continue; // SME#3 already reports this
 
       const dataType = iec61360Of(cd)?.dataType;
       const allowed = XS_TO_DATA_TYPE[prop.valueType];
-      if (!allowed) continue; // 매핑표에 없는 valueType은 검사 대상이 아니다
+      if (!allowed) continue; // valueTypes not in the mapping table are not checked
 
       if (dataType === undefined || !allowed.includes(dataType)) {
         const external = ctx.policy.irdiPrefixes.some((p) => semantic.startsWith(p));

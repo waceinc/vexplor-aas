@@ -1,6 +1,6 @@
 /**
- * 구조 편집 동작 — 요소·서브모델 만들기 · 다른 파일에서 가져오기 · 지우기 · 순서 · 복제 · 이력과 되돌리기.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 값 편집은 useElementActions.
+ * Structural editing actions — create elements/submodels · import from another file · delete · order · duplicate · history and undo.
+ * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move. Value editing is in useElementActions.
  */
 import { api } from '../api.js';
 import { fill, tr } from '../i18n.js';
@@ -9,14 +9,14 @@ import type { Core } from './context.js';
 
 export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'loadPackage' | 'packageId' | 'packages' | 'run' | 'setAdding' | 'setExpanded' | 'setHistoryEntries' | 'setHistoryFor' | 'setNotice' | 'setSelectedKey' | 'setSubmodelTarget' | 'shell' | 'submodelTarget' | 'targetOf'>) {
   const { expanded, historyFor, loadPackage, packageId, packages, run, setAdding, setExpanded, setHistoryEntries, setHistoryFor, setNotice, setSelectedKey, setSubmodelTarget, shell, submodelTarget, targetOf } = c;
-  /** 서브모델 이력 열기 — 실수를 되돌리는 길 */
+  /** Open submodel history — the way to undo mistakes */
   const onShowHistory = async (node: TreeNode): Promise<void> => {
     if (!packageId) return;
     const entries = await run(() => api.history(packageId, node.submodelId));
     if (!entries) return;
     setHistoryEntries(entries.result);
     setHistoryFor({ submodelId: node.submodelId, label: node.label });
-    setSelectedKey(undefined); // 편집기를 비켜 준다 — 이력이 그 자리에 나온다
+    setSelectedKey(undefined); // step the editor aside — the history appears in its place
   };
   const onRestore = async (changedAt: string): Promise<void> => {
     if (!packageId || !historyFor) return;
@@ -44,14 +44,14 @@ export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'l
   };
   const onCreateSubmodel = async (content: Record<string, unknown>): Promise<void> => {
     if (!packageId) return;
-    // ⚙ 설비 컨텍스트에서 왔으면 그 설비 파일에 만든다 — 원본은 그 파일이다
+    // Coming from a ⚙ equipment context, create it in that equipment file — that file is the source
     const pid = submodelTarget?.pid ?? packageId;
     const done = await run(async () => {
       const targetShell =
         pid === packageId ? shell : (await api.shells(pid)).result[0];
       if (!targetShell) throw new Error(tr('대상 파일에 AAS가 없습니다.'));
       await api.createSubmodel(pid, content);
-      // AAS의 submodels[]에 참조를 함께 넣는다 — 빠뜨리면 어디에도 매달리지 않은 서브모델이 된다
+      // Add the reference to the AAS's submodels[] too — omit it and the submodel hangs off nothing
       await api.addSubmodelRef(pid, targetShell.id, String(content['id']));
       return true;
     });
@@ -80,8 +80,8 @@ export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'l
         (result.copiedConceptDescriptions > 0
           ? fill(tr(' · ConceptDescription {0}건 동반'), { 0: result.copiedConceptDescriptions })
           : '') +
-        // 🔴 실전 검증(2026-09-07): 가져온 명판의 제조사·일련번호는 **원본 설비 것**인데 위반 0건이라
-        //    다 된 줄 알기 쉽다. 값을 바꿔야 한다는 것을 여기서 말해 준다
+        // Important: field test (2026-09-07): the manufacturer and serial number on an imported nameplate are **the source equipment's**, yet with
+        //    0 violations it is easy to think it is done. Say here that the values must be changed
         fill(tr(' — 값은 「{0}」의 것입니다. 트리에서 골라 이 설비 값으로 바꾸십시오.'), { 0: sourceName }),
     );
     await loadPackage(packageId);
@@ -94,8 +94,8 @@ export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'l
     }
     const done = await run(async () => {
       if (node.modelType === 'Submodel') {
-        // 🔴 다른 파일의 서브모델 통째 삭제는 여기서 하지 않는다 — AAS 참조 정리까지
-        //    그 파일 문맥에서 해야 한다. 요소 편집과 달리 파일 구조를 바꾸는 일이다
+        // Important: deleting another file's whole submodel is not done here — cleaning up AAS references
+        //    must happen in that file's context. Unlike element edits, it changes the file structure
         if (node.linkedPackageId !== undefined) {
           setNotice(tr('다른 파일의 서브모델은 그 파일을 열어 지우십시오.'));
           return false;
@@ -112,13 +112,13 @@ export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'l
     await loadPackage(packageId);
   };
   /**
-   * 순서 바꾸기·복제 — Package Explorer에 있고 우리에겐 없던 두 가지(2026-09-04 검토).
-   * 트리 key는 JSON Pointer라 옮긴 뒤의 자리를 계산할 수 있다 — 마지막 마디의 번호만 바뀐다.
+   * Reorder · duplicate — two things Package Explorer has and we lacked (reviewed 2026-09-04).
+   * Tree keys are JSON Pointers, so the place after a move can be computed — only the last segment's index changes.
    */
   const shiftedKey = (key: string, by: number): string =>
     key.replace(/\/(\d+)$/, (_, n: string) => `/${Number(n) + by}`);
 
-  /** 형제 안에서 옮긴다 — `{offset}`은 한 칸(Alt+↑↓·메뉴), `{to}`는 끌어다 놓은 자리 */
+  /** Move within siblings — `{offset}` is one step (Alt+↑↓ · menu), `{to}` is the drop position */
   const onMove = async (node: TreeNode, move: { offset: -1 | 1 } | { to: number }): Promise<void> => {
     if (!packageId || !node.idShortPath) return;
     const from = Number(/\/(\d+)$/.exec(node.key)?.[1] ?? NaN);

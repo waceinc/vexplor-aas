@@ -1,6 +1,6 @@
 /**
- * ⚙ 설비 정보 — 공정 화면의 트리에서 설비 줄을 고르면 가운데에 그 설비에 맞는 동작이 나온다(초보자 원칙).
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화). 서브모델 추가는 그 설비 파일로 저장된다(App 의 onCreateSubmodel).
+ * Equipment info — selecting an equipment row in the process tree shows actions for that equipment in the middle pane (beginner principle).
+ * Split out of App.tsx (componentization, 2026-10-13). Adding a submodel saves it to that equipment file (App's onCreateSubmodel).
  */
 import { T } from '../components/T.js';
 import { tr } from '../i18n.js';

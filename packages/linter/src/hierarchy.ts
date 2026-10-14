@@ -1,20 +1,20 @@
 /**
- * 계층 구조 — IDTA 02011 `HierarchicalStructures`.
+ * Hierarchy - IDTA 02011 `HierarchicalStructures`.
  *
- * "이것은 저것들로 이루어져 있다"를 적는 표준 서브모델이다.
- * 골든 파일(설비 20종)이 이미 이 문법으로 **설비 안쪽 부품**을 적고 있다 —
- * 롤포밍기 → Uncoiler · RollStandUnit(→ FormingRoll · DriveMotor) · CutOffPress.
+ * A standard submodel for stating "this consists of those".
+ * The golden files (20 equipment types) already use this syntax to describe **parts inside equipment** -
+ * roll forming machine -> Uncoiler, RollStandUnit (-> FormingRoll, DriveMotor), CutOffPress.
  *
- * 공정 단위는 이 구조를 **한 칸 위로 올린 것**뿐이다. 문법도 서브모델도 같다.
+ * The process unit just **moves this structure one level up**. Same syntax, same submodel.
  *
- *   용접공정(EntryNode) → 롤포밍기(Node) · 협동로봇(Node) · SPR장비(Node)
+ *   Welding process (EntryNode) -> roll forming machine (Node), cobot (Node), SPR machine (Node)
  *
- * 자식 Node는 자기 상세를 담지 않는다. `globalAssetId`로 **그 설비의 Asset을 가리키기만** 한다.
- * 설비의 상세는 각자 파일에 그대로 둔다(값 동기화 A안과 같은 정신 — 원본은 한 군데다).
+ * A child Node does not hold its own details. It **only points to that equipment's Asset** via `globalAssetId`.
+ * The equipment details stay in their own files (same spirit as value-sync option A - there is one source of truth).
  */
 import { fill, tr, type Entity, type RelationshipElement, type Submodel, type SubmodelElement } from '@aas/core';
 
-/** IDTA 02011이 정한 것 — 우리가 지어낸 값이 아니다 */
+/** Defined by IDTA 02011 - not values we made up */
 export const IDTA_HIERARCHY = {
   submodel: 'https://admin-shell.io/idta/HierarchicalStructures/1/0/Submodel',
   entryNode: 'https://admin-shell.io/idta/HierarchicalStructures/EntryNode/1/0',
@@ -27,14 +27,14 @@ export const IDTA_HIERARCHY = {
 export const HIERARCHY_SUBMODEL_ID_SHORT = 'HierarchicalStructures';
 
 /**
- * ArcheType — 이 계층을 어느 방향으로 적었는가.
- *  Full     전체를 다 적었다 (공정이 쓰는 것)
- *  OneDown  한 단계 아래까지만
- *  OneUp    자기 위만 가리킨다
+ * ArcheType - in which direction this hierarchy is written.
+ *  Full     everything is written out (what a process uses)
+ *  OneDown  only down to one level below
+ *  OneUp    points only to its parent
  */
 export type ArcheType = 'Full' | 'OneDown' | 'OneUp';
 
-/** 자체 IRI(KOSMO)를 쓰되 IDTA 것을 supplemental로 함께 단다 — 충돌 ⑤의 kosmo-first와 같은 방식 */
+/** Uses our own IRI (KOSMO) but also attaches the IDTA one as supplemental - same approach as kosmo-first in conflict #5 */
 function semanticPair(ownIri: string, idtaIri: string) {
   return {
     semanticId: { type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: ownIri }] },
@@ -45,21 +45,21 @@ function semanticPair(ownIri: string, idtaIri: string) {
 }
 
 export interface NodeInput {
-  /** 자식 이름 — idShort가 된다 */
+  /** Child name - becomes the idShort */
   name: string;
-  /** 그 설비의 Asset 주소. 이것이 두 파일을 잇는 유일한 끈이다 */
+  /** The Asset address of that equipment. This is the only link connecting the two files */
   globalAssetId: string;
-  /** 같은 것이 여러 대면 대수 */
+  /** Number of units when there are several of the same */
   bulkCount?: number;
 }
 
-/** 자식 하나(Entity Node)를 만든다 */
+/** Create one child (Entity Node) */
 export function buildNode(input: NodeInput, iriBase: string): Entity {
   const node = {
     idShort: input.name,
     modelType: 'Entity',
     entityType: 'SelfManagedEntity',
-    // 🔴 SelfManagedEntity는 globalAssetId가 반드시 있어야 한다(AASd-014)
+    // Important: a SelfManagedEntity must have a globalAssetId (AASd-014)
     globalAssetId: input.globalAssetId,
     ...semanticPair(`${iriBase}/cd/Node/1/0`, IDTA_HIERARCHY.node),
   } as unknown as Entity;
@@ -78,7 +78,7 @@ export function buildNode(input: NodeInput, iriBase: string): Entity {
   return node;
 }
 
-/** 부모 → 자식 관계 하나 */
+/** One parent -> child relationship */
 export function buildHasPart(
   parentSubmodelId: string,
   parentPath: readonly string[],
@@ -102,11 +102,11 @@ export function buildHasPart(
 }
 
 /**
- * 중간 마디(그룹) — 파일이 따로 없는 층. 회사 파일 안의 「용접공정」 같은 것.
+ * Intermediate node (group) - a layer with no file of its own. Something like "welding process" inside a company file.
  *
- * 🔴 CoManagedEntity를 쓴다. SelfManagedEntity는 globalAssetId가 필수인데(AASd-014)
- *    그룹은 가리킬 파일이 없다 — 표준이 정확히 이런 경우를 위해 CoManaged를 둔다
- *    (상위 자산에 딸려 관리되는 부분). 골든 파일의 중첩 구조와 같은 문법이다.
+ * Important: uses CoManagedEntity. A SelfManagedEntity requires a globalAssetId (AASd-014),
+ *    but a group has no file to point to - the standard provides CoManaged for exactly this case
+ *    (a part managed as part of a parent asset). Same syntax as the nested structure in the golden files.
  */
 export function buildGroupNode(name: string, iriBase: string, line = false): Entity {
   return {
@@ -118,24 +118,25 @@ export function buildGroupNode(name: string, iriBase: string, line = false): Ent
 }
 
 /**
- * 라인 — 회사(공장)와 공정 사이의 층. 회사 → 라인 → 공정 → 설비 → 부품(설비 파일 안 BoM) 5단계를 담는다.
+ * Line - the layer between company (plant) and process. Captures 5 levels: company -> line -> process -> equipment -> part
+ * (BoM inside the equipment file).
  *
- * 층 종류는 이름이 아니라 semanticId 로 남긴다 — 이름은 사용자가 짓는 것이라(WeldingLine · L1 …) 추측할 수 없다.
- * 자체 IRI `…/cd/Line/1/0` 에 IDTA Node 를 supplemental 로 함께 단다 — IDTA 02011 을 읽는 쪽에는 여전히
- * 보통 Node 로 보인다. 자체 IRI 라 ConceptDescription 이 있어야 한다(KOSMO-SME-3, lineConceptDescription).
- * 라인은 맨 위(진입점 바로 밑)에만 둔다 — 라인 밑 라인은 층 뜻이 흐려진다.
+ * The layer kind is recorded via semanticId, not the name - names are chosen by the user (WeldingLine, L1 ...) and cannot be guessed.
+ * Our own IRI `…/cd/Line/1/0` is attached together with the IDTA Node as supplemental - to readers of IDTA 02011 it still
+ * looks like an ordinary Node. Being our own IRI, it needs a ConceptDescription (KOSMO-SME-3, lineConceptDescription).
+ * Lines are placed only at the top (directly under the entry point) - a line under a line blurs the meaning of the layer.
  */
 export function lineSemanticId(iriBase: string): string {
   return `${iriBase}/cd/Line/1/0`;
 }
 
-/** 이 마디가 라인인가 — semanticId 의 끝으로 본다(iriBase 가 파일마다 다를 수 있다) */
+/** Is this node a line - judged by the tail of the semanticId (iriBase may differ per file) */
 export function isLineNode(entity: Entity): boolean {
   const keys = (entity as unknown as { semanticId?: { keys?: { value?: string }[] } }).semanticId?.keys ?? [];
   return keys.some((key) => typeof key.value === 'string' && key.value.endsWith('/cd/Line/1/0'));
 }
 
-/** 경로(이름들)로 중첩 Entity를 찾아간다. 빈 경로면 진입점 자신이다 */
+/** Walk to a nested Entity by path (names). An empty path means the entry point itself */
 export function findByPath(submodel: Submodel, path: readonly string[]): Entity | undefined {
   let current = findEntryNode(submodel);
   for (const name of path) {
@@ -145,7 +146,7 @@ export function findByPath(submodel: Submodel, path: readonly string[]): Entity 
   return current;
 }
 
-/** 진입점(자기 자신)을 만든다 — 계층의 뿌리다 */
+/** Create the entry point (self) - the root of the hierarchy */
 export function buildEntryNode(name: string, globalAssetId: string, iriBase: string): Entity {
   return {
     idShort: name,
@@ -156,27 +157,27 @@ export function buildEntryNode(name: string, globalAssetId: string, iriBase: str
   } as unknown as Entity;
 }
 
-/** 서브모델 안에서 진입점을 찾는다 — 최상위 Entity 중 첫 번째다 */
+/** Find the entry point within the submodel - the first top-level Entity */
 export function findEntryNode(submodel: Submodel): Entity | undefined {
   const elements = (submodel.submodelElements ?? []) as SubmodelElement[];
   return elements.find((e) => e.modelType === 'Entity') as Entity | undefined;
 }
 
-/** 진입점의 자식들(Entity만) */
+/** Children of the entry point (Entities only) */
 export function childNodes(entry: Entity): Entity[] {
   const statements = (entry as unknown as { statements?: SubmodelElement[] }).statements ?? [];
   return statements.filter((e) => e.modelType === 'Entity') as Entity[];
 }
 
 /**
- * 자식 하나를 계층에 더한다. **있는 것을 고치지 않고 새 서브모델을 돌려준다** —
- * 저장소가 통째로 갈아 끼우는 방식이라(updateIdentifiable) 그 편이 안전하다.
+ * Add one child to the hierarchy. **Does not modify the existing one; returns a new submodel** -
+ * that is safer because the repository replaces it wholesale (updateIdentifiable).
  */
 export function addChild(
   submodel: Submodel,
   input: NodeInput | { name: string; group: true; line?: boolean },
   iriBase: string,
-  /** 어느 마디 밑에 넣을지 — 진입점부터의 이름 경로. 비우면 최상위다 */
+  /** Which node to insert under - the name path from the entry point. Empty means the top level */
   parentPath: readonly string[] = [],
 ): Submodel {
   const next = JSON.parse(JSON.stringify(submodel)) as Submodel;
@@ -200,8 +201,8 @@ export function addChild(
     throw new Error(fill(tr('이미 있는 이름입니다: {0}'), { 0: input.name }));
   }
   if (!isGroup) {
-    // 🔴 같은 설비를 같은 자리에 두 번 매다는 것을 막는다 — 다른 마디 밑이면 허용한다
-    //    (같은 모델이 두 공정에 쓰이는 것은 실제로 있는 일이다)
+    // Important: prevents attaching the same equipment twice at the same position - allowed under a different node
+    //    (the same model being used in two processes does happen in practice)
     const already = childNodes(parent).find(
       (child) =>
         (child as unknown as { globalAssetId?: string }).globalAssetId ===
@@ -221,7 +222,7 @@ export function addChild(
   return next;
 }
 
-/** 자식 하나를 뺀다 — 관계도 함께 뺀다. 하나만 지우면 짝이 안 맞는 파일이 된다 */
+/** Remove one child - its relationship is removed too. Removing only one leaves a file with mismatched pairs */
 export function removeChild(
   submodel: Submodel,
   name: string,
@@ -232,7 +233,7 @@ export function removeChild(
   if (!parent) throw new Error(fill(tr('자리를 찾지 못했습니다: {0}'), { 0: parentPath.join(' → ') }));
   const holder = parent as unknown as { statements?: SubmodelElement[] };
   const before = holder.statements?.length ?? 0;
-  // 자식과, 그 자식을 second로 가리키는 관계를 함께 뺀다(이름이 아니라 참조로 찾는다)
+  // Remove the child together with the relationship whose second points to it (found by reference, not by name)
   holder.statements = (holder.statements ?? []).filter((element) => {
     if (element.idShort === name && element.modelType === 'Entity') return false;
     if (element.modelType === 'RelationshipElement') {
@@ -242,24 +243,24 @@ export function removeChild(
     return true;
   });
   if (holder.statements.length === before) throw new Error(fill(tr('없는 이름입니다: {0}'), { 0: name }));
-  // 🔴 비면 키 자체를 없앤다 — V3.0 스키마는 빈 배열을 허용하지 않는다(PKG-EMPTY-ARRAY).
-  //    그룹에서 마지막 자식을 뺄 때 실제로 걸렸다
+  // Important: if empty, drop the key itself - the V3.0 schema does not allow empty arrays (PKG-EMPTY-ARRAY).
+  //    This actually bit us when removing the last child from a group
   if (holder.statements.length === 0) delete holder.statements;
   return next;
 }
 
-/** 중첩 트리 한 마디 — 화면과 API가 같은 모양을 쓴다 */
+/** One node of the nested tree - the UI and API use the same shape */
 export interface HierarchyTreeNode {
   name: string;
-  /** 파일을 가리키면 채워진다. 그룹(중간 마디)은 비어 있다 */
+  /** Filled when it points to a file. Empty for a group (intermediate node) */
   globalAssetId?: string;
   bulkCount: number;
-  /** 라인 층이면 true(semanticId 로 판정). 공정 같은 보통 층은 빠진다 */
+  /** true for a line layer (judged by semanticId). Ordinary layers such as processes are omitted */
   line?: true;
   children: HierarchyTreeNode[];
 }
 
-/** 진입점 아래 전체를 중첩 트리로 읽는다 */
+/** Read everything under the entry point as a nested tree */
 export function hierarchyTree(entity: Entity): HierarchyTreeNode[] {
   return childNodes(entity).map((child) => {
     const raw = child as unknown as {
@@ -279,12 +280,12 @@ export function hierarchyTree(entity: Entity): HierarchyTreeNode[] {
 }
 
 /**
- * 계층 용어의 ConceptDescription.
+ * ConceptDescriptions for the hierarchy terms.
  *
- * 🔴 자체 IRI를 semanticId로 쓰면 **대응하는 ConceptDescription이 있어야 한다**(KOSMO-SME-3).
- *    이걸 빠뜨려 공정 뼈대가 태어나자마자 위반 2건으로 시작했다 — 우리 린터가 잡았다.
- *    모양은 지어내지 않고 **골든 파일(설비 20종)이 쓰는 그대로**다:
- *    IEC 61360 데이터명세 + `isCaseOf`로 IDTA 원본을 가리킨다.
+ * Important: when our own IRI is used as a semanticId, **a matching ConceptDescription must exist** (KOSMO-SME-3).
+ *    Missing this made the process scaffold start life with 2 violations - our own linter caught it.
+ *    The shape is not invented; it is **exactly what the golden files (20 equipment types) use**:
+ *    an IEC 61360 data specification + `isCaseOf` pointing to the IDTA original.
  */
 const IEC61360 = 'https://admin-shell.io/DataSpecificationTemplates/DataSpecificationIec61360/3/0';
 
@@ -307,17 +308,17 @@ function conceptDescription(idShort: string, ownIri: string, idtaIri: string, da
         },
       },
     ],
-    // 이 자체 용어가 어느 IDTA 용어에 해당하는지 — 상호운용의 끈이다
+    // Which IDTA term this term of ours corresponds to - the link for interoperability
     isCaseOf: [{ type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: idtaIri }] }],
   };
 }
 
-/** 라인 용어 — 라인을 처음 만들 때 그 파일에 없으면 함께 넣는다(뼈대에는 넣지 않는다: 쓰지 않는 용어가 된다) */
+/** Line term - added to the file when a line is first created if not already present (not added to the scaffold: it would be an unused term) */
 export function lineConceptDescription(iriBase: string): Record<string, unknown> {
   return conceptDescription('Line', lineSemanticId(iriBase), IDTA_HIERARCHY.node, 'STRING');
 }
 
-/** 계층 구조가 쓰는 용어 다섯 — 뼈대와 함께 넣는다 */
+/** The five terms used by the hierarchy - added together with the scaffold */
 export function hierarchyConceptDescriptions(iriBase: string): Record<string, unknown>[] {
   return [
     conceptDescription('EntryNode', `${iriBase}/cd/EntryNode/1/0`, IDTA_HIERARCHY.entryNode, 'STRING'),

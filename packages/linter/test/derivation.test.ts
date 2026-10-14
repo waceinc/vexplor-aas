@@ -1,5 +1,5 @@
 /**
- * 형식 → 호기 반영 — 3자 비교(base · 지금 형식 · 지금 호기). src/derivation.ts
+ * Type → unit propagation — three-way comparison (base · current type · current unit). src/derivation.ts
  */
 import type { Environment } from '@aas/core';
 import { readAasx } from '@aas/aasx';
@@ -35,8 +35,8 @@ const TYPE = env([
   },
 ]);
 
-describe('형식 → 호기 반영', () => {
-  it('형식만 바뀐 값은 반영 — 호기가 그때 형식 그대로일 때', () => {
+describe('type → unit propagation', () => {
+  it('propagates values changed only in the type — when the unit still matches the type as of then', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
     const theirs = clone(TYPE);
@@ -48,10 +48,10 @@ describe('형식 → 호기 반영', () => {
     expect(valueAt(applyDerivation(instance, theirs, plan), 'TechnicalData', 'MaxSpeed')).toBe('120');
   });
 
-  it('현장에서 고친 값은 건너뛴다 — 형식이 바뀌어도 덮지 않는다', () => {
+  it('skips values edited in the field — does not overwrite them even if the type changed', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
-    (instance.submodels![0]!.submodelElements![1] as Json)['value'] = '95'; // 현장 수정
+    (instance.submodels![0]!.submodelElements![1] as Json)['value'] = '95'; // field edit
     const theirs = clone(TYPE);
     (theirs.submodels![0]!.submodelElements![1] as Json)['value'] = '120';
     const plan = planDerivation(base, theirs, instance);
@@ -59,7 +59,7 @@ describe('형식 → 호기 반영', () => {
     expect(valueAt(applyDerivation(instance, theirs, plan), 'TechnicalData', 'MaxSpeed')).toBe('95');
   });
 
-  it('호기가 이미 새 형식 값과 같으면 보이지 않는다', () => {
+  it('does not show values where the unit already equals the new type value', () => {
     const base = snapshotOf(TYPE);
     const theirs = clone(TYPE);
     (theirs.submodels![0]!.submodelElements![1] as Json)['value'] = '120';
@@ -67,7 +67,7 @@ describe('형식 → 호기 반영', () => {
     expect(planDerivation(base, theirs, instance)).toEqual([]);
   });
 
-  it('형식에 새로 생긴 항목은 넣는다 — 묶음째 생기면 묶음 한 줄로(자식은 따라온다)', () => {
+  it('adds items newly created in the type — a whole new collection is one line (children come along)', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
     const theirs = clone(TYPE);
@@ -85,20 +85,20 @@ describe('형식 → 호기 반영', () => {
     expect(valueAt(after, 'TechnicalData', 'Type')).toBe('Air');
   });
 
-  it('넣을 자리(부모)가 호기에 없으면 건너뛴다', () => {
+  it('skips when the insertion point (parent) does not exist in the unit', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
-    (instance.submodels![0]!.submodelElements as unknown as Json[]).splice(2, 1); // 호기에서 Motor 를 뺐다
+    (instance.submodels![0]!.submodelElements as unknown as Json[]).splice(2, 1); // removed Motor from the unit
     const theirs = clone(TYPE);
     ((theirs.submodels![0]!.submodelElements![2] as Json)['value'] as Json[]).push(prop('Rpm', '1800'));
     const plan = planDerivation(base, theirs, instance);
     expect(plan).toEqual([expect.objectContaining({ path: 'Motor.Rpm', kind: 'added', action: 'skip', reason: 'parent-missing' })]);
   });
 
-  it('형식에서 사라진 항목은 뺀다 — 단 호기에서 그 아래를 고쳤으면 빼지 않는다', () => {
+  it('removes items that disappeared from the type — unless something beneath them was edited in the unit', () => {
     const base = snapshotOf(TYPE);
     const theirs = clone(TYPE);
-    (theirs.submodels![0]!.submodelElements as unknown as Json[]).splice(2, 1); // 형식에서 Motor 를 뺐다
+    (theirs.submodels![0]!.submodelElements as unknown as Json[]).splice(2, 1); // removed Motor from the type
     const untouched = clone(TYPE);
     const plan = planDerivation(base, theirs, untouched);
     expect(plan).toEqual([expect.objectContaining({ path: 'Motor', kind: 'removed', action: 'apply' })]);
@@ -110,7 +110,7 @@ describe('형식 → 호기 반영', () => {
     expect(planDerivation(base, theirs, edited)).toEqual([expect.objectContaining({ path: 'Motor', kind: 'removed', action: 'skip', reason: 'edited-here' })]);
   });
 
-  it('호기에 그 서브모델이 없으면 건너뛰고, 호기에만 있는 서브모델(수집 연결 등)은 보지 않는다', () => {
+  it('skips when the unit lacks that submodel, and ignores unit-only submodels (data-collection bindings, etc.)', () => {
     const base = snapshotOf(TYPE);
     const theirs = clone(TYPE);
     (theirs.submodels![0]!.submodelElements![0] as Json)['value'] = 'WACE Co.';
@@ -120,7 +120,7 @@ describe('형식 → 호기 반영', () => {
     expect(plan.some((c) => c.submodel === 'AssetInterfacesDescription')).toBe(false);
   });
 
-  it('고르지 않은 「반영」 줄은 다음에도 다시 보인다 — 반영한 줄은 다시 안 보인다', () => {
+  it('unselected "apply" lines show up again next time — applied lines do not', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
     const theirs = clone(TYPE);
@@ -133,7 +133,7 @@ describe('형식 → 호기 반영', () => {
     expect(again.map((c) => [c.path, c.action])).toEqual([['Manufacturer', 'apply']]);
   });
 
-  it('실제 파일 — 호기별로 복제한 직후에는 반영할 것이 없고, 형식 값 하나를 고치면 그 하나만 반영 대상이다', () => {
+  it('real file — right after per-unit cloning nothing needs propagating; editing one type value makes only that one a candidate', () => {
     const type = readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))).environment;
     const base = snapshotOf(type);
     const instance = renameEnvironment(clone(type), 'RollFormingMachine_1', 'https://www.smart-factory.kr/ids');

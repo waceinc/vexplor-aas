@@ -1,10 +1,10 @@
 /**
- * MQTT 수집 어댑터 — AID 의 속성 주소(href = 토픽)를 구독해 두고, 읽을 때는 **마지막으로 받은 값**을 돌려준다.
+ * MQTT collection adapter — subscribes to the AID property addresses (href = topic) and, on read, returns **the last value received**.
  *
- * MQTT 는 묻고 답하는 방식이 아니라 장치가 보내는 방식이다. 그래서 수집 주기마다 「지금까지 받은 마지막 값」을
- * 표본으로 삼고, 한 번도 안 온 토픽은 실패가 아니라 값 대기(pending)다 — 수집기가 가짜 값을 만들지 않는다.
- * 처음 읽을 때는 보관 메시지(retained)가 도착할 틈을 잠깐 준다. mqtt:// 와 mqtts://(TLS)를 받는다. 사용자·암호는 주소에.
- * 본문은 글자로 읽고, JSON 이면 숫자 · 참거짓은 그대로, {"value": …} 꼴이면 value 를 꺼낸다.
+ * MQTT is not request/response; devices push. So each collection cycle samples "the last value received so far",
+ * and a topic that has never arrived is not a failure but pending — the collector does not fabricate values.
+ * On the first read it briefly allows time for retained messages to arrive. Accepts mqtt:// and mqtts:// (TLS). Username/password go in the URL.
+ * The body is read as text; if it is JSON, numbers and booleans are used as-is, and for the {"value": ...} shape the value is extracted.
  */
 import { connect as tlsConnect } from 'node:tls';
 import { Socket } from 'node:net';
@@ -14,20 +14,20 @@ import { packet, readPublish, takePacket, utf8 } from './mqtt-wire.js';
 
 export interface MqttReaderOptions {
   timeoutMs?: number;
-  /** 첫 읽기 전에 보관 메시지를 기다리는 시간 */
+  /** Time to wait for retained messages before the first read */
   settleMs?: number;
   guard?: (url: string) => void;
   clientId?: string;
 }
 
-/** 속성 주소 → 토픽. 절대 주소(mqtt://호스트/토픽)면 경로를, 아니면 그대로(앞 / 하나는 뗀다) */
+/** Property address -> topic. For an absolute address (mqtt://host/topic) the path; otherwise as-is (one leading / is stripped) */
 export function topicOf(href: string): string {
   const absolute = href.match(/^mqtts?:\/\/[^/]+\/(.*)$/i);
   const topic = absolute ? absolute[1]! : href;
   return decodeURIComponent(topic.replace(/^\//, ''));
 }
 
-/** 본문 → 값 */
+/** Body -> value */
 export function payloadValue(payload: Buffer): unknown {
   const text = payload.toString('utf8');
   try {
@@ -35,7 +35,7 @@ export function payloadValue(payload: Buffer): unknown {
     if (typeof parsed === 'number' || typeof parsed === 'boolean') return parsed;
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'value' in parsed) return (parsed as { value: unknown }).value;
   } catch {
-    // JSON 이 아니다 — 글자 그대로
+    // Not JSON — use the text as-is
   }
   return text;
 }
@@ -128,7 +128,7 @@ export class MqttReader implements ProtocolReader {
           this.buffer = next.rest;
           const { type, body } = next.packet;
           if (type === 2) {
-            // CONNACK — 0 이 아니면 거절(1~5: 판 · id · 서버 · 사용자/암호 · 권한)
+            // CONNACK — non-zero means refused (1-5: protocol version, client id, server, username/password, authorization)
             if (body[1] !== 0) return fail(fill(tr('MQTT 브로커가 연결을 거절했습니다(코드 {0}).'), { 0: String(body[1]) }));
             if (topics.length === 0) {
               clearTimeout(timer);

@@ -1,6 +1,6 @@
 /**
- * 화면 시험 틀 — fetch 를 진짜 API 핸들러(@aas/api + 인메모리 저장소)에 물린다.
- * app.test.tsx 의 mountApi 와 같은 방식을 작게 떼어 냈다(쿠키·인증 없이). 새 화면 시험은 이것을 쓴다.
+ * Screen test harness: wires fetch to the real API handler (@aas/api + in-memory store).
+ * A small extract of mountApi from app.test.tsx (no cookies or auth). New screen tests use this.
  */
 import { createApi, type ApiOptions, type ApiRequest } from '@aas/api';
 import type { InMemoryStore } from '@aas/store';
@@ -15,7 +15,7 @@ class ResizeObserverStub {
   disconnect(): void {}
 }
 
-/** 각 시험 전후 — jsdom 에 없는 것을 채우고 비운다 */
+/** Before/after each test: fill in and clear what jsdom lacks */
 export function useScreenHarness(): void {
   beforeEach(() => {
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
@@ -27,7 +27,7 @@ export function useScreenHarness(): void {
   });
 }
 
-/** 저장소를 API 에 물려 fetch 로 둔다 */
+/** Wire the store to the API and expose it as fetch */
 export function wireFetch(store: InMemoryStore, options: ApiOptions = {}): void {
   const handle = createApi(store, options);
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {

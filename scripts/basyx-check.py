@@ -53,7 +53,7 @@ def check(path: str, expect_submodels: int = None) -> bool:
 
     ok = True
     print(f"✅ 적재됨  {path}")
-    # DictSupplementaryFileContainer는 len()을 지원하지 않는다 — 순회해서 센다
+    # DictSupplementaryFileContainer does not support len() — count by iterating
     attachments = sum(1 for _ in files)
     print(
         f"   AAS {len(shells)} · Submodel {len(submodels)} · "
@@ -64,7 +64,7 @@ def check(path: str, expect_submodels: int = None) -> bool:
         print("   ⚠️  요소가 하나도 안 읽혔다 — 조용한 손실을 의심할 것")
         ok = False
     if expect_submodels is not None and len(submodels) != expect_submodels:
-        # 조용한 드롭 — 예외 없이 사라지는 쪽이 더 위험하다
+        # Silent drop — vanishing without an exception is the more dangerous case
         print(f"   ⚠️  서브모델이 {expect_submodels}개여야 하는데 {len(submodels)}개다. 조용히 드롭됐다")
         ok = False
     return ok

@@ -1,28 +1,28 @@
 /**
- * 폴더 보관함 — 내 컴퓨터의 폴더에 파일로 남긴다.
+ * Folder store — keeps files in a folder on your own computer.
  *
- * 만든 이유는 하나다. **Docker를 없애기 위해서다.**
- * 지금까지 보관함은 둘뿐이었다 — 메모리(끄면 사라짐)와 PostgreSQL(Docker 필요).
- * 혼자 쓰는 사람에게 "파일이 남게 하려면 데이터베이스를 띄우십시오"는 과하다.
- * 실제로 설치가 어렵다는 이야기가 여기서 나왔다(2026-08-25 사용자).
+ * There is exactly one reason it exists: **to get rid of Docker.**
+ * Until now there were only two stores — memory (gone when stopped) and PostgreSQL (needs Docker).
+ * Telling a solo user "start a database if you want your files to persist" is too much.
+ * This is where the complaint that installation is hard actually came from (2026-08-25, a user).
  *
- * 설계는 단순하다. **InMemoryStore를 그대로 쓰고, 바뀔 때마다 폴더에 적는다.**
- * 자료구조를 새로 짜지 않으니 두 보관함의 동작이 갈릴 여지가 없다 —
- * 같은 적합성 테스트(test/conformance.ts)를 그대로 돌린다.
+ * The design is simple: **reuse InMemoryStore as-is and write to the folder on every change.**
+ * Since no new data structures are written, there is no room for the two stores' behavior to diverge —
+ * the same conformance tests (test/conformance.ts) run unchanged.
  *
- * 폴더 모양:
+ * Folder layout:
  *
- *   <데이터폴더>/
- *     pkg_1/model.json      패키지·요소·첨부·이력 (바뀔 때마다 통째로 다시 씀)
- *     pkg_1/values.jsonl    수집값 (한 줄에 하나씩 덧붙임)
- *     users.json            계정 (비밀번호는 해시만) — 바뀔 때마다 통째로 다시 씀
+ *   <data folder>/
+ *     pkg_1/model.json      package, elements, attachments, history (rewritten whole on every change)
+ *     pkg_1/values.jsonl    collected values (appended one per line)
+ *     users.json            accounts (passwords as hashes only) — rewritten whole on every change
  *
- * 🔴 계정을 빠뜨렸던 적이 있다(2026-10-06 사용자 실측). 패키지만 적고 계정은 메모리에만 두어,
- *    관리자를 만들고 서버를 껐다 켜면 계정이 사라지고 「첫 관리자 만들기」로 돌아갔다.
- *    그 사이 서버가 **보호 모드도 아닌 채로** 비어 있게 되므로 보안 문제이기도 하다.
+ * Important: accounts were once left out (2026-10-06, measured by a user). Only packages were written and accounts stayed in memory,
+ *    so after creating an admin and restarting the server, the accounts vanished and it went back to "create the first admin".
+ *    In the meantime the server sits empty **without even being in protected mode**, so it was also a security issue.
  *
- * 🔴 수집값을 model.json에 같이 넣지 않는 이유: 수집은 몇 초마다 돈다.
- *    그때마다 첨부까지 든 수 MB짜리 파일을 다시 쓰면 디스크가 갈린다. 덧붙이기로 나눴다.
+ * Important: why collected values are not put into model.json: collection runs every few seconds.
+ *    Rewriting a multi-MB file including attachments each time grinds the disk. So they were split into appends.
  */
 import { mkdir, readFile, readdir, rename, rm, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -50,7 +50,7 @@ export class FolderStore extends InMemoryStore {
     super(now);
   }
 
-  /** 폴더를 읽어 들인다. 폴더가 없으면 만든다 */
+  /** Loads the folder. Creates it if it does not exist */
   override async init(): Promise<void> {
     await mkdir(this.dir, { recursive: true });
     await this.readUsers();
@@ -62,8 +62,8 @@ export class FolderStore extends InMemoryStore {
       try {
         snapshot = JSON.parse(await readFile(modelPath, 'utf8')) as PackageSnapshot;
       } catch {
-        // 🔴 한 패키지가 깨졌다고 나머지까지 못 열면 안 된다. 그것만 건너뛴다.
-        //    (지우지도 않는다 — 사용자가 직접 보고 판단할 수 있어야 한다)
+        // Important: one broken package must not prevent opening the rest. Skip just that one.
+        //    (Not deleted either — the user must be able to look at it and decide)
         continue;
       }
       this.restore(snapshot, await this.readValueFile(entry.name));
@@ -75,20 +75,20 @@ export class FolderStore extends InMemoryStore {
     try {
       text = await readFile(join(this.dir, USERS_FILE), 'utf8');
     } catch {
-      return; // 아직 계정이 없다
+      return; // No accounts yet
     }
-    // 🔴 깨졌으면 **기동을 멈춘다.** 건너뛰면 계정 0개로 떠서 아무나 「첫 관리자」가 될 수 있다
+    // Important: if it is broken, **halt startup.** Skipping would start with 0 accounts and anyone could become "the first admin"
     let snapshot: UserSnapshot;
     try {
       snapshot = JSON.parse(text) as UserSnapshot;
     } catch (error) {
-      // i18n-ignore — 기동할 때 운영자에게 나가는 오류(요청이 없어 언어도 없다)
+      // i18n-ignore — error shown to the operator at startup (there is no request, so no language either)
       throw new Error(`${join(this.dir, USERS_FILE)}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: ${String(error)}`);
     }
     this.restoreUsers(snapshot);
   }
 
-  /** 계정 쓰기도 한 줄로 세운다 — 패키지와 같은 이유(같은 .tmp를 둘이 쓰면 깨진다) */
+  /** Account writes are serialized too — same reason as packages (two writers to the same .tmp corrupt it) */
   private userWrites: Promise<void> = Promise.resolve();
 
   private async persistUsers(): Promise<void> {
@@ -141,39 +141,39 @@ export class FolderStore extends InMemoryStore {
       try {
         values.push(JSON.parse(line) as CollectedValue);
       } catch {
-        // 쓰다가 전원이 나가면 마지막 줄이 잘린다. 그 줄만 버린다
+        // If power is lost mid-write, the last line gets truncated. Only that line is discarded
       }
     }
     return values;
   }
 
   /**
-   * 🔴 통째로 다시 쓸 때는 **임시 파일에 쓰고 이름을 바꾼다.**
-   * 그냥 덮어쓰다가 전원이 나가면 반쯤 쓰인 파일이 남아 다음에 못 연다.
+   * Important: when rewriting a whole file, **write to a temp file and rename it.**
+   * Overwriting in place and losing power leaves a half-written file that cannot be opened next time.
    */
   /**
-   * 패키지별 「쓰기 차례」 — 같은 패키지에 쓰는 일을 **한 줄로 세운다**.
+   * Per-package "write queue" — **serializes** writes to the same package.
    *
-   * 🔴 없으면 깨진다(2026-10-02 실측). 같은 패키지에 저장이 둘 겹치면 둘 다 같은
-   *    `model.json.tmp`에 쓰고, 먼저 끝난 쪽이 그것을 rename으로 가져가 버려서
-   *    나중 쪽이 `ENOENT`로 터진다. 운이 나쁘면 터지지 않고 **반쯤 섞인 내용**이
-   *    model.json이 된다 — 조용히 잃는 쪽이 훨씬 나쁘다.
-   *    화면에서 저장과 자동 고치기가 겹치거나 창을 두 개 띄우면 바로 나는 일이다.
+   * Important: without it things break (measured 2026-10-02). When two saves to the same package overlap, both write to the same
+   *    `model.json.tmp`, the one that finishes first takes it away via rename, and
+   *    the later one blows up with `ENOENT`. With bad luck it does not blow up, and **half-mixed content**
+   *    becomes model.json — silently losing data is far worse.
+   *    This happens immediately when a save and auto-fix overlap in the UI, or when two windows are open.
    */
   private readonly writes = new Map<string, Promise<void>>();
 
   private async persist(packageId: string): Promise<void> {
-    // 앞 쓰기가 끝난 **뒤에** 찍는다 — 그래야 나중 쓰기가 항상 더 새 내용을 담는다
+    // Snapshot **after** the previous write finishes — so a later write always holds newer content
     const previous = this.writes.get(packageId) ?? Promise.resolve();
     const next = previous
-      // 앞의 실패가 뒤를 막으면 한 번 고장 난 패키지가 영영 저장되지 않는다
+      // If an earlier failure blocked later ones, a package that failed once would never be saved again
       .catch(() => undefined)
       .then(() => this.writeModel(packageId));
     this.writes.set(packageId, next);
     try {
       await next;
     } finally {
-      // 마지막 차례였으면 지운다 — 끝난 약속을 계속 들고 있을 이유가 없다
+      // Remove it if it was the last in line — no reason to keep holding a settled promise
       if (this.writes.get(packageId) === next) this.writes.delete(packageId);
     }
   }
@@ -187,7 +187,7 @@ export class FolderStore extends InMemoryStore {
     await rename(temp, target);
   }
 
-  // ── 아래는 전부 "원래대로 하고, 폴더에 적는다" ─────────────────────────────
+  // ── Everything below is "do the usual, then write to the folder" ───────────
 
   override async importPackage(input: {
     name: string;
@@ -263,7 +263,7 @@ export class FolderStore extends InMemoryStore {
   override async pruneValues(before: string): Promise<number> {
     const removed = await super.pruneValues(before);
     if (removed === 0) return 0;
-    // 남은 것으로 values.jsonl을 통째로 다시 쓴다 — 지운 흔적을 파일에도 남기지 않는다
+    // Rewrite values.jsonl whole from what remains — leave no trace of deleted values in the file either
     let cursor: string | undefined;
     do {
       const page = await this.listPackages(cursor === undefined ? { limit: 200 } : { limit: 200, cursor });
@@ -281,7 +281,7 @@ export class FolderStore extends InMemoryStore {
         await rm(path, { force: true });
         return;
       }
-      // readValues는 최근 것이 앞이다 — 파일은 쌓인 순서(오래된 것 먼저)를 유지한다
+      // readValues returns most recent first — the file keeps accumulation order (oldest first)
       const lines = [...kept].reverse().map((value) => JSON.stringify(value)).join('\n');
       await writeFile(path, `${lines}\n`, 'utf8');
     }

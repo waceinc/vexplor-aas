@@ -1,12 +1,12 @@
 /**
- * OPC UA 노출 감독 — 기획서 M6·M7을 저장소에 붙이는 자리.
+ * OPC UA exposure supervisor — where plan items M6/M7 attach to the store.
  *
- * 하는 일은 하나다: **저장소에 있는 것을 노드 계획으로 바꿔 서버에 넘긴다.**
+ * It does one thing: **turn what is in the store into node plans and hand them to the server.**
  *
- * 🔴 값은 시계열에서 읽어 `overlayEnvironment`로 덧씌운다 — Part 2의 `?live=true`와
- *    **같은 함수**다. 두 곳에서 따로 값을 고르면 REST와 OPC UA가 서로 다른 값을 말하게 된다.
- *    (BaSyx DataBridge가 겪는 문제를 그대로 물려받을 이유가 없다)
- * 🔴 모델에는 되쓰지 않는다. 덧씌우기는 사본에만 한다 — 값 동기화 A안.
+ * Important: values are read from the time series and overlaid via `overlayEnvironment` — the **same function** as
+ *    Part 2's `?live=true`. If two places picked values separately, REST and OPC UA would report different values.
+ *    (There is no reason to inherit the problem BaSyx DataBridge has)
+ * Important: never written back to the model. Overlays are applied only to a copy — value sync option A.
  */
 import { overlayEnvironment, type ValueSample } from '@aas/collector';
 import { AasOpcUaServer, planForPackage, type PublishPlan, type ServerStatus } from '@aas/opcua';
@@ -15,10 +15,10 @@ import type { AasStore } from '@aas/store';
 export interface PublisherOptions {
   store: AasStore;
   port?: number;
-  /** 주소공간을 다시 읽는 주기(ms) */
+  /** Interval (ms) for re-reading the address space */
   refreshMs?: number;
   hostname?: string;
-  /** 한 파일에서 값을 몇 개까지 훑을지 — 최신값만 쓰므로 넉넉하면 된다 */
+  /** How many values to scan per file — only the latest is used, so a generous number is fine */
   valueLimit?: number;
 }
 
@@ -46,12 +46,12 @@ export class OpcUaPublisher {
     return this.server.currentStatus();
   }
 
-  /** 지금 곧바로 맞춘다 — 수동 수집 직후처럼 기다릴 이유가 없을 때 */
+  /** Sync right now — when there is no reason to wait, e.g. right after a manual collection */
   refresh(): Promise<void> {
     return this.server.refresh();
   }
 
-  /** 저장소 전체 → 노드 계획들 */
+  /** Whole store → node plans */
   private async plans(): Promise<PublishPlan[]> {
     const out: PublishPlan[] = [];
     let cursor: string | undefined;
@@ -63,11 +63,11 @@ export class OpcUaPublisher {
           const samples = (await this.options.store.readValues(record.id, {
             limit: this.options.valueLimit ?? 2000,
           })) as unknown as ValueSample[];
-          // 수집값이 얹힌 **사본**으로 계획을 세운다
+          // Build the plan from a **copy** with collected values overlaid
           const { content } = overlayEnvironment(environment, samples);
           out.push(planForPackage(content, { packageId: record.id, name: record.name }));
         } catch {
-          // 🔴 파일 하나가 깨져도 나머지는 계속 내준다 — 서버 전체를 떨구지 않는다
+          // Important: keep serving the rest even if one file is broken — do not take down the whole server
         }
       }
       cursor = page.cursor;

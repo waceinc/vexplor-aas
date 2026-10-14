@@ -1,23 +1,23 @@
 /**
- * idShortPath 해석과 ValueOnly 직렬화.
+ * idShortPath resolution and ValueOnly serialization.
  *
- * IDTA Part 2는 SubmodelElement를 `Markings.MarkingsEntry[0].Name` 같은 **idShortPath**로 가리킨다.
- * 점(.)이 계층, 대괄호가 SubmodelElementList의 인덱스다.
- * 순회 규칙은 @aas/core의 traverse와 같아야 한다 — 린터가 보고하는 위치와 API가 가리키는 위치가
- * 어긋나면 저작 UI에서 "지적된 그 요소"를 열 수 없다.
+ * IDTA Part 2 addresses a SubmodelElement by an **idShortPath** such as `Markings.MarkingsEntry[0].Name`.
+ * A dot (.) is a hierarchy level; square brackets are a SubmodelElementList index.
+ * The traversal rules must match traverse in @aas/core — if the location the linter reports and the location the API points to
+ * diverge, the authoring UI cannot open "the element that was flagged".
  */
 import type { LangString, Submodel, SubmodelElement } from '@aas/core';
 import { fill, tr } from '@aas/core';
 
 export interface ElementLocation {
-  /** node를 담고 있는 배열 */
+  /** Array that contains node */
   list: SubmodelElement[];
-  /** list 안에서의 위치 */
+  /** Position within list */
   index: number;
   node: SubmodelElement;
 }
 
-/** 자식을 담는 필드 — traverse.ts의 childrenOf와 같은 규칙 */
+/** Fields holding children — same rules as childrenOf in traverse.ts */
 function childrenOf(node: SubmodelElement): SubmodelElement[] | undefined {
   switch (node.modelType) {
     case 'SubmodelElementCollection':
@@ -69,7 +69,7 @@ export function resolveIdShortPath(
   return location;
 }
 
-/** 새 요소를 담을 부모 배열을 확보한다. 없으면 만들어 붙인다 */
+/** Obtain the parent array to hold a new element. Create and attach it if missing */
 export function containerFor(
   submodel: Submodel,
   parentPath: string | undefined,
@@ -88,8 +88,8 @@ export function containerFor(
 }
 
 /**
- * ValueOnly 직렬화($value).
- * 자주 쓰는 종류만 다룬다 — 나머지는 통짜 JSON(GET without $value)으로 보면 된다.
+ * ValueOnly serialization ($value).
+ * Only common kinds are handled — for the rest, view the full JSON (GET without $value).
  */
 export function toValueOnly(node: SubmodelElement): unknown {
   switch (node.modelType) {
@@ -99,11 +99,11 @@ export function toValueOnly(node: SubmodelElement): unknown {
       return (node as { value?: string }).value ?? null;
     case 'MultiLanguageProperty':
       /**
-       * 🔴 ValueOnly는 메타모델 표현이 아니다.
-       * 규격: "각 언어마다 **언어를 이름으로, 지역화 문자열을 값으로** 갖는 JSON 객체의 배열"
-       *   맞음: [{"ko": "제조사"}, {"en": "Maker"}]
-       *   틀림: [{"language": "ko", "text": "제조사"}]  ← 메타모델 그대로 내보내던 것
-       * BaSyx(참조 구현)와 대조하다 드러났다(2026-08-24).
+       * Important: ValueOnly is not the metamodel representation.
+       * Spec: "an array of JSON objects, one per language, **with the language as the name and the localized string as the value**"
+       *   correct: [{"de": "Hersteller"}, {"en": "Maker"}]
+       *   wrong:   [{"language": "de", "text": "Hersteller"}]  ← what we used to emit, copying the metamodel as-is
+       * Surfaced when cross-checking against BaSyx (the reference implementation) (2026-08-24).
        */
       return ((node as { value?: LangString[] }).value ?? []).map((entry) => ({
         [entry.language]: entry.text,
@@ -131,10 +131,10 @@ export function toValueOnly(node: SubmodelElement): unknown {
 export class ValueNotSupportedError extends Error {}
 
 /**
- * ValueOnly 쓰기($value PATCH).
+ * ValueOnly write ($value PATCH).
  *
- * A안(파일이 원본)에서 이 경로는 **저작 편집**이다 — 수집값을 밀어 넣는 통로가 아니다.
- * 여기로 들어온 값은 모델에 남고 export하면 파일에 그대로 나간다.
+ * Under option A (the file is the source of truth) this path is **authoring edits** — not a channel for pushing in collected values.
+ * Values that come in here stay in the model and go out to the file as-is on export.
  */
 export function applyValueOnly(node: SubmodelElement, value: unknown): void {
   switch (node.modelType) {
@@ -157,8 +157,8 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
           tr('MultiLanguageProperty의 값은 [{"ko":"…"}] 형태의 배열이어야 합니다.'),
         );
       }
-      // 규격 형태([{ko:"…"}])를 받는다. 메타모델 형태({language,text})로 보내는 클라이언트도
-      // 있어 함께 받아 준다 — 받는 쪽은 너그럽게, 내보내는 쪽은 규격대로
+      // Accept the spec form ([{ko:"…"}]). Some clients send the metamodel form ({language,text}),
+      // so accept that too — be lenient in what you accept, spec-conformant in what you emit
       (node as { value?: LangString[] }).value = value.map((entry) => {
         const record = entry as Record<string, unknown>;
         if (typeof record['language'] === 'string' && typeof record['text'] === 'string') {
@@ -193,14 +193,14 @@ export function applyValueOnly(node: SubmodelElement, value: unknown): void {
   }
 }
 
-// ── 직렬화 수식자 ($metadata · $path · $reference) ────────────────────────────
+// ── Serialization modifiers ($metadata · $path · $reference) ────────────────────────────
 
 /**
- * 값에 해당하는 필드. `$metadata`는 이것들을 뺀 나머지다.
+ * Fields that count as the value. `$metadata` is everything else.
  *
- * 규격의 `*Metadata` 스키마는 `SubmodelElementAttributes`(Referable·HasSemantics·Qualifiable·
- * HasDataSpecification·HasKind) + 종류별 **값이 아닌** 속성으로 정의된다.
- * 그래서 뺄 것을 세는 편이 정확하다 — 새 요소 종류가 생겨도 규칙이 그대로 선다.
+ * The spec's `*Metadata` schemas are defined as `SubmodelElementAttributes` (Referable·HasSemantics·Qualifiable·
+ * HasDataSpecification·HasKind) + the per-kind **non-value** attributes.
+ * So enumerating what to exclude is more accurate — the rule still holds when new element kinds appear.
  */
 const VALUE_FIELDS = new Set([
   'value',
@@ -214,7 +214,7 @@ const VALUE_FIELDS = new Set([
   'submodelElements',
 ]);
 
-/** $metadata — 값과 자식을 뺀 나머지. Submodel과 SubmodelElement 모두에 쓴다 */
+/** $metadata — everything except the value and children. Used for both Submodel and SubmodelElement */
 export function toMetadata<T extends Record<string, unknown>>(node: T): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
@@ -225,8 +225,8 @@ export function toMetadata<T extends Record<string, unknown>>(node: T): Record<s
 }
 
 /**
- * PATCH $metadata — 값은 건드리지 않고 나머지만 갈아 끼운다.
- * 값 필드가 본문에 섞여 와도 무시한다. 그게 이 경로의 계약이다.
+ * PATCH $metadata — replace everything else without touching the value.
+ * Value fields mixed into the body are ignored. That is this path's contract.
  */
 export function applyMetadata(
   target: Record<string, unknown>,
@@ -234,7 +234,7 @@ export function applyMetadata(
 ): void {
   for (const key of Object.keys(target)) {
     if (VALUE_FIELDS.has(key)) continue;
-    if (key === 'modelType' || key === 'id') continue; // 신원은 경로가 정한다
+    if (key === 'modelType' || key === 'id') continue; // identity is determined by the path
     delete target[key];
   }
   for (const [key, value] of Object.entries(metadata)) {
@@ -244,7 +244,7 @@ export function applyMetadata(
   }
 }
 
-/** Submodel 아래 모든 요소의 idShortPath. 규격의 PathItem 형식 그대로다 */
+/** idShortPaths of all elements under the Submodel. Exactly the spec's PathItem format */
 export function collectPaths(submodel: Submodel): string[] {
   const out: string[] = [];
 
@@ -263,7 +263,7 @@ export function collectPaths(submodel: Submodel): string[] {
   return out;
 }
 
-/** 어떤 요소 아래의 경로만 (자기 자신 포함) */
+/** Only paths under a given element (including itself) */
 export function pathsUnder(submodel: Submodel, idShortPath: string): string[] {
   return collectPaths(submodel).filter(
     (path) => path === idShortPath || path.startsWith(`${idShortPath}.`) || path.startsWith(`${idShortPath}[`),
@@ -275,12 +275,12 @@ export interface ModelReference {
   keys: { type: string; value: string }[];
 }
 
-/** $reference — 그 자원을 가리키는 ModelReference */
+/** $reference — a ModelReference pointing to that resource */
 export function referenceOf(keyType: string, id: string): ModelReference {
   return { type: 'ModelReference', keys: [{ type: keyType, value: id }] };
 }
 
-/** Submodel 전체의 ValueOnly — 자식 idShort를 키로 편다 */
+/** ValueOnly of an entire Submodel — spread out with child idShorts as keys */
 export function submodelValueOnly(submodel: Submodel): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const child of submodel.submodelElements ?? []) {

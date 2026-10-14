@@ -1,17 +1,17 @@
 /**
- * 견본 만들기 — 처음 쓰는 사람이 「견본으로 시작하기」 한 번으로 받는 파일.
+ * Builds the samples — the files a first-time user gets with a single "Start with a sample" click.
  *
- *   node scripts/make-samples.mjs        → apps/web/public/samples/
+ *   node scripts/make-samples.mjs        -> apps/web/public/samples/
  *
- * 만드는 것
- *   RollFormingMachine_sample.aasx              설비 1대 (롤포밍기 — 시험 파일을 익명화한 것)
- *   RB01_OptimizationQuality_sample_bundle.zip  레퍼런스 번들 — 공정 구성 + 위 설비 ×2
+ * Outputs
+ *   RollFormingMachine_sample.aasx              one machine (roll-forming machine — an anonymized test fixture)
+ *   RB01_OptimizationQuality_sample_bundle.zip  reference bundle — process composition + the machine above x2
  *
- * 🔴 견본은 **자동 고치기를 마친 것**을 낸다. 원본 시험 파일은 옛 판이라 리스트 자식에
- *    idShort가 있어(AASd-120) 표준 검증기(aas-test-engines)가 오류 9건으로 떨어뜨리고,
- *    basyx는 요소 175개 중 99개만 읽는다(2026-10-06 실측). 처음 받는 파일이 그러면
- *    「이 도구가 만든 파일은 표준을 못 지킨다」로 읽힌다.
- * 🔴 시험 파일(tests/fixtures)을 바꾸지 않는다 — 그쪽은 「고치기 전」 모습이 시험 대상이다.
+ * Important: samples ship **after auto-fix has been applied**. The original fixture is an old version with idShort on
+ *    list children (AASd-120), so the standard validator (aas-test-engines) rejects it with 9 errors and basyx reads
+ *    only 99 of 175 elements (measured 2026-10-06). If the very first file looks like that, it reads as
+ *    "files made by this tool do not meet the standard".
+ * Important: do not modify the fixtures (tests/fixtures) — their "before fix" state is what the tests exercise.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readAasx } from '@aas/aasx';
@@ -40,7 +40,7 @@ const call = async (method, path, body, query = {}) => {
   return response;
 };
 
-// ① 설비 — 가져와서 경고까지 고친다
+// (1) Machine — import and fix everything, warnings included
 const machine = (await store.importPackage({ name: MACHINE, package: readAasx(new Uint8Array(readFileSync(SOURCE))) })).id;
 const fixed = (await call('POST', `/packages/${machine}/fix`, {}, { includeWarnings: '1' })).body;
 const after = fixed.after.countBySeverity;
@@ -50,7 +50,7 @@ if (after.error > 0 || after.warning > 0) {
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/${MACHINE}`, (await call('GET', `/packages/${machine}`)).body);
 
-// ② 공정 구성 — 만들고, 이름에 _sample을 붙여 다시 담는다(새로 만들기는 이름을 자산 이름에서 짓는다)
+// (2) Process composition — create it, then re-import with _sample in the name ("create new" derives the name from the asset name)
 const made = (await call('POST', '/packages/new', { assetName: 'RB01_OptimizationQuality', unit: 'composite' })).body.packageId;
 await call('POST', `/packages/${made}/hierarchy/nodes`, { group: true, name: 'AutoPartsFormingProcess' });
 await call('POST', `/packages/${made}/hierarchy/nodes`, { sourcePackageId: machine, parentPath: ['AutoPartsFormingProcess'], bulkCount: 2 });

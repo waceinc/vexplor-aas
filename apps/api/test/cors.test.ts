@@ -1,6 +1,6 @@
 /**
- * CORS — 기본은 헤더 없음(브라우저가 막는다). CORS_ORIGIN에 적은 출처만 통과한다.
- * 사전 요청(OPTIONS)은 인증보다 먼저 답한다 — 토큰은 본 요청에만 실리기 때문이다.
+ * CORS — no headers by default (the browser blocks). Only origins listed in CORS_ORIGIN pass.
+ * Preflight requests (OPTIONS) are answered before auth — because the token is only sent with the actual request.
  */
 import { createHttpServer } from '@aas/api';
 import { InMemoryStore } from '@aas/store';
@@ -15,14 +15,14 @@ async function listen(server: ReturnType<typeof createHttpServer>): Promise<stri
 const close = (server: ReturnType<typeof createHttpServer>) =>
   new Promise<void>((resolve) => server.close(() => resolve()));
 
-describe('CORS_ORIGIN 해석', () => {
-  it('비어 있으면 아무 출처도 허용하지 않는다', () => {
+describe('parsing CORS_ORIGIN', () => {
+  it('empty allows no origin', () => {
     expect(corsFromEnv({}).origins).toEqual([]);
     expect(corsFromEnv({ CORS_ORIGIN: '  ' }).origins).toEqual([]);
     expect(corsHeaders(corsFromEnv({}), 'http://a.example')).toEqual({});
   });
 
-  it('쉼표 목록 — 공백·끝 슬래시를 정리하고 대소문자를 무시해 견준다', () => {
+  it('comma list — trims spaces and trailing slashes and compares case-insensitively', () => {
     const policy = corsFromEnv({ CORS_ORIGIN: ' http://mes.local:3000/, https://Portal.Example ' });
     expect(policy.origins).toEqual(['http://mes.local:3000', 'https://Portal.Example']);
     expect(corsHeaders(policy, 'http://mes.local:3000')['access-control-allow-origin']).toBe('http://mes.local:3000');
@@ -32,14 +32,14 @@ describe('CORS_ORIGIN 해석', () => {
     expect(corsHeaders(policy, 'http://mes.local:3000').vary).toBe('Origin');
   });
 
-  it('*는 전부 — 응답에도 *로 적는다', () => {
+  it('* means all — and is written as * in the response too', () => {
     const policy = corsFromEnv({ CORS_ORIGIN: '*' });
     expect(corsHeaders(policy, 'http://anything')['access-control-allow-origin']).toBe('*');
   });
 });
 
 describe('CORS over HTTP', () => {
-  it('기본 — Origin이 와도 CORS 헤더가 없고, 사전 요청은 403', async () => {
+  it('default — no CORS headers even with an Origin, and preflight is 403', async () => {
     const server = createHttpServer({ store: new InMemoryStore(), cors: { origins: [] } });
     const base = await listen(server);
     try {
@@ -57,7 +57,7 @@ describe('CORS over HTTP', () => {
     }
   });
 
-  it('허용 출처 — 사전 요청은 인증 전에 204, 본 응답에는 헤더가 붙고 ETag를 내보낸다', async () => {
+  it('allowed origin — preflight is 204 before auth, the actual response gets headers and exposes ETag', async () => {
     const server = createHttpServer({
       store: new InMemoryStore(),
       cors: { origins: ['http://mes.local'] },
@@ -65,7 +65,7 @@ describe('CORS over HTTP', () => {
     });
     const base = await listen(server);
     try {
-      // 토큰 없이 OPTIONS — 401이 아니라 204여야 브라우저가 본 요청을 보낸다
+      // OPTIONS without a token — it must be 204, not 401, for the browser to send the actual request
       const preflight = await fetch(`${base}/packages`, {
         method: 'OPTIONS',
         headers: {
@@ -79,7 +79,7 @@ describe('CORS over HTTP', () => {
       expect(preflight.headers.get('access-control-allow-headers')).toContain('authorization');
       expect(preflight.headers.get('access-control-allow-methods')).toContain('DELETE');
 
-      // 본 요청 — 인증은 그대로 작동한다(토큰 없으면 401), 헤더는 붙는다
+      // Actual request — auth still works (401 without a token), headers are attached
       const denied = await fetch(`${base}/packages`, { headers: { origin: 'http://mes.local' } });
       expect(denied.status).toBe(401);
       expect(denied.headers.get('access-control-allow-origin')).toBe('http://mes.local');
@@ -90,7 +90,7 @@ describe('CORS over HTTP', () => {
       expect(ok.status).toBe(200);
       expect(ok.headers.get('access-control-expose-headers')).toContain('etag');
 
-      // 허용되지 않은 출처는 헤더 없음(브라우저가 막는다) — 서버 응답 자체는 정상
+      // A disallowed origin gets no headers (the browser blocks) — the server response itself is normal
       const other = await fetch(`${base}/packages`, {
         headers: { origin: 'http://other.local', authorization: 'Bearer secret' },
       });

@@ -1,5 +1,5 @@
 /**
- * 형식 → 호기 반영 API — 호기별로 나누기로 만든 파일이 형식 파일의 변경을 받아 온다(routes/derivation.ts).
+ * Type -> unit propagation API — files created by splitting per unit receive changes from the type file (routes/derivation.ts).
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -43,7 +43,7 @@ function harness(store: AasStore = new InMemoryStore()) {
   return { store, call };
 }
 
-/** 서브모델의 요소 하나를 고친다 — store 를 바로 쓴다(사람이 편집한 것과 같은 길: updateIdentifiable) */
+/** Edits one element of a submodel — uses the store directly (the same path as a human edit: updateIdentifiable) */
 async function setValue(store: AasStore, packageId: string, submodelIdShort: string, idShort: string, value: string): Promise<void> {
   const environment = await store.getEnvironment(packageId);
   const submodel = (environment.submodels as unknown as Json[]).find((sm) => sm['idShort'] === submodelIdShort)!;
@@ -67,8 +67,8 @@ async function setup() {
   return { ...h, typeId: type.id, instanceId };
 }
 
-describe('형식 → 호기 반영 API', () => {
-  it('호기별로 나누면 형식과 연결되고, 바로 뒤에는 반영할 것이 없다 — 리비전은 1 그대로', async () => {
+describe('type -> unit propagation API', () => {
+  it('splitting per unit links to the type, and right after there is nothing to propagate — revision stays 1', async () => {
     const { call, store, instanceId } = await setup();
     const plan = (await call('GET', `/packages/${instanceId}/derivation`)).body as Plan;
     expect(plan.linked).toBe(true);
@@ -77,11 +77,11 @@ describe('형식 → 호기 반영 API', () => {
     expect((await store.getPackage(instanceId))!.revision).toBe(1);
   });
 
-  it('형식을 고치면 반영 대상, 현장에서 고친 값은 건너뜀 — 반영하면 형식 값만 내려오고 현장 값은 그대로', async () => {
+  it('editing the type creates propagation targets and skips field-edited values — propagating brings down only type values and leaves field values', async () => {
     const { call, store, typeId, instanceId } = await setup();
-    await setValue(store, instanceId, 'DigitalNameplate', 'SerialNumber', 'SN-0001'); // 현장 수정
-    await setValue(store, typeId, 'DigitalNameplate', 'YearOfConstruction', '2027'); // 형식 수정
-    await setValue(store, typeId, 'DigitalNameplate', 'SerialNumber', 'SN-TYPE'); // 형식도 고침 — 현장 값이 이긴다
+    await setValue(store, instanceId, 'DigitalNameplate', 'SerialNumber', 'SN-0001'); // field edit
+    await setValue(store, typeId, 'DigitalNameplate', 'YearOfConstruction', '2027'); // type edit
+    await setValue(store, typeId, 'DigitalNameplate', 'SerialNumber', 'SN-TYPE'); // type also edited — the field value wins
 
     const plan = (await call('GET', `/packages/${instanceId}/derivation`)).body as Plan;
     const byPath = new Map(plan.changes.map((c) => [c.path, c]));
@@ -94,12 +94,12 @@ describe('형식 → 호기 반영 API', () => {
     expect(await valueOf(store, instanceId, 'DigitalNameplate', 'YearOfConstruction')).toBe('2027');
     expect(await valueOf(store, instanceId, 'DigitalNameplate', 'SerialNumber')).toBe('SN-0001');
 
-    // 반영한 뒤에는 다시 안 보인다
+    // After propagating, it is no longer shown
     const after = (await call('GET', `/packages/${instanceId}/derivation`)).body as Plan;
     expect(after.counts?.apply).toBe(0);
   });
 
-  it('고른 줄만 반영한다 — 고르지 않은 줄은 다음에도 남는다', async () => {
+  it('propagates only the selected rows — unselected rows remain for next time', async () => {
     const { call, store, typeId, instanceId } = await setup();
     await setValue(store, typeId, 'DigitalNameplate', 'YearOfConstruction', '2027');
     await setValue(store, typeId, 'DigitalNameplate', 'ManufacturerProductType', 'RF-NEXT');
@@ -110,7 +110,7 @@ describe('형식 → 호기 반영 API', () => {
     expect(left.changes.filter((c) => c.action === 'apply').map((c) => c.path)).toEqual(['ManufacturerProductType']);
   });
 
-  it('반영은 되돌릴 수 있다 — 「↶ 되돌리기」 목록에 「형식 변경 반영」으로 남는다', async () => {
+  it('propagation can be undone — it stays in the "Undo" list as "Apply type changes"', async () => {
     const { call, store, typeId, instanceId } = await setup();
     await setValue(store, typeId, 'DigitalNameplate', 'YearOfConstruction', '2027');
     const before = await valueOf(store, instanceId, 'DigitalNameplate', 'YearOfConstruction');
@@ -119,16 +119,16 @@ describe('형식 → 호기 반영 API', () => {
     expect(status.undo[0]).toBe('형식 변경 반영');
     await call('POST', `/packages/${instanceId}/undo`);
     expect(await valueOf(store, instanceId, 'DigitalNameplate', 'YearOfConstruction')).toBe(before);
-    // 형식 사본(기준값)도 함께 돌아가야 같은 변경이 다시 「반영」으로 보인다 — 값만 돌리면 「이 호기에서 고친 값」으로 잘못 보였다
+    // The type copy (baseline) must roll back too so the same change shows up again as "apply" — rolling back only the value made it wrongly appear as "value edited on this unit"
     const again = (await call('GET', `/packages/${instanceId}/derivation`)).body as Plan;
     expect(again.changes.map((c) => [c.path, c.action])).toEqual([['YearOfConstruction', 'apply']]);
-    // 다시 하기는 값과 기준을 함께 앞으로
+    // Redo moves the value and the baseline forward together
     await call('POST', `/packages/${instanceId}/redo`);
     expect(await valueOf(store, instanceId, 'DigitalNameplate', 'YearOfConstruction')).toBe('2027');
     expect(((await call('GET', `/packages/${instanceId}/derivation`)).body as Plan).counts?.apply).toBe(0);
   });
 
-  it('다른 편집을 되돌려도 형식 연결은 그대로다 — 곁 파일은 반영을 되돌릴 때만 움직인다', async () => {
+  it('undoing another edit leaves the type link intact — the side file moves only when undoing a propagation', async () => {
     const { call, store, typeId } = await setup();
     const older = await store.importPackage({ name: '옛호기.aasx', package: readAasx(fixtureBytes) });
     const environment = await store.getEnvironment(older.id);
@@ -141,7 +141,7 @@ describe('형식 → 호기 반영 API', () => {
     expect(((await call('GET', `/packages/${older.id}/derivation`)).body as Plan).linked).toBe(true);
   });
 
-  it('형식 사본은 AASX 로 나가지 않고, 번들 첨부 목록에도 섞이지 않는다', async () => {
+  it('the type copy is not exported to AASX and does not mix into the bundle attachment list', async () => {
     const { store, instanceId } = await setup();
     expect((await store.packageFiles(instanceId)).some((f) => f.part === DERIVATION_PART)).toBe(true);
     const exported = await store.exportPackage(instanceId);
@@ -150,10 +150,10 @@ describe('형식 → 호기 반영 API', () => {
     expect(await listAttachments(store, instanceId)).toEqual([]);
   });
 
-  it('올린 원본(/.original/)도 번들 첨부 목록에 섞이지 않는다', async () => {
+  it('the uploaded original (/.original/) does not mix into the bundle attachment list either', async () => {
     const { call, store } = harness();
     const uploaded = await call('POST', '/packages', undefined);
-    expect(uploaded.status).toBeGreaterThanOrEqual(400); // 몸이 없는 업로드는 거절 — 아래는 store 로 직접
+    expect(uploaded.status).toBeGreaterThanOrEqual(400); // an upload without a body is rejected — below goes straight to the store
     const record = await store.importPackage({
       name: 'a.aasx',
       package: readAasx(fixtureBytes),
@@ -162,7 +162,7 @@ describe('형식 → 호기 반영 API', () => {
     expect(await listAttachments(store, record.id)).toEqual([]);
   });
 
-  it('이 기능 전에 만든 호기도 연결할 수 있다 — 기준은 연결한 때의 형식. 끊으면 연결 없음', async () => {
+  it('units created before this feature can be linked too — the baseline is the type at link time; unlinking removes the link', async () => {
     const { call, store, typeId } = await setup();
     const older = await store.importPackage({ name: '옛호기.aasx', package: readAasx(fixtureBytes) });
     expect(((await call('GET', `/packages/${older.id}/derivation`)).body as Plan).linked).toBe(false);
@@ -175,7 +175,7 @@ describe('형식 → 호기 반영 API', () => {
     expect(((await call('GET', `/packages/${older.id}/derivation`)).body as Plan).linked).toBe(false);
   });
 
-  it('형식 파일이 지워지면 그 사실을 말하고, 반영은 거절한다', async () => {
+  it('when the type file is deleted, says so and rejects propagation', async () => {
     const { call, store, typeId, instanceId } = await setup();
     await store.deletePackage(typeId);
     const plan = (await call('GET', `/packages/${instanceId}/derivation`)).body as Plan;

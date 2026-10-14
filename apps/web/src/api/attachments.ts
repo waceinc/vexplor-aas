@@ -1,6 +1,6 @@
 /**
- * API 클라이언트 — 첨부 파일 · 다른 파일에서 서브모델 가져오기
- * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
+ * API client — attachments · importing submodels from another file
+ * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
 import { encodeIdentifier, withAuth, request, toError, saveBlob } from './http.js';
 
@@ -38,7 +38,7 @@ export const attachmentApi = {
         ...(revision === undefined ? {} : { headers: { 'if-match': String(revision) } }),
       },
     ),
-  /** 붙어 있는 첨부를 내려받는다. 링크가 아니라 fetch로 가져온다(토큰 때문) */
+  /** Downloads an attached file. Fetched rather than linked (because of the token) */
   downloadAttachment: async (
     packageId: string,
     submodelId: string,
@@ -57,7 +57,7 @@ export const attachmentApi = {
     packageId: string,
     sourcePackageId: string,
     submodelId: string,
-    /** 같은 idShort가 이미 있을 때 — 기본은 거절(409) */
+    /** When the same idShort already exists — rejected by default (409) */
     onDuplicate: 'reject' | 'replace' | 'alongside' = 'reject',
   ): Promise<{
     submodelId: string;

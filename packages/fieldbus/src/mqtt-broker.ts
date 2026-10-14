@@ -1,6 +1,6 @@
 /**
- * 시험용 MQTT 브로커 — 연결 · 구독 · 발행 · 보관 메시지만(QoS 0). 시험과 가상 설비에 쓴다(실브로커 대신).
- * 사용자 · 암호를 정해 두면 다르게 붙는 클라이언트를 거절한다(코드 4).
+ * Test MQTT broker — connect, subscribe, publish and retained messages only (QoS 0). Used for tests and virtual equipment (instead of a real broker).
+ * If a username/password is configured, clients connecting with different credentials are rejected (code 4).
  */
 import { createServer, type Server, type Socket } from 'node:net';
 import { packet, publishPacket, readPublish, takePacket } from './mqtt-wire.js';
@@ -29,7 +29,7 @@ export class MqttTestBroker {
     return new Promise((resolve) => this.server!.listen(port, '127.0.0.1', () => resolve((this.server!.address() as { port: number }).port)));
   }
 
-  /** 장치가 보낸 것처럼 발행한다 */
+  /** Publishes as if sent by a device */
   publish(topic: string, payload: string, retain = false): void {
     const body = Buffer.from(payload, 'utf8');
     if (retain) this.retained.set(topic, body);

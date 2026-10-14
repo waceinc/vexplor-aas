@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`서버 글의 영어 — 린터 본체 · 결과서 · 고치기 > 한국어(기본)는 바뀌지 않는다 1`] = `
+exports[`English server text — linter core · report · fixes > Korean (the default) does not change 1`] = `
 {
   "bundle": "﻿연계 키(사람이 채움),KPI 용도(사람이 채움),대표 이름,semanticId,정의 이름,단위,보유 설비 수,설비,경로,valueType
 ,,InstantPower,https://www.smart-factory.kr/ids/cd/InstantPower/1/0,InstantPower,kW,2,A,OperationalData/EnergyMonitoring/PowerMeasurement/InstantPower,xs:double

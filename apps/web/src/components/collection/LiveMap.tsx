@@ -1,6 +1,6 @@
 /**
- * 수집 칸 — 표준 API 로 현재값 내보내기 상태 — AID 이름과 요소 idShort 가 맞아야 밖에서 보인다.
- * components/Collection.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석·판정은 옮기기 전 글자 그대로다.
+ * Collection panel — status of exporting current values through the standard API — the AID name and the element idShort must match to be visible from outside.
+ * Split out of components/Collection.tsx (2026-10-13 componentization) — markup, comments and checks were moved verbatim.
  */
 import type { LiveMapping } from '../../api.js';
 import { T } from '../T.js';

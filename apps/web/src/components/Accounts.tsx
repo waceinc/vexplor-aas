@@ -1,17 +1,17 @@
 /**
- * 계정 — 두 얼굴이다(2026-10-08).
- *  - **내 계정 설정**(누구나): 표시 이름 · 회사명 · 이메일 · 비밀번호
- *  - **계정 관리**(관리자): 사람 더하기 · 역할 · 잠그기 · 비밀번호 초기화 · 삭제
- *  예전에는 한 창에 섞여, 관리자의 내 비밀번호 칸이 맨 아래 접혀 있었고 내 이름·연락처는 고칠 길이 없었다.
+ * Accounts — two faces (2026-10-08).
+ *  - **My account settings** (everyone): display name · company · email · password
+ *  - **Account management** (administrators): add people · roles · lock · reset password · delete
+ *  Previously both were mixed in one window: the administrator's own password field was folded at the bottom, and there was no way to edit one's own name or contact details.
  *
- * 🔴 이 화면은 한동안 **없었다.** 서버에는 계정 관리 API가 있었고 문서에도 「설정 → 계정 관리」라고
- *    적혀 있었는데, 정작 누를 자리가 없었다(2026-10-04에 문서를 읽다 알아챘다).
- *    관리자가 사람을 더하려면 curl을 쳐야 했다 — 만든 기능을 쓸 수 없으면 없는 것이다.
+ * Important: for a while this screen **did not exist.** The server had an account management API and the docs said
+ *    "Settings → Account management", yet there was nowhere to click (noticed on 2026-10-04 while reading the docs).
+ *    An administrator had to type curl commands to add people — a feature you cannot use does not exist.
  *
- * 🔴 실패 문구는 **서버가 준 그대로** 보여 준다. 「마지막 관리자는 잠글 수 없다」 같은 사유는
- *    서버가 판단하고, 화면이 고쳐 쓰면 뜻이 달라진다.
+ * Important: failure messages are shown **exactly as the server sent them.** Reasons such as "the last administrator cannot be locked"
+ *    are decided by the server; if the screen rewrote them, the meaning would change.
  *
- * 2026-10-13 컴포넌트화 — 두 얼굴을 accounts/ 의 PeopleSection · MySettings 로 나눴다. 여기는 알림 띠와 틀만.
+ * 2026-10-13 componentized — the two faces were split into accounts/ PeopleSection · MySettings. This file holds only the notice bar and frame.
  */
 import { useState } from 'react';
 
@@ -22,11 +22,11 @@ import type { Act } from './accounts/types.js';
 
 interface Props {
   me: NonNullable<AuthState['user']>;
-  /** mine — 내 계정 설정 · people — 계정 관리(관리자) */
+  /** mine — my account settings · people — account management (administrators) */
   mode: 'mine' | 'people';
-  /** 계정 관리 창에서 「내 계정 설정」으로 건너간다 */
+  /** Jump from the account management window to "my account settings" */
   onOpenMine?: () => void;
-  /** 내 비밀번호를 바꾸면 로그인이 새로 잡힌다 — 화면이 다시 읽게 한다 */
+  /** Changing my password re-establishes the session — make the screen reload it */
   onChanged: () => void;
   onClose: () => void;
   describeError: (caught: unknown) => string;
@@ -39,7 +39,7 @@ export function Accounts({ me, mode, onOpenMine, onChanged, onClose, describeErr
   const [notice, setNotice] = useState<string>();
   const [working, setWorking] = useState(false);
 
-  /** 한 가지 일을 하고, 되면 알린다 */
+  /** Do one thing and, when it succeeds, report it */
   const act: Act = async (work, done) => {
     setError(undefined);
     setNotice(undefined);
@@ -70,7 +70,7 @@ export function Accounts({ me, mode, onOpenMine, onChanged, onClose, describeErr
       {isAdmin && <PeopleSection me={me} working={working} act={act} onError={setError} describeError={describeError} t={t} />}
       {mode === 'mine' && <MySettings me={me} working={working} act={act} onError={setError} onChanged={onChanged} t={t} />}
 
-      {/* 계정 관리 창에서 내 것을 고치러 가는 길 — 관리자도 자기 이름 · 비밀번호는 「내 계정 설정」에서 */}
+      {/* Way from the account management window to edit my own details — administrators also edit their own name · password in "my account settings" */}
       {mode === 'people' && onOpenMine && (
         <p className="hint">
           <button type="button" className="link" onClick={onOpenMine}>

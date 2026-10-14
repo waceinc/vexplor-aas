@@ -1,11 +1,11 @@
 /**
- * 속성 편집.
+ * Property editing.
  *
- * 값 수정은 Part 2의 `$value` PATCH 한 길로만 나간다.
- * A안(파일이 원본)에서 이 편집은 곧 파일에 남는 편집이다 — 되돌릴 수 없는 실수가 되지 않도록
- * 저장 전까지는 화면 상태만 바꾸고, 저장 결과는 서버에서 다시 읽어 확인한다.
+ * Value changes go out only one way: the Part 2 `$value` PATCH.
+ * Under option A (the file is the source of truth) an edit here is an edit that stays in the file — so it does not
+ * become an irreversible mistake, only screen state changes until save, and the saved result is re-read from the server to confirm.
  *
- * 2026-10-13 컴포넌트화 — 편집기마다 inspector/ 의 부품으로 나눴다. 여기는 무엇을 보일지만 정한다.
+ * 2026-10-13 componentization — each editor was split into a part under inspector/. This file only decides what to show.
  */
 import { Fragment, useMemo } from 'react';
 import type { Policy, SubmodelRequirement } from '../api.js';
@@ -25,75 +25,75 @@ import { ValueEditor } from './inspector/ValueEditors.js';
 interface Props {
   node?: TreeNode;
   /**
-   * 선택 해제 — 편집기를 닫고 요약·「무엇으로 이루어졌나」·수집 화면으로 돌아간다.
-   * 🔴 이게 없어서 트리를 한 번 고르면 설비 추가 화면으로 **돌아올 방법이 없었다**(실측).
+   * Clear the selection — close the editor and return to the summary / "What is it made of" / collection screen.
+   * Important: without this, once you picked a tree node there was **no way back** to the add-equipment screen (measured).
    */
   onClose?: () => void;
-  /** 이 요소까지의 길(상위 이름들) — "어디의 요소인지"가 제목만으로는 안 보인다 */
+  /** Path to this element (ancestor names) — the title alone does not show "where this element belongs" */
   trail?: readonly string[];
   busy: boolean;
   onSave: (node: TreeNode, value: unknown) => void;
-  /** 이 노드 아래에 요소를 만들 수 있으면 준다 */
+  /** Given when elements can be created under this node */
   onAddChild?: (node: TreeNode) => void;
-  /** 이름(idShort) 바꾸기. 리스트 자식은 주지 않는다 */
+  /** Rename (idShort). Not given for list children */
   onRename?: (node: TreeNode, name: string) => void;
-  /** File·Blob 요소에 실제 파일을 붙인다 (매뉴얼 PDF·도면) */
+  /** Attach an actual file to a File / Blob element (manual PDF, drawing) */
   onUploadAttachment?: (node: TreeNode, file: File) => void;
   onDownloadAttachment?: (node: TreeNode, filename: string) => void;
   onDeleteAttachment?: (node: TreeNode) => void;
   onDelete?: (node: TreeNode) => void;
-  /** 바로 아래에 사본 — 같은 구조를 여러 벌 채울 때 */
+  /** Copy right below — for filling the same structure several times */
   onDuplicate?: (node: TreeNode) => void;
-  /** valueType처럼 $value로는 못 바꾸는 속성을 고친다 — 요소 통째 교체 */
+  /** Fix attributes that $value cannot change, such as valueType — replaces the whole element */
   onChangeValueType?: (node: TreeNode, valueType: string) => void;
-  /** 서브모델 변경 이력을 연다 — 실수를 되돌리는 길 */
+  /** Open the submodel change history — the way to undo mistakes */
   onShowHistory?: (node: TreeNode) => void;
   /**
-   * 값 한꺼번에 저장 — 서브모델을 고르면 안의 값(Property·MLP·Range)을 표로 입력한다.
-   * 요소를 하나씩 눌러 40번 저장하는 것은 사람이 할 일이 아니다(초보자 여정 후속 제안).
-   * 한 번의 PATCH로 저장한다 — 줄마다 쓰면 revision이 어긋나 두 번째부터 409가 난다.
+   * Save values in bulk — picking a submodel lets you enter its values (Property · MLP · Range) as a table.
+   * Clicking elements one by one and saving 40 times is not a job for a person (follow-up proposal from the beginner journey).
+   * Saves with a single PATCH — writing per row puts the revision out of step and every write after the first gets 409.
    */
   onBulkSaveValues?: (node: TreeNode, content: Record<string, unknown>) => void;
-  /** CSV 에서 채우기를 마친 뒤(값 표가 연다) */
+  /** After fill-from-CSV finishes (the value table opens) */
   onCsvFilled?: (notice: string) => void;
-  /** 이 요소가 다른 파일의 것이면 그 파일 이름 — 어디를 고치는 중인지 알려야 한다 */
+  /** If this element belongs to another file, that file's name — the user must know what they are editing */
   linkedFileName?: string;
-  /** semanticId 검사에 쓴다 (M4 축소판) */
+  /** Used for the semanticId check (reduced M4) */
   policy?: Policy;
   conceptIds?: ReadonlySet<string>;
   onSaveSemanticId?: (node: TreeNode, semanticId: string) => void;
-  /** AssetInformation 저장 — assetKind·globalAssetId */
+  /** Save AssetInformation — assetKind · globalAssetId */
   onSaveAssetInformation?: (info: Record<string, unknown>) => void;
-  /** 용어(CD) 정의 저장 — 통째로 바뀐 CD를 넘긴다 */
+  /** Save a concept (CD) definition — passes the whole replaced CD */
   onSaveConcept?: (concept: Record<string, unknown>) => void;
   /**
-   * 대표 사진 올리기 — 뼈대의 임시 그림을 실제 장비 사진으로 바꾸는 자리.
-   * 🔴 안내문은 "AssetInformation에서 바꿀 수 있다"고 해 왔는데 정작 올리는 단추가
-   *    없었다(초보자 여정 실측, 2026-08-26). 서버 API는 처음부터 있었다.
+   * Upload the main photo — where the skeleton's placeholder image is replaced with a real equipment photo.
+   * Important: the guidance text kept saying "you can change it in AssetInformation", yet there was no upload
+   *    button (measured in the beginner journey, 2026-08-26). The server API had been there from the start.
    */
   onUploadThumbnail?: (file: File) => void;
-  /** 이 요소가 속한 서브모델의 템플릿 요구 수준 — 값 표의 「구분」(필수 · 선택). 없으면 모름 */
+  /** Template requirement level of the submodel this element belongs to — the value table's "Kind" (required · optional). Absent = unknown */
   requirement?: SubmodelRequirement;
-  /** 이 파일의 수집 연결(AID) 항목 이름 — 값 표에서 「수집」으로 표시 */
+  /** Collection-connection (AID) item names of this file — shown as "Collected" in the value table */
   collectedNames?: ReadonlySet<string>;
-  /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
+  /** Translator — returns the Korean as is when the dictionary has no entry (i18n.ts) */
   t: (text: string) => string;
 }
 
 export function Inspector(props: Props): React.JSX.Element {
   const { node, busy, t } = props;
   /**
-   * 「지금 무엇을 보고 있나」의 **지문**.
+   * **Fingerprint** of "what is being viewed right now".
    *
-   * 🔴 입력칸 초기화를 `[node]`(객체 동일성)에 걸어 두었더니, 화면이 트리를 **다시 만들기만 해도**
-   *    입력하던 값이 지워졌다. 트리는 `shells·submodels·concepts·hierarchy·linked` 중 하나만
-   *    바뀌어도 통째로 새로 만들어지고, 그것들은 파일을 열 때 **여러 번에 나눠** 들어온다.
-   *    사람이 그 사이에 타자를 치고 있으면 그대로 날아간다 — 테스트가 부하에서 간헐적으로
-   *    떨어지던 것이 이 현상이었다(2026-10-02에 원인을 잡았다).
+   * Important: input reset used to be keyed on `[node]` (object identity), so merely **rebuilding** the tree
+   *    wiped the value being typed. The tree is rebuilt whole when any one of `shells·submodels·concepts·hierarchy·linked`
+   *    changes, and those arrive **in several pieces** when a file opens.
+   *    If a person is typing in between, the input is lost — this was the test that failed intermittently
+   *    under load (root cause found 2026-10-02).
    *
-   * 그래서 **내용이 실제로 달라졌을 때만** 초기화한다. 저장·되돌리기·이력 복원은 내용이
-   * 바뀌므로 그대로 초기화되고, 트리만 새로 만들어진 경우는 건드리지 않는다.
-   * 지문 계산은 객체가 바뀔 때만 한다 — 매 렌더 직렬화하면 그것대로 낭비다.
+   * So reset happens **only when the content really changed**. Save, undo and history restore change the
+   * content and still reset; a tree that was merely rebuilt is left alone.
+   * The fingerprint is computed only when the objects change — serializing on every render would be its own waste.
    */
   const signature = useMemo(
     () => `${node?.pointer ?? ''} :: ${JSON.stringify(node?.node ?? null)}`,
@@ -119,11 +119,11 @@ export function Inspector(props: Props): React.JSX.Element {
         {...(props.onChangeValueType ? { onChangeValueType: props.onChangeValueType } : {})}
       />
 
-      {/* 내용이 바뀌면(다른 요소 · 저장 뒤 다시 읽기) 편집기들을 새로 그려 입력칸을 처음 값으로 — 위 지문 설명 */}
+      {/* When the content changes (another element · re-read after save), redraw the editors so inputs start from the initial value — see the fingerprint note above */}
       <Fragment key={signature}>
         {editable && <ValueEditor node={node} busy={busy} onSave={onSave} t={t} />}
 
-        {/* AssetInformation은 아래에 편집칸이 있으므로 "편집 대상이 아니다"라고 하면 안 된다 */}
+        {/* AssetInformation has edit fields below, so it must not say "not editable" */}
         {!editable && node.modelType !== 'ConceptDescriptionGroup' && node.modelType !== 'AssetInformation' && (
           <ElementHint node={node} />
         )}
@@ -155,16 +155,16 @@ export function Inspector(props: Props): React.JSX.Element {
         )}
 
         {/*
-          이름(idShort) 바꾸기.
-          🔴 리스트(SubmodelElementList) 자식은 뺀다 — 그 자리는 순서로 가리키고,
-          이름을 붙이면 표준 제약(AASd-120) 위반이 된다. 경로 마지막이 `[n]`이면 리스트 자식이다.
+          Rename (idShort).
+          Important: list (SubmodelElementList) children are excluded — they are addressed by position,
+          and giving them a name violates a spec constraint (AASd-120). A path ending in `[n]` is a list child.
         */}
         {onRename && renameable(node) && <RenameEditor node={node} busy={busy} onRename={onRename} t={t} />}
 
         {/*
-          첨부 — File·Blob이 가리키는 실제 파일.
-          HandoverDocumentation의 매뉴얼 PDF가 제출물의 실체라, 값(경로)만 고쳐서는 안 되고
-          **파일 자체를 넣을 수 있어야** 한다.
+          Attachment — the actual file a File / Blob points to.
+          The manual PDF in HandoverDocumentation is the substance of the deliverable, so fixing only the value (path) is not enough —
+          **the file itself must be uploadable**.
         */}
         {(node.modelType === 'File' || node.modelType === 'Blob') && node.idShortPath !== undefined && onUploadAttachment && (
           <AttachmentEditor

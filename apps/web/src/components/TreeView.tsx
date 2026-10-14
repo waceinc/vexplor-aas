@@ -1,8 +1,8 @@
 /**
- * 계층 트리 — 가상 스크롤.
+ * Hierarchy tree — virtual scrolling.
  *
- * 설비 수십 종 × 수백 Property가 들어오면 DOM에 전부 그릴 수 없다(기획서 Ⅷ).
- * 라이브러리를 들이지 않고 고정 행 높이로 창을 잘라 그린다 — 규칙이 단순해 직접 두는 편이 낫다.
+ * With dozens of equipment types × hundreds of Properties the DOM cannot draw everything (spec Ⅷ).
+ * Instead of adding a library, it slices a window with a fixed row height — the rule is simple enough to keep in-house.
  */
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { FindingTally, TreeNode } from '../model.js';
@@ -10,17 +10,17 @@ import { displayValue } from '../model.js';
 import { RowContent } from './tree/RowContent.js';
 import { RowMenu, type OpenMenu } from './tree/RowMenu.js';
 
-/** 행 메뉴(우클릭·「⋯」)의 항목 — 무엇을 할 수 있는지는 App이 정한다 */
+/** An item of the row menu (right-click · "⋯") — App decides what can be done */
 export interface TreeMenuItem {
   label: string;
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
-  /** 라벨이 답하지 못하는 것 — 되돌릴 수 있는지, 어디에 저장되는지 (2026-10-02) */
+  /** What the label cannot answer — whether it can be undone, where it is saved (2026-10-02) */
   title?: string;
 }
 
-/** 트리 key(JSON Pointer)의 마지막 마디 = 형제 중 몇 번째 */
+/** Last segment of the tree key (JSON Pointer) = position among siblings */
 const indexOf = (key: string): number => Number(/\/(\d+)$/.exec(key)?.[1] ?? NaN);
 const parentOf = (key: string): string => key.replace(/\/\d+$/, '');
 
@@ -35,20 +35,20 @@ interface Props {
   selected?: string;
   onToggle: (key: string) => void;
   onSelect: (node: TreeNode) => void;
-  /** 이 키가 바뀌면 그 행이 보이도록 스크롤한다 (지적 → 노드 이동) */
+  /** When this key changes, scroll so that row is visible (finding → jump to node) */
   revealKey?: string;
-  /** 찾기 결과에 걸린 노드 — 표시만 다르게 한다 */
+  /** Nodes matched by the search — only their display differs */
   matched?: ReadonlySet<string>;
-  /** 찾는 중에는 펼침/접힘이 의미가 없다(결과가 이미 걸러져 있다) */
+  /** Expand/collapse is meaningless while searching (results are already filtered) */
   searching?: boolean;
   /**
-   * 형제 안에서 `to`번째 자리로 — 끌어서 놓기·Alt+↑↓. 요소(idShortPath 있는 것)만, 같은 부모 안에서만.
-   * 부모를 옮기는 것은 경로가 바뀌는 다른 연산이라 여기서 받지 않는다.
+   * Move to position `to` among siblings — drag and drop · Alt+↑↓. Elements only (those with an idShortPath), within the same parent only.
+   * Moving to another parent changes the path, which is a different operation, so it is not accepted here.
    */
   onReorder?: (node: TreeNode, to: number) => void;
-  /** 우클릭·「⋯」 메뉴. 빈 배열이면 메뉴가 없다 */
+  /** Right-click · "⋯" menu. An empty array means no menu */
   menuFor?: (node: TreeNode) => TreeMenuItem[];
-  /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
+  /** Translator — falls back to the Korean text when the dictionary has no entry (i18n.ts) */
   t: (text: string) => string;
 }
 
@@ -72,11 +72,11 @@ export function TreeView({
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(600);
   const [dragKey, setDragKey] = useState<string>();
-  /** 끌고 있는 것을 어느 행의 위/아래에 놓을지 */
+  /** Which row, and above or below it, the dragged item will be dropped at */
   const [drop, setDrop] = useState<{ key: string; where: 'before' | 'after' }>();
   const [menu, setMenu] = useState<Menu>();
 
-  // 메뉴는 바깥을 누르거나 Esc면 닫힌다
+  // The menu closes on an outside click or Esc
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(undefined);
@@ -99,7 +99,7 @@ export function TreeView({
     onSelect(row);
     setMenu({ node: row, x, y, items });
   };
-  /** 놓은 자리를 서버가 받는 "뺀 뒤의 인덱스"로 바꾼다 */
+  /** Convert the drop position into the "index after removal" the server expects */
   const dropIndex = (from: number, target: number, where: 'before' | 'after'): number => {
     const at = where === 'before' ? target : target + 1;
     return from < at ? at - 1 : at;
@@ -121,7 +121,7 @@ export function TreeView({
     const element = viewport.current;
     if (!element) return;
     const top = index * ROW_HEIGHT;
-    // 이미 보이면 건드리지 않는다 — 클릭할 때마다 화면이 튀면 편집이 어렵다
+    // Leave it alone if already visible — if the view jumps on every click, editing gets hard
     if (top < element.scrollTop || top > element.scrollTop + element.clientHeight - ROW_HEIGHT * 2) {
       element.scrollTop = Math.max(0, top - element.clientHeight / 3);
     }
@@ -144,7 +144,7 @@ export function TreeView({
         <div style={{ transform: `translateY(${start * ROW_HEIGHT}px)` }}>
           {visible.map((row) => {
             const counts = tally.get(row.pointer);
-            // 접혀 있으면 자손까지 합쳐 보여 준다 — 펼치지 않고도 어디에 문제가 있는지 알아야 한다
+            // When collapsed, show descendants' counts too — users must see where problems are without expanding
             const shown = counts
               ? expanded.has(row.key) || row.children.length === 0
                 ? counts.own
@@ -158,7 +158,7 @@ export function TreeView({
                 className={`row${selected === row.key ? ' selected' : ''}${
                   matched?.has(row.key) ? ' hit' : ''
                 }${drop?.key === row.key ? ` drop-${drop.where}` : ''}${dragKey === row.key ? ' dragging' : ''}`}
-                // 들여쓰기는 CSS(.tree .row — 칸 여백 + 단계 × --tree-indent)가 맡는다. 여기서는 단계만 넘긴다
+                // Indentation is handled by CSS (.tree .row — cell padding + level × --tree-indent). Only the level is passed here
                 style={{ height: ROW_HEIGHT, '--depth': row.depth } as CSSProperties}
                 draggable={canDrag(row)}
                 onDragStart={(event) => {
@@ -171,7 +171,7 @@ export function TreeView({
                   setDrop(undefined);
                 }}
                 onDragOver={(event) => {
-                  // 같은 부모의 형제 위에서만 놓을 수 있다 — 다른 데선 커서가 「안 됨」
+                  // Drop is allowed only over siblings of the same parent — elsewhere the cursor shows "not allowed"
                   if (!dragging) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
@@ -197,15 +197,15 @@ export function TreeView({
                   event.preventDefault();
                   openMenu(row, event.clientX, event.clientY);
                 }}
-                // 종류로 글자 크기·굵기를 나눈다 — 들여쓰기만으로는 계층이 안 읽힌다
+                // Font size · weight vary by kind — indentation alone does not make the hierarchy readable
                 data-model-type={row.modelType}
                 {...(row.linkedGroup ? { 'data-linked-group': '' } : {})}
                 {...(row.linkedPart ? { 'data-linked-part': '' } : {})}
                 {...(row.linkedPartGroup ? { 'data-linked-part-group': '' } : {})}
                 onClick={() => onSelect(row)}
                 data-pointer={row.pointer}
-                // 접근성 트리에 잡혀야 스크린리더도, 브라우저 자동화도 이 행을 집을 수 있다.
-                // (MCP로 실제 조작해 보고서야 빠진 것을 알았다)
+                // It must be in the accessibility tree so screen readers and browser automation can pick this row.
+                // (We only noticed it was missing after actually driving it through MCP)
                 role="treeitem"
                 tabIndex={0}
                 aria-level={row.depth + 1}
@@ -220,7 +220,7 @@ export function TreeView({
                     onToggle(row.key);
                   }
                   if (event.key === 'ArrowLeft' && expanded.has(row.key)) onToggle(row.key);
-                  // Alt+↑↓ = 형제 안에서 한 칸 — 마우스 없이도 순서를 바꾼다
+                  // Alt+↑↓ = one step among siblings — reorder without a mouse
                   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown') && canDrag(row)) {
                     event.preventDefault();
                     const index = indexOf(row.key);

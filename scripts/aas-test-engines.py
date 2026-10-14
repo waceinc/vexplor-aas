@@ -53,7 +53,7 @@ def check(path: str) -> bool:
     print(f"   오류 {errors}건 · 경고 {warnings}건 · 확인 {counter[Level.INFO]}건")
 
     for level, label in ((Level.CRITICAL, '치명'), (Level.ERROR, '오류'), (Level.WARNING, '경고')):
-        # 같은 지적이 137번 반복되는 일이 흔하다 — 문구로 묶어서 보여 준다
+        # The same finding often repeats 137 times — group by message for display
         seen = Counter(message for message, _ in messages.get(level, []))
         where = {message: path for message, path in messages.get(level, [])}
         for message, count in seen.most_common(6):

@@ -1,8 +1,8 @@
 /**
- * API 검증.
+ * API validation.
  *
- * 서버를 띄우지 않고 핸들러를 직접 부른다 — 포트·소켓이 끼면 실패 원인이 흐려진다.
- * 전송 계층(server.ts)은 본문 읽기와 응답 쓰기뿐이라 여기서 검증할 판단이 없다.
+ * Calls the handlers directly without starting a server — ports and sockets would blur the cause of a failure.
+ * The transport layer (server.ts) only reads bodies and writes responses, so there is no logic to verify here.
  */
 import { readAasx, writeAasx } from '@aas/aasx';
 import { zipSync } from 'fflate';
@@ -29,7 +29,7 @@ const golden = readAasx(goldenBytes);
 let handle: (request: ApiRequest) => Promise<{ status: number; headers: Record<string, string>; body?: unknown }>;
 let packageId: string;
 
-/** 요청 한 건 — 없는 값은 기본치로 채운다 */
+/** One request — missing values are filled with defaults */
 async function call(
   method: string,
   path: string,
@@ -64,36 +64,36 @@ beforeEach(async () => {
   packageId = created.body.packageId;
 });
 
-describe('base64url 식별자', () => {
-  it('IRI·IRDI를 왕복한다', () => {
+describe('base64url identifiers', () => {
+  it('round-trips IRI and IRDI', () => {
     for (const id of [shellId, '0112/2///61360_7#AAS006#001', '가나다/한글#1']) {
       expect(decodeIdentifier(encodeIdentifier(id))).toBe(id);
     }
   });
 
-  it('패딩이 붙은 표준 base64도 받아준다', () => {
+  it('also accepts standard base64 with padding', () => {
     expect(decodeIdentifier('aHR0cHM6Ly9h')).toBe('https://a');
   });
 });
 
-describe('AASX 파일 서버 인터페이스 (AasxFileServer SSP-001)', () => {
-  it('GET /packages는 PackageDescription 목록을 준다', async () => {
+describe('AASX file server interface (AasxFileServer SSP-001)', () => {
+  it('GET /packages returns a list of PackageDescription', async () => {
     const list = await call('GET', '/packages');
     expect(list.body.result).toHaveLength(1);
     expect(list.body.result[0].packageId).toBe(packageId);
     expect(list.body.result[0].aasIds).toEqual([shellId]);
-    // 우리 확장 필드 — 규격이 추가 속성을 막지 않는다
+    // Our extension fields — the spec does not forbid additional properties
     expect(list.body.result[0].name).toBe(GOLDEN);
   });
 
-  it('GET /packages?aasId= 로 거른다', async () => {
+  it('GET /packages?aasId= filters', async () => {
     const hit = await call('GET', '/packages', { query: { aasId: encodeIdentifier(shellId) } });
     expect(hit.body.result).toHaveLength(1);
     const miss = await call('GET', '/packages', { query: { aasId: encodeIdentifier('없는AAS') } });
     expect(miss.body.result).toHaveLength(0);
   });
 
-  it('GET /packages/{id}는 규격대로 **AASX 파일**을 준다', async () => {
+  it('GET /packages/{id} returns an **AASX file** per the spec', async () => {
     const download = await call('GET', `/packages/${packageId}`);
     expect(download.status).toBe(200);
     expect(download.headers['content-type']).toBe(
@@ -106,14 +106,14 @@ describe('AASX 파일 서버 인터페이스 (AasxFileServer SSP-001)', () => {
     expect(result.countBySeverity.error).toBe(0);
   });
 
-  it('메타데이터는 규격 경로를 침범하지 않고 하위 확장 경로에 둔다', async () => {
+  it('metadata lives under a sub extension path without encroaching on spec paths', async () => {
     const meta = await call('GET', `/packages/${packageId}/metadata`);
     expect(meta.status).toBe(200);
     expect(meta.body.specPart).toBe(golden.specPart);
     expect(meta.body.revision).toBe(1);
   });
 
-  it('multipart/form-data 업로드 (규격 형식)', async () => {
+  it('multipart/form-data upload (spec format)', async () => {
     const boundary = '----aasTestBoundary';
     const head = new TextEncoder().encode(
       `--${boundary}\r\nContent-Disposition: form-data; name="fileName"\r\n\r\n올림.aasx\r\n` +
@@ -135,14 +135,14 @@ describe('AASX 파일 서버 인터페이스 (AasxFileServer SSP-001)', () => {
     expect(created.body.name).toBe('올림.aasx');
     expect(created.body.aasIds).toEqual([shellId]);
 
-    // 올린 바이트가 그대로 다시 나오는지 — multipart 파서가 ZIP을 깨뜨리지 않았는지 본다
+    // Check the uploaded bytes come back unchanged — that the multipart parser did not corrupt the ZIP
     const back = await call('GET', `/packages/${created.body.packageId}`);
     expect(readAasx(back.body as Uint8Array).environment.submodels).toHaveLength(
       golden.environment.submodels!.length,
     );
   });
 
-  it('PUT /packages/{id}로 교체하면 같은 id를 지킨다', async () => {
+  it('replacing via PUT /packages/{id} keeps the same id', async () => {
     const replaced = readAasx(goldenBytes);
     replaced.environment.submodels = replaced.environment.submodels!.slice(0, 6);
     const put = await call('PUT', `/packages/${packageId}`, {
@@ -157,21 +157,21 @@ describe('AASX 파일 서버 인터페이스 (AasxFileServer SSP-001)', () => {
     expect(submodels.body.result).toHaveLength(6);
   });
 
-  it('GET /description이 광고하는 프로필', async () => {
+  it('profiles advertised by GET /description', async () => {
     const description = await call('GET', '/description');
     expect(description.body.profiles).toContain(
       'https://admin-shell.io/aas/API/3/0/AasxFileServerServiceSpecification/SSP-001',
     );
   });
 
-  it('린트 결과를 준다', async () => {
+  it('returns lint results', async () => {
     const result = await call('GET', `/packages/${packageId}/lint`);
     expect(result.body.passed).toBe(true);
     expect(result.body.countBySeverity.error).toBe(0);
     expect(result.body.findings).toEqual([]);
   });
 
-  it('검증 결과서를 HTML로 준다 — 인쇄하면 그대로 PDF', async () => {
+  it('returns the validation report as HTML — printing it gives a PDF as is', async () => {
     const report = await call('GET', `/packages/${packageId}/report`);
     expect(report.status).toBe(200);
     expect(report.headers['content-type']).toBe('text/html; charset=utf-8');
@@ -181,7 +181,7 @@ describe('AASX 파일 서버 인터페이스 (AasxFileServer SSP-001)', () => {
     expect(html).toContain('@media print');
   });
 
-  it('AASX가 아닌 본문은 400', async () => {
+  it('a non-AASX body is 400', async () => {
     const bad = await call('POST', '/packages', {
       body: new Uint8Array([1, 2, 3]),
       query: { name: 'bad.aasx' },
@@ -190,14 +190,14 @@ describe('AASX 파일 서버 인터페이스 (AasxFileServer SSP-001)', () => {
     expect(bad.body.messages[0].messageType).toBe('Error');
   });
 
-  it('name 없이 올리면 400', async () => {
+  it('uploading without name is 400', async () => {
     const bad = await call('POST', '/packages', { body: goldenBytes });
     expect(bad.status).toBe(400);
   });
 });
 
 describe('Part 2 — Identifiable', () => {
-  it('GET /shells · /submodels · /concept-descriptions 목록', async () => {
+  it('GET /shells · /submodels · /concept-descriptions lists', async () => {
     const shells = await call('GET', `${base()}/shells`);
     expect(shells.body.result).toHaveLength(1);
     expect(shells.body.result[0].id).toBe(shellId);
@@ -212,7 +212,7 @@ describe('Part 2 — Identifiable', () => {
     expect(cds.body.paging_metadata.cursor).toBeDefined();
   });
 
-  it('cursor로 이어 받으면 전량이 나온다', async () => {
+  it('continuing with cursor yields everything', async () => {
     const seen: string[] = [];
     let cursor: string | undefined;
     do {
@@ -225,33 +225,33 @@ describe('Part 2 — Identifiable', () => {
     expect(seen).toHaveLength(golden.environment.conceptDescriptions!.length);
   });
 
-  it('GET /submodels/{base64url id}로 한 건을 꺼낸다', async () => {
+  it('GET /submodels/{base64url id} fetches a single item', async () => {
     const one = await call('GET', `${base()}/submodels/${encodeIdentifier(nameplateId)}`);
     expect(one.status).toBe(200);
     expect(one.body.idShort).toBe('DigitalNameplate');
     expect(one.headers['etag']).toBe('"1"');
   });
 
-  it('없는 식별자는 404', async () => {
+  it('an unknown identifier is 404', async () => {
     const missing = await call('GET', `${base()}/submodels/${encodeIdentifier('없는것')}`);
     expect(missing.status).toBe(404);
     expect(missing.body.messages[0].code).toBe('NotFound');
   });
 
-  it('PUT으로 고치면 리비전이 오른다', async () => {
+  it('editing via PUT bumps the revision', async () => {
     const path = `${base()}/submodels/${encodeIdentifier(nameplateId)}`;
     const current = await call('GET', path);
     const updated = await call('PUT', path, {
       body: { ...current.body, category: 'PARAMETER' },
       headers: { 'if-match': '1' },
     });
-    // 규격대로 본문 없이 204를 주되, 낙관적 잠금을 이어가도록 ETag로 새 리비전을 알린다
+    // Per the spec it returns 204 with no body, but announces the new revision via ETag so optimistic locking can continue
     expect(updated.status).toBe(204);
     expect(updated.headers['etag']).toBe('"2"');
     expect((await call('GET', path)).body.category).toBe('PARAMETER');
   });
 
-  it('If-Match가 어긋나면 409 — 동시 편집 충돌', async () => {
+  it('mismatched If-Match is 409 — concurrent edit conflict', async () => {
     const path = `${base()}/submodels/${encodeIdentifier(nameplateId)}`;
     const current = await call('GET', path);
     const conflict = await call('PUT', path, {
@@ -261,7 +261,7 @@ describe('Part 2 — Identifiable', () => {
     expect(conflict.status).toBe(409);
   });
 
-  it('POST /submodels로 만들고 DELETE로 지운다', async () => {
+  it('creates via POST /submodels and deletes via DELETE', async () => {
     const id = 'https://www.smart-factory.kr/ids/sm/RollFormingMachine/Extra/1/0';
     const created = await call('POST', `${base()}/submodels`, {
       body: { modelType: 'Submodel', id, idShort: 'Extra', kind: 'Template', submodelElements: [] },
@@ -273,14 +273,14 @@ describe('Part 2 — Identifiable', () => {
     expect((await call('GET', `${base()}/submodels/${encodeIdentifier(id)}`)).status).toBe(404);
   });
 
-  it('경로에 맞지 않는 modelType은 400', async () => {
+  it('a modelType that does not match the path is 400', async () => {
     const bad = await call('POST', `${base()}/shells`, {
       body: { modelType: 'Submodel', id: 'x' },
     });
     expect(bad.status).toBe(400);
   });
 
-  it('규격 질의 인자로 거른다 — idShort · semanticId', async () => {
+  it('filters by spec query parameters — idShort · semanticId', async () => {
     const byIdShort = await call('GET', `${base()}/submodels`, {
       query: { idShort: 'OperationalData' },
     });
@@ -295,7 +295,7 @@ describe('Part 2 — Identifiable', () => {
     expect(bySemantic.body.result[0].idShort).toBe('DigitalNameplate');
   });
 
-  it('GET /serialization — 고른 것만 담아 준다', async () => {
+  it('GET /serialization — includes only what was selected', async () => {
     const json = await call('GET', `${base()}/serialization`, {
       queryAll: { submodelIds: [encodeIdentifier(nameplateId)] },
       query: { includeConceptDescriptions: 'false' },
@@ -313,7 +313,7 @@ describe('Part 2 — Identifiable', () => {
     );
   });
 
-  it('Part 2 기저 경로의 /description', async () => {
+  it('/description under the Part 2 base path', async () => {
     const description = await call('GET', `${base()}/description`);
     expect(description.body.profiles).toContain(
       'https://admin-shell.io/aas/API/3/0/ConceptDescriptionServiceSpecification/SSP-001',
@@ -326,41 +326,41 @@ describe('Part 2 — Identifiable', () => {
   });
 });
 
-describe('Part 2 — 직렬화 수식자', () => {
+describe('Part 2 — serialization modifiers', () => {
   const smPath = (): string => `${base()}/submodels/${encodeIdentifier(nameplateId)}`;
 
-  it('$value — 값만 준다', async () => {
+  it('$value — returns values only', async () => {
     const value = await call('GET', `${smPath()}/$value`);
     expect(value.status).toBe(200);
-    // 자식 idShort가 키가 된다
+    // Child idShorts become the keys
     expect(value.body.SerialNumber).toBe('EXM-RFL-2026-00127');
-    // 구조 정보는 없다
+    // No structural information
     expect(value.body.modelType).toBeUndefined();
   });
 
-  it('🔴 MultiLanguageProperty는 언어를 키로 하는 객체의 배열이다 (BaSyx 대조로 정정)', async () => {
-    // 규격: "각 언어마다 언어를 이름으로, 지역화 문자열을 값으로 갖는 JSON 객체의 배열"
-    // 메타모델 표현({language,text})을 그대로 내보내던 것을 2026-08-24에 고쳤다
+  it('Important: MultiLanguageProperty is an array of objects keyed by language (corrected by comparing with BaSyx)', async () => {
+    // Spec: "an array of JSON objects, one per language, with the language as name and the localized string as value"
+    // Fixed on 2026-08-24; it used to emit the metamodel representation ({language,text}) as is
     const value = await call('GET', `${smPath()}/$value`);
     expect(value.body.ManufacturerName).toEqual([{ ko: 'Example Manufacturer Co., Ltd.' }]);
   });
 
-  it('MLP 쓰기는 규격 형태와 메타모델 형태를 모두 받는다', async () => {
+  it('MLP writes accept both the spec shape and the metamodel shape', async () => {
     const path = `${smPath()}/submodel-elements/ManufacturerName/$value`;
 
-    // ① 규격 형태
+    // ① Spec shape
     expect((await call('PATCH', path, { body: [{ en: 'Spec form' }] })).status).toBe(204);
     expect((await call('GET', path)).body).toEqual([{ en: 'Spec form' }]);
 
-    // ② 메타모델 형태 — 보내는 클라이언트가 있어 받아는 준다
+    // ② Metamodel shape — some clients send it, so we accept it
     expect(
       (await call('PATCH', path, { body: [{ language: 'ko', text: '관용 형태' }] })).status,
     ).toBe(204);
-    // 내보낼 때는 언제나 규격 형태다
+    // Output is always the spec shape
     expect((await call('GET', path)).body).toEqual([{ ko: '관용 형태' }]);
   });
 
-  it('PATCH $value — 여러 값을 한 번에 고친다', async () => {
+  it('PATCH $value — edits several values at once', async () => {
     const patched = await call('PATCH', `${smPath()}/$value`, {
       body: { SerialNumber: 'SN-바뀜', YearOfConstruction: '2027' },
     });
@@ -371,21 +371,21 @@ describe('Part 2 — 직렬화 수식자', () => {
     expect(after.body.YearOfConstruction).toBe('2027');
   });
 
-  it('PATCH $value — 없는 이름은 404로 알린다(조용히 넘어가지 않는다)', async () => {
+  it('PATCH $value — reports an unknown name as 404 (does not pass silently)', async () => {
     const bad = await call('PATCH', `${smPath()}/$value`, { body: { 없는요소: 'x' } });
     expect(bad.status).toBe(404);
   });
 
-  it('$metadata — 값과 자식을 뺀 나머지', async () => {
+  it('$metadata — everything except values and children', async () => {
     const meta = await call('GET', `${smPath()}/$metadata`);
     expect(meta.status).toBe(200);
     expect(meta.body.id).toBe(nameplateId);
     expect(meta.body.kind).toBe('Template');
     expect(meta.body.semanticId).toBeDefined();
-    expect(meta.body.submodelElements).toBeUndefined(); // 자식은 빠진다
+    expect(meta.body.submodelElements).toBeUndefined(); // children are left out
   });
 
-  it('PATCH $metadata — 값은 건드리지 않고 나머지만 갈아 끼운다', async () => {
+  it('PATCH $metadata — replaces only the rest without touching values', async () => {
     const before = await call('GET', `${smPath()}/$value`);
     const meta = await call('GET', `${smPath()}/$metadata`);
 
@@ -396,12 +396,12 @@ describe('Part 2 — 직렬화 수식자', () => {
 
     const one = await call('GET', smPath());
     expect(one.body.category).toBe('PARAMETER');
-    // 값은 그대로다 — 이게 이 경로의 계약이다
+    // Values stay as is — that is this path's contract
     expect((await call('GET', `${smPath()}/$value`)).body).toEqual(before.body);
     expect(one.body.submodelElements.length).toBeGreaterThan(0);
   });
 
-  it('$reference — 그 자원을 가리키는 ModelReference', async () => {
+  it('$reference — a ModelReference pointing at that resource', async () => {
     const reference = await call('GET', `${smPath()}/$reference`);
     expect(reference.body).toEqual({
       type: 'ModelReference',
@@ -409,15 +409,15 @@ describe('Part 2 — 직렬화 수식자', () => {
     });
   });
 
-  it('$path — idShortPath 목록. 트리를 받지 않고 위치만 훑는다', async () => {
+  it('$path — a list of idShortPaths. Scans positions only, without fetching the tree', async () => {
     const paths = await call('GET', `${smPath()}/$path`);
     expect(paths.body).toContain('SerialNumber');
     expect(paths.body).toContain('Markings');
-    // 중첩은 규격 표기 그대로
+    // Nesting uses the spec notation as is
     expect(paths.body).toContain('Markings[0].MarkingName');
   });
 
-  it('요소 수준 $metadata · $reference · $path', async () => {
+  it('element-level $metadata · $reference · $path', async () => {
     const elements = `${smPath()}/submodel-elements`;
 
     const meta = await call('GET', `${elements}/SerialNumber/$metadata`);
@@ -431,7 +431,7 @@ describe('Part 2 — 직렬화 수식자', () => {
     expect(paths.body).toEqual(['Markings', 'Markings[0]', 'Markings[0].MarkingName', 'Markings[0].MarkingAdditionalText']);
   });
 
-  it('모음 수준 수식자 — /submodels/$reference · $metadata · $path', async () => {
+  it('collection-level modifiers — /submodels/$reference · $metadata · $path', async () => {
     const references = await call('GET', `${base()}/submodels/$reference`);
     expect(references.body.result[0]).toEqual({
       type: 'ModelReference',
@@ -449,9 +449,9 @@ describe('Part 2 — 직렬화 수식자', () => {
     expect(shellRefs.body.result[0].keys[0].type).toBe('AssetAdministrationShell');
   });
 
-  it('수식자 경로가 식별자로 잘못 먹히지 않는다 (라우팅 우선순위)', async () => {
-    // /submodels/$reference 는 /submodels/{id} 와도 모양이 같다.
-    // 고정 세그먼트가 많은 쪽이 이겨야 한다
+  it('modifier paths are not mistaken for identifiers (routing precedence)', async () => {
+    // /submodels/$reference has the same shape as /submodels/{id}.
+    // The one with more fixed segments must win
     const reference = await call('GET', `${base()}/submodels/$reference`);
     expect(reference.status).toBe(200);
     expect(reference.body.result).toBeDefined();
@@ -459,34 +459,34 @@ describe('Part 2 — 직렬화 수식자', () => {
   });
 });
 
-describe('Part 2 — 부분 갱신과 첨부', () => {
+describe('Part 2 — partial updates and attachments', () => {
   const smPath = (): string => `${base()}/submodels/${encodeIdentifier(nameplateId)}`;
 
-  it('PATCH 서브모델 — 본문에 온 것만 바꾸고 나머지는 지키다', async () => {
+  it('PATCH submodel — changes only what is in the body and keeps the rest', async () => {
     const before = await call('GET', smPath());
     const patched = await call('PATCH', smPath(), { body: { category: 'PARAMETER' } });
     expect(patched.status).toBe(204);
 
     const after = await call('GET', smPath());
     expect(after.body.category).toBe('PARAMETER');
-    // PUT과 달리 값·자식이 살아 있다
+    // Unlike PUT, values and children survive
     expect(after.body.submodelElements).toHaveLength(before.body.submodelElements.length);
     expect(after.body.kind).toBe('Template');
   });
 
-  it('PATCH 요소 — 한 속성만 고친다', async () => {
+  it('PATCH element — edits just one attribute', async () => {
     const path = `${smPath()}/submodel-elements/SerialNumber`;
     const patched = await call('PATCH', path, { body: { category: 'VARIABLE' } });
     expect(patched.status).toBe(204);
 
     const after = await call('GET', path);
     expect(after.body.category).toBe('VARIABLE');
-    expect(after.body.value).toBe('EXM-RFL-2026-00127'); // 값은 그대로
+    expect(after.body.value).toBe('EXM-RFL-2026-00127'); // value unchanged
   });
 
-  it('첨부 — 매뉴얼을 올리고 내려받고 지운다', async () => {
-    // File 요소의 위치는 API로 찾는다($path + $metadata) — 트리 규칙을 테스트가 다시 구현하면
-    // 그 구현이 틀렸을 때 시험이 거짓말을 한다
+  it('attachments — upload, download and delete a manual', async () => {
+    // Locate the File element through the API ($path + $metadata) — if the test re-implemented the tree rules,
+    // the test would lie whenever that re-implementation was wrong
     const hando = golden.environment.submodels!.find((s) => s.idShort === 'HandoverDocumentation')!;
     const smBase = `${base()}/submodels/${encodeIdentifier(hando.id)}`;
     const paths = (await call('GET', `${smBase}/$path`)).body as string[];
@@ -516,7 +516,7 @@ describe('Part 2 — 부분 갱신과 첨부', () => {
     expect(got.headers['content-type']).toBe('application/pdf');
     expect(got.body).toEqual(pdf);
 
-    // 내려받은 AASX 안에도 들어 있고, 규칙 위반이 없어야 한다(PKG-FILE-URI)
+    // It is also inside the downloaded AASX, with no rule violations (PKG-FILE-URI)
     const download = await call('GET', `/packages/${packageId}`);
     const reread = readAasx(download.body as Uint8Array);
     expect(reread.supplementaryFiles.some((f) => f.part === '/aasx/suppl/매뉴얼.pdf')).toBe(true);
@@ -528,7 +528,7 @@ describe('Part 2 — 부분 갱신과 첨부', () => {
     expect((await call('GET', attachment)).status).toBe(404);
   });
 
-  it('첨부는 File·Blob에만 붙는다', async () => {
+  it('attachments only attach to File and Blob', async () => {
     const bad = await call('PUT', `${smPath()}/submodel-elements/SerialNumber/attachment`, {
       body: new Uint8Array([1, 2, 3]),
       query: { fileName: 'x.bin' },
@@ -537,25 +537,25 @@ describe('Part 2 — 부분 갱신과 첨부', () => {
   });
 });
 
-describe('Part 2 — AAS를 거친 중첩 경로', () => {
+describe('Part 2 — nested paths via the AAS', () => {
   const nested = (): string =>
     `${base()}/shells/${encodeIdentifier(shellId)}/submodels/${encodeIdentifier(nameplateId)}`;
 
-  it('평면 경로와 같은 서브모델을 준다', async () => {
+  it('returns the same submodel as the flat path', async () => {
     const flat = await call('GET', `${base()}/submodels/${encodeIdentifier(nameplateId)}`);
     const viaShell = await call('GET', nested());
     expect(viaShell.status).toBe(200);
     expect(viaShell.body).toEqual(flat.body);
   });
 
-  it('요소·수식자도 같은 핸들러를 탄다', async () => {
+  it('elements and modifiers go through the same handlers', async () => {
     expect((await call('GET', `${nested()}/$value`)).body.SerialNumber).toBe('EXM-RFL-2026-00127');
     expect((await call('GET', `${nested()}/$path`)).body).toContain('Markings[0].MarkingName');
     const element = await call('GET', `${nested()}/submodel-elements/SerialNumber`);
     expect(element.body.idShort).toBe('SerialNumber');
   });
 
-  it('중첩 경로로도 값을 고칠 수 있고, 파일까지 남는다', async () => {
+  it('values can be edited via the nested path too, and the change reaches the file', async () => {
     const patched = await call('PATCH', `${nested()}/submodel-elements/SerialNumber/$value`, {
       body: 'SN-중첩경로',
     });
@@ -569,17 +569,17 @@ describe('Part 2 — AAS를 거친 중첩 경로', () => {
     expect(serial.value).toBe('SN-중첩경로');
   });
 
-  it('🔴 그 AAS가 참조하지 않는 서브모델은 열어 주지 않는다', async () => {
-    // 다른 패키지의 서브모델 id를 끼워 넣어도 통하면 안 된다
+  it('Important: does not open a submodel that the AAS does not reference', async () => {
+    // Slipping in another package's submodel id must not work
     const outsider = 'https://www.smart-factory.kr/ids/sm/다른장비/Secret/1/0';
     await call('POST', `${base()}/submodels`, {
       body: { modelType: 'Submodel', id: outsider, idShort: 'Secret', kind: 'Template' },
     });
 
-    // 평면 경로로는 보인다(같은 패키지니까)
+    // Visible via the flat path (same package)
     expect((await call('GET', `${base()}/submodels/${encodeIdentifier(outsider)}`)).status).toBe(200);
 
-    // 그러나 AAS를 거친 경로로는 404 — AAS가 참조하지 않기 때문이다
+    // But 404 via the AAS path — because the AAS does not reference it
     const viaShell = await call(
       'GET',
       `${base()}/shells/${encodeIdentifier(shellId)}/submodels/${encodeIdentifier(outsider)}`,
@@ -589,7 +589,7 @@ describe('Part 2 — AAS를 거친 중첩 경로', () => {
   });
 });
 
-describe('Part 2 — AssetInformation과 썸네일', () => {
+describe('Part 2 — AssetInformation and thumbnails', () => {
   const shellPath = (): string => `${base()}/shells/${encodeIdentifier(shellId)}`;
 
   it('GET asset-information', async () => {
@@ -599,34 +599,34 @@ describe('Part 2 — AssetInformation과 썸네일', () => {
     expect(info.body.globalAssetId).toContain('/ids/asset/');
   });
 
-  it('PUT asset-information — 「고치기」 말고 사람이 직접 고칠 길', async () => {
+  it('PUT asset-information — a way for people to edit it directly, not via "fix"', async () => {
     const info = await call('GET', `${shellPath()}/asset-information`);
     const put = await call('PUT', `${shellPath()}/asset-information`, {
       body: { ...info.body, assetKind: 'Instance' },
     });
     expect(put.status).toBe(204);
 
-    // 파일까지 남는다 — A안의 핵심
+    // The change reaches the file — the core of option A
     const download = await call('GET', `/packages/${packageId}`);
     const reread = readAasx(download.body as Uint8Array);
     expect(reread.environment.assetAdministrationShells![0]!.assetInformation.assetKind).toBe(
       'Instance',
     );
-    // 그리고 그 자리를 린터가 잡는다
+    // And the linter catches that spot
     const report = await call('GET', `/packages/${packageId}/lint`);
     expect(report.body.countByRule['KOSMO-AAS-6']).toBe(1);
   });
 
-  it('GET 썸네일 — 모델이 아니라 패키지 안의 실제 파트', async () => {
+  it('GET thumbnail — the actual part inside the package, not the model', async () => {
     const thumbnail = await call('GET', `${shellPath()}/asset-information/thumbnail`);
     expect(thumbnail.status).toBe(200);
     expect(thumbnail.headers['content-type']).toBe('image/png');
     expect((thumbnail.body as Uint8Array).length).toBeGreaterThan(0);
-    // PNG 매직 넘버
+    // PNG magic number
     expect([...(thumbnail.body as Uint8Array).slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
   });
 
-  it('PUT 썸네일 — 파일과 모델을 함께 갱신하고, 재저장해도 위반 0건', async () => {
+  it('PUT thumbnail — updates file and model together, and re-saving gives 0 violations', async () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
     const put = await call('PUT', `${shellPath()}/asset-information/thumbnail`, {
       body: png,
@@ -638,7 +638,7 @@ describe('Part 2 — AssetInformation과 썸네일', () => {
     const info = await call('GET', `${shellPath()}/asset-information`);
     expect(info.body.defaultThumbnail).toEqual({ path: '/new-thumb.png', contentType: 'image/png' });
 
-    // 파트·관계·Content_Types 세 곳이 맞아야 통과한다(PKG-THUMB-PART)
+    // Part, relationship and Content_Types must all agree to pass (PKG-THUMB-PART)
     const download = await call('GET', `/packages/${packageId}`);
     const reread = readAasx(download.body as Uint8Array);
     const result = lint(reread.environment, ALL_RULES, { package: reread.opc });
@@ -647,7 +647,7 @@ describe('Part 2 — AssetInformation과 썸네일', () => {
     expect(reread.thumbnail?.data).toEqual(png);
   });
 
-  it('DELETE 썸네일 — 규격대로 200이고, 지운 뒤엔 린터가 지적한다', async () => {
+  it('DELETE thumbnail — 200 per the spec, and the linter flags it after deletion', async () => {
     const removed = await call('DELETE', `${shellPath()}/asset-information/thumbnail`);
     expect(removed.status).toBe(200);
     expect(removed.body.deleted).toBe('/thumbnail.png');
@@ -661,7 +661,7 @@ describe('Part 2 — AssetInformation과 썸네일', () => {
 describe('Part 2 — SubmodelElement', () => {
   const smPath = (): string => `${base()}/submodels/${encodeIdentifier(nameplateId)}/submodel-elements`;
 
-  /** 골든 파일에서 값이 있는 Property 하나를 idShortPath와 함께 찾는다 */
+  /** Find one Property with a value in the golden file, along with its idShortPath */
   function firstProperty(): { path: string; value?: string } {
     const submodel = golden.environment.submodels![0]!;
     for (const node of submodel.submodelElements ?? []) {
@@ -672,7 +672,7 @@ describe('Part 2 — SubmodelElement', () => {
     throw new Error('Property를 찾지 못했습니다');
   }
 
-  it('목록과 단건 조회', async () => {
+  it('list and single fetch', async () => {
     const all = await call('GET', smPath());
     expect(all.body.length).toBe(golden.environment.submodels![0]!.submodelElements!.length);
 
@@ -682,24 +682,24 @@ describe('Part 2 — SubmodelElement', () => {
     expect(one.body.idShort).toBe(target.path);
   });
 
-  it('중첩 경로 — Markings[0].MarkingName 처럼 인덱스와 점을 섞어 닿는다', async () => {
-    // 골든 파일의 DigitalNameplate는 SML(Markings) → SMC(MarkingsEntry_0) → Property 구조다
+  it('nested path — reaches items by mixing indexes and dots, like Markings[0].MarkingName', async () => {
+    // The golden file's DigitalNameplate has the structure SML(Markings) → SMC(MarkingsEntry_0) → Property
     const byName = await call('GET', `${smPath()}/Markings.MarkingsEntry_0.MarkingName`);
     expect(byName.status).toBe(200);
     expect(byName.body.modelType).toBe('Property');
     expect(byName.body.value).toContain('CE 2006/42/EC');
 
-    // SML 자식은 인덱스로도 가리킬 수 있어야 한다(Part 2 표기)
+    // SML children must also be addressable by index (Part 2 notation)
     const byIndex = await call('GET', `${smPath()}/Markings[0].MarkingName`);
     expect(byIndex.status).toBe(200);
     expect(byIndex.body.value).toBe(byName.body.value);
 
-    // 중간 계층 자체도 꺼내진다
+    // The intermediate level itself can be fetched too
     const smc = await call('GET', `${smPath()}/Markings[0]`);
     expect(smc.body.modelType).toBe('SubmodelElementCollection');
   });
 
-  it('중첩 요소의 $value 수정이 파일까지 간다', async () => {
+  it('editing $value of a nested element reaches the file', async () => {
     const path = `${smPath()}/Markings[0].MarkingAdditionalText/$value`;
     expect((await call('PATCH', path, { body: '개정 표기' })).status).toBe(204);
 
@@ -712,13 +712,13 @@ describe('Part 2 — SubmodelElement', () => {
     expect(target?.value).toBe('개정 표기');
   });
 
-  it('SMC 전체를 $value로 읽으면 자식이 idShort별로 펼쳐진다', async () => {
+  it('reading a whole SMC via $value expands children by idShort', async () => {
     const value = await call('GET', `${smPath()}/Markings[0]/$value`);
     expect(value.status).toBe(200);
     expect(Object.keys(value.body)).toEqual(['MarkingName', 'MarkingAdditionalText']);
   });
 
-  it('$value로 값만 읽고 쓴다 — A안에서 이 경로는 저작 편집이다', async () => {
+  it('reads and writes values only via $value — under option A this path is authoring edits', async () => {
     const target = firstProperty();
     const read = await call('GET', `${smPath()}/${target.path}/$value`);
     expect(read.status).toBe(200);
@@ -731,7 +731,7 @@ describe('Part 2 — SubmodelElement', () => {
     const after = await call('GET', `${smPath()}/${target.path}/$value`);
     expect(after.body).toBe('새 예시값');
 
-    // 편집이 파일로 나가는지 — A안의 핵심
+    // Whether edits reach the file — the core of option A
     const download = await call('GET', `/packages/${packageId}`);
     const reread = readAasx(download.body as Uint8Array);
     const element = (reread.environment.submodels![0]!.submodelElements ?? []).find(
@@ -740,7 +740,7 @@ describe('Part 2 — SubmodelElement', () => {
     expect(element.value).toBe('새 예시값');
   });
 
-  it('요소를 추가하고 지운다', async () => {
+  it('adds and deletes an element', async () => {
     const added = await call('POST', smPath(), {
       body: { modelType: 'Property', idShort: 'TempProbe', valueType: 'xs:string', value: '42' },
     });
@@ -755,11 +755,11 @@ describe('Part 2 — SubmodelElement', () => {
     expect((await call('GET', `${smPath()}/TempProbe`)).status).toBe(404);
   });
 
-  it('없는 요소 경로는 404', async () => {
+  it('an unknown element path is 404', async () => {
     expect((await call('GET', `${smPath()}/없는요소`)).status).toBe(404);
   });
 
-  it('순서 바꾸기 — 한 칸씩 옮기고, 끝에서는 400 (규격 밖 연산)', async () => {
+  it('reorder — moves one position at a time, 400 at the ends (non-spec operation)', async () => {
     const names = async (): Promise<string[]> =>
       ((await call('GET', smPath())).body as { idShort: string }[]).map((e) => e.idShort);
     const before = await names();
@@ -772,12 +772,12 @@ describe('Part 2 — SubmodelElement', () => {
     expect(moved.status).toBe(204);
     expect((await names()).slice(0, 2)).toEqual([second, first]);
 
-    // 돌려놓기 — 그리고 파일에도 그 순서로 나간다(A안)
+    // Restore it — and the file gets that order too (option A)
     expect((await call('POST', `${smPath()}/${first}/move`, { body: { offset: -1 } })).status).toBe(204);
     expect(await names()).toEqual(before);
     expect((await call('POST', `${smPath()}/${first}/move`, { body: { offset: 0 } })).status).toBe(400);
 
-    // 중첩(SML 자식)도 같은 연산이다
+    // Nested items (SML children) use the same operation
     const inner = await call('POST', `${smPath()}/Markings[0].MarkingName/move`, { body: { offset: 1 } });
     expect(inner.status).toBe(204);
     const smc = await call('GET', `${smPath()}/Markings[0]/$value`);
@@ -785,7 +785,7 @@ describe('Part 2 — SubmodelElement', () => {
     await call('POST', `${smPath()}/Markings[0].MarkingName/move`, { body: { offset: -1 } });
   });
 
-  it('순서 바꾸기 — `to`로 원하는 자리에 바로 (트리에서 끌어다 놓기)', async () => {
+  it('reorder — straight to the desired position with `to` (drag and drop in the tree)', async () => {
     const names = async (): Promise<string[]> =>
       ((await call('GET', smPath())).body as { idShort: string }[]).map((e) => e.idShort);
     const before = await names();
@@ -797,7 +797,7 @@ describe('Part 2 — SubmodelElement', () => {
     expect(after[last]).toBe(first);
     expect(after.slice(0, last)).toEqual(before.slice(1));
 
-    // 범위 밖·소수는 400, 같은 자리는 204(아무 일 없음)
+    // Out of range or fractional is 400, the same position is 204 (no-op)
     expect((await call('POST', `${smPath()}/${first}/move`, { body: { to: last + 1 } })).status).toBe(400);
     expect((await call('POST', `${smPath()}/${first}/move`, { body: { to: 1.5 } })).status).toBe(400);
     expect((await call('POST', `${smPath()}/${first}/move`, { body: { to: last } })).status).toBe(204);
@@ -806,7 +806,7 @@ describe('Part 2 — SubmodelElement', () => {
     expect(await names()).toEqual(before);
   });
 
-  it('복제 — 바로 아래에 X_2로, 다시 하면 X_3', async () => {
+  it('duplicate — right below as X_2, again gives X_3', async () => {
     const target = firstProperty();
     const copy = await call('POST', `${smPath()}/${target.path}/duplicate`);
     expect(copy.status).toBe(201);
@@ -818,7 +818,7 @@ describe('Part 2 — SubmodelElement', () => {
 
     const all = ((await call('GET', smPath())).body as { idShort: string }[]).map((e) => e.idShort);
     const at = all.indexOf(target.path);
-    // 사본은 원본 바로 아래에 선다 — 나중 것이 더 가깝다
+    // A copy goes right below the original — the later one is closer
     expect(all.slice(at, at + 3)).toEqual([target.path, `${target.path}_3`, `${target.path}_2`]);
 
     await call('DELETE', `${smPath()}/${target.path}_2`);
@@ -826,9 +826,9 @@ describe('Part 2 — SubmodelElement', () => {
   });
 });
 
-describe('Quick Fix 경로', () => {
-  it('결함 패키지를 고치면 저장소와 내려받은 파일이 함께 정상이 된다', async () => {
-    // 결함을 넣은 패키지를 따로 올린다
+describe('Quick Fix path', () => {
+  it('fixing a defective package makes both the store and the downloaded file valid', async () => {
+    // Upload a package with injected defects separately
     const damaged = readAasx(goldenBytes);
     damaged.environment.assetAdministrationShells![0]!.assetInformation.assetKind = 'Instance';
     delete damaged.environment.assetAdministrationShells![0]!.assetInformation.globalAssetId;
@@ -849,22 +849,22 @@ describe('Quick Fix 경로', () => {
     expect(fixed.body.applied.length).toBeGreaterThan(0);
     expect(fixed.body.store.updated).toBeGreaterThan(0);
 
-    // 저장소에 반영됐는지 — 다시 린트해서 확인한다
+    // Whether the store was updated — confirm by linting again
     const after = await call('GET', `/packages/${id}/lint`);
     expect(after.body.passed).toBe(true);
   });
 
-  it('includeWarnings=1이면 고칠 수 있는 경고(AASd-120)도 지운다 — 기본은 위반만 (2026-09-07)', async () => {
+  it('with includeWarnings=1 it also clears fixable warnings (AASd-120) — by default only violations (2026-09-07)', async () => {
     const created = await call('POST', '/packages', { body: goldenBytes, query: { name: '경고본.aasx' } });
     const id = created.body.packageId;
     const before = await call('GET', `/packages/${id}/lint`);
     expect(before.body.countByRule['AASd-120'] ?? 0).toBeGreaterThan(0);
 
-    // 기본 — 경고는 그대로
+    // Default — warnings stay
     const plain = await call('POST', `/packages/${id}/fix`);
     expect(plain.body.after.countByRule['AASd-120'] ?? 0).toBe(before.body.countByRule['AASd-120']);
 
-    // 켜면 — 경고도 지운다. KOSMO 위반 수는 늘지 않는다
+    // Enabled — warnings are cleared too. The KOSMO violation count does not grow
     const wide = await call('POST', `/packages/${id}/fix`, { query: { includeWarnings: '1' } });
     expect(wide.status).toBe(200);
     expect(wide.body.after.countByRule['AASd-120'] ?? 0).toBe(0);
@@ -872,8 +872,8 @@ describe('Quick Fix 경로', () => {
   });
 });
 
-describe('서브모델 가져오기 (템플릿 임포트)', () => {
-  /** 빈 장비 한 대짜리 패키지를 만들어 가져오기 대상으로 쓴다 */
+describe('submodel import (template import)', () => {
+  /** Build a package with a single empty machine to use as the import target */
   async function emptyTarget(): Promise<string> {
     const bare = readAasx(goldenBytes);
     bare.environment.assetAdministrationShells![0]!.idShort = 'NewMachine';
@@ -887,7 +887,7 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     return created.body.packageId;
   }
 
-  it('id를 새 장비에 맞게 다시 짓고 CD까지 함께 가져온다', async () => {
+  it('re-derives ids for the new machine and imports the CDs along with it', async () => {
     const targetId = await emptyTarget();
     const imported = await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: packageId, submodelId: nameplateId },
@@ -898,35 +898,35 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
       'https://www.smart-factory.kr/ids/sm/NewMachine/DigitalNameplate/3/1',
     );
     expect(imported.body.renamedFrom).toBe(nameplateId);
-    // CD를 안 가져오면 KOSMO-SME-3이 전부 터진다
+    // Without importing the CDs, KOSMO-SME-3 fails across the board
     expect(imported.body.copiedConceptDescriptions).toBeGreaterThan(0);
 
     const list = await call('GET', `/packages/${targetId}/api/v3.0/submodels`);
     expect(list.body.result).toHaveLength(1);
     const sm = list.body.result[0];
-    // semanticId가 자기 id를 따라온다 (KOSMO-SM-3)
+    // semanticId follows its own id (KOSMO-SM-3)
     expect(sm.semanticId.keys[0].value).toBe(imported.body.submodelId);
     expect(sm.administration).toEqual({ version: '3', revision: '1' });
 
-    // AAS에도 매달린다
+    // It is attached to the AAS too
     const refs = await call('GET', `${'/packages/' + targetId}/api/v3.0/shells/${encodeIdentifier(shellId)}/submodel-refs`);
     expect(refs.body.result.map((r: any) => r.keys[0].value)).toContain(imported.body.submodelId);
   });
 
-  it('가져온 서브모델이 KOSMO 규칙을 그대로 통과한다', async () => {
+  it('an imported submodel passes the KOSMO rules as is', async () => {
     const targetId = await emptyTarget();
     await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: packageId, submodelId: nameplateId },
     });
     const report = await call('GET', `/packages/${targetId}/lint`, { query: { detail: 'true' } });
-    // 서브모델 4종 필수·6종 이상 규칙은 아직 못 채운 상태이므로 그 둘만 남아야 한다
+    // The "4 mandatory submodels · 6 or more" rules are not yet met, so only those two should remain
     const rules = new Set(
       report.body.findings.filter((f: any) => f.severity === 'error').map((f: any) => f.ruleId),
     );
     expect([...rules]).toEqual(['KOSMO-AAS-4']);
   });
 
-  it('retarget=false면 원본 id를 그대로 쓴다', async () => {
+  it('with retarget=false it keeps the original id', async () => {
     const targetId = await emptyTarget();
     const imported = await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: packageId, submodelId: nameplateId, retarget: false },
@@ -935,7 +935,7 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     expect(imported.body.renamedFrom).toBeUndefined();
   });
 
-  it('같은 것을 두 번 가져오면 409', async () => {
+  it('importing the same thing twice is 409', async () => {
     const targetId = await emptyTarget();
     const body = { sourcePackageId: packageId, submodelId: nameplateId };
     await call('POST', `/packages/${targetId}/import-submodel`, { body });
@@ -943,12 +943,12 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     expect(again.status).toBe(409);
   });
 
-  it('🔴 같은 이름(idShort)이 이미 있으면 판이 달라도 말없이 둘째를 만들지 않는다 — 409, 이유를 말한다', async () => {
+  it('Important: if the same name (idShort) already exists, it does not silently create a second one even with a different revision — 409 with a reason', async () => {
     const targetId = await emptyTarget();
     await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: packageId, submodelId: nameplateId },
     });
-    // 같은 이름·다른 판을 가진 원본 — 예전엔 id가 달라 그냥 들어갔다
+    // A source with the same name but a different revision — it used to slip in because the id differed
     const other = readAasx(goldenBytes);
     const np = other.environment.submodels!.find((sm) => sm.idShort === 'DigitalNameplate')!;
     np.administration = { version: '2', revision: '0' };
@@ -959,7 +959,7 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     expect(again.status).toBe(409);
     expect(again.body.messages[0].text).toContain('「DigitalNameplate」');
 
-    // 나란히 두기 — _2로 들어오고 id도 그 이름으로 짓는다
+    // Side by side — comes in as _2 and the id is derived from that name too
     const alongside = await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: created.body.packageId, submodelId: nameplateId, onDuplicate: 'alongside' },
     });
@@ -967,7 +967,7 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     expect(alongside.body.idShort).toBe('DigitalNameplate_2');
     expect(alongside.body.submodelId).toContain('/DigitalNameplate_2/2/0');
 
-    // 바꾸기 — 같은 이름의 것(둘 다 아님: 정확히 그 이름만)을 지우고 새것을 넣는다. AAS 참조도 따라간다
+    // Replace — deletes the one with the same name (not both: exactly that name only) and adds the new one. The AAS reference follows
     const replace = await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: created.body.packageId, submodelId: nameplateId, onDuplicate: 'replace' },
     });
@@ -982,7 +982,7 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     expect(refIds).toContain(replace.body.submodelId);
   });
 
-  it('없는 원본이면 404', async () => {
+  it('a nonexistent source is 404', async () => {
     const targetId = await emptyTarget();
     const missing = await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: packageId, submodelId: '없는것' },
@@ -990,8 +990,8 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
     expect(missing.status).toBe(404);
   });
 
-  it('🔴 바꾸기는 자리를 지킨다 — 새로 만든 뼈대의 DigitalNameplate를 채워도 첫째 자리 그대로 (2026-09-07 실전 검증)', async () => {
-    // 초보자 흐름 그대로: 새로 만들기(뼈대 6종) → 다른 파일에서 DigitalNameplate 가져오기(바꾸기)
+  it('Important: replace keeps the position — filling DigitalNameplate in a freshly created skeleton keeps it in first place (2026-09-07 field validation)', async () => {
+    // The beginner flow as is: create new (6-submodel skeleton) → import DigitalNameplate from another file (replace)
     const made = await call('POST', '/packages/new', { body: { assetName: 'PressMachine' } });
     expect(made.status).toBe(201);
     const targetId = made.body.packageId as string;
@@ -1007,11 +1007,11 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
 
     const after = await call('GET', `/packages/${targetId}/api/v3.0/submodels`);
     const orderAfter = after.body.result.map((sm: any) => sm.idShort);
-    // 전에는 지우고 새로 넣어 맨 뒤로 갔다 — 필수 4종 순서가 깨져 보였다
+    // It used to delete and re-add, moving it to the end — the order of the 4 mandatory submodels looked broken
     expect(orderAfter).toEqual(orderBefore);
     expect(after.body.result[0].submodelElements.length).toBeGreaterThan(0);
 
-    // AAS 참조도 같은 자리
+    // The AAS reference stays in the same position too
     const shells = await call('GET', `/packages/${targetId}/api/v3.0/shells`);
     const refIds = shells.body.result[0].submodels.map((r: any) => r.keys[0].value);
     expect(refIds[0]).toBe(replace.body.submodelId);
@@ -1019,20 +1019,20 @@ describe('서브모델 가져오기 (템플릿 임포트)', () => {
   });
 });
 
-describe('오류 처리', () => {
-  it('없는 경로는 404, 잘못된 메서드는 405', async () => {
+describe('error handling', () => {
+  it('an unknown path is 404, a wrong method is 405', async () => {
     expect((await call('GET', '/없는경로')).status).toBe(404);
     expect((await call('PATCH', '/packages')).status).toBe(405);
   });
 
-  it('본문이 객체가 아니면 400', async () => {
+  it('a body that is not an object is 400', async () => {
     const bad = await call('PUT', `${base()}/submodels/${encodeIdentifier(nameplateId)}`, {
       body: '문자열',
     });
     expect(bad.status).toBe(400);
   });
 
-  it('limit이 숫자가 아니면 400', async () => {
+  it('a non-numeric limit is 400', async () => {
     const bad = await call('GET', `${base()}/submodels`, { query: { limit: '많이' } });
     expect(bad.status).toBe(400);
   });
@@ -1042,8 +1042,8 @@ describe('오류 처리', () => {
   });
 });
 
-describe('업로드 보안 (기획서 Ⅷ)', () => {
-  /** 상한을 낮춘 API — 배포처 메모리에 맞춰 조절하는 그 값이다 */
+describe('upload security (spec document Ⅷ)', () => {
+  /** API with lowered limits — the very value tuned to the deployment's memory */
   async function tightApi() {
     const store = new InMemoryStore();
     await store.init();
@@ -1058,9 +1058,9 @@ describe('업로드 보안 (기획서 Ⅷ)', () => {
       });
   }
 
-  it('압축 폭탄은 413으로 막는다 — 풀기 전에 멈춘다', async () => {
+  it('blocks a zip bomb with 413 — stops before extracting', async () => {
     const send = await tightApi();
-    // 1MB의 0은 수 KB로 압축된다. 전형적인 폭탄의 축소판
+    // 1 MB of zeros compresses to a few KB. A miniature of a typical bomb
     const bomb = zipSync({ 'aasx/big.bin': new Uint8Array(1024 * 1024) });
     expect(bomb.length).toBeLessThan(20 * 1024);
 
@@ -1070,7 +1070,7 @@ describe('업로드 보안 (기획서 Ⅷ)', () => {
     expect((response.body as any).messages[0].text).toMatch(/압축 폭탄일 수 있습니다/);
   });
 
-  it('경로 탈출이 든 파일도 413으로 막는다', async () => {
+  it('files containing path traversal are blocked with 413 too', async () => {
     const send = await tightApi();
     const evil = zipSync({ '../탈출.json': new TextEncoder().encode('{}') });
     const response = await send('POST', '/packages', { body: evil, query: { name: 'evil.aasx' } });
@@ -1078,7 +1078,7 @@ describe('업로드 보안 (기획서 Ⅷ)', () => {
     expect((response.body as any).messages[0].text).toMatch(/안전하지 않은 파트 경로/);
   });
 
-  it('상한 안의 정상 파일은 그대로 받는다', async () => {
+  it('a valid file within the limits is accepted as is', async () => {
     const store = new InMemoryStore();
     await store.init();
     const handle = createApi(store, { aasxLimits: { maxTotalUncompressedBytes: 8 * 1024 * 1024 } });
@@ -1093,9 +1093,9 @@ describe('업로드 보안 (기획서 Ⅷ)', () => {
   });
 });
 
-describe('규격 이탈 방지', () => {
-  it('PATCH는 Submodel에만 있다 — 규격에 없는 메서드를 표준 경로에 열지 않는다', async () => {
-    // 공유 코드라고 다 열어 주면 표준 클라이언트가 잘못된 기대를 갖는다
+describe('preventing spec drift', () => {
+  it('PATCH exists only on Submodel — methods not in the spec are not opened on standard paths', async () => {
+    // Opening everything just because the code is shared gives standard clients wrong expectations
     const shell = await call('PATCH', `${base()}/shells/${encodeIdentifier(shellId)}`, {
       body: { category: 'X' },
     });
@@ -1107,7 +1107,7 @@ describe('규격 이탈 방지', () => {
     });
     expect(cd.status).toBe(405);
 
-    // Submodel에는 있다
+    // Submodel has it
     const submodel = await call('PATCH', `${base()}/submodels/${encodeIdentifier(nameplateId)}`, {
       body: { category: 'PARAMETER' },
     });
@@ -1115,8 +1115,8 @@ describe('규격 이탈 방지', () => {
   });
 });
 
-describe('라우터 우선순위', () => {
-  it('고정 세그먼트가 매개변수를 이긴다 — 등록 순서에 기대지 않는다', async () => {
+describe('router precedence', () => {
+  it('fixed segments beat parameters — independent of registration order', async () => {
     const routes = compile([
       { method: 'GET', pattern: '/x/:id', handle: async () => json(200, { hit: 'param' }) },
       { method: 'GET', pattern: '/x/$value', handle: async () => json(200, { hit: 'static' }) },
@@ -1126,12 +1126,12 @@ describe('라우터 우선순위', () => {
     expect(found).toBeDefined();
     expect((found as { route: { pattern: string } }).route.pattern).toBe('/x/$value');
 
-    // 고정과 안 맞으면 매개변수 경로로 간다
+    // If it does not match a fixed segment, it goes to the parameter path
     const other = match(routes, 'GET', '/x/abc');
     expect((other as { route: { pattern: string } }).route.pattern).toBe('/x/:id');
   });
 
-  it('경로는 맞고 메서드가 다르면 405로 구분한다', () => {
+  it('a matching path with a different method is distinguished as 405', () => {
     const routes = compile([
       { method: 'GET', pattern: '/x/:id', handle: async () => json(200, {}) },
     ]);
@@ -1140,27 +1140,27 @@ describe('라우터 우선순위', () => {
   });
 });
 
-describe('정책 스위치 (규정 충돌을 고르게 한다)', () => {
-  it('결과서도 화면(/lint)과 같은 정책으로 판정한다 — 한때 결과서만 기본 정책으로 고정돼 있었다', async () => {
+describe('policy switches (letting users choose between conflicting rules)', () => {
+  it('the report judges with the same policy as the UI (/lint) — at one point only the report was pinned to the default policy', async () => {
     const strict = await call('GET', `/packages/${packageId}/report`, {
       query: { smlChildIdShort: 'forbid' },
     });
     const html = new TextDecoder().decode(strict.body as Uint8Array);
     expect(html).toContain('>FAIL<');
-    // 「적용한 규정 해석」에 고른 정책이 그대로 찍힌다 — 5건 전부
+    // The chosen policy shows up as is under "applied rule interpretation" — all 5 items
     expect(html).toContain('위반 — 표준 도구·BaSyx 적재가 목표');
     expect(html).toContain('⑤ 표준 템플릿 용어');
-    // 시각은 지역 시각(분까지) — UTC ISO가 아니다
+    // Time is local time (to the minute) — not UTC ISO
     expect(html).not.toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}Z/);
     expect(html).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
   });
 
-  it('smlChildIdShort=forbid면 AASd-120이 위반이 되고, 「고치기」가 교정한다', async () => {
-    // 기본 정책에서는 경고라 통과한다
+  it('with smlChildIdShort=forbid, AASd-120 becomes a violation and "fix" corrects it', async () => {
+    // Under the default policy it is a warning and passes
     const relaxed = await call('GET', `/packages/${packageId}/lint`);
     expect(relaxed.body.passed).toBe(true);
 
-    // 상호운용 우선 정책에서는 위반이다 — basyx·aas-test-engines가 거부하는 그 지점
+    // Under the interoperability-first policy it is a violation — exactly the point basyx and aas-test-engines reject
     const strict = await call('GET', `/packages/${packageId}/lint`, {
       query: { smlChildIdShort: 'forbid' },
     });
@@ -1173,19 +1173,19 @@ describe('정책 스위치 (규정 충돌을 고르게 한다)', () => {
     expect(fixed.body.after.countBySeverity.error).toBe(0);
     expect(fixed.body.applied.some((a: any) => a.ruleId === 'AASd-120')).toBe(true);
 
-    // KOSMO 기준으로도 여전히 0건 — 어느 쪽도 잃지 않는다
+    // Still 0 by the KOSMO standard too — nothing is lost on either side
     const after = await call('GET', `/packages/${packageId}/lint`);
     expect(after.body.countBySeverity.error).toBe(0);
   });
 });
 
-describe('되돌리기 · 다시 하기 (패키지 단위 스냅샷)', () => {
+describe('undo · redo (package-level snapshots)', () => {
   const sm = () => `${base()}/submodels/${encodeIdentifier(nameplateId)}`;
   const serial = () => `${sm()}/submodel-elements/SerialNumber`;
 
-  it('값 편집 → 되돌리기 → 원래 값. 다시 하기 → 고친 값. 설명이 사람 말로 온다', async () => {
+  it('edit value → undo → original value. Redo → edited value. The description comes in plain language', async () => {
     expect((await call('GET', `/packages/${packageId}/undo`)).body).toEqual({ undo: [], redo: [] });
-    // 되돌릴 것이 없을 때는 409 — 조용히 200을 주면 화면이 "됐다"고 믿는다
+    // 409 when there is nothing to undo — silently returning 200 would make the UI believe it "worked"
     expect((await call('POST', `/packages/${packageId}/undo`)).status).toBe(409);
 
     const patched = await call('PATCH', serial(), { body: { category: 'VARIABLE' } });
@@ -1196,14 +1196,14 @@ describe('되돌리기 · 다시 하기 (패키지 단위 스냅샷)', () => {
     const undone = await call('POST', `/packages/${packageId}/undo`);
     expect(undone.status).toBe(200);
     expect(undone.body).toMatchObject({ undone: '「SerialNumber」 고침', undo: [], redo: ['「SerialNumber」 고침'] });
-    expect((await call('GET', serial())).body.category).toBeUndefined(); // 원래 category가 없었다
+    expect((await call('GET', serial())).body.category).toBeUndefined(); // there was no category originally
 
     const redone = await call('POST', `/packages/${packageId}/redo`);
     expect(redone.body).toMatchObject({ redone: '「SerialNumber」 고침', undo: ['「SerialNumber」 고침'], redo: [] });
     expect((await call('GET', serial())).body.category).toBe('VARIABLE');
   });
 
-  it('서브모델을 통째로 지운 것도 한 번에 돌아온다 — 요소 개수까지', async () => {
+  it('deleting a whole submodel also comes back in one step — down to the element count', async () => {
     const before = (await call('GET', sm())).body;
     expect((await call('DELETE', sm())).status).toBe(204);
     expect((await call('GET', sm())).status).toBe(404);
@@ -1215,49 +1215,49 @@ describe('되돌리기 · 다시 하기 (패키지 단위 스냅샷)', () => {
     expect(after.submodelElements[0].idShort).toBe(before.submodelElements[0].idShort);
   });
 
-  it('여러 번 바꾸면 최근 것부터 차례로 돌아가고, 새 변경은 다시 하기를 지운다', async () => {
+  it('after several changes it steps back from the most recent, and a new change clears redo', async () => {
     await call('PATCH', serial(), { body: { category: 'VARIABLE' } });
     await call('DELETE', serial());
     const status = (await call('GET', `/packages/${packageId}/undo`)).body;
     expect(status.undo).toEqual(['「SerialNumber」 지움', '「SerialNumber」 고침']);
 
-    await call('POST', `/packages/${packageId}/undo`); // 지움 취소
+    await call('POST', `/packages/${packageId}/undo`); // undo the delete
     expect((await call('GET', serial())).body.category).toBe('VARIABLE');
-    await call('POST', `/packages/${packageId}/undo`); // 고침 취소
+    await call('POST', `/packages/${packageId}/undo`); // undo the edit
     expect((await call('GET', serial())).body.category).toBeUndefined();
     expect((await call('GET', `/packages/${packageId}/undo`)).body.redo).toHaveLength(2);
 
-    // 새로 바꾸면 되돌린 미래는 사라진다 — 두 갈래를 들고 있을 수 없다
+    // A new change discards the undone future — we cannot hold two branches
     await call('PATCH', serial(), { body: { category: 'CONSTANT' } });
     expect((await call('GET', `/packages/${packageId}/undo`)).body.redo).toEqual([]);
   });
 
-  it('모델이 그대로인 요청(조회·실패)은 스택에 쌓이지 않는다', async () => {
+  it('requests that leave the model unchanged (reads · failures) are not pushed onto the stack', async () => {
     await call('GET', serial());
-    // 없는 요소를 지우려다 404 — 실패한 요청은 되돌릴 것이 아니다
+    // A 404 from trying to delete a nonexistent element — a failed request is nothing to undo
     expect((await call('DELETE', `${sm()}/submodel-elements/없는것`)).status).toBe(404);
-    // 같은 값으로 다시 쓰기 — 리비전은 오르지만 모델은 같다
+    // Rewriting with the same value — the revision goes up but the model is the same
     const now = (await call('GET', serial())).body;
     await call('PUT', serial(), { body: now });
     expect((await call('GET', `/packages/${packageId}/undo`)).body.undo).toEqual([]);
   });
 
-  it('자동 고치기도 한 번에 되돌아간다', async () => {
-    // 위반을 하나 만든다 — idShort를 빈 문자열로
+  it('auto-fix is also undone in one step', async () => {
+    // Create one violation — idShort set to an empty string
     await call('PATCH', serial(), { body: { category: 'VARIABLE' } });
     const fixed = await call('POST', `/packages/${packageId}/fix`);
     expect([200, 204]).toContain(fixed.status);
     const status = (await call('GET', `/packages/${packageId}/undo`)).body;
-    // 골든 파일은 고칠 것이 없으니 fix는 모델을 안 바꾼다 → 쌓이지 않는다
+    // The golden file has nothing to fix, so fix leaves the model unchanged → nothing is pushed
     expect(status.undo).toEqual(['「SerialNumber」 고침']);
   });
 });
 
 
-describe('자동 고치기 — 미리보기 · 고른 것만 · 이관 대장 (2026-09-11)', () => {
+describe('auto-fix — preview · selected only · migration ledger (2026-09-11)', () => {
   const IDTA = 'https://admin-shell.io/zvei/nameplate/2/0/Nameplate';
 
-  it('미리보기는 저장하지 않고 항목마다 대상 이름과 전/후를 준다', async () => {
+  it('preview does not save and gives the target name and before/after for each item', async () => {
     const preview = await call('GET', `/packages/${packageId}/fix-preview`, { query: { includeWarnings: '1' } });
     expect(preview.status).toBe(200);
     expect(preview.body.applied.length).toBeGreaterThan(0);
@@ -1265,12 +1265,12 @@ describe('자동 고치기 — 미리보기 · 고른 것만 · 이관 대장 (2
       expect(typeof item.key).toBe('string');
       expect(typeof item.description).toBe('string');
     }
-    // 저장하지 않았다 — 경고 수 그대로
+    // Not saved — warning count unchanged
     const lint = await call('GET', `/packages/${packageId}/lint`);
     expect(lint.body.countBySeverity.warning).toBe(preview.body.before.countBySeverity.warning);
   });
 
-  it('select로 고른 것만 반영한다', async () => {
+  it('applies only what was chosen with select', async () => {
     const preview = await call('GET', `/packages/${packageId}/fix-preview`, { query: { includeWarnings: '1' } });
     const first = preview.body.applied[0];
     const fixed = await call('POST', `/packages/${packageId}/fix`, {
@@ -1283,8 +1283,8 @@ describe('자동 고치기 — 미리보기 · 고른 것만 · 이관 대장 (2
     expect(fixed.body.after.countBySeverity.warning).toBe(preview.body.before.countBySeverity.warning - 1);
   });
 
-  it('🔴 IRI를 옮기면 이관 대장이 파일 안에 남고, 결과서에 실리고, 원본으로 되돌릴 수 있다', async () => {
-    // IDTA 공식 IRI를 semanticId로 둔 서브모델 — KOSMO 우선 정책에서 SM-3 위반
+  it('Important: moving an IRI leaves a migration ledger in the file, includes it in the report, and can be reverted to the original', async () => {
+    // A submodel with the official IDTA IRI as semanticId — an SM-3 violation under the KOSMO-first policy
     const pkg = readAasx(goldenBytes);
     const sm = pkg.environment.submodels![0]!;
     sm.semanticId = { type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: IDTA }] };
@@ -1296,13 +1296,13 @@ describe('자동 고치기 — 미리보기 · 고른 것만 · 이관 대장 (2
     expect(fixed.body.relocations[sm.id]).toBe(IDTA);
     expect(fixed.body.ledger[sm.id]).toBe(IDTA);
 
-    // 파일 안에 남았다 — 별도 조회로도, 결과서에도
+    // Kept in the file — visible via a separate query and in the report too
     const ledger = await call('GET', `/packages/${id}/relocations`);
     expect(ledger.body.relocations[sm.id]).toBe(IDTA);
     const report = await call('GET', `/packages/${id}/report`);
     expect(new TextDecoder().decode(report.body as Uint8Array)).toContain('IRI 이관 대장 (1건)');
 
-    // 원본으로 되돌리기 — 서브모델 id는 그대로, semanticId만 원본으로
+    // Revert to the original — the submodel id stays, only the semanticId goes back to the original
     const reverted = await call('POST', `/packages/${id}/relocations/revert`);
     expect(reverted.status).toBe(200);
     expect(reverted.body.reverted).toEqual([{ iri: sm.id, original: IDTA, how: 'semanticId' }]);

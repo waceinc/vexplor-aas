@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * 수집 연결 만들기 — Modbus TCP · MQTT. 주소로 프로토콜을 알아보고, Modbus 는 줄마다 레지스터 종류 · 자료형을 고른다.
- * 40001 같은 관례 주소는 종류와 0 기준 주소로 바꿔 준다. 만든 AID 는 서버가 도로 읽는 모양이어야 한다.
+ * Create collection connection: Modbus TCP and MQTT. Detects the protocol from the address; for Modbus, each row picks a register type and data type.
+ * Conventional addresses such as 40001 are converted to a type plus a zero-based address. The generated AID must be in the shape the server reads back.
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -14,14 +14,14 @@ import { useScreenHarness, wireFetch } from './harness.js';
 
 useScreenHarness();
 
-describe('수집 연결 — 프로토콜 판정 · 관례 주소', () => {
-  it('접속 주소로 프로토콜을 정한다', () => {
+describe('collection connection: protocol detection and conventional addresses', () => {
+  it('decides the protocol from the endpoint address', () => {
     expect(protocolOfEndpoint('opc.tcp://h:4840')).toBe('OPCUA');
     expect(protocolOfEndpoint('modbus+tcp://h:502/1')).toBe('MODBUS');
     expect(protocolOfEndpoint('mqtts://broker')).toBe('MQTT');
     expect(protocolOfEndpoint('http://h')).toBeUndefined();
   });
-  it('관례 주소 — 앞자리가 종류, 나머지 - 1 이 주소', () => {
+  it('conventional address: leading digit is the type, the rest minus 1 is the address', () => {
     expect(fromModiconAddress('40001')).toEqual({ entity: 'HoldingRegister', address: 0 });
     expect(fromModiconAddress('30010')).toEqual({ entity: 'InputRegister', address: 9 });
     expect(fromModiconAddress('00005')).toEqual({ entity: 'Coil', address: 4 });
@@ -32,8 +32,8 @@ describe('수집 연결 — 프로토콜 판정 · 관례 주소', () => {
   });
 });
 
-describe('수집 연결 만들기 — Modbus', () => {
-  it('설비에서 불러오기는 잠기고, 손으로 적은 줄의 종류 · 자료형이 AID 폼 항목으로 들어간다', async () => {
+describe('create collection connection: Modbus', () => {
+  it('import from equipment is locked, and the type and data type of manually entered rows go into the AID form fields', async () => {
     const store = new InMemoryStore();
     await store.init();
     await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });
@@ -49,7 +49,7 @@ describe('수집 연결 만들기 — Modbus', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '+ 손으로 입력' }));
     fireEvent.change(within(dialog).getByLabelText('태그 1 이름'), { target: { value: 'Counter' } });
     fireEvent.change(within(dialog).getByLabelText('태그 1 주소'), { target: { value: '30010' } });
-    // 관례 주소 → 입력 레지스터 9번
+    // conventional address -> input register 9
     fireEvent.click(within(dialog).getByRole('button', { name: /30010 → 입력 레지스터 9번/ }));
     expect((within(dialog).getByLabelText('태그 1 주소') as HTMLInputElement).value).toBe('9');
     expect((within(dialog).getByLabelText('태그 1 레지스터 종류') as HTMLSelectElement).value).toBe('InputRegister');
@@ -67,8 +67,8 @@ describe('수집 연결 만들기 — Modbus', () => {
   });
 });
 
-describe('태그 패턴', () => {
-  it('{n} 은 번호 · {i} 는 몇 번째 · {n:2} 는 0 채움 — 간격과 범위를 지킨다', async () => {
+describe('tag pattern', () => {
+  it('{n} is the number, {i} the ordinal, {n:2} zero-padded; respects step and range', async () => {
     const { expandPattern } = await import('../src/components/aid/pattern.js');
     expect(expandPattern({ name: 'Zone{i}_Temp', href: 'ns=1;s=Zone{n:2}.Temp', from: 1, to: 3, step: 1 }).rows).toEqual([
       { name: 'Zone1_Temp', href: 'ns=1;s=Zone01.Temp' },
@@ -81,7 +81,7 @@ describe('태그 패턴', () => {
     expect(expandPattern({ name: 'T{n}', href: '{n}', from: 1, to: 9999, step: 1 }).problem).toBe('too-many');
   });
 
-  it('창에서 패턴으로 담으면 줄이 그만큼 생긴다', async () => {
+  it('adding by pattern in the dialog creates that many rows', async () => {
     const store = new InMemoryStore();
     await store.init();
     await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });

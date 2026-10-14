@@ -1,6 +1,6 @@
 /**
- * 편집 대상이 아닌 자리의 안내 — 용어 정의(CD)이거나, 값이 아래 요소에 있는 묶음.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Guidance where there is nothing to edit — a concept definition (CD), or a collection whose values sit in the elements below.
+ * Split out of components/Inspector.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 import { T } from '../T.js';
 import type { TreeNode } from '../../model.js';

@@ -1,16 +1,16 @@
 /**
- * 영어 사전 — 화면 글자. 열쇠는 **한국어 글자 자체**다(i18n.ts 머리말).
+ * English dictionary — screen text. The keys are **the Korean text itself** (see the i18n.ts header).
  *
- * 🔴 열쇠 안의 `{0}` `{1}`(값 자리)과 `<b>`(굵은 글씨)는 번역문에도 **똑같이** 있어야 한다.
- *    빠뜨리면 화면에서 그 값이 조용히 사라진다. `node scripts/i18n-scan.mjs --check`가 잡는다.
- *    자리는 옮겨도 된다 — 「N건 중 M건」이 「M of N」이 되려면 옮겨야 한다. 그러라고 통문장이다.
+ * Important: the `{0}` `{1}` (value slots) and `<b>` (bold) inside a key must appear **identically** in the translation.
+ *    If dropped, that value silently disappears from the screen. `node scripts/i18n-scan.mjs --check` catches it.
+ *    Slots may be reordered — "M out of N" in Korean has to move to become "M of N". That is why whole sentences are used.
  *
- * 용어는 규격 원문을 따른다: Submodel · SubmodelElement · ConceptDescription · semanticId · idShort.
- * 이 도구의 말: 지적 = finding · 위반 = error · 경고 = warning · 자동 고치기 = Auto-fix ·
+ * Terminology follows the specification text: Submodel · SubmodelElement · ConceptDescription · semanticId · idShort.
+ * This tool's terms (Korean key = English): 지적 = finding · 위반 = error · 경고 = warning · 자동 고치기 = Auto-fix ·
  *   설비 = equipment · 공정 = process · 묶음 = group · 이관 대장 = relocation ledger · 수집 = collection.
  */
 export const EN_MORE: Record<string, string> = {
-  // ── addressList.ts — 현장에 넘기는 주소 목록(CSV)의 머리글 ──────────────
+  // ── addressList.ts — headers of the address list (CSV) handed to the site ──────────────
   인터페이스: 'Interface',
   프로토콜: 'Protocol',
   접속주소: 'Endpoint',
@@ -144,10 +144,10 @@ export const EN_MORE: Record<string, string> = {
   '자동 고치기 대상': 'Fixable automatically',
   '정책: {0}': 'Policy: {0}',
 
-  // ── Summary — 이관 대장 ────────────────────────────────────────────────
+  // ── Summary — relocation ledger ────────────────────────────────────────────────
   'IDTA 공식 IRI를 자체 IRI로 옮긴 것 <b>{0}건</b>이 <b>이관 대장</b>에 있습니다(KOSMO 우선 정책 — Validator가 공식 IRI를 거부하기 때문). 내려받는 .aasx 안에 함께 들어가고 검증 결과서에도 실립니다.':
     '<b>{0}</b> official IDTA IRI(s) relocated to in-house IRIs are recorded in the <b>relocation ledger</b> (KOSMO-first policy — the Validator rejects official IRIs). The ledger is packed into the downloaded .aasx and listed in the validation report.',
-  // ── Rules — 규칙과 규약 ────────────────────────────────────────────────
+  // ── Rules — rules and conventions ────────────────────────────────────────────────
   교정: 'Fix',
   규칙: 'Rule',
   '규칙 목록을 받지 못했습니다.': 'Could not load the rule list.',
@@ -172,7 +172,7 @@ export const EN_MORE: Record<string, string> = {
   근거: 'Source',
   자동: 'Auto',
   사람: 'Manual',
-  // ── FixPreview — 자동 고치기 미리보기 ──────────────────────────────────
+  // ── FixPreview — auto-fix preview ──────────────────────────────────
   '이 파일': 'This file',
   '전체 고르기': 'Select all',
   대상: 'Target',
@@ -200,7 +200,7 @@ export const EN_MORE: Record<string, string> = {
   '체크한 것만 고칩니다 — 반영한 뒤에도 헤더의 ↶로 한 번에 돌아옵니다':
     'Fixes only the checked items — you can still revert in one step with ↶ in the header',
   '고른 {0}건 반영': 'Apply {0} selected',
-  // ── HierarchyTree — 구성 트리 ──────────────────────────────────────────
+  // ── HierarchyTree — structure tree ──────────────────────────────────────────
   예정: 'Planned',
   '{0} 이름': '{0} name',
   '이 줄 아래에 넣습니다': 'Adds under this row',
@@ -231,7 +231,7 @@ export const EN_MORE: Record<string, string> = {
   '이 목록에서 뺍니다 — 파일은 지워지지 않습니다': 'Removes it from this list — the file is not deleted',
   '파일 없는 층(공정·라인)을 만듭니다': 'Creates a level without a file (process, line)',
   '설비(또는 부품)를 넣습니다': 'Adds equipment (or a part)',
-  // ── Collection — 현장 값 수집 ──────────────────────────────────────────
+  // ── Collection — field value collection ──────────────────────────────────────────
   '이 설비 파일을 엽니다 — 지금 보는 공정 파일 대신 그 파일로 바뀝니다':
     'Opens this equipment file — it replaces the process file you are viewing',
   '공정 파일은 수집 대상이 아닙니다 — 값은 <b>설비마다</b> 받습니다. 이 공정의 설비 {0}대 중 <b>{1}대 연결됨</b>.':
@@ -270,7 +270,7 @@ export const EN_MORE: Record<string, string> = {
   '{0}로 읽으면 그 자리에 현장 값이 보입니다.': 'Read with {0} and the field value appears in place.',
   '이름이 맞지 않아 못 얹은 것: {0}': 'Not applied because the name does not match: {0}',
 
-  // ── NewPackage — 새로 만들기 ───────────────────────────────────────────
+  // ── NewPackage — create new ───────────────────────────────────────────
   '명판 — 제조사·모델명·일련번호': 'Nameplate — manufacturer, model, serial number',
   '인계 문서 — 매뉴얼·도면 첨부': 'Handover documents — manuals and drawings attached',
   '기술 사양': 'Technical data',
@@ -317,7 +317,7 @@ export const EN_MORE: Record<string, string> = {
     'A <b>placeholder image</b> is used as the thumbnail. Replace it with a real photo (select AssetInformation to change it).',
   '이 이름으로 새 파일을 만들어 서버에 올립니다': 'Creates a new file with this name and uploads it to the server',
   만들기: 'Create',
-  // ── AddAid — 수집 연결 만들기 ──────────────────────────────────────────
+  // ── AddAid — create collection link ──────────────────────────────────────────
   ' · 요소 {0}개 새로 세움': ' · {0} element(s) newly created',
   ' · 모델에 이미 있어 그대로 연결: {0}': ' · already in the model, linked as is: {0}',
   ' · ⚠ 모델과 이름이 안 맞는 태그 {0}개(표의 「모델연결」 열 참조)': ' · ⚠ {0} tag(s) do not match the model by name (see the "Model link" column)',
@@ -375,7 +375,7 @@ export const EN_MORE: Record<string, string> = {
     'Builds an AID submodel (IDTA-02017) to the specification from the entered address and tags — replaces an existing one',
   '만들기{0}': 'Create{0}',
   ' ({0}개)': ' ({0})',
-  // ── DocAssets — 문서용 자료 ────────────────────────────────────────────
+  // ── DocAssets — document materials ────────────────────────────────────────────
   '그림을 읽지 못했습니다.': 'Could not read the image.',
   '캔버스를 열지 못했습니다.': 'Could not open a canvas.',
   'PNG로 바꾸지 못했습니다.': 'Could not convert to PNG.',
@@ -436,7 +436,7 @@ export const EN_MORE: Record<string, string> = {
   '{0}개': '{0}',
   '<b>사람이 채울 자리</b> — 도구는 지어내지 않습니다:': '<b>To be filled in by a person</b> — the tool does not make this up:',
 
-  // ── BundlePanel — 레퍼런스 번들 ────────────────────────────────────────
+  // ── BundlePanel — reference bundle ────────────────────────────────────────
   '만드는 중…': 'Building…',
   '「{0}」을(를) {1}에 넣었습니다 — 번들을 다시 열어도 남습니다.': 'Added "{0}" to {1} — it stays when the bundle is reopened.',
   '{0}\n\n번들 첨부에서 지웁니다. 계속할까요?': '{0}\n\nThis removes it from the bundle attachments. Continue?',
@@ -544,7 +544,7 @@ export const EN_MORE: Record<string, string> = {
   '내보낸 ZIP: <code>00_공정구성 · 01_UseCase문서 · 02_참조모델 · 03_가이던스 · 04_데이터연계정의 · 05_샘플데이터 · 06_검증결과</code>+ <code>bundle-manifest.json</code>(파일마다 SHA256) + <code>README.md</code>. 문서는 작성 안내만 들어갑니다.<br/>✓ 사전 점검은 번들에 넣은 모델을 이 도구가 <b>다시 확인한 참고 표시</b>입니다. 모델의 공식 검증(KOSMO Validator)은 장비별 AASX를 만들 때 받는 것이라 번들에서 따로 하지 않습니다 — 번들 자체의 확인은 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 합니다.':
     'Exported ZIP: <code>00_공정구성 · 01_UseCase문서 · 02_참조모델 · 03_가이던스 · 04_데이터연계정의 · 05_샘플데이터 · 06_검증결과</code>+ <code>bundle-manifest.json</code> (SHA256 per file) + <code>README.md</code>. Documents contain writing guides only.<br/>✓ The pre-check is <b>a reference mark from this tool re-checking</b> the models in the bundle. The official validation of a model (KOSMO Validator) is obtained when each equipment AASX is made, so it is not repeated for the bundle — the bundle itself is verified by hash comparison, process structure (HIER), data linkage and operation evidence.',
 
-  // ── App — 알림 · 확인 문구 ─────────────────────────────────────────────
+  // ── App — notices · confirmation text ─────────────────────────────────────────────
   '권한이 없습니다 — 쓰기 권한이 있는 계정이나 토큰으로 다시 들어오십시오.': 'Not permitted — sign in again with an account or token that can write.',
   '파일이 상한을 넘습니다 — {0}': 'The file exceeds the limit — {0}',
   '서버에 연결할 수 없습니다 — API 서버가 꺼져 있거나 네트워크가 끊겼습니다.': 'Cannot reach the server — the API server is down or the network is disconnected.',
@@ -638,7 +638,7 @@ export const EN_MORE: Record<string, string> = {
   '그래도 내려받을까요? (작업 중 저장이면 괜찮습니다)': 'Download anyway? (Fine if you are just saving work in progress)',
   'AASX를 내려받았습니다 — 브라우저의 다운로드 폴더에 있습니다.': 'AASX downloaded — it is in your browser\'s download folder.',
 
-  // ── App — 머리줄 · 메뉴 · 창 ─────────────────────────────────────────────
+  // ── App — header bar · menus · dialogs ─────────────────────────────────────────────
   '처음 화면으로': 'Back to the start screen',
   '제품 판 번호': 'Product version',
   '열기 · 새로 만들기 · 번들 열기 · 파일 목록': 'Open · New · Open bundle · File list',
@@ -761,7 +761,7 @@ export const EN_MORE: Record<string, string> = {
   '자동 고치기 미리보기': 'Auto-fix preview',
   '지적 목록': 'Findings',
   '지적 목록 닫기': 'Close the findings',
-  // ── 설정 ────────────────────────────────────────────────────────────────
+  // ── Settings ────────────────────────────────────────────────────────────────
   '화면 글자와 서버가 만드는 글(지적 문구·검증 결과서)을 영어로':
     'Switch the interface and server-produced text (finding messages, validation report) to English',
   '영어를 고르면 화면 글자와 지적 문구·규칙 설명·검증 결과서가 모두 영어로 나옵니다. <b>파일에서 온 이름과 값</b>, 제출 묶음의 폴더 이름은 그대로 남습니다.':
@@ -769,11 +769,11 @@ export const EN_MORE: Record<string, string> = {
   '언어를 바꾸면 화면을 새로 읽습니다 — 파일은 그대로 있고, 저장하지 않은 입력만 사라집니다.':
     'Changing the language reloads the page — your files stay as they are; only unsaved input is lost.',
 
-  // ── 로그인 — 가입이 닫힌 서버 ─────────────────────────────────────────
+  // ── Login — server with sign-up closed ─────────────────────────────────────────
   '계정이 없으면 관리자에게 요청하십시오 — 관리자가 「설정 → 계정 관리」에서 만들어 줍니다.':
     'No account? Ask your administrator — they can create one in "Settings → Manage accounts".',
 
-  // ── 첫 화면 — 견본으로 시작하기 ─────────────────────────────────────
+  // ── Welcome screen — start from a sample ─────────────────────────────────────
   '견본 파일을 받지 못했습니다 ({0}).': 'Could not fetch the sample file ({0}).',
   '견본을 열었습니다 — 공정 구성(RB01)과 설비 1종(RollFormingMachine_sample ×2). 설비 줄을 누르면 그 설비 파일이 열립니다.':
     'Sample opened — a process structure (RB01) and one equipment type (RollFormingMachine_sample ×2). Click an equipment row to open that equipment file.',
@@ -784,12 +784,12 @@ export const EN_MORE: Record<string, string> = {
 
   '견본 열기': 'Open sample',
 
-  // ── 로그인 화면 — 로그인 위 · 체험 아래 ───────────────────────────────
+  // ── Login screen — login on top · trial below ───────────────────────────────
   'AAS를 만들고 · 검사하고 · 내려받는 웹 도구입니다.': 'A web tool to create, validate and download AAS.',
   '가입 없이 먼저 써 보기': 'Try it without signing up',
   '처음이신가요? 회원가입': 'New here? Sign up',
 
-  // ── 회원가입 — 회사명 · 이메일 · 동의 (2026-10-06) ─────────────────────
+  // ── Sign-up — company name · email · consent (2026-10-06) ─────────────────────
   회사명: 'Company',
   이메일: 'Email',
   '이름 · 회사명 · 이메일을 모두 적어 주십시오.': 'Please fill in your name, company and email.',
@@ -806,17 +806,17 @@ export const EN_MORE: Record<string, string> = {
   '위 내용과 ': 'I agree to the above and the ',
   동의: 'Consent',
 
-  // ── 계정 관리 — 삭제 (2026-10-06) ─────────────────────────────────────
+  // ── Account management — delete (2026-10-06) ─────────────────────────────────────
   '계정과 그 사람이 올린 파일을 지웁니다 — 되돌릴 수 없습니다. 막기만 하려면 「잠그기」':
     'Deletes the account and the files that person uploaded — this cannot be undone. To only block access, use "Lock"',
   '「{0}」({1}) 계정을 지웁니다.\n\n그 사람이 올린 파일도 함께 지워지며 되돌릴 수 없습니다.\n막기만 하려면 「잠그기」를 쓰십시오.\n\n지울까요?':
     'Delete the account "{0}" ({1}).\n\nThe files this person uploaded are deleted too, and this cannot be undone.\nTo only block access, use "Lock".\n\nDelete?',
   '「{0}」 계정을 지웠습니다.': 'Deleted the account "{0}".',
 
-  // ── 계정 관리 ──
+  // ── Account management ──
   데모: 'demo',
 
-  // ── 내 계정 설정 (2026-10-08) ──
+  // ── My account settings (2026-10-08) ──
   '사람을 더하고, 역할을 바꾸고, 잠급니다': 'Add people, change roles and lock accounts',
   '내 계정 설정': 'My account',
   '내 이름 · 회사명 · 이메일 · 비밀번호를 바꿉니다': 'Change my name, company, email and password',
@@ -827,12 +827,12 @@ export const EN_MORE: Record<string, string> = {
   '내 계정 설정 →': 'My account →',
   '내 이름 · 연락처 · 비밀번호는 여기서 바꿉니다.': 'Change your own name, contact details and password there.',
 
-  // ── 회원가입 — 회사명 선택 · 필수 표시 (2026-10-08) ──
+  // ── Sign-up — company name choice · required markers (2026-10-08) ──
   '이름 · 이메일을 적어 주십시오.': 'Please enter your name and email.',
   '(선택)': '(optional)',
   '아이디 · 이름 · 이메일 · 비밀번호(암호화 저장) · 회사명(선택)': 'Login name · name · email · password (stored encrypted) · company (optional)',
 
-  // ── 화면 안 도움말 · 따라 하기 안내 · 시작하기 목록 (2026-10-08) ──
+  // ── In-screen help · guided tour · getting-started list (2026-10-08) ──
   '파일 열기': 'Open a file',
   '내 PC의 AASX를 올려 열어 보세요': 'Upload and open an AASX from your PC',
   '견본이나 내 AASX를 열어 보세요': 'Open the sample or your own AASX',

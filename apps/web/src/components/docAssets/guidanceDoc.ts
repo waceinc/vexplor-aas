@@ -1,7 +1,7 @@
 /**
- * 가이던스 부속 자료(.docx) — 서브모델마다 UML 그림 + 구성요소 표(또는 「표 생략」 이유와 사람이 채울 자리).
- * components/DocAssets.tsx 의 「문서로 받기」에서 떼어 냈다(2026-10-13 컴포넌트화) — 순서·문구는 그대로다.
- * 🔴 가이던스 문장은 도구가 쓰지 않는다. 파일에 있는 사실만 담는다.
+ * Guidance attachment (.docx) — per submodel a UML diagram + component table (or the reason for "table omitted" and a slot for a person to fill).
+ * Split out of "Download as document" in components/DocAssets.tsx (2026-10-13 componentization) — order and wording unchanged.
+ * Important: the tool does not write guidance sentences. Only facts found in the file go in.
  */
 import { api } from '../../api.js';
 import { brandLogoBytes } from '../../brand.js';
@@ -12,7 +12,7 @@ import { fitToA4, svgToPngBlob, toDocxTable } from './exportHelpers.js';
 
 export async function buildGuidanceDocx(packageId: string, submodels: Submodel[], assetName: string): Promise<Uint8Array> {
   const blocks: DocxBlock[] = [
-    // 회사 표시 — 남에게 건네는 문서다
+    // Company mark — this is a document handed to others
     { kind: 'image', data: brandLogoBytes(), widthCm: 3.4, heightCm: 1.0, left: true },
     { kind: 'heading', level: 1, text: fill(tr('{0} — 가이던스 부속 자료'), { 0: assetName }) },
     {
@@ -53,7 +53,7 @@ export async function buildGuidanceDocx(packageId: string, submodels: Submodel[]
     if (result.plan.kind === 'table') {
       for (const table of result.tables ?? []) {
         tableNumber += 1;
-        // 표 제목은 표 **위**에 온다 — 실제 가이던스와 같은 자리
+        // The table caption goes **above** the table — the same place as in actual guidance
         blocks.push({
           kind: 'paragraph',
           bold: true,

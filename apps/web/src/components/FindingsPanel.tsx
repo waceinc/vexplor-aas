@@ -1,12 +1,12 @@
 /**
- * 지적 목록 — 이 제품의 존재 이유(기획서 Ⅲ M5 PM 의견).
+ * Findings list — the reason this product exists (spec Ⅲ M5, PM opinion).
  *
- * Package Explorer는 규칙 위반을 알려 주지 못한다. 그래서 지적을 곁다리로 두지 않고
- * 트리와 나란한 한 칸으로 세웠다. 지적을 누르면 그 요소가 트리에서 열린다.
+ * Package Explorer cannot report rule violations. So findings are not a side feature;
+ * they get their own pane next to the tree. Clicking a finding opens that element in the tree.
  *
- * 🔴 **같은 규칙은 묶는다.** AASd-120 하나가 8건이면 같은 설명이 8번 반복돼
- *    화면이 온통 글자가 된다 — 설명·조치·정책은 묶음에 한 번만 쓰고,
- *    대상은 한 줄씩 나열한다. 개별 대상을 누르면 그 요소로 간다(전과 같다).
+ * Important: **findings of the same rule are grouped.** If AASd-120 alone has 8 findings, the same description repeats 8 times
+ *    and the screen becomes a wall of text — description · fix · policy are written once per group,
+ *    and targets are listed one per line. Clicking an individual target goes to that element (as before).
  */
 import type { Finding } from '../model.js';
 import { severityRank } from '../model.js';
@@ -24,7 +24,7 @@ interface Group {
   ruleId: string;
   severity: Finding['severity'];
   fixable: boolean;
-  /** 규칙 설명(조치·정책)은 첫 지적의 것을 대표로 쓴다 — 같은 규칙이면 같다 */
+  /** The rule description (fix · policy) is taken from the first finding — it is the same for the same rule */
   remedy?: string;
   policyNote?: string;
   items: Finding[];
@@ -33,7 +33,7 @@ interface Group {
 function groupByRule(findings: readonly Finding[]): Group[] {
   const byRule = new Map<string, Group>();
   for (const finding of findings) {
-    // 심각도가 같은 규칙끼리만 묶는다 — 정책에 따라 같은 규칙이 위반/경고로 갈릴 수 있다
+    // Group only rules of the same severity — depending on policy, the same rule can be a violation or a warning
     const key = `${finding.severity}:${finding.ruleId}`;
     const group = byRule.get(key);
     if (group) {
@@ -69,8 +69,8 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
       <h2><T k={'위반 {0}건{1}'} v={[count(errors), <span className="sub">{' '}<T k={'· 경고 {0}건'} v={[count(warnings)]} /></span>]} />
       </h2>
 
-      {/* 🔴 위반과 경고를 칸으로 가른다 — 한 목록에 섞여 있으니 「경고 9건」도 제출을 막는 것처럼 읽혔다
-          (사용자 2026-09-30). 위반은 제출 전에 반드시 고칠 것, 경고는 제출을 막지 않지만 확인할 것 */}
+      {/* Important: violations and warnings get separate sections — mixed in one list, "9 warnings" read as if they blocked submission too
+          (user, 2026-09-30). Violations must be fixed before submission; warnings do not block submission but should be checked */}
       <section className={`findings-section error${errors.length === 0 ? ' empty' : ''}`}>
         <h3>
           <T k={'{0} {1}건{2}'} v={[<span className="level error">{tr('위반')}</span>, count(errors), <span className="sub"> {tr('— 반드시 고칩니다(KOSMO 규칙)')}</span>]} />
@@ -92,8 +92,8 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
           <ul>{warnings.map((group) => renderGroup(group))}</ul>
         )}
       </section>
-      {/* 참고(info)는 고칠 것이 없는 사실 전달이다 — 경고와 나란히 서면 "이것도 경고냐"고 묻는다(2026-09-07).
-          접어 두고, 펼치면 그대로 읽힌다 */}
+      {/* Info items are facts with nothing to fix — next to warnings people ask "is this a warning too?" (2026-09-07).
+          Collapsed; when expanded they read as is */}
       {infos.length > 0 && (
         <details className="info-fold">
           <summary><T k={'참고 {0}건 — 고칠 것 없음, 알아 둘 사실만'} v={[infos.reduce((n, g) => n + g.items.length, 0)]} /></summary>
@@ -103,7 +103,7 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
 
       {skipped && skipped.length > 0 && (
         <div className="skipped">
-          {/* 못 고친 이유를 숨기지 않는다 — 사람이 판단할 몫이라는 게 Quick Fix의 전제다 */}
+          {/* Do not hide why it could not be fixed — Quick Fix assumes the judgement belongs to a person */}
           <h3><T k={'자동으로 고치지 못한 것 {0}건'} v={[skipped.length]} /></h3>
           <ul>
             {skipped.map((item, index) => (
@@ -121,11 +121,11 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
     return (
           <li key={`${group.severity}-${group.ruleId}`} className={`${group.severity} group`}>
             <div className="head">
-              {/* 색만으로 등급을 나누면 색각 이상에서 구별되지 않는다 */}
+              {/* Severity by color alone is indistinguishable for color-vision deficiency */}
               <span className={`level ${group.severity}`}>{LEVEL_LABEL[group.severity]}</span>
               <span className="rule">{group.ruleId}</span>
               {group.items.length > 1 && <span className="count"><T k={'{0}건'} v={[group.items.length]} /></span>}
-              {/* 2026-09-07부터 「자동 고치기」는 고칠 수 있는 경고도 손댄다 — 파일마다 AASd-120 1건이 늘 남았다 */}
+              {/* Since 2026-09-07 "auto fix" also touches fixable warnings — one AASd-120 per file always remained */}
               {group.fixable && (
                 <span className="fixable" title={tr('「자동 고치기」가 규약대로 교정합니다 — 경고도 함께')}>
                   {tr('자동 고치기 대상')}
@@ -133,7 +133,7 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
               )}
             </div>
 
-            {/* 대상이 하나면 옛 모양 그대로 — 묶음 표시가 오히려 번잡하다 */}
+            {/* With a single target keep the old layout — group markup would only add clutter */}
             {group.items.length === 1 ? (
               <div
                 className={`single${activePointer === group.items[0]!.pointer ? ' active' : ''}`}
@@ -156,7 +156,7 @@ export function FindingsPanel({ findings, skipped, onSelect, activePointer }: Pr
               </ul>
             )}
 
-            {/* 설명은 묶음에 한 번만 — 8번 반복하면 화면이 온통 글자가 된다 */}
+            {/* Description once per group — repeated 8 times, the screen becomes a wall of text */}
             {group.remedy && <div className="remedy">{group.remedy}</div>}
             {group.policyNote && <div className="policy"><T k={'정책: {0}'} v={[group.policyNote]} /></div>}
           </li>

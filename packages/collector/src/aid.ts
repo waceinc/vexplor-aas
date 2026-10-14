@@ -1,53 +1,54 @@
 /**
- * AID(Asset Interface Description) 서브모델 해석 — 기획서 M8의 출발점.
+ * AID (Asset Interface Description) submodel parsing — the starting point of spec M8.
  *
- * "PLC의 D100 값을 어느 Property에 넣을 것인가"는 어떤 표준에도 없다(AAS_OPC UA.md §7-1).
- * 그래서 자체 매핑 테이블을 만들고 싶어지지만, **IDTA에 등가 템플릿이 있으면 자체 서브모델은
- * 허용되지 않는다**(KTL 모델링 규칙). 조사 결과 AID가 바로 그 템플릿이고,
- * **AID 1.1이 OPC UA를 지원**한다(IDTA-02017, W3C WoT Thing Description 기반).
- * → 자체 매핑을 만들지 않고 **AAS 안의 AID를 읽는다.**
+ * "Which Property should the PLC's D100 value go into?" is not defined by any standard (AAS_OPC UA.md §7-1).
+ * That makes a custom mapping table tempting, but **a custom submodel is not allowed when IDTA
+ * has an equivalent template** (KTL modeling rule). Research showed AID is exactly that template,
+ * and **AID 1.1 supports OPC UA** (IDTA-02017, based on the W3C WoT Thing Description).
+ * → We do not build a custom mapping; we **read the AID inside the AAS.**
  *
- * 구조(IDTA-02017-1-0 템플릿 실측)
+ * Structure (measured from the IDTA-02017-1-0 template)
  *   AssetInterfacesDescription (Submodel)
  *   └ InterfaceTemplateFor<PROTO> (SMC)
- *      ├ EndpointMetadata (SMC) — base(접속 주소) · contentType · security
+ *      ├ EndpointMetadata (SMC) — base (endpoint address) · contentType · security
  *      └ InteractionMetadata (SMC)
  *         └ properties (SMC)
- *            └ <이름> (SMC) — key · type · unit · observable …
- *               └ forms (SMC) — href(주소) · contentType · 프로토콜 고유 항목
+ *            └ <name> (SMC) — key · type · unit · observable …
+ *               └ forms (SMC) — href (address) · contentType · protocol-specific fields
  *
- * 🔴 AID 1.1의 OPC UA 고유 항목(용어 이름)은 발행본으로 확인해야 한다. 그래서 forms의
- * 나머지 항목은 **이름을 가리지 않고 그대로 담아 둔다**(formFields) — 규격이 확정되면 그 자리를 읽는다.
+ * Important: the OPC UA-specific fields of AID 1.1 (term names) must be confirmed against the published
+ * release. So the remaining forms fields are **kept as-is regardless of name** (formFields) — once the
+ * spec is finalized, read them from there.
  */
 import type { Environment, Submodel, SubmodelElement } from '@aas/core';
 import { tr } from '@aas/core';
 
-/** AID 서브모델의 semanticId (버전 자리는 느슨하게 본다) */
+/** semanticId of the AID submodel (the version segment is matched loosely) */
 export const AID_SEMANTIC_ID_PREFIX = 'https://admin-shell.io/idta/AssetInterfacesDescription/';
 
 export type AidProtocol = 'OPCUA' | 'HTTP' | 'MODBUS' | 'MQTT' | 'UNKNOWN';
 
 export interface AidProperty {
-  /** 화면·저장에 쓰는 이름 (요소의 idShort) */
+  /** Name used for display and storage (the element's idShort) */
   name: string;
-  /** AID의 key — 자산 쪽 식별자 */
+  /** The AID key — asset-side identifier */
   key?: string;
-  /** float · integer · string · boolean … (WoT 타입) */
+  /** float · integer · string · boolean … (WoT type) */
   type?: string;
   unit?: string;
   observable: boolean;
-  /** 읽을 주소. OPC UA면 NodeId, HTTP면 경로 */
+  /** Address to read. NodeId for OPC UA, path for HTTP */
   href?: string;
-  /** forms 안의 나머지 항목 — 프로토콜 고유(htv_*, modv_*, opc_* …) */
+  /** Remaining fields inside forms — protocol-specific (htv_*, modv_*, opc_* …) */
   formFields: Record<string, string>;
 }
 
 export interface AidInterface {
-  /** 요소 idShort (예: InterfaceTemplateForOPCUA) */
+  /** Element idShort (e.g. InterfaceTemplateForOPCUA) */
   name: string;
   title?: string;
   protocol: AidProtocol;
-  /** 접속 주소. OPC UA면 opc.tcp://… */
+  /** Endpoint address. opc.tcp://… for OPC UA */
   base?: string;
   properties: AidProperty[];
 }
@@ -67,7 +68,7 @@ function text(node: SubmodelElement | undefined): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-/** 이름에서 프로토콜을 읽는다. AID는 InterfaceTemplateFor<PROTO> 관례를 쓴다 */
+/** Derives the protocol from the name. AID uses the InterfaceTemplateFor<PROTO> convention */
 export function protocolOf(name: string, base?: string): AidProtocol {
   const upper = name.toUpperCase();
   if (upper.includes('OPCUA') || upper.includes('OPC_UA') || base?.startsWith('opc.tcp')) return 'OPCUA';
@@ -77,7 +78,7 @@ export function protocolOf(name: string, base?: string): AidProtocol {
   return 'UNKNOWN';
 }
 
-/** Environment에서 AID 서브모델을 찾는다. semanticId로 찾고, 없으면 idShort로 한 번 더 본다 */
+/** Finds AID submodels in an Environment. Matches by semanticId, then falls back to idShort */
 export function findAidSubmodels(environment: Environment): Submodel[] {
   return (environment.submodels ?? []).filter((submodel) => {
     const semantic = submodel.semanticId?.keys?.[0]?.value ?? '';
@@ -86,7 +87,7 @@ export function findAidSubmodels(environment: Environment): Submodel[] {
   });
 }
 
-/** AID 서브모델 하나를 인터페이스 목록으로 편다 */
+/** Flattens one AID submodel into a list of interfaces */
 export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
   const out: AidInterface[] = [];
 
@@ -94,7 +95,7 @@ export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
     if (node.modelType !== 'SubmodelElementCollection') continue;
     const endpoint = child(node, 'EndpointMetadata');
     const interaction = child(node, 'InteractionMetadata');
-    // 둘 중 하나도 없으면 인터페이스가 아니다(제목만 있는 컬렉션 등)
+    // If neither is present it is not an interface (e.g. a collection holding only a title)
     if (!endpoint && !interaction) continue;
 
     const base = text(child(endpoint, 'base'));
@@ -136,12 +137,12 @@ export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
   return out;
 }
 
-/** Environment 전체에서 인터페이스를 모은다 */
+/** Collects interfaces from the whole Environment */
 export function parseAid(environment: Environment): AidInterface[] {
   return findAidSubmodels(environment).flatMap((submodel) => parseAidSubmodel(submodel));
 }
 
-/** 실제로 읽을 수 있는 항목만 — 주소가 없으면 수집할 수 없다 */
+/** Only properties that can actually be read — without an address nothing can be collected */
 export function readableProperties(descriptor: AidInterface): AidProperty[] {
   return descriptor.properties.filter((property) => property.href !== undefined);
 }

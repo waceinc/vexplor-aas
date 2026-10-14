@@ -1,7 +1,7 @@
 /**
- * Modbus 수집 어댑터 — AID 인터페이스 하나를 받아 수집기(@aas/collector)의 ProtocolReader 로 읽는다.
- * 속성마다 주소·자료형을 modbus-target.ts 로 풀고, 장치(호스트:포트)마다 연결 하나를 열어 둔다.
- * 읽지 못한 항목은 사유와 함께 돌려준다 — 한 항목이 실패해도 나머지는 읽는다.
+ * Modbus collection adapter — takes one AID interface and reads it as the collector's (@aas/collector) ProtocolReader.
+ * Resolves each property's address and data type via modbus-target.ts, and keeps one connection open per device (host:port).
+ * Items that cannot be read are returned with a reason — one failing item does not stop the rest from being read.
  */
 import type { AidInterface, ProtocolReader, ReadResult } from '@aas/collector';
 import { ModbusTcpClient } from './modbus-client.js';
@@ -9,7 +9,7 @@ import { decodeRegisters, modbusTarget } from './modbus-target.js';
 
 export interface ModbusReaderOptions {
   timeoutMs?: number;
-  /** 붙기 전에 주소를 본다(체험판 SSRF 차단 등). 막을 때는 던진다 */
+  /** Inspects the address before connecting (e.g. SSRF blocking in the trial edition). Throws to block */
   guard?: (url: string) => void;
 }
 
@@ -59,7 +59,7 @@ export class ModbusReader implements ProtocolReader {
     if (!client) {
       this.options.guard?.(`modbus+tcp://${host}:${port}`);
       client = ModbusTcpClient.connect(host, port, this.options.timeoutMs);
-      // 붙지 못했으면 다음 읽기에서 다시 시도하게 지운다
+      // If the connection failed, drop it so the next read retries
       client.catch(() => this.clients.delete(key));
       this.clients.set(key, client);
     }

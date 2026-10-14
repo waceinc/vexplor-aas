@@ -1,12 +1,12 @@
 /**
- * 수집 연결 만들기 — 태그 한 줄.
- * components/AddAid.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Create collection connection — one tag row.
+ * Split out of components/AddAid.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 export interface TagRow {
   name: string;
   href: string;
   type: string;
-  /** Modbus 만 — 레지스터 종류(modv_entity)와 자료형(modv_type) */
+  /** Modbus only — register kind (modv_entity) and data type (modv_type) */
   entity?: string;
   dataType?: string;
 }

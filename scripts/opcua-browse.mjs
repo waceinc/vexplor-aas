@@ -1,13 +1,13 @@
 /**
- * OPC UA로 내주고 있는 것을 **눈으로 확인하는** 도구.
+ * A tool to **see with your own eyes** what is being served over OPC UA.
  *
- * UaExpert 같은 뷰어를 깔지 않고도 "정말 서버가 됐는가"를 그 자리에서 본다.
- * 붙어서 트리를 훑고, 값을 읽고, `--watch`를 주면 **구독**까지 걸어 본다 —
- * 구독이 REST로 못 하는 일이고, OPC UA 서버를 세운 이유이기 때문이다.
+ * Checks on the spot whether "the server really works" without installing a viewer such as UaExpert.
+ * It connects, browses the tree, reads values, and with `--watch` also sets up a **subscription** —
+ * subscriptions are what REST cannot do, and the reason the OPC UA server exists.
  *
- *   node scripts/opcua-browse.mjs                                   기본 opc.tcp://127.0.0.1:4840/UA/AAS
+ *   node scripts/opcua-browse.mjs                                   default opc.tcp://127.0.0.1:4840/UA/AAS
  *   node scripts/opcua-browse.mjs opc.tcp://192.168.0.10:4840/UA/AAS
- *   node scripts/opcua-browse.mjs --watch                           값이 밀려오는지 30초 지켜본다
+ *   node scripts/opcua-browse.mjs --watch                           watch for 30 seconds whether values stream in
  */
 import { AttributeIds, ClientMonitoredItem, NodeClass, OPCUAClient, TimestampsToReturn } from 'node-opcua';
 
@@ -25,7 +25,7 @@ const browse = async (nodeId) =>
   (await session.browse(nodeId)).references?.map((ref) => ({
     name: ref.browseName.name ?? '',
     id: ref.nodeId.toString(),
-    // 🔴 자식 수로 변수인지 판정하면 안 된다 — 비어 있는 서브모델(폴더)까지 값을 읽으려 든다
+    // Important: do not decide "variable" by child count — it would try to read values of empty submodels (folders) too
     isVariable: ref.nodeClass === NodeClass.Variable,
   })) ?? [];
 
@@ -34,7 +34,7 @@ const read = async (nodeId) => {
   return value.statusCode.name === 'Good' ? String(value.value.value) : `(${value.statusCode.name})`;
 };
 
-/** 변수는 값까지, 폴더는 더 들어간다 */
+/** Variables: read the value. Folders: descend further */
 const variables = [];
 async function walk(nodeId, depth) {
   for (const child of await browse(nodeId)) {

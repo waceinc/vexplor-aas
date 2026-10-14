@@ -1,8 +1,8 @@
 /**
- * 이름(idShort) 바꾸기.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
- * 입력 중인 값은 이 부품의 상태다. 다른 요소로 옮기거나 저장으로 내용이 바뀌면 Inspector 가 key 를 바꿔
- * 새로 그리므로 처음 값으로 돌아간다(예전 「지문이 바뀌면 초기화」 효과와 같은 결과).
+ * Rename (idShort).
+ * Extracted from components/Inspector.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
+ * The value being typed is this component's state. When moving to another element or when saving changes the content, Inspector changes
+ * the key and redraws, so it returns to the initial value (same result as the former "reset when the fingerprint changes" effect).
  */
 import { useState } from 'react';
 import type { TreeNode } from '../../model.js';

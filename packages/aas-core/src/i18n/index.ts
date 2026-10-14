@@ -1,17 +1,18 @@
 /**
- * 서버가 만드는 글의 언어 — 린터 지적 문구 · 규칙 설명 · 결과서 · API 오류.
+ * Language of text the server produces — linter finding messages · rule descriptions · reports · API errors.
  *
- * 화면(apps/web/src/i18n.ts)과 **같은 약속**을 쓴다.
- * - 한국어 글자 자체가 사전의 열쇠다. `tr('되돌릴 변경이 없습니다.')`
- * - 값이 들어가는 문장은 통째로 옮기고 자리만 채운다. `fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: id })`
- * - 사전에 없으면 한국어가 그대로 나간다 — 최악이 「안 번역됨」이다.
+ * Uses **the same convention** as the UI (apps/web/src/i18n.ts).
+ * - The Korean text itself is the dictionary key. `tr('되돌릴 변경이 없습니다.')`
+ * - Sentences with values are translated whole, and only the slots are filled. `fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: id })`
+ * - If missing from the dictionary, the Korean goes out as-is — the worst case is "untranslated".
  *
- * 🔴 **언어는 매개변수로 내려 주지 않는다.** 오류는 저장소 · 수집기 · 린터 깊은 곳에서 만들어진다 —
- *    호출 자리마다 언어를 꿰면 한 군데가 빠져 그 문장만 한국어로 남는다. 대신 **지금 언어를 묻는 함수**
- *    하나를 바깥이 끼운다: API는 요청마다(AsyncLocalStorage), 화면은 설정 값을.
- *    아무도 끼우지 않으면 한국어다(시험 · 명령줄 · 예전 호출자).
- * 🔴 **새 한국어 문장을 적으면 `tr()`로 감싸고 en/ 사전에 넣는다.** 빠뜨리면 CI가 멈춘다
- *    (`node scripts/i18n-scan.mjs --check` — 서버 패키지까지 센다).
+ * Important: **the language is not passed down as a parameter.** Errors are created deep inside the store,
+ *    collector, and linter — threading the language through every call site means one spot gets missed and
+ *    that sentence alone stays Korean. Instead, the outside plugs in **one function that asks for the current
+ *    language**: the API per request (AsyncLocalStorage), the UI from its setting.
+ *    If nobody plugs one in, it is Korean (tests · CLI · older callers).
+ * Important: **when you write a new Korean sentence, wrap it in `tr()` and add it to the en/ dictionary.**
+ *    Missing one stops CI (`node scripts/i18n-scan.mjs --check` — it counts server packages too).
  */
 import { EN_CORE } from './en/core.js';
 import { EN_LINTER_RULES } from './en/linter-rules.js';
@@ -24,7 +25,7 @@ export type Lang = 'ko' | 'en';
 
 let source: () => Lang = () => 'ko';
 
-/** 지금 언어를 알려 줄 함수를 끼운다. API는 요청별, 화면은 설정 값 */
+/** Plugs in the function that reports the current language. Per request for the API, the setting for the UI */
 export function setLangSource(get: () => Lang): void {
   source = get;
 }
@@ -33,12 +34,12 @@ export function currentLang(): Lang {
   try {
     return source();
   } catch {
-    // 언어를 못 알아내도 글은 나가야 한다 — 한국어로 간다
+    // Text must go out even if the language cannot be determined — fall back to Korean
     return 'ko';
   }
 }
 
-/** `Accept-Language` · `?lang=` 값에서 언어를 고른다. 모르는 값은 한국어 */
+/** Picks the language from an `Accept-Language` or `?lang=` value. Unknown values mean Korean */
 export function parseLang(value: string | undefined | null): Lang {
   if (!value) return 'ko';
   const first = value.split(',')[0]!.trim().toLowerCase();
@@ -54,7 +55,7 @@ const DICTIONARIES: readonly Record<string, string>[] = [
   EN_PACKAGES,
 ];
 
-/** 영어 사전에서 찾는다. 없으면 undefined */
+/** Looks up the English dictionary. undefined if absent */
 export function lookupEn(text: string): string | undefined {
   for (const dictionary of DICTIONARIES) {
     const found = dictionary[text];
@@ -63,14 +64,14 @@ export function lookupEn(text: string): string | undefined {
   return undefined;
 }
 
-/** 글자 하나를 지금 언어로. 사전에 없으면 받은 한국어 그대로 */
+/** One string in the current language. If missing from the dictionary, the given Korean as-is */
 export function tr(text: string, lang: Lang = currentLang()): string {
   return lang === 'ko' ? text : (lookupEn(text) ?? text);
 }
 
 /**
- * 자리 치환 — 한 번에 갈아 끼운다. 하나씩 바꾸면 먼저 넣은 값 안의 `{1}`까지 다음 차례에 바뀐다
- * (파일 이름 · 사용자 입력은 무엇이든 될 수 있다).
+ * Slot substitution — replaces all at once. Replacing one at a time would also replace a `{1}` inside a value
+ * inserted earlier on the next pass (file names and user input can be anything).
  */
 export function fill(text: string, values: Record<string, string | number | boolean | undefined | null>): string {
   return text.replace(/\{(\w+)\}/g, (whole, key: string) => (key in values ? String(values[key] ?? '') : whole));

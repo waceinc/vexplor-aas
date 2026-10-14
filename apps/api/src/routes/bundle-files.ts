@@ -1,18 +1,18 @@
 /**
- * 레퍼런스 번들 **첨부** — 사람이 넣은 문서·증빙을 공정 파일에 딸려 보관한다.
+ * Reference bundle **attachments** — keeps documents and evidence added by people alongside the process file.
  *
- * 번들은 몇 달에 걸쳐 고쳐 가며 낸다(추진방안 §6 — 11월 착수 → 1월 최종 모델로 동기화 → 2월 재검증).
- * 그런데 번들을 열었다 다시 내보내면 Use-Case 문서·가이던스·참고 자료·수집 기록이
- * **전부 사라졌다**(2026-09-30 검증, 6개 중 6개). 도구가 만드는 것만 다시 만들었기 때문이다.
+ * A bundle is revised and resubmitted over months (implementation plan §6 — start in November → sync to the final model in January → re-verify in February).
+ * Yet opening a bundle and exporting it again made the Use-Case docs, guidance, reference material and collection records
+ * **all disappear** (verified 2026-09-30, 6 of 6). Only what the tool generates was regenerated.
  *
- * 그래서 번들 안의 파일을 둘로 나눈다.
- *  - **도구가 만드는 것** — README·manifest·공정/참조모델 AASX·사전점검·연계 초안·작성 안내.
- *    내보낼 때마다 새로 만든다(모델이 바뀌면 따라 바뀌어야 한다)
- *  - **사람이 넣은 것** — 그 밖의 모든 파일. 공정 파일에 role `bundle`로 보관하고 그대로 되살린다.
- *    🔴 AASX에는 넣지 않는다(store/convert.ts) — 공정 파일 해시가 바뀌면 번들 대조가 깨진다
+ * So files in a bundle are split in two.
+ *  - **Tool-generated** — README, manifest, process/reference-model AASX, pre-check, integration draft, authoring guide.
+ *    Regenerated on every export (they must follow model changes)
+ *  - **Added by people** — every other file. Stored in the process file with role `bundle` and restored as-is.
+ *    Important: not put into the AASX (store/convert.ts) — if the process file hash changes, bundle verification breaks
  *
- * 수집 기록(수집값 CSV · 수집기록.html)은 사람이 넣은 것처럼 보관하되, **새 수집 기록이 있으면 통째로 갈아 끼운다**
- * — 옛 CSV와 새 기록서가 섞이면 무엇이 무엇의 증빙인지 흐려진다.
+ * Collection records (collected-values CSV · collection record HTML) are kept like people-added files, but are **replaced wholesale when a new collection record exists**
+ * — mixing old CSVs with a new record blurs which is evidence for what.
  */
 import { isSafeEntryName } from '@aas/aasx';
 import { fill, tr } from '@aas/core';
@@ -20,14 +20,14 @@ import type { AasStore, PackageFileRecord } from '@aas/store';
 import { ApiError } from '../http.js';
 
 /**
- * 올린 AASX **원본 바이트** — role `bundle`이라 AASX로 다시 내보낼 때는 빠진다.
- * 🔴 번들의 참조모델은 운영기관 Validator를 통과한 **그 파일**이어야 해시로 대조된다. 도구가 다시 포장하면
- *    모델 내용은 같아도 바이트가 달라져 해시가 어긋났다(2026-09-30 제출 번들 검증 — 3종 모두).
- *    그래서 올릴 때 원본을 보관하고, 모델을 고치지 않았으면 번들에 원본 그대로 넣는다
+ * The uploaded AASX's **original bytes** — role `bundle`, so they are left out when re-exporting as AASX.
+ * Important: the bundle's reference model must be **the very file** that passed the operator's Validator to match by hash. When the tool repackaged it,
+ *    the bytes changed even with the same model content and the hash mismatched (submitted-bundle verification 2026-09-30 — all 3).
+ *    So we keep the original on upload, and if the model was not edited, put the original into the bundle unchanged
  */
 export const ORIGINAL_PART = '/.original/source.aasx';
 
-/** importPackage의 keep에 싣는 원본 — 담는 동작 안에서 넣어야 리비전이 1로 남는다 */
+/** Original carried in importPackage's keep — must be added within the import itself so the revision stays at 1 */
 export const originalFile = (data: Uint8Array): PackageFileRecord => ({
   part: ORIGINAL_PART,
   role: 'bundle',
@@ -35,30 +35,30 @@ export const originalFile = (data: Uint8Array): PackageFileRecord => ({
   data,
 });
 
-/** 번들 첨부가 사는 파트 경로의 머리 */
+/** Prefix of the part path where bundle attachments live */
 export const BUNDLE_PART_PREFIX = '/bundle/';
-/** 이전 번들 manifest의 증빙 요약 — 새 수집이 없을 때 이어받는다. 번들 파일로 나가지 않는다 */
+/** Evidence summary from the previous bundle manifest — inherited when there is no new collection. Not emitted as a bundle file */
 export const CARRIED_EVIDENCE_PART = `${BUNDLE_PART_PREFIX}.carried-evidence.json`;
 
-/** 사람이 넣을 수 있는 폴더 — 번들 구조(추진방안 §2.1) */
+/** Folders people may add to — bundle structure (implementation plan §2.1) */
 export const ATTACHMENT_FOLDERS = [
-  '01_UseCase문서', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  '01_UseCase문서', // i18n-ignore — submission bundle folder/file name (spec structure)
   '03_가이던스',
-  '04_데이터연계정의', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  '04_데이터연계정의', // i18n-ignore — submission bundle folder/file name (spec structure)
   '05_샘플데이터',
-  '06_검증결과', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  '06_검증결과', // i18n-ignore — submission bundle folder/file name (spec structure)
 ] as const;
 
-/** 수집 기록 — 새 기록이 있으면 통째로 갈아 끼운다 */
+/** Collection records — replaced wholesale when a new record exists */
 export const isEvidencePath = (path: string): boolean =>
   /^05_샘플데이터\/수집값_[^/]+\.csv$/.test(path) || path === '06_검증결과/수집기록.html';
 
-/** 도구가 매번 새로 만드는 파일 — 보관하지 않는다 */
+/** Files the tool regenerates every time — not stored */
 export function isGeneratedPath(path: string): boolean {
   return (
     path === 'README.md' ||
     path === 'bundle-manifest.json' ||
-    path.startsWith('00_공정구성/') || // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+    path.startsWith('00_공정구성/') || // i18n-ignore — submission bundle folder/file name (spec structure)
     path.startsWith('02_참조모델/') ||
     /^06_검증결과\/사전점검_[^/]+\.html$/.test(path) ||
     path === '04_데이터연계정의/연계항목_초안.csv' ||
@@ -93,8 +93,8 @@ export const contentTypeOf = (path: string): string =>
   MIME[path.slice(path.lastIndexOf('.') + 1).toLowerCase()] ?? 'application/octet-stream';
 
 /**
- * 사람이 넣는 경로를 검사한다 — 번들 폴더 안, 안전한 이름, 도구가 만드는 파일이 아닐 것.
- * 🔴 경로 탈출(`..`)·절대경로는 AASX와 같은 검사(isSafeEntryName)로 막는다
+ * Validate a path people add to — inside the bundle folders, a safe name, and not a tool-generated file.
+ * Important: path escape (`..`) and absolute paths are blocked by the same check as AASX (isSafeEntryName)
  */
 export function checkAttachmentPath(path: string): string {
   const clean = path.replace(/\\/g, '/').replace(/^\/+/, '');
@@ -117,11 +117,11 @@ export interface Attachment {
   data: Uint8Array;
 }
 
-/** 공정 파일에 보관된 첨부 — 경로순 */
+/** Attachments stored in the process file — sorted by path */
 export async function listAttachments(store: AasStore, packageId: string): Promise<Attachment[]> {
   const files = await store.packageFiles(packageId);
   return files
-    // 접두로도 거른다 — role bundle 에는 첨부 말고도 올린 원본(/.original/)·형식 사본(/.derivation/)이 산다
+    // Also filter by prefix — role bundle holds not only attachments but also the uploaded original (/.original/) and the format copy (/.derivation/)
     .filter((file) => file.role === 'bundle' && file.part.startsWith(BUNDLE_PART_PREFIX) && file.part !== CARRIED_EVIDENCE_PART)
     .map((file) => ({
       path: file.part.slice(BUNDLE_PART_PREFIX.length),
@@ -145,11 +145,11 @@ export async function removeAttachment(store: AasStore, packageId: string, path:
   await store.deletePackageFile(packageId, `${BUNDLE_PART_PREFIX}${path}`);
 }
 
-/** 이전 번들에서 이어받은 증빙 요약 */
+/** Evidence summary inherited from the previous bundle */
 export interface CarriedEvidence {
   level: string | null;
   entries: Record<string, unknown>[];
-  /** 어느 번들에서 왔나 */
+  /** Which bundle it came from */
   from: { code?: string; version?: string; createdAt?: string };
 }
 

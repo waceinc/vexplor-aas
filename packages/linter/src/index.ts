@@ -1,4 +1,4 @@
-/** @aas/linter — AAS 규칙 린터 (기획서 M5) */
+/** @aas/linter — AAS rule linter (plan M5) */
 export * from './types.js';
 export * from './policy.js';
 export * from './policy-file.js';

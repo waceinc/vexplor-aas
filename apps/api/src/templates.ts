@@ -1,16 +1,16 @@
 /**
- * 템플릿 폴더 — `AAS_TEMPLATES_DIR`에 둔 `.aasx`를 기동 때 보관함에 넣는다.
+ * Templates folder — `.aasx` files placed in `AAS_TEMPLATES_DIR` are put into the library at startup.
  *
- * 「다른 파일에서 가져오기」는 *열려 있는* 파일에서만 서브모델을 복사한다. IDTA 공식 템플릿
- * (DigitalNameplate·TechnicalData·HandoverDocumentation…)을 쓰려면 누군가 매번 먼저 올려야
- * 했다(2026-09-04 전문가 검토). 폴더에 한 번 두면 서버가 알아서 올린다.
+ * "Import from another file" copies submodels only from *open* files. To use the official IDTA templates
+ * (DigitalNameplate·TechnicalData·HandoverDocumentation…) someone had to upload them first every
+ * time (expert review 2026-09-04). Put them in the folder once and the server uploads them by itself.
  *
- * - 같은 **파일명**이 이미 보관함에 있으면 건너뛴다(껐다 켜도 두 벌이 안 된다).
- *   메모리 보관함은 매번 비어 있으니 매번 들어간다 — 그게 맞다.
- * - 지운 템플릿은 다음 기동 때 돌아온다. 그만 쓰려면 폴더에서 빼는 것이 맞다(문서에 적음).
- * - 🔴 IDTA 템플릿 파일은 **여기 넣어 두지 않는다** — 저장소에 동봉하려면 라이선스(CC BY 4.0
- *   표기 의무)를 먼저 확인해야 한다. 쓰는 곳이 IDTA Content Hub에서 받아 폴더에 넣는다.
- * - 업로드와 같은 `readAasx` 상한(Zip Bomb 가드)을 그대로 탄다.
+ * - If a file with the same **file name** is already in the library, it is skipped (restarts do not create duplicates).
+ *   The in-memory library starts empty each time, so they go in each time — that is correct.
+ * - Deleted templates come back at the next startup. To stop using one, remove it from the folder (documented).
+ * - Important: IDTA template files are **not bundled here** — bundling them in the repository requires checking the license (CC BY 4.0
+ *   attribution requirement) first. Deployers download them from the IDTA Content Hub and put them in the folder.
+ * - Goes through the same `readAasx` cap (Zip Bomb guard) as uploads.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';

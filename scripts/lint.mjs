@@ -1,6 +1,6 @@
 /**
- * AASX 규칙 린터 CLI.
- * 사용: node scripts/lint.mjs <파일 또는 디렉터리> [--only KOSMO] [--limit 20]
+ * AASX rule linter CLI.
+ * Usage: node scripts/lint.mjs <file or directory> [--only KOSMO] [--limit 20]
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';

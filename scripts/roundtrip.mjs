@@ -1,6 +1,6 @@
 /**
- * 픽스처를 읽어 그대로 다시 저장한다 (M2 검수용 산출물 생성).
- * 사용: node scripts/roundtrip.mjs <입력디렉터리> <출력디렉터리>
+ * Reads fixtures and saves them back unchanged (produces the M2 acceptance-review output).
+ * Usage: node scripts/roundtrip.mjs <input-dir> <output-dir>
  */
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';

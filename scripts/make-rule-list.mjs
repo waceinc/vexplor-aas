@@ -1,18 +1,18 @@
 /**
- * 린터가 실제로 검사하는 규칙을 문서로 뽑는다 — docs/rules.md(영어) · docs/규칙_목록.md(한국어)
+ * Generates documentation of the rules the linter actually checks — docs/rules.md (English) and docs/규칙_목록.md (Korean).
  *
- * 두 언어 모두 같은 코드에서 뽑는다. 규칙 제목 · 근거는 서버 사전(@aas/core i18n)으로 옮긴다 —
- * 화면의 「규칙과 규약」 영어판과 같은 글자다.
+ * Both languages are generated from the same code. Rule titles and sources are translated through the server
+ * dictionary (@aas/core i18n) — the same text as the English version of "Rules and conventions" in the UI.
  *
  *     npx tsc -b && node scripts/make-rule-list.mjs
- *     node scripts/make-rule-list.mjs --check     # 문서가 코드와 어긋나면 종료코드 1
+ *     node scripts/make-rule-list.mjs --check     # exit code 1 if the docs differ from the code
  *
- * 🔴 **손으로 쓰지 않는다.** 규칙을 고치고 문서를 안 고치면 문서가 거짓말을 한다.
- *    지금 도는 코드에서 뽑으면 어긋날 자리가 없다(화면의 「규칙」 칸과 같은 출처다).
+ * Important: **never write it by hand.** If a rule changes and the doc does not, the doc lies.
+ *    Generating from the running code leaves no room for drift (same source as the "Rules" panel in the UI).
  *
- * 규칙을 **어떻게 알아냈는지**의 실측 자료(검증기 제출 기록·대조 스크립트)는 공개 저장소에
- * 싣지 않는다. 남의 저작물과 사업 자료가 섞여 있기 때문이다. 여기 나오는 것은
- * 「무엇을 검사하는가」이고, 그것으로 이 도구의 판정을 따져 볼 수 있다.
+ * The measurement material on **how** the rules were derived (validator submission records, comparison scripts) is
+ * not included in the public repository, because it mixes third-party works and business material. What appears here
+ * is "what is checked", which is enough to evaluate this tool's verdicts.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -103,12 +103,12 @@ const cell = (text) => text.replace(/\|/g, '\\|');
 function build(lang) {
   setLangSource(() => lang);
   const t = TEXT[lang];
-  /** 내부 문서 이름은 공개 저장소에 없다 — 뜻이 통하는 말로 바꾼다 */
+  /** Internal document names do not exist in the public repository — replace them with a meaningful phrase */
   const publicSource = (source) =>
     source
       .replace(/0[1-5]_[^\s]+\.md/g, t.internal)
-      .split('AAS 참조모델 제약조건 spec_260812.pdf') // i18n-ignore — 근거 문서 파일 이름
-      .join(tr('AAS 참조모델 제약조건 spec_260812.pdf')) // i18n-ignore — 근거 문서 파일 이름
+      .split('AAS 참조모델 제약조건 spec_260812.pdf') // i18n-ignore — file name of the source document
+      .join(tr('AAS 참조모델 제약조건 spec_260812.pdf')) // i18n-ignore — file name of the source document
       .replace(/\s+/g, ' ')
       .trim();
   const lines = [
@@ -137,7 +137,7 @@ if (process.argv.includes('--check')) {
     try {
       current = readFileSync(target, 'utf8').replace(/\r\n/g, '\n');
     } catch {
-      /* 없으면 어긋난 것이다 */
+      /* missing counts as a mismatch */
     }
     if (current !== text) {
       console.error(`[FAIL] ${target}가 코드와 다릅니다 — node scripts/make-rule-list.mjs 로 다시 만드십시오.`);

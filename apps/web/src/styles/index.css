@@ -1,9 +1,9 @@
 /*
- * 앱 CSS 진입점 — 디자인 기준은 VEXPLOR Logic Studio(마중) 다. 그 레포의 기준 체계가 vexplor-drive `apps/web/src/styles.css` 이고,
- * 그 본문을 `drive.css` 에 **글자 그대로** 옮겨 왔다(값을 바꾸려면 기준 쪽이 바뀐 것을 다시 옮긴다).
- *   - shadcn/ui(new-york · neutral) + Tailwind 4 · 모서리 2px · 판정 색 5가지(navy·cb·teal·warn·fail) · Pretendard
- *   - 화면 밀도: 머리글(셸) 90% · 본문 80% — `data-scale="shell"` · `data-scale="content"` (drive.css 의 표)
- * AAS 화면 고유 규칙은 `aas.css`(components 층)에 있다 — 색·반경·글자 크기는 위 토큰만 쓴다.
+ * App CSS entry point — the design baseline is VEXPLOR Logic Studio (Majung). That repo's baseline system is vexplor-drive `apps/web/src/styles.css`,
+ * and its body was copied **verbatim** into `drive.css` (to change values, re-copy after the baseline changes).
+ *   - shadcn/ui (new-york · neutral) + Tailwind 4 · 2px corners · five verdict colors (navy·cb·teal·warn·fail) · Pretendard
+ *   - Screen density: header (shell) 90% · content 80% — `data-scale="shell"` · `data-scale="content"` (the scale in drive.css)
+ * AAS-screen-specific rules live in `aas.css` (components layer) — colors, radius and font size use only the tokens above.
  */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);

@@ -1,16 +1,16 @@
 /**
- * L1 — 직렬화 · 패키징 규칙.
+ * L1 - serialization and packaging rules.
  *
- * 여기서 걸리는 결함은 증상이 엉뚱한 곳에 나타난다.
- * File.value가 단순 상대경로면 공식 스키마의 ArrayItemNotValid가 되어
- * 상위 SMC와 Submodel까지 연쇄 실패로 표시된다 — 대량 오류의 실제 원인이 여기인 경우가 많다.
+ * Defects caught here show symptoms in unexpected places.
+ * If File.value is a bare relative path, it becomes ArrayItemNotValid in the official schema,
+ * and the parent SMC and Submodel are shown as cascading failures - the real cause of mass errors is often here.
  */
 import type { File as AasFile, LangString, MultiLanguageProperty } from '@aas/core';
 import { fill, tr } from '@aas/core';
 import type { Rule } from '../types.js';
 import { duplicateLanguages, iec61360Of } from '../util.js';
 
-// i18n-ignore — 근거 문서 파일 이름
+// i18n-ignore — source document file name
 const SOURCE = '04_린터_규칙_명세.md §1 L1';
 
 export const pkgFileUri: Rule = {
@@ -25,9 +25,9 @@ export const pkgFileUri: Rule = {
       if (v.node.modelType !== 'File') continue;
       const file = v.node as AasFile;
       const value = file.value;
-      if (value === undefined || value === '') continue; // 값 없음은 별도 문제
+      if (value === undefined || value === '') continue; // A missing value is a separate issue
 
-      // file:// 또는 http(s):// 등 스킴이 있으면 통과
+      // Passes if there is a scheme such as file:// or http(s)://
       if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) continue;
 
       report({
@@ -55,21 +55,21 @@ export const pkgThumbnailParts: Rule = {
   source: SOURCE,
   check(ctx, report) {
     const pkg = ctx.package;
-    if (!pkg) return; // Environment만 린트하는 경우 건너뛴다
+    if (!pkg) return; // Skip when linting only an Environment
 
     const shell = ctx.environment.assetAdministrationShells?.[0];
     const key = shell?.idShort ?? shell?.id ?? 'AASX';
     const thumbPath = shell?.assetInformation?.defaultThumbnail?.path;
-    if (!thumbPath) return; // KOSMO-AAS-1이 보고한다
+    if (!thumbPath) return; // Reported by KOSMO-AAS-1
 
     const normalized = thumbPath.startsWith('/') ? thumbPath : `/${thumbPath}`;
     const missing: string[] = [];
     if (!pkg.parts.includes(normalized)) missing.push(tr('ZIP 파트'));
     if (!pkg.relationshipTargets.includes(normalized)) missing.push(tr('_rels 관계 선언'));
-    // 🔴 Override가 없어도 확장자 Default(`<Default Extension="png">`)가 덮으면 OPC 규격상 유효하다.
-    //    Validator가 실제로 떨어뜨린 사유는 defaultThumbnail이 빈 것(02 §2-①)이었지 Default 선언이
-    //    아니었다. 사업 참조모델 v0.0.1 30종이 전부 이 형태라 위반으로 두면 화면이 온통 빨갛다
-    //    (2026-09-30 실측). Validator 실측 전까지는 **참고**로 알린다
+    // Important: even without an Override, an extension Default (`<Default Extension="png">`) covering it is valid per OPC.
+    //    The actual reason the Validator failed it was an empty defaultThumbnail (02 §2-①), not the Default
+    //    declaration. All 30 project reference models v0.0.1 have this form, so treating it as a violation turns the screen red
+    //    (measured 2026-09-30). Until verified against the Validator, it is reported as **informational**
     const overridden = pkg.contentTypeOverrides.includes(normalized);
     const extension = normalized.slice(normalized.lastIndexOf('.') + 1).toLowerCase();
     const byDefault = !overridden && (pkg.contentTypeDefaults ?? []).includes(extension);
@@ -149,7 +149,7 @@ export const pkgLanguageDuplicate: Rule = {
       });
     };
 
-    // ConceptDescription의 IEC 61360 다국어 필드
+    // Multilingual fields of the IEC 61360 data specification in ConceptDescription
     (ctx.environment.conceptDescriptions ?? []).forEach((cd, i) => {
       const key = cd.idShort ?? cd.id;
       const base = `/conceptDescriptions/${i}`;
@@ -165,7 +165,7 @@ export const pkgLanguageDuplicate: Rule = {
       check(cd.displayName, 'displayName', 'ConceptDescription', key, base, kosmo);
     });
 
-    // Submodel · SubmodelElement의 다국어 필드
+    // Multilingual fields of Submodel and SubmodelElement
     (ctx.environment.submodels ?? []).forEach((sm, i) => {
       const key = sm.idShort ?? sm.id;
       check(sm.description, 'description', 'Submodel', key, `/submodels/${i}`, `/submodels/${i}(${key})`);
@@ -184,13 +184,13 @@ export const pkgLanguageDuplicate: Rule = {
 };
 
 /**
- * 빈 배열 금지.
+ * No empty arrays.
  *
- * 🔴 V3.0 공식 스키마는 배열마다 `minItems: 1`을 건다 — **비었으면 키가 아예 없어야 한다.**
- * KOSMO Validator는 이걸 보지 않아서, `aas-test-engines`를 돌려 보고서야 드러났다
- * ("Empty array not allowed", 1.0.3 실측). 요소를 전부 지운 서브모델이 이 상태가 되기 쉽다.
+ * Important: the official V3.0 schema sets `minItems: 1` on every array - **if empty, the key must be absent entirely.**
+ * The KOSMO Validator does not check this; it only surfaced after running `aas-test-engines`
+ * ("Empty array not allowed", measured with 1.0.3). A submodel with all elements deleted easily ends up in this state.
  *
- * 빼는 것 말고 다른 해석이 없어서 **자동 교정 대상**이다(AASd-120과 달리 의미가 바뀌지 않는다).
+ * Removing it is the only possible interpretation, so it is **auto-fixable** (unlike AASd-120, the meaning does not change).
  */
 export const pkgEmptyArray: Rule = {
   id: 'PKG-EMPTY-ARRAY',

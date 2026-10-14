@@ -1,6 +1,6 @@
 /**
- * 파일 목록 카드 — 쌓인 파일을 한눈에 보고 열거나 지운다(체크해서 한꺼번에).
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화). 지우기 확인·연결 경고는 App 의 deletePackages 가 한다.
+ * File list card — see accumulated files at a glance and open or delete them (check several to act at once).
+ * Split out of App.tsx (componentization, 2026-10-13). Delete confirmation and link warnings are handled by App's deletePackages.
  */
 import type { PackageDescription } from '../api.js';
 import { T } from '../components/T.js';
@@ -9,7 +9,7 @@ import { PanelHead } from '../ui/PanelHead.js';
 
 interface Props {
   packages: PackageDescription[];
-  /** 지금 보는 파일 — 이름 옆에 「← 보는 중」 */
+  /** File currently being viewed — marked "← viewing" next to its name */
   packageId?: string;
   picked: ReadonlySet<string>;
   busy: boolean;
@@ -23,7 +23,7 @@ export function FileListPanel({ packages, packageId, picked, busy, onPick, onOpe
   return (
     <div className="file-list">
       <PanelHead title={<T k={'열린 파일 {0}건'} v={[packages.length]} />} onClose={onClose} closeText={tr('닫기')} />
-      {/* 여러 개를 한 번에 — 시험 잔재를 하나씩 지우던 손이 지쳤다(사용자 2026-09-09) */}
+      {/* Several at once — deleting test leftovers one by one was tiring (user, 2026-09-09) */}
       <label className="file-pick-all">
         <input
           type="checkbox"
@@ -57,7 +57,7 @@ export function FileListPanel({ packages, packageId, picked, busy, onPick, onOpe
               disabled={busy}
               onClick={() => onOpen(item.packageId)}
               title={tr('이 파일 열기')}
-              // 「보는 중」 표시는 CSS ::after가 그린다 — 글자는 번역기를 거쳐 속성으로 넘긴다(CSS에 한국어를 적으면 영어 화면에 남는다)
+              // The "viewing" marker is drawn by CSS ::after — the text goes through the translator and is passed as an attribute (Korean written in CSS would remain on the English screen)
               data-current-label={tr(' ← 보는 중')}
             >
               {item.name ?? item.packageId}

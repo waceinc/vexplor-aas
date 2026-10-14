@@ -1,8 +1,8 @@
 /**
- * 트리·위치 계산 검증.
+ * Tree and location computation tests.
  *
- * 화면보다 이쪽이 중요하다 — 린터가 가리키는 위치와 UI가 여는 노드가 어긋나면
- * 「지적을 눌러 그 요소로 간다」는 흐름이 통째로 무너진다.
+ * This matters more than the screen: if the location the linter points to and the node the UI opens disagree,
+ * the whole "click a finding to go to that element" flow breaks.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -18,7 +18,7 @@ import {
   type Submodel,
 } from '../src/model.js';
 
-/** 골든 파일 DigitalNameplate의 실제 모양을 줄여 옮긴 것 */
+/** A trimmed copy of the actual shape of the golden DigitalNameplate file */
 const submodels: Submodel[] = [
   {
     modelType: 'Submodel',
@@ -61,11 +61,11 @@ const conceptDescriptions = [
 ];
 const env = { shells, submodels, conceptDescriptions };
 
-describe('트리 구성', () => {
+describe('tree construction', () => {
   const roots = buildTree(env);
 
-  it('AAS · Submodel · ConceptDescription이 모두 트리에 자리를 갖는다', () => {
-    // 서브모델만 그리면 KOSMO-AAS-*·KOSMO-CD-* 지적이 갈 곳이 없다
+  it('AAS, Submodel and ConceptDescription all get a place in the tree', () => {
+    // if only submodels were drawn, KOSMO-AAS-* and KOSMO-CD-* findings would have nowhere to go
     expect(roots.map((r) => r.pointer)).toEqual([
       '/assetAdministrationShells/0',
       '/submodels/0',
@@ -76,7 +76,7 @@ describe('트리 구성', () => {
     expect(roots[3]!.children.map((c) => c.pointer)).toEqual(['/conceptDescriptions/0']);
   });
 
-  it('Environment 배열 순서 그대로 pointer를 만든다 — 린터와 같은 좌표계', () => {
+  it('builds pointers in Environment array order (same coordinate system as the linter)', () => {
     expect(roots[1]!.children.map((c) => c.pointer)).toEqual([
       '/submodels/0/submodelElements/0',
       '/submodels/0/submodelElements/1',
@@ -84,23 +84,23 @@ describe('트리 구성', () => {
     ]);
   });
 
-  it('SML 자식은 규격대로 인덱스로 가리키고, SMC 자식은 점으로 잇는다', () => {
+  it('SML children are addressed by index per spec, SMC children joined with dots', () => {
     const markings = roots[1]!.children[2]!;
     const entry = markings.children[0]!;
     const marking = entry.children[0]!;
     expect(markings.idShortPath).toBe('Markings');
     expect(entry.idShortPath).toBe('Markings[0]');
     expect(marking.idShortPath).toBe('Markings[0].MarkingName');
-    // Part 2 경로가 실제 API 호출에 그대로 쓰인다
+    // the Part 2 path is used as is in real API calls
     expect(marking.submodelId).toBe(submodels[0]!.id);
   });
 
-  it('깊은 요소의 pointer는 @aas/core 순회기와 같은 규칙이다', () => {
+  it('pointers of deep elements follow the same rule as the @aas/core walker', () => {
     const marking = roots[1]!.children[2]!.children[0]!.children[0]!;
     expect(marking.pointer).toBe('/submodels/0/submodelElements/2/value/0/value/0');
   });
 
-  it('펼쳐진 것만 늘어놓는다 — 가상 스크롤이 이 배열을 자른다', () => {
+  it('lists only what is expanded (virtual scrolling slices this array)', () => {
     expect(flatten(roots, new Set()).map((r) => r.label)).toEqual([
       'Machine',
       'DigitalNameplate',
@@ -121,7 +121,7 @@ describe('트리 구성', () => {
   });
 });
 
-describe('지적 귀속', () => {
+describe('finding attribution', () => {
   const roots = buildTree(env);
   const finding = (pointer: string): Finding => ({
     ruleId: 'KOSMO-SME-3',
@@ -135,7 +135,7 @@ describe('지적 귀속', () => {
     fixable: true,
   });
 
-  it('요소보다 깊은 위치를 가리켜도 가장 가까운 노드에 붙는다', () => {
+  it('a location deeper than any element attaches to the nearest node', () => {
     const byNode = attachFindings(roots, [
       finding('/submodels/0/submodelElements/2/value/0/value/0/semanticId'),
       finding('/submodels/1/id'),
@@ -146,7 +146,7 @@ describe('지적 귀속', () => {
     ]);
   });
 
-  it('AAS·CD 지적도 제 자리를 찾는다 — 예전엔 버려져서 눌러도 열리지 않았다', () => {
+  it('AAS and CD findings also find their place (they used to be dropped, so clicking opened nothing)', () => {
     const byNode = attachFindings(roots, [
       finding('/assetAdministrationShells/0/assetInformation/assetKind'),
       finding('/conceptDescriptions/0/idShort'),
@@ -157,7 +157,7 @@ describe('지적 귀속', () => {
     ]);
   });
 
-  it('지적까지 가는 길을 실제 트리에서 찾는다 — 숫자로 끝나지 않는 노드도 포함된다', () => {
+  it('finds the path to a finding in the real tree, including nodes not ending in a number', () => {
     expect(revealPath(roots, '/submodels/0/submodelElements/2/value/0/value/0/semanticId')).toEqual({
       keys: [
         '/submodels/0',
@@ -168,7 +168,7 @@ describe('지적 귀속', () => {
       target: '/submodels/0/submodelElements/2/value/0/value/0',
     });
 
-    // assetInformation·ConceptDescription 그룹처럼 숫자로 끝나지 않는 노드
+    // nodes not ending in a number, such as the assetInformation and ConceptDescription groups
     expect(revealPath(roots, '/assetAdministrationShells/0/assetInformation/assetKind')).toEqual({
       keys: ['/assetAdministrationShells/0', '/assetAdministrationShells/0/assetInformation'],
       target: '/assetAdministrationShells/0/assetInformation',
@@ -179,13 +179,13 @@ describe('지적 귀속', () => {
     });
   });
 
-  it('트리에 없는 위치는 target 없이 돌려준다', () => {
+  it('returns no target for a location not in the tree', () => {
     expect(revealPath(roots, '/submodels/9/x').target).toBeUndefined();
   });
 });
 
-describe('값 표시', () => {
-  it('종류마다 다르게 보여 준다', () => {
+describe('value display', () => {
+  it('shows each kind differently', () => {
     expect(displayValue({ modelType: 'Property', value: '42' })).toBe('42');
     expect(
       displayValue({ modelType: 'MultiLanguageProperty', value: [{ language: 'ko', text: '가' }] }),
@@ -195,30 +195,30 @@ describe('값 표시', () => {
   });
 });
 
-describe('semanticId 검사 (M4 축소판)', () => {
+describe('semanticId check (reduced M4)', () => {
   const policy = { iriBase: 'https://www.smart-factory.kr/ids', irdiPrefixes: ['0173-', '0112/'] };
   const levels = (value: string, hasCd = true): string[] =>
     checkSemanticId(value, policy, hasCd).map((note) => note.level);
 
-  it('실측 파일에 실제로 쓰인 IRDI를 통과시킨다', () => {
+  it('accepts IRDIs actually used in measured files', () => {
     expect(levels('0112/2///61987#ABA231#009')).toEqual(['ok']);
     expect(levels('0173-1#02-AAA123#001')).toEqual(['ok']);
   });
 
-  it('자체 IRI 규약을 통과시킨다', () => {
+  it('accepts the in-house IRI convention', () => {
     expect(levels('https://www.smart-factory.kr/ids/cd/AlarmActive/1/0')).toEqual(['ok']);
   });
 
-  it('IRDI 접두는 맞지만 형식이 깨진 것은 경고한다', () => {
+  it('warns when the IRDI prefix is right but the format is broken', () => {
     expect(levels('0112/2///61987#ABA231')).toEqual(['warning']);
   });
 
-  it('🔴 「속성/클래스」 복합 IRDI도 표준이다 — 골든 4종이 쓰고 KOSMO를 통과한 형식', () => {
-    // HandoverDocumentation의 Document(앞 #02=속성, 뒤 #01=클래스)
+  it('Important: compound property/class IRDIs are standard too (used by the 4 golden files and accepted by KOSMO)', () => {
+    // HandoverDocumentation Document (leading #02 = property, trailing #01 = class)
     const compound = '0173-1#02-ABI500#003/0173-1#01-AHF579#003';
     expect(levels(compound)).toEqual(['ok']);
     expect(checkSemanticId(compound, policy, true)[0]!.message).toContain('복합형');
-    // 골든 파일이 실제로 쓰는 나머지 셋
+    // the other three the golden files actually use
     for (const value of [
       '0173-1#02-ABI501#003/0173-1#01-AHF580#003',
       '0173-1#02-ABI502#003/0173-1#01-AHF581#003',
@@ -226,41 +226,41 @@ describe('semanticId 검사 (M4 축소판)', () => {
     ]) {
       expect(levels(value)).toEqual(['ok']);
     }
-    // 셋을 잇거나 한쪽이 깨진 것은 여전히 경고 — 표준은 둘까지다
+    // chaining three or a broken half still warns: the standard allows at most two
     expect(levels('0173-1#02-ABI500#003/0173-1#01-AHF579#003/0173-1#01-AHF579#003')).toEqual(['warning']);
     expect(levels('0173-1#02-ABI500#003/AHF579')).toEqual(['warning']);
   });
 
-  it('eCl@ss -00 말미 코드는 따로 경고한다 (CDP 미존재)', () => {
+  it('warns separately about an eCl@ss -00 trailing code (CDP does not exist)', () => {
     const notes = checkSemanticId('0173-1#02-AAA123-00#001', policy, true);
     expect(notes.some((n) => n.message.includes('-00'))).toBe(true);
   });
 
-  it('IDTA 공식 IRI는 규정 충돌로 경고한다 — 몰래 고르지 않는다', () => {
+  it('warns about official IDTA IRIs as a rule conflict (no silent pick)', () => {
     const notes = checkSemanticId('https://admin-shell.io/zvei/nameplate/3/0/Nameplate', policy, true);
     expect(notes[0]!.level).toBe('warning');
     expect(notes[0]!.message).toContain('KOSMO');
   });
 
-  it('허용 목록 밖은 오류, 빈 값도 오류', () => {
+  it('outside the allow list is an error, and so is an empty value', () => {
     expect(levels('https://example.com/x')).toEqual(['error']);
     expect(levels('')).toEqual(['error']);
   });
 
-  it('대응 CD가 없으면 함께 알려 준다', () => {
+  it('also reports when there is no matching CD', () => {
     expect(levels('0112/2///61987#ABA231#009', false)).toEqual(['ok', 'warning']);
   });
 });
 
-describe('요소 세기', () => {
-  it('중첩된 것까지 모두 센다 — 파일 크기를 말해 주는 숫자여야 한다', () => {
-    // DigitalNameplate: 3 + Markings 자식 1 + 그 안 Property 1 = 5, TechnicalData: 0
+describe('element count', () => {
+  it('counts nested elements too (the number must reflect file size)', () => {
+    // DigitalNameplate: 3 + 1 Markings child + 1 Property inside it = 5, TechnicalData: 0
     expect(countElements(submodels)).toBe(5);
     expect(countElements([])).toBe(0);
   });
 });
 
-describe('지적 집계 (접힌 노드)', () => {
+describe('finding rollup (collapsed nodes)', () => {
   const roots = buildTree(env);
   const make = (pointer: string, severity: 'error' | 'warning'): Finding => ({
     ruleId: 'X',
@@ -274,21 +274,21 @@ describe('지적 집계 (접힌 노드)', () => {
     fixable: false,
   });
 
-  it('자손의 지적을 부모까지 합산하고 가장 무거운 등급을 올린다', () => {
+  it('sums descendant findings up to the parent and raises the heaviest severity', () => {
     const byNode = attachFindings(roots, [
       make('/submodels/0/submodelElements/2/value/0/value/0/semanticId', 'error'),
       make('/submodels/0/submodelElements/0/value', 'warning'),
     ]);
     const tally = tallyFindings(roots, byNode);
 
-    // 접힌 Submodel 하나만 봐도 아래에 2건이 있다는 것을 알 수 있다
+    // looking at one collapsed Submodel tells you there are 2 findings below
     expect(tally.get('/submodels/0')).toEqual({ own: 0, total: 2, worst: 'error' });
-    // 중간 계층도 제 몫만큼 센다
+    // intermediate levels count their own share too
     expect(tally.get('/submodels/0/submodelElements/2')).toEqual({ own: 0, total: 1, worst: 'error' });
     expect(tally.get('/submodels/0/submodelElements/0')).toEqual({ own: 1, total: 1, worst: 'warning' });
   });
 
-  it('CD 그룹도 합산한다 — 접혀 있으면 안에 무엇이 있는지 보이지 않는다', () => {
+  it('CD groups are summed too (when collapsed you cannot see what is inside)', () => {
     const byNode = attachFindings(roots, [make('/conceptDescriptions/0/idShort', 'warning')]);
     const tally = tallyFindings(roots, byNode);
     expect(tally.get('/conceptDescriptions')).toEqual({ own: 0, total: 1, worst: 'warning' });
@@ -296,8 +296,8 @@ describe('지적 집계 (접힌 노드)', () => {
 });
 
 
-describe('tallyFindings — 참고는 배지에 안 센다', () => {
-  it('info만 있는 노드는 배지가 없고, 경고와 섞이면 경고만 센다 (2026-09-07)', async () => {
+describe('tallyFindings: info is not counted in the badge', () => {
+  it('a node with only info has no badge; mixed with warnings, only warnings count (2026-09-07)', async () => {
     const { tallyFindings } = await import('../src/model.js');
     const leaf = { key: '/a/0', label: 'x', modelType: 'Property', pointer: '/a/0', submodelId: '', depth: 1, children: [], node: {} };
     const root = { key: '/a', label: 'a', modelType: 'Submodel', pointer: '/a', submodelId: '', depth: 0, children: [leaf], node: {} };

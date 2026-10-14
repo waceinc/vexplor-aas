@@ -1,13 +1,13 @@
 /**
- * 수집 연결 만들기 — 접속 주소와 태그로 AID 서브모델(IDTA-02017)을 짓는다.
+ * Create collection connection — builds an AID submodel (IDTA-02017) from an endpoint address and tags.
  *
- * 🔴 **두 걸음으로 줄였다**(2026-09-01 사용자 지적: "너무 어렵고 다 입력해야 하는지 모르겠다").
- *    전에는 칸이 7개(이름·NodeId·PLC주소·타입·단위·대분류·소분류)나 한꺼번에 보여서
- *    무엇이 필수인지 알 수 없었고, 좁은 칸에서 글자가 잘려 나갔다.
- *      ① 설비 주소 → 불러오기    ② 태그 고르기 → 만들기
- *    선택 항목(PLC 주소·단위)은 **없앴다.** AID 규격에서 선택이고, 훑어 오면 어차피 안 채워진다.
- *    자리 만들기 설정은 「자세히」 안으로 접었다 — 기본값이 맞는 사람이 대부분이다.
- * 🔴 팝업으로 띄운다. 오른쪽 칸에 끼워 넣으면 폭이 모자라 형태가 무너진다(실측).
+ * Important: **cut down to two steps** (user remark, 2026-09-01: "too hard, and I can't tell whether I must fill everything").
+ *    Before, 7 fields (name · NodeId · PLC address · type · unit · category · subcategory) were shown at once, so
+ *    nobody could tell what was required, and text got cut off in narrow fields.
+ *      (1) equipment address → load    (2) pick tags → create
+ *    The optional items (PLC address · unit) were **removed.** They are optional in the AID spec, and browsing does not fill them anyway.
+ *    The slot-creation settings were folded into "Details" — the defaults suit most people.
+ * Important: shown as a popup. Squeezed into the right panel it lacks width and the layout breaks (measured).
  */
 import { useState } from 'react';
 import { Dialog } from '../ui/Dialog.js';
@@ -17,12 +17,12 @@ import { T } from './T.js';
 
 interface Props {
   packageId: string;
-  /** 모델의 잎 요소 idShort — 이름을 여기 맞추면 live 내보내기가 된다 */
+  /** idShort of the model's leaf elements — matching names to these enables live export */
   leafNames: readonly string[];
   busy: boolean;
   /**
-   * 이 도구가 값을 **내주는** 주소(M6·M7). 있으면 그 주소를 여기 넣는 것을 막는다 —
-   * 손으로 붙여 넣는 길은 서버 차단(409)에 닿기 전에 잡는 편이 친절하다.
+   * Addresses this tool **serves** values on (M6 · M7). If present, putting such an address here is blocked —
+   * catching a hand-pasted address before it hits the server's block (409) is kinder.
    */
   outEndpoint?: string;
   onCancel: () => void;
@@ -36,14 +36,14 @@ import { AidPattern } from './aid/AidPattern.js';
 import { protocolOfEndpoint } from './aid/protocol.js';
 import { EMPTY, type TagRow } from './aid/types.js';
 
-/** 프로토콜 고유 폼 항목(AID 바인딩) — Modbus 는 레지스터 종류 · 자료형, MQTT 는 구독. OPC UA 는 없다 */
+/** Protocol-specific form items (AID binding) — Modbus: register kind · data type, MQTT: subscription. OPC UA: none */
 function formFor(protocol: string | undefined, row: TagRow): { form?: Record<string, string> } {
   if (protocol === 'MODBUS') return { form: { modv_entity: row.entity ?? 'HoldingRegister', modv_type: row.dataType ?? 'xsd:unsignedShort' } };
   if (protocol === 'MQTT') return { form: { mqv_controlPacket: 'subscribe' } };
   return {};
 }
 
-/** 요소 이름으로 쓸 수 있게 다듬는다 — 안 그러면 「만들기」에서 막힌다 */
+/** Tidies it so it can be used as an element name — otherwise "Create" is blocked */
 function asElementName(raw: string): string {
   return raw.replace(/[^A-Za-z0-9_]/g, '_').replace(/^([^A-Za-z])/, 'T$1');
 }
@@ -54,24 +54,24 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
   const [error, setError] = useState<string>();
   const [working, setWorking] = useState(false);
   const [manual, setManual] = useState(false);
-  /** 패턴으로 여러 개 — 같은 꼴의 태그 수십 개 */
+  /** Many by pattern — dozens of same-shaped tags */
   const [patternOpen, setPatternOpen] = useState(false);
 
-  /** 설비에서 훑어 온 태그 — NodeId를 손으로 치지 않게 하는 자리 */
+  /** Tags browsed from the equipment — so NodeIds are not typed by hand */
   const [found, setFound] = useState<Awaited<ReturnType<typeof api.browseDevice>>>();
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [browsing, setBrowsing] = useState(false);
 
-  // 자리 만들기 — 기본값이 맞는 사람이 대부분이라 접어 둔다
+  // Slot creation — folded away because the defaults suit most people
   const [makeElements, setMakeElements] = useState(true);
   const [group, setGroup] = useState('ProcessMonitoring');
   const [subgroup, setSubgroup] = useState('CollectedValues');
 
-  /** 🔴 우리가 내주는 주소를 그대로 넣었는가 — 실제로 났던 사고다 */
+  /** Important: was an address we serve pasted in as is — this incident actually happened */
   const isOurOwn =
     outEndpoint !== undefined && endpoint.trim() !== '' && endpoint.trim() === outEndpoint.trim();
 
-  /** 접속 주소로 정한 프로토콜 — 설비에서 불러오기는 OPC UA 만 된다(Modbus · MQTT 는 주소를 적는다) */
+  /** Protocol decided by the endpoint address — loading from equipment works only for OPC UA (for Modbus · MQTT the address is typed) */
   const protocol = protocolOfEndpoint(endpoint);
   const filled = rows.filter((row) => row.name.trim() !== '' && row.href.trim() !== '');
   const misses = filled.filter((row) => !leafNames.includes(row.name.trim())).length;
@@ -89,7 +89,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
     }
   };
 
-  /** 고른 것을 태그로 담는다 — 이름은 browseName, 주소는 NodeId 그대로 */
+  /** Turns the picked items into tags — name is browseName, address is the NodeId as is */
   const applyPicked = (): void => {
     const chosen = (found?.nodes ?? []).filter((node) => picked.has(node.nodeId));
     const already = new Set(rows.map((row) => row.href));
@@ -112,17 +112,17 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
           name: row.name.trim(),
           href: row.href.trim(),
           type: row.type,
-          // 프로토콜 고유 폼 항목(AID 바인딩) — Modbus 는 레지스터 종류 · 자료형, MQTT 는 구독
+          // Protocol-specific form items (AID binding) — Modbus: register kind · data type, MQTT: subscription
           ...formFor(protocol, row),
         })),
         ...(makeElements ? { createMissing: { group: group.trim(), subgroup: subgroup.trim() } } : {}),
       });
-      // 🔴 알림 띠는 한 줄이다 — 세 문장을 이어 붙이니 200자가 넘어 아무도 안 읽었다(시연 실측).
-      //    좋은 소식은 짧게, 나쁜 소식(못 만든 것·안 맞는 이름)만 붙인다. 자세한 것은 오른쪽 표가 보여 준다
+      // Important: the notice bar is one line — joining three sentences went over 200 characters and nobody read it (measured in a demo).
+      //    Good news stays short; only bad news (what could not be created · mismatched names) is appended. The table on the right shows the details
       const made = result.elementsAdded?.length > 0 ? fill(tr(' · 요소 {0}개 새로 세움'), { 0: result.elementsAdded.length }) : '';
-      /* elementsConflicted = 다른 서브모델에 같은 이름이 **이미 있어** 자리를 새로 안 판 것.
-         태그 이름을 모델 요소(예: Nameplate/SerialNumber)에 맞춘 정상 경로라 경고가 아니다 —
-         예전엔 ⚠로 띄워 "왜 안 생겼지"가 됐다(시연 실측). 값은 그 기존 요소에 얹힌다 */
+      /* elementsConflicted = no new slot was made because another submodel **already has** the same name.
+         Matching tag names to model elements (e.g. Nameplate/SerialNumber) is the normal path, so this is not a warning —
+         it used to show as a warning sign and led to "why wasn't it created?" (measured in a demo). The value lands on that existing element */
       const conflicted = result.elementsConflicted ?? [];
       const clash =
         conflicted.length > 0 ? fill(tr(' · 모델에 이미 있어 그대로 연결: {0}'), { 0: conflicted.join(', ') }) : '';
@@ -146,13 +146,13 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
       close={{ text: tr('닫기 ✕'), label: tr('수집 연결 닫기') }}
     >
         <h3>{tr('← 수집 연결 만들기 — 설비에서 받아 오기')}</h3>
-        {/* 🔴 방향 그림. 「주소」가 두 종류라 무엇을 설정하는 중인지 못박아야 한다 */}
+        {/* Important: direction diagram. There are two kinds of "address", so it must be nailed down which one is being configured */}
         <p className="flow">
           <T k={'<b>{0}</b> ──▶ [이 도구] ──▶ [MES·SCADA]{1}'} v={[tr('[설비·PLC]'), <span className="here">{tr('↑ 지금 여기를 설정합니다')}</span>]} />
         </p>
         <p className="hint"><T k={'설비에 붙어 태그를 고르면 <b>AID 서브모델</b>(IDTA-02017)을 규격대로 만듭니다.'} /></p>
 
-        {/* ── ① 설비 주소 ───────────────────────────────────── */}
+        {/* ── (1) Equipment address ───────────────────────────── */}
         <section className="step">
           <h4>
             <T k={'{0} 설비(PLC)의 접속 주소 — OPC UA · Modbus TCP · MQTT{1}'} v={[<span className="num">1</span>, <span className="count dim">{tr('내가 접속하러 갈 곳')}</span>]} />
@@ -188,7 +188,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
           )}
         </section>
 
-        {/* ── ② 태그 고르기 ─────────────────────────────────── */}
+        {/* ── (2) Pick tags ──────────────────────────────────── */}
         <section className="step">
           <h4>
             <T k={'{0} 수집할 태그{1}'} v={[<span className="num">2</span>, filled.length > 0 && <span className="count"><T k={'{0}개 담김'} v={[filled.length]} /></span>]} />
@@ -241,7 +241,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
           />
         )}
 
-        {/* ── 자세히 — 기본값이 맞는 사람이 대부분이라 접어 둔다 ── */}
+        {/* ── Details — folded away because the defaults suit most people ── */}
         <AidOptions makeElements={makeElements} setMakeElements={setMakeElements} group={group} setGroup={setGroup} subgroup={subgroup} setSubgroup={setSubgroup} />
 
         <datalist id="leaf-names">

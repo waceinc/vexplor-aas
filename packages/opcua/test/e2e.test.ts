@@ -1,10 +1,10 @@
 /**
- * M8 전 과정 — AID → OPC UA → 수집 → 시계열.
+ * M8 end to end — AID -> OPC UA -> collection -> time series.
  *
- * 실물 PLC 없이 **진짜 프로토콜**로 한 줄을 꿴다. 조각마다 통과해도 이어 붙이면 어긋나는 일이
- * 흔해서, 이 시험이 M8의 실질 검수 기준이다.
+ * Threads one line through the **real protocol** without a physical PLC. Pieces that pass individually often
+ * misalign once joined, so this test is the actual acceptance criterion for M8.
  *
- * 함께 확인하는 것: 🔴 **수집해도 모델은 그대로다**(값 동기화 A안).
+ * Also checked: Important: **collecting leaves the model unchanged** (value sync option A).
  */
 import { readAasx } from '@aas/aasx';
 import { canonicalJson, type Environment } from '@aas/core';
@@ -32,7 +32,7 @@ afterAll(async () => {
   await server?.stop();
 });
 
-/** 골든 파일에 AID 서브모델을 얹는다 — 실제 장비 파일에 인터페이스를 기술한 모습 */
+/** Adds an AID submodel to the golden file — how a real device file describes its interface */
 function withAid(environment: Environment, endpoint: string): Environment {
   const smc = (idShort: string, value: unknown[]): unknown => ({
     modelType: 'SubmodelElementCollection',
@@ -82,7 +82,7 @@ function withAid(environment: Environment, endpoint: string): Environment {
               prop('type', 'float'),
               smc('forms', [prop('href', 'ns=1;s=Machine.BrokenSensor')]),
             ]),
-            // 🔴 아직 값이 안 들어온 태그 — 고장(BrokenSensor)과 갈리는지가 이 시험의 관건
+            // Important: a tag with no value yet — whether it is told apart from a failure (BrokenSensor) is the crux of this test
             smc('NotYetReady', [
               prop('type', 'float'),
               smc('forms', [prop('href', 'ns=1;s=Machine.NotYetReady')]),
@@ -99,8 +99,8 @@ function withAid(environment: Environment, endpoint: string): Environment {
   };
 }
 
-describe('M8 전 과정 (AID → OPC UA → 시계열)', () => {
-  it('AID가 말한 주소를 실제로 읽어 시계열에 쌓는다', async () => {
+describe('M8 end to end (AID -> OPC UA -> time series)', () => {
+  it('actually reads the addresses the AID names and stores them in the time series', async () => {
     const pkg = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
     const environment = withAid(pkg.environment, server.endpoint);
 
@@ -111,14 +111,14 @@ describe('M8 전 과정 (AID → OPC UA → 시계열)', () => {
       package: { ...pkg, environment },
     });
 
-    // ① 파일 안의 AID를 읽는다 — 자체 매핑 테이블이 없다
+    // (1) Read the AID inside the file — there is no separate mapping table
     const interfaces = parseAid(await store.getEnvironment(record.id));
     expect(interfaces).toHaveLength(1);
     const descriptor = interfaces[0]!;
     expect(descriptor.protocol).toBe('OPCUA');
     expect(descriptor.base).toBe(server.endpoint);
 
-    // ② 그 주소로 실제 접속해 읽는다
+    // (2) Connect to that address and actually read
     server.setSpeed(1310.75);
     const reader = await OpcUaReader.connect({ endpoint: descriptor.base!, connectTimeoutMs: 5000 });
     const before = canonicalJson(await store.getEnvironment(record.id));
@@ -131,19 +131,19 @@ describe('M8 전 과정 (AID → OPC UA → 시계열)', () => {
     );
     await reader.close();
 
-    // ③ 정상 태그는 쌓이고, 나쁜 태그는 사유와 함께 남는다
+    // (3) Healthy tags are stored; bad tags remain with a reason
     expect(report.collected).toBe(2);
     expect(report.failures).toEqual([
       expect.objectContaining({ propertyName: 'BrokenSensor', reason: expect.stringContaining('Bad') }),
     ]);
 
-    // ③-2 🔴 아직 값이 없는 태그는 **실패가 아니다** — 따로 센다.
-    //     설비가 멀쩡한데 「나쁜 태그」로 세면 초보 사용자가 고장으로 읽는다
+    // (3-2) Important: a tag with no value yet is **not a failure** — counted separately.
+    //     Counting it as a "bad tag" while the machine is fine makes novice users read it as a breakdown
     expect(report.pending).toEqual([
       expect.objectContaining({ propertyName: 'NotYetReady', reason: 'BadWaitingForInitialData' }),
     ]);
-    // 🔴 그리고 시계열에는 아무것도 넣지 않는다 — 없는 값을 빈 표본으로 위장하면
-    //    "그 시각에 관측됐다"는 가짜 이력이 남는다
+    // Important: and nothing goes into the time series — disguising a missing value as an empty sample
+    //    leaves a fake history saying "observed at that time"
     expect(await store.readValues(record.id, { propertyName: 'NotYetReady' })).toEqual([]);
 
     const speed = await store.readValues(record.id, { propertyName: 'MotorSpeed' });
@@ -151,16 +151,16 @@ describe('M8 전 과정 (AID → OPC UA → 시계열)', () => {
     expect(speed[0]!.valueNumber).toBe(1310.75);
     expect(speed[0]!.source).toBe('ns=1;s=Machine.MotorSpeed');
     expect(speed[0]!.quality).toBe('Good');
-    // 시각은 장비가 준 것
+    // The timestamp is the one the device supplied
     expect(new Date(speed[0]!.observedAt).getTime()).toBeGreaterThan(0);
 
     const alarm = await store.readValues(record.id, { propertyName: 'AlarmActive' });
     expect(alarm[0]!.valueNumber).toBe(0);
     expect(alarm[0]!.valueText).toBe('false');
 
-    // ④ 🔴 A안 — 수집해도 모델은 그대로다
+    // (4) Important: option A — collecting leaves the model unchanged
     expect(canonicalJson(await store.getEnvironment(record.id))).toBe(before);
     const shell = (await store.getEnvironment(record.id)).assetAdministrationShells![0]!;
-    expect(shell.assetInformation.assetKind).toBe('Type'); // 여전히 Type/Template이다
+    expect(shell.assetInformation.assetKind).toBe('Type'); // still a Type/Template
   }, 60_000);
 });

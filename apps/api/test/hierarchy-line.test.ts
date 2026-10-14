@@ -1,6 +1,6 @@
 /**
- * 라인 층 — 회사 → 라인 → 공정 → 설비(→ 설비 파일 안 부품) 5단계를 한 파일에 담는다.
- * 라인은 semanticId(자체 IRI …/cd/Line/1/0 + IDTA Node supplemental)로 남고, 용어(CD)를 함께 넣는다.
+ * Line level — the 5 levels company -> line -> process -> equipment (-> parts inside the equipment file) go in one file.
+ * A line is kept as a semanticId (own IRI …/cd/Line/1/0 + IDTA Node supplemental), and the concept description (CD) is added with it.
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -38,7 +38,7 @@ function harness() {
   return { store, call };
 }
 
-describe('라인 층', () => {
+describe('line level', () => {
   let h: ReturnType<typeof harness>;
   let machineId: string;
   const company = async (name: string): Promise<string> =>
@@ -53,7 +53,7 @@ describe('라인 층', () => {
     machineId = (await h.store.importPackage({ name: 'g.aasx', package: golden() })).id;
   });
 
-  it('회사 → 라인 → 공정 → 설비가 한 트리로 나오고, 위반·경고가 라인 없는 구성과 같다', async () => {
+  it('company -> line -> process -> equipment comes out as one tree, with the same violations/warnings as the line-less setup', async () => {
     const withLine = await company('WaceFactory');
     expect((await node(withLine, { name: 'BodyLine', group: true, line: true })).status).toBe(201);
     await node(withLine, { name: 'WeldingProcess', group: true, parentPath: ['BodyLine'] });
@@ -65,7 +65,7 @@ describe('라인 층', () => {
     expect(line.children[0]).toMatchObject({ name: 'WeldingProcess', line: false });
     expect(line.children[0]!.children[0]!.name).toBe('RollFormingMachine');
 
-    // 같은 구성을 라인 없이(공정이 맨 위) — 라인이 지적을 하나도 더하지 않아야 한다
+    // The same setup without a line (process at the top) — the line must not add a single finding
     const plain = await company('PlainFactory');
     await node(plain, { name: 'WeldingProcess', group: true });
     await node(plain, { sourcePackageId: machineId, parentPath: ['WeldingProcess'] });
@@ -75,7 +75,7 @@ describe('라인 층', () => {
     expect(a.findings.map((f) => f.ruleId).sort()).toEqual(b.findings.map((f) => f.ruleId).sort());
   });
 
-  it('라인 용어(CD)는 처음 라인을 만들 때 한 번만 들어간다 — 라인이 없는 파일에는 없다', async () => {
+  it('the line concept description (CD) is added only once, when the first line is created — files without lines have none', async () => {
     const id = await company('WaceFactory');
     expect(await lineConcepts(id)).toBe(0);
     await node(id, { name: 'LineA', group: true, line: true });
@@ -83,7 +83,7 @@ describe('라인 층', () => {
     expect(await lineConcepts(id)).toBe(1);
   });
 
-  it('라인은 맨 위에만 — 공정이나 라인 밑에 라인을 넣으면 거절한다', async () => {
+  it('lines only at the top — putting a line under a process or another line is rejected', async () => {
     const id = await company('WaceFactory');
     await node(id, { name: 'LineA', group: true, line: true });
     await node(id, { name: 'ProcA', group: true });
@@ -91,7 +91,7 @@ describe('라인 층', () => {
     expect((await node(id, { name: 'LineC', group: true, line: true, parentPath: ['ProcA'] })).status).toBe(400);
   });
 
-  it('라인 만들기를 되돌리면 라인과 용어가 함께 빠진다', async () => {
+  it('undoing line creation removes both the line and the concept description', async () => {
     const id = await company('WaceFactory');
     await node(id, { name: 'LineA', group: true, line: true });
     await h.call('POST', `/packages/${id}/undo`);

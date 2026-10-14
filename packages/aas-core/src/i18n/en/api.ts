@@ -1,10 +1,10 @@
-/** 영어 사전 — api. 열쇠 = 한국어 원문 그대로, 값 = 영어. 자리 표시({0} · <b>)는 원문과 똑같이 */
+/** English dictionary - api. Key = the Korean source text verbatim, value = English. Placeholders ({0}, <b>) must match the source exactly */
 export const EN_API: Record<string, string> = {
   '되돌릴 변경이 없습니다.': 'There is no change to undo.',
   '다시 할 변경이 없습니다.': 'There is no change to redo.',
   '경로가 없습니다: {0} {1}': 'No such route: {0} {1}',
 
-  // ── api.ts · auth.ts · security.ts · session.ts — 요청 처리 · 인증 ─────────
+  // ── api.ts · auth.ts · security.ts · session.ts — request handling · authentication ─────────
   '허용되지 않는 메서드입니다: {0}': 'Method not allowed: {0}',
   '패키지 {0}을(를) 찾을 수 없습니다.': 'Package {0} not found.',
   '데모 계정으로는 파일을 내려받을 수 없습니다. 「회원가입」으로 계정을 만들면 받을 수 있습니다.':
@@ -27,7 +27,7 @@ export const EN_API: Record<string, string> = {
     'Remove spaces at the start or end of the password — otherwise it will not match later.',
   'base64url이 아닙니다: {0}': 'base64url decoding failed: {0}',
 
-  // ── routes/auth.ts — 로그인 · 가입 · 계정 관리 ─────────────────────────────
+  // ── routes/auth.ts — login · sign-up · account management ─────────────────────────────
   '데모 계정은 바꾸거나 지울 수 없습니다 — 여럿이 함께 쓰는 계정입니다. 「회원가입」으로 자기 계정을 만드십시오.':
     'The demo account cannot be changed or deleted — it is shared by many people. Create your own account with "Sign up".',
   '로그인 이름과 비밀번호를 모두 주십시오.': 'Provide both a login name and a password.',
@@ -69,7 +69,7 @@ export const EN_API: Record<string, string> = {
   '지금 비밀번호가 맞지 않습니다.': 'The current password is not correct.',
   '관리자만 계정을 다룰 수 있습니다.': 'Only administrators can manage accounts.',
 
-  // ── multipart.ts · elements.ts — 본문 해석 · $value ────────────────────────
+  // ── multipart.ts · elements.ts — body parsing · $value ────────────────────────
   'multipart 경계(boundary)가 없습니다.': 'The multipart boundary is missing.',
   'multipart 본문에서 경계를 찾지 못했습니다.': 'No boundary was found in the multipart body.',
   '닫히지 않은 multipart 조각이 있습니다.': 'A multipart part is not closed.',
@@ -112,7 +112,7 @@ export const EN_API: Record<string, string> = {
   '썸네일이 없습니다.': 'There is no thumbnail.',
   '그 Submodel 참조가 없습니다.': 'There is no such Submodel reference.',
 
-  // ── routes/packages.ts — 패키지 · 구성 · 가져오기 · 수집 ────────────────────
+  // ── routes/packages.ts — packages · composition · import · collection ────────────────────
   '본문이 AASX 바이트가 아닙니다.': 'The body is not AASX bytes.',
   'multipart/form-data로 보내거나(규격), name 질의 인자를 함께 주십시오(확장).':
     'Send multipart/form-data (standard), or include the name query parameter (extension).',
@@ -161,21 +161,21 @@ export const EN_API: Record<string, string> = {
   'AAS의 idShort(장비명)가 있어야 AID id를 지을 수 있습니다.':
     'The AAS needs an idShort (equipment name) to generate the AID id.',
 
-  // ── routes/derivation.ts — 형식 파일 연결 ─────────────────────────────────
+  // ── routes/derivation.ts — type file linking ─────────────────────────────────
   '이 파일은 형식 파일과 연결되어 있지 않습니다.': 'This file is not linked to a type file.',
   '형식 파일이 보관함에 없습니다 — 다시 연결하십시오.': 'The type file is not in the store — link it again.',
   '자기 자신을 형식 파일로 연결할 수 없습니다.': 'A file cannot be linked to itself as its type file.',
   '형식 파일을 찾을 수 없습니다.': 'Type file not found.',
   '연결이 없습니다.': 'There is no link.',
 
-  // ── routes/registry.ts — 레지스트리 ───────────────────────────────────────
+  // ── routes/registry.ts — registry ───────────────────────────────────────
   'assetIds를 해석하지 못했습니다: {0}': 'Could not decode assetIds: {0}',
   'assetIds가 SpecificAssetId 모양이 아닙니다: {0}': 'assetIds is not shaped like a SpecificAssetId: {0}',
   '등록된 AAS가 없습니다: {0}': 'No registered AAS: {0}',
   '그 AAS에 매달린 서브모델이 아닙니다: {0}': 'That submodel is not attached to the AAS: {0}',
   '등록된 서브모델이 없습니다: {0}': 'No registered submodel: {0}',
 
-  // ── undo.ts — 되돌리기 목록에 남는 변경 설명(찍을 때의 언어로 남는다) ────────
+  // ── undo.ts — change descriptions kept in the undo list (stored in the language at capture time) ────────
   '자동 고치기': 'Auto-fix',
   '형식 변경 반영': 'Apply type file changes',
   '이력에서 되돌리기': 'Restore from history',
@@ -200,7 +200,7 @@ export const EN_API: Record<string, string> = {
   'AAS 고침': 'Edit AAS',
   '파일 다시 올림': 'Re-upload file',
 
-  // ── server.ts · pg.ts · demo.ts · retention.ts — 수집 · 기동 로그(AAS_LANG) ──
+  // ── server.ts · pg.ts · demo.ts · retention.ts — collection · startup logs (AAS_LANG) ──
   '정책 파일을 읽지 못했습니다: {0} — {1}': 'Could not read the policy file: {0} — {1}',
   '정책 파일: {0} — {1}': 'Policy file: {0} — {1}',
   '기본값과 같음': 'same as defaults',

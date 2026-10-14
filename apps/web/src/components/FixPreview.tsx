@@ -1,10 +1,10 @@
 /**
- * 자동 고치기 미리보기 — 무엇을 어떻게 고칠지 항목별 전/후를 보여 주고, 체크한 것만 반영한다.
+ * Auto-fix preview — shows before/after per item for what will be fixed and how, and applies only the checked ones.
  *
- * 🔴 전에는 버튼 한 번에 전부 고쳐졌다. "자체 제작 형식으로 바꿔 버리고 끝이냐"는 물음(사용자 2026-09-11)이
- *    나온 자리 — 무엇이 바뀌는지 보지 못한 채 반영됐기 때문이다. 서버가 저장 없이 계산한
- *    미리보기(`GET …/fix-preview`)를 그대로 표로 그리고, 고른 (규칙, 위치)만 `POST …/fix`로 보낸다.
- *    IRI를 옮기는 교정은 원본이 이관 대장에 남는다는 사실을 여기서 먼저 말한다.
+ * Important: it used to fix everything with a single click. This is where the question "so you just convert it to a home-made format and that's it?"
+ *    (user, 2026-09-11) came from — changes were applied without seeing what would change. The preview the server computes without saving
+ *    (`GET …/fix-preview`) is drawn as a table as-is, and only the chosen (rule, location) pairs are sent to `POST …/fix`.
+ *    For fixes that move IRIs, it says up front that the originals stay in the migration ledger.
  */
 import { useMemo, useState } from 'react';
 import type { FixReport } from '../api.js';
@@ -12,16 +12,16 @@ import { tr, fill } from '../i18n.js';
 import { T } from './T.js';
 
 /**
- * 자동 고치기 한 묶음 = 한 파일.
+ * One auto-fix group = one file.
  *
- * 공정(묶음)을 열면 이어 붙인 설비 파일마다 하나씩 생긴다. 고치기는 파일별로 나눠
- * **각자의 원본**에 쓴다 — 화면이 이어 붙였을 뿐 파일은 따로이기 때문이다.
+ * Opening a process (bundle) creates one per attached equipment file. Fixes are split by file and
+ * written to **each file's own original** — the screen only joins them; the files remain separate.
  */
 export interface FixPlan {
   packageId: string;
-  /** 사람에게 보여 줄 이름 — 지금 파일은 파일명, 연결 설비는 설비 이름 */
+  /** Name shown to people — file name for the current file, equipment name for linked equipment */
   name: string;
-  /** 지금 열려 있는 파일인가 */
+  /** Whether this is the currently open file */
   self: boolean;
   preview: FixReport;
 }
@@ -33,14 +33,14 @@ interface Props {
   onCancel: () => void;
 }
 
-/** 🔴 파일이 여럿이므로 열쇠에 packageId가 들어가야 한다 — 다른 파일의 같은 자리를 구분한다 */
+/** Important: there are several files, so the key must include packageId — to tell apart the same location in different files */
 const keyOf = (item: { packageId: string; ruleId: string; pointer: string }): string =>
   `${item.packageId}|${item.ruleId}|${item.pointer}`;
 
 /**
- * 전/후 값을 한 줄로 — 객체는 JSON. 긴 것은 title에 전부.
- * 🔴 비어 있으면 「—」가 아니라 뜻을 적는다: 전이 비면 「(없음)」, 후가 비면 「(지움)」.
- *    AASd-120(idShort 지우기)의 후 칸이 「—」라 "에프터 내용이 없다"로 읽혔다(사용자 2026-09-11)
+ * Before/after value on one line — objects as JSON. Long values go in full into title.
+ * Important: when empty, write the meaning rather than "—": empty before is "(없음)" (none), empty after is "(지움)" (removed).
+ *    The after cell for AASd-120 (clear idShort) showed "—" and was read as "there is no after content" (user, 2026-09-11)
  */
 function show(value: unknown, empty = '—'): string {
   if (value === undefined || value === null || value === '') return empty;
@@ -53,12 +53,12 @@ function show(value: unknown, empty = '—'): string {
   }
 }
 
-/** IRI를 옮기는 교정 — 원본이 대장에 남는 것들 */
+/** Fixes that move IRIs — the originals stay in the ledger */
 const RELOCATING = new Set(['KOSMO-SM-3', 'KOSMO-CD-2']);
 
 export function FixPreview({ plans, busy, onApply, onCancel }: Props): React.JSX.Element {
-  // 서버가 준 순서 그대로 — 린터가 위반을 먼저 내므로 위반이 위, 경고가 아래에 선다.
-  // 파일 순서는 지금 파일이 먼저, 그다음 연결 설비(App이 그 순서로 넘긴다)
+  // Keep the order the server gave — the linter emits violations first, so violations sit on top and warnings below.
+  // File order: the current file first, then linked equipment (App passes them in that order)
   const items = useMemo(
     () => plans.flatMap((plan) => plan.preview.applied.map((fix) => ({ ...fix, packageId: plan.packageId }))),
     [plans],
@@ -68,7 +68,7 @@ export function FixPreview({ plans, busy, onApply, onCancel }: Props): React.JSX
     [plans],
   );
   const rounds = useMemo(() => Math.max(...plans.map((p) => p.preview.rounds), 1), [plans]);
-  /** 파일이 둘 이상이면 파일 이름을 제목으로 보여 준다 — 하나뿐이면 군더더기다 */
+  /** With two or more files, show the file name as a heading — with only one it is clutter */
   const multi = plans.length > 1;
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set(items.map(keyOf)));
   const allOn = items.length > 0 && items.every((item) => picked.has(keyOf(item)));

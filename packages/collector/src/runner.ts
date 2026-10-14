@@ -1,12 +1,12 @@
 /**
- * 수집 주기 실행 — 기획서 M8.
+ * Periodic collection runner — spec M8.
  *
- * 현장에서 깨지는 방식이 정해져 있어서, 그 셋을 먼저 막고 시작한다.
- *  ① 장비 하나가 죽어도 나머지 수집은 계속돼야 한다 (인터페이스별 격리)
- *  ② 한 주기가 길어져도 다음 주기가 **겹쳐 돌면 안 된다** (중복 실행 방지)
- *  ③ 연결이 끊기면 다음 주기에 다시 붙는다 (실패한 연결은 버린다)
+ * Field failures follow known patterns, so we guard against these three up front.
+ *  ① If one device dies, collection from the rest must continue (per-interface isolation)
+ *  ② Even if one cycle runs long, the next cycle **must not overlap** it (no concurrent runs)
+ *  ③ If a connection drops, reconnect on the next cycle (failed connections are discarded)
  *
- * 시계와 타이머를 주입받는다 — 시험이 실제 시간을 기다리지 않게 하기 위해서다.
+ * The clock and timers are injected — so tests do not wait on real time.
  */
 import type { AidInterface } from './aid.js';
 import { collectOnce, type CollectReport } from './collect.js';
@@ -14,22 +14,22 @@ import type { ProtocolReader, SampleSink } from './types.js';
 
 export interface CycleReport {
   startedAt: string;
-  /** 이 주기에 쌓은 표본 수 */
+  /** Number of samples stored in this cycle */
   collected: number;
-  /** 인터페이스별 결과 */
+  /** Per-interface results */
   interfaces: {
     name: string;
     report?: CollectReport;
-    /** 접속 자체가 안 됐을 때 */
+    /** When the connection itself failed */
     error?: string;
   }[];
 }
 
 /**
- * 타이머 자리.
+ * Timer slot.
  *
- * `@types/node` 전역에 기대지 않는다 — 이 패키지는 순수 로직이라 어디서 돌든 같아야 하고,
- * 시험이 실제 시간을 기다리지 않으려면 어차피 주입할 수 있어야 한다(린터와 같은 원칙).
+ * Does not rely on `@types/node` globals — this package is pure logic and must behave the same wherever it runs,
+ * and for tests not to wait on real time it has to be injectable anyway (same principle as the linter).
  */
 export interface TimerHost {
   setTimeout(handler: () => void, ms: number): unknown;
@@ -41,14 +41,14 @@ const systemTimers = globalThis as unknown as TimerHost;
 export interface RunnerOptions {
   packageId: string;
   interfaces: readonly AidInterface[];
-  /** 인터페이스마다 어떻게 붙을지 — 프로토콜 어댑터를 여기서 만든다 */
+  /** How to connect per interface — protocol adapters are created here */
   openReader: (descriptor: AidInterface) => Promise<ProtocolReader>;
   sink: SampleSink;
-  /** 주기(ms) */
+  /** Interval (ms) */
   intervalMs: number;
   now?: () => string;
   onCycle?: (report: CycleReport) => void;
-  /** 시험에서 시간을 손에 쥐기 위해 갈아 끼운다 */
+  /** Swapped out in tests to take control of time */
   timers?: TimerHost;
 }
 
@@ -56,7 +56,7 @@ export class CollectionRunner {
   private timer: unknown;
   private running = false;
   private stopped = false;
-  /** 인터페이스 이름 → 살아 있는 연결 */
+  /** Interface name → live connection */
   private readonly readers = new Map<string, ProtocolReader>();
 
   private readonly timers: TimerHost;
@@ -65,7 +65,7 @@ export class CollectionRunner {
     this.timers = options.timers ?? systemTimers;
   }
 
-  /** 지금 한 주기를 돈다. 이미 돌고 있으면 겹쳐 돌지 않는다 */
+  /** Runs one cycle now. If one is already running, does not overlap it */
   async runOnce(): Promise<CycleReport> {
     const now = this.options.now ?? ((): string => new Date().toISOString());
     if (this.running) {
@@ -76,7 +76,7 @@ export class CollectionRunner {
     const cycle: CycleReport = { startedAt: now(), collected: 0, interfaces: [] };
     try {
       for (const descriptor of this.options.interfaces) {
-        // 인터페이스 하나의 실패가 다른 인터페이스를 막지 않는다
+        // A failure in one interface does not block the others
         try {
           const reader = await this.readerFor(descriptor);
           const report = await collectOnce(descriptor, reader, this.options.sink, {
@@ -86,7 +86,7 @@ export class CollectionRunner {
           cycle.collected += report.collected;
           cycle.interfaces.push({ name: descriptor.name, report });
         } catch (error) {
-          // 연결이 상했을 수 있으니 버린다 — 다음 주기에 새로 붙는다
+          // The connection may be broken, so discard it — reconnect fresh on the next cycle
           await this.dropReader(descriptor.name);
           cycle.interfaces.push({
             name: descriptor.name,
@@ -102,14 +102,14 @@ export class CollectionRunner {
     return cycle;
   }
 
-  /** 주기 실행을 시작한다. 첫 주기는 곧바로 돈다 */
+  /** Starts periodic execution. The first cycle runs immediately */
   start(): void {
     this.stopped = false;
     const tick = async (): Promise<void> => {
       if (this.stopped) return;
       await this.runOnce();
       if (this.stopped) return;
-      // 주기 간격은 **끝난 뒤부터** 센다. 수집이 오래 걸려도 큐가 쌓이지 않는다
+      // The interval is measured **from the end** of a cycle. Slow collection does not pile up a queue
       this.timer = this.timers.setTimeout(() => void tick(), this.options.intervalMs);
     };
     void tick();

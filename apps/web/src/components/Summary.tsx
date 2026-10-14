@@ -1,9 +1,9 @@
 /**
- * 파일 요약 — 요소를 고르기 전에 가운데 칸이 놀지 않게 한다.
+ * File summary — keeps the center pane from sitting idle before an element is selected.
  *
- * 파일을 열자마자 알아야 하는 것은 둘이다: **무엇이 들었나 · 통과인가.**
- * 화면으로 보고서야 이 자리가 통째로 비어 있다는 걸 알았다(2026-08-24).
- * 「다음 할 일」 목록은 2026-09-08에 뺐다 — 사용자: "당연한 거라 삭제해도 될 것 같아". 빈 서브모델 안내만 판정 줄에 남겼다.
+ * Right after opening a file you need to know two things: **what is in it · does it pass.**
+ * Only after seeing the screen did we notice this area was entirely empty (2026-08-24).
+ * The "next steps" list was removed on 2026-09-08 — user: "it's obvious, so it can be deleted". Only the empty-submodel notice stays in the verdict line.
  */
 import { countElements } from '../model.js';
 import { fill } from '../i18n.js';
@@ -14,18 +14,18 @@ import { T } from './T.js';
 interface Props {
   fileName: string;
   /**
-   * 묶음 파일의 구성 집계 — 있으면 원시 숫자(요소 n) 대신 이걸 보여 준다.
-   * 🔴 묶음에서 「요소 8」은 공정 마디·연결선(HasPart)·설정값까지 합친 수라
-   *    사람이 보는 구성(공정 2·설비 3)과 어긋난다(2026-08-26 사용자 제보).
+   * Composition totals for a bundle file — when present, shown instead of the raw number (n elements).
+   * Important: in a bundle, "8 elements" also counts process nodes, links (HasPart), and settings,
+   *    so it disagrees with the composition people see (2 processes · 3 equipment) (user report, 2026-08-26).
    */
   composition?: { lines?: number; groups: number; assets: number; units: number };
   /**
-   * 담긴 내용 합계 — ⚙로 이어진 설비 파일들까지 합친 서브모델·요소·CD 총량.
-   * 🔴 자체 파일의 원시 숫자를 다시 보여 주는 게 아니다(그건 혼란으로 판명 —
-   *    요소 8이 공정 마디·연결선 합계였다). 트리에 보이는 전체의 합이라야 의미가 있다.
+   * Content totals — submodels, elements, and CDs summed including equipment files linked with ⚙.
+   * Important: this is not re-showing the file's own raw numbers (that proved confusing —
+   *    "8 elements" was the sum of process nodes and links). It is only meaningful as the sum of everything visible in the tree.
    */
   totals?: { submodels: number; elements: number; concepts: number; unopened: number };
-  /** 대표 사진이 아직 임시 그림인가 — 「다음 할 일」이 없어진 뒤(2026-09-08) 쓰지 않는다. 호출부 호환용 */
+  /** Whether the representative photo is still a placeholder — unused since "next steps" was removed (2026-09-08). Kept for caller compatibility */
   thumbnailPlaceholder?: boolean;
   shells: readonly Shell[];
   submodels: readonly Submodel[];
@@ -33,21 +33,21 @@ interface Props {
   findings: readonly Finding[];
   requiredSubmodels?: readonly string[];
   /**
-   * 설비 한 대 파일인가, 공정·회사 파일인가 — 넣는 것이 다르다(사용자 2026-09-08):
-   * 설비 = 서브모델(내용) · 부품(구성) / 공정 = 설비(올려 둔 파일) · 층(공정·라인) · 서브모델(공정 자체의 내용)
+   * Single-equipment file vs. process/company file — they take different things (user, 2026-09-08):
+   * equipment = submodels (content) · parts (composition) / process = equipment (placed files) · levels (process, line) · submodels (the process's own content)
    */
   unit: 'equipment' | 'composite';
   onAddSubmodel: () => void;
   onAddAsset: () => void;
   onAddGroup: () => void;
-  /** 공정 파일이면 구성 패널이 여기(넣기 줄 바로 아래)에 온다 — 구성이 곧 공정의 정체다 */
+  /** For a process file the composition panel comes here (right below the add row) — the composition is what defines the process */
   children?: React.ReactNode;
-  /** IRI 이관 대장 건수 — 「자동 고치기」가 IDTA 공식 IRI를 자체 IRI로 옮긴 것. 0이면 안 그린다 */
+  /** Count of IRI migration ledger entries — what "auto fix" moved from official IDTA IRIs to our own IRIs. Not drawn when 0 */
   ledgerCount?: number;
   onRevertLedger?: () => void;
-  /** 형식 파일 카드(components/derivation) — 호기 파일이 형식의 변경을 받아 오는 자리. 판정 줄 바로 아래 */
+  /** Type-file card (components/derivation) — where an instance file pulls in changes from its type. Right below the verdict line */
   derivation?: React.ReactNode;
-  /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
+  /** Translator — falls back to the Korean as-is when missing from the dictionary (i18n.ts) */
   t: (text: string) => string;
 }
 
@@ -76,7 +76,7 @@ export function Summary({
   const fixableWarnings = warnings.filter((f) => f.fixable).length;
   const shell = shells[0];
   const present = new Set(submodels.map((s) => s.idShort));
-  // 🔴 새로 만든 뼈대는 서브모델이 전부 비어도 위반 0건이다(KOSMO는 형식만 본다) — 이름까지 집어서 알린다
+  // Important: a freshly created skeleton has 0 violations even if every submodel is empty (KOSMO checks form only) — so name them explicitly
   const emptyOnes = submodels.filter((sm) => countElements([sm]) === 0).map((sm) => sm.idShort ?? sm.id);
   const missing = (requiredSubmodels ?? []).filter((name) => !present.has(name));
 
@@ -84,7 +84,7 @@ export function Summary({
     <div className="summary">
       <h2>
         {fileName}
-        {/* 어느 도구로 쓰는 중인지 — 설비 한 대 편집인지 공장 구성인지 한눈에 */}
+        {/* Which tool you are working in — single-equipment editing or plant composition, at a glance */}
         <span
           className={`unit-badge ${unit}`}
           title={
@@ -98,7 +98,7 @@ export function Summary({
       </h2>
       <p className="sub">{shell?.idShort ?? t('장비 정보 없음')}</p>
 
-      {/* 🔴 넣을 수 있는 것을 종류별로 — 「＋ 넣기」 하나로는 무엇이 들어가는지 안 보였다(사용자 2026-09-08) */}
+      {/* Important: what can be added, by kind — a single "+ Add" did not show what goes in (user, 2026-09-08) */}
       <div className="add-row">
         <span className="dim">{t('이 파일에 넣기')}</span>
         {unit === 'equipment' ? (
@@ -208,7 +208,7 @@ export function Summary({
       </div>
       {derivation}
 
-      {/* 이관 대장 — "옮기고 끝"이 아니라는 것을 보이는 자리. 되돌리기는 규정 해석이 바뀌었을 때(사용자 2026-09-11) */}
+      {/* Migration ledger — the place that shows this is not "move and forget". Revert is for when the rule interpretation changes (user, 2026-09-11) */}
       {ledgerCount > 0 && (
         <p className="hint ledger">
           <T k={'IDTA 공식 IRI를 자체 IRI로 옮긴 것 <b>{0}건</b>이 <b>이관 대장</b>에 있습니다(KOSMO 우선 정책 — Validator가 공식 IRI를 거부하기 때문). 내려받는 .aasx 안에 함께 들어가고 검증 결과서에도 실립니다.'} v={[ledgerCount]} />

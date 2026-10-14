@@ -1,11 +1,11 @@
 /**
- * 작업 공간 분리 — 문 전체에서.
+ * Workspace isolation — across every entry point.
  *
- * 🔴 지키는 것: **같은 체험 계정으로 들어온 두 사람이 서로의 파일을 어떤 길로도 보지 못한다.**
+ * Important: what this guards: **two people who logged in with the same trial account cannot see each other's files by any path.**
  *
- *    주소에 packageId가 든 길만 보면 안 된다. 패키지를 **가로지르는** 길이 따로 있다 —
- *    계층에 다른 파일을 이어 붙일 때, 다른 파일에서 서브모델을 가져올 때, 번들이 공정에
- *    묶인 설비를 찾을 때, 레지스트리가 자산 ID로 찾을 때. 새는 것은 대개 그쪽이다.
+ *    Checking only paths with a packageId in the URL is not enough. There are separate paths that **cross** packages —
+ *    attaching another file to a hierarchy, importing a submodel from another file, a bundle finding the equipment
+ *    tied to a process, the registry looking up by asset ID. Leaks usually happen there.
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -31,7 +31,7 @@ type Api = (request: ApiRequest) => Promise<Reply>;
 const PASSWORD = '열자가넘는비밀번호입니다';
 const DEMO = { login: 'admin', password: '1234', displayName: '체험 계정', role: 'editor' as const, resetMinutes: 60 };
 
-/** 한 사람 — 쿠키(또는 API 키)를 들고 부른다 */
+/** One person — calls with a cookie (or API key) */
 function person(api: Api, credential: { cookie?: string; token?: string } = {}) {
   return async (method: string, rawPath: string, body?: unknown): Promise<Reply> => {
     const [path, queryText] = rawPath.split('?');
@@ -64,7 +64,7 @@ async function demoServer(): Promise<{ api: Api; store: InMemoryStore }> {
   return { api, store };
 }
 
-/** 체험 계정으로 들어온 방문자 한 명 — 부를 때마다 **새 로그인**이다 */
+/** One visitor logged in with the trial account — every call is a **new login** */
 async function visitor(api: Api) {
   const logged = await person(api)('POST', '/auth/login', { login: 'admin', password: '1234' });
   expect(logged.status).toBe(200);
@@ -80,8 +80,8 @@ const upload = async (call: ReturnType<typeof person>, name = GOLDEN): Promise<s
 const listed = async (call: ReturnType<typeof person>): Promise<string[]> =>
   ((await call('GET', '/packages')).body.result as { packageId: string }[]).map((item) => item.packageId);
 
-describe('🔴 같은 체험 계정의 두 방문자 — 서로의 파일을 못 본다', () => {
-  it('목록에 안 나온다', async () => {
+describe('Important: two visitors on the same trial account — cannot see each other\'s files', () => {
+  it('not shown in the list', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -91,7 +91,7 @@ describe('🔴 같은 체험 계정의 두 방문자 — 서로의 파일을 못
     expect(await listed(bob)).toEqual([]);
   });
 
-  it('주소를 알아도 열리지 않는다 — 읽기·검사·내려받기·고치기·지우기 전부 404', async () => {
+  it('knowing the URL does not open it — read · lint · download · edit · delete are all 404', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -107,11 +107,11 @@ describe('🔴 같은 체험 계정의 두 방문자 — 서로의 파일을 못
     expect((await bob('POST', `/packages/${id}/fix`)).status).toBe(404);
     expect((await bob('POST', `/packages/${id}/undo`)).status).toBe(404);
 
-    // 그리고 앨리스의 파일은 멀쩡하다
+    // And Alice's file is intact
     expect((await alice('GET', `/packages/${id}/lint`)).status).toBe(200);
   });
 
-  it('🔴 없는 파일과 **같은 답**이다 — 다르면 id를 찍어 보며 남의 파일을 셀 수 있다', async () => {
+  it('Important: **the same answer** as a nonexistent file — otherwise one could probe ids and count other people\'s files', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -124,11 +124,11 @@ describe('🔴 같은 체험 계정의 두 방문자 — 서로의 파일을 못
   });
 });
 
-describe('🔴 저장소 밖에 든 것 — 되돌리기 목록', () => {
+describe('Important: things held outside the store — the undo list', () => {
   /*
-   * 되돌리기 목록은 저장소가 아니라 **서버 메모리**에 패키지 id로 들어 있다. 저장소 겹을
-   * 거치지 않아, 처음에는 남의 목록을 읽을 수 있었고 되돌리기를 시도하면 그 사람의 목록이
-   * 지워졌다. 이 시험이 그 구멍을 찾았다.
+   * The undo list lives not in the store but in **server memory**, keyed by package id. Since it
+   * bypassed the store layer, at first one could read someone else's list, and attempting an undo wiped
+   * that person's list. This test found that hole.
    */
   async function aliceEdited(): Promise<{ alice: ReturnType<typeof person>; bob: ReturnType<typeof person>; id: string }> {
     const { api } = await demoServer();
@@ -145,23 +145,23 @@ describe('🔴 저장소 밖에 든 것 — 되돌리기 목록', () => {
     return { alice, bob, id };
   }
 
-  it('남의 되돌리기 목록을 읽지 못한다 — 무엇을 고쳤는지가 거기 적혀 있다', async () => {
+  it('cannot read another person\'s undo list — it records what they changed', async () => {
     const { bob, id } = await aliceEdited();
     expect((await bob('GET', `/packages/${id}/undo`)).status).toBe(404);
   });
 
-  it('🔴 남의 되돌리기를 시도해도 그 사람의 목록이 지워지지 않는다', async () => {
+  it('Important: attempting someone else\'s undo does not wipe that person\'s list', async () => {
     const { alice, bob, id } = await aliceEdited();
     expect((await bob('POST', `/packages/${id}/undo`)).status).toBe(404);
     expect((await bob('POST', `/packages/${id}/redo`)).status).toBe(404);
-    // 앨리스는 여전히 되돌릴 수 있다
+    // Alice can still undo
     expect((await alice('GET', `/packages/${id}/undo`)).body.undo).toHaveLength(1);
     expect((await alice('POST', `/packages/${id}/undo`)).status).toBe(200);
   });
 });
 
-describe('🔴 패키지를 가로지르는 길로도 새지 않는다', () => {
-  it('계층에 남의 파일을 이어 붙이지 못한다', async () => {
+describe('Important: no leaks through paths that cross packages either', () => {
+  it('cannot attach someone else\'s file to a hierarchy', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -172,7 +172,7 @@ describe('🔴 패키지를 가로지르는 길로도 새지 않는다', () => {
     expect(linked.status).toBe(404);
   });
 
-  it('남의 파일에서 서브모델을 가져오지 못한다', async () => {
+  it('cannot import a submodel from someone else\'s file', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -187,13 +187,13 @@ describe('🔴 패키지를 가로지르는 길로도 새지 않는다', () => {
     expect(taken.status).toBe(404);
   });
 
-  it('번들이 남의 설비 파일을 끌어오지 않는다 — 자산 ID가 같아도', async () => {
+  it('a bundle does not pull in someone else\'s equipment file — even with the same asset ID', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
-    await upload(alice); // 앨리스의 롤포밍기
+    await upload(alice); // Alice's roll forming machine
 
-    // 밥이 같은 자산을 가리키는 공정을 만든다(파일은 안 올리고 이름·자산 ID만)
+    // Bob creates a process pointing at the same asset (no file uploaded, just name and asset ID)
     const line = (await bob('POST', '/packages/new', { assetName: 'BobLine', unit: 'composite' })).body.packageId;
     const asset = String(golden.environment.assetAdministrationShells![0]!.assetInformation?.['globalAssetId' as never]);
     await bob('POST', `/packages/${line}/hierarchy/nodes`, { name: 'RollFormingMachine', globalAssetId: asset });
@@ -201,11 +201,11 @@ describe('🔴 패키지를 가로지르는 길로도 새지 않는다', () => {
     const view = await bob('GET', `/packages/${line}/bundle/linkage`);
     expect(view.status).toBe(200);
     const member = view.body.members.find((item: any) => item.name === 'RollFormingMachine');
-    // 🔴 앨리스의 파일이 붙으면 안 된다 — 밥에게는 「파일 없음」이어야 한다
+    // Important: Alice's file must not be attached — for Bob it must be "no file"
     expect(member.packageId).toBeUndefined();
   });
 
-  it('레지스트리·찾기에 남의 AAS가 나오지 않는다', async () => {
+  it('someone else\'s AAS does not appear in the registry or search', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -217,8 +217,8 @@ describe('🔴 패키지를 가로지르는 길로도 새지 않는다', () => {
     expect((await bob('GET', '/api/v3.0/lookup/shells')).body.result).toHaveLength(0);
   });
 
-  it('둘이 같은 파일을 올려도 서로 「충돌」로 보이지 않는다', async () => {
-    // 체험 서버에서는 모두가 같은 예제 파일을 올린다 — 같은 AAS id가 수십 개 생긴다
+  it('two people uploading the same file do not see each other as a "conflict"', async () => {
+    // On the trial server everyone uploads the same sample file — dozens of identical AAS ids appear
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -228,8 +228,8 @@ describe('🔴 패키지를 가로지르는 길로도 새지 않는다', () => {
   });
 });
 
-describe('가입한 사람 · 관리자 · 기계', () => {
-  it('가입한 사람은 자기 것만 본다 — 다시 로그인해도 그대로 있다', async () => {
+describe('registered users · admins · machines', () => {
+  it('registered users see only their own — still there after logging in again', async () => {
     const { api } = await demoServer();
     const joined = await person(api)('POST', '/auth/signup', { login: 'hong', password: PASSWORD });
     const hong = person(api, { cookie: cookieFrom(joined) });
@@ -239,12 +239,12 @@ describe('가입한 사람 · 관리자 · 기계', () => {
     await upload(stranger);
     expect(await listed(hong)).toEqual([mine]);
 
-    // 🔴 체험 계정과 다르다 — 계정이 열쇠라 로그인을 새로 해도 같은 칸이다
+    // Important: unlike the trial account — the account is the key, so a new login gets the same space
     const again = await person(api)('POST', '/auth/login', { login: 'hong', password: PASSWORD });
     expect(await listed(person(api, { cookie: cookieFrom(again) }))).toEqual([mine]);
   });
 
-  it('체험 계정은 로그인을 새로 하면 빈 칸에서 시작한다 — 로그인이 열쇠다', async () => {
+  it('the trial account starts in an empty space on each new login — the login is the key', async () => {
     const { api } = await demoServer();
     const first = await visitor(api);
     await upload(first);
@@ -252,7 +252,7 @@ describe('가입한 사람 · 관리자 · 기계', () => {
     expect(await listed(second)).toEqual([]);
   });
 
-  it('API 키는 전부 본다 — 기계 연동(레지스트리·수집)은 전체를 다룬다', async () => {
+  it('API keys see everything — machine integration (registry · collection) handles the whole set', async () => {
     const { api } = await demoServer();
     const alice = await visitor(api);
     const bob = await visitor(api);
@@ -262,7 +262,7 @@ describe('가입한 사람 · 관리자 · 기계', () => {
     expect((await listed(machine)).sort()).toEqual([a, b].sort());
   });
 
-  it('관리자는 전부 본다 — 운영하려면 봐야 한다', async () => {
+  it('admins see everything — operating the server requires it', async () => {
     const { api, store } = await demoServer();
     await store.createUser({ login: 'owner', displayName: '주인', role: 'admin', passwordHash: await hashPassword(PASSWORD) });
     const logged = await person(api)('POST', '/auth/login', { login: 'owner', password: PASSWORD });
@@ -274,15 +274,15 @@ describe('가입한 사람 · 관리자 · 기계', () => {
   });
 });
 
-describe('함께 쓰는 파일(주인 없음) — 템플릿', () => {
+describe('shared files (no owner) — templates', () => {
   async function withTemplate(): Promise<{ api: Api; template: string }> {
     const { api, store } = await demoServer();
-    // 서버가 기동 때 올린 것처럼 — 요청 밖이라 주인이 없다
+    // As if the server uploaded it at startup — outside a request, so there is no owner
     const template = (await store.importPackage({ name: '템플릿.aasx', package: readAasx(goldenBytes) })).id;
     return { api, template };
   }
 
-  it('모든 방문자에게 보이고, 가져오기의 출처가 된다', async () => {
+  it('visible to every visitor and usable as an import source', async () => {
     const { api, template } = await withTemplate();
     const bob = await visitor(api);
     expect(await listed(bob)).toContain(template);
@@ -296,7 +296,7 @@ describe('함께 쓰는 파일(주인 없음) — 템플릿', () => {
     expect(taken.status).toBeLessThan(300);
   });
 
-  it('🔴 방문자는 고치지도 지우지도 못한다 — 하나가 지우면 모두가 잃는다', async () => {
+  it('Important: visitors can neither edit nor delete it — if one deletes it, everyone loses it', async () => {
     const { api, template } = await withTemplate();
     const bob = await visitor(api);
     expect((await bob('DELETE', `/packages/${template}`)).status).toBe(403);
@@ -307,14 +307,14 @@ describe('함께 쓰는 파일(주인 없음) — 템플릿', () => {
       idShort: '망가뜨림',
     });
     expect(changed.status).toBe(403);
-    // 다른 방문자에게 여전히 그대로 보인다
+    // Still visible as is to other visitors
     const carol = await visitor(api);
     expect(await listed(carol)).toContain(template);
   });
 });
 
-describe('방문자 파일 정리', () => {
-  it('🔴 한동안 안 쓴 **방문자의** 파일만 지운다 — 가입한 사람·공용은 남긴다', async () => {
+describe('visitor file cleanup', () => {
+  it('Important: deletes only files of **visitors** unused for a while — registered users\' and shared files stay', async () => {
     const { api, store } = await demoServer();
     const template = (await store.importPackage({ name: '템플릿.aasx', package: readAasx(goldenBytes) })).id;
     const alice = await visitor(api);
@@ -322,7 +322,7 @@ describe('방문자 파일 정리', () => {
     const joined = await person(api)('POST', '/auth/signup', { login: 'hong', password: PASSWORD });
     const memberFile = await upload(person(api, { cookie: cookieFrom(joined) }));
 
-    // 두 시간 뒤라고 치고 돌린다
+    // Run as if two hours have passed
     const removed = await sweepVisitorFiles(store, 60, Date.now() + 2 * 60 * 60 * 1000);
     expect(removed).toBe(1);
     const left = (await store.listPackages()).items.map((item) => item.id);
@@ -331,7 +331,7 @@ describe('방문자 파일 정리', () => {
     expect(left).toContain(template);
   });
 
-  it('방금 쓴 것은 지우지 않는다 — 정각마다 지우면 방금 올린 사람이 잃는다', async () => {
+  it('does not delete recently used ones — deleting on the hour would make someone who just uploaded lose it', async () => {
     const { api, store } = await demoServer();
     const alice = await visitor(api);
     const id = await upload(alice);
@@ -339,15 +339,15 @@ describe('방문자 파일 정리', () => {
     expect((await store.listPackages()).items.map((item) => item.id)).toContain(id);
   });
 
-  it('0이면 지우지 않는다', async () => {
+  it('does not delete when 0', async () => {
     const { api, store } = await demoServer();
     await upload(await visitor(api));
     expect(await sweepVisitorFiles(store, 0, Date.now() + 10 * 24 * 60 * 60 * 1000)).toBe(0);
   });
 });
 
-describe('나누지 않는 서버(기본) — 예전과 똑같다', () => {
-  it('🔴 팀이 같은 파일을 같이 본다 — 이 기능이 생겼다고 사내 서버가 달라지면 안 된다', async () => {
+describe('non-isolating server (default) — exactly as before', () => {
+  it('Important: the team sees the same files together — this feature must not change in-house servers', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store) as Api;
@@ -360,11 +360,11 @@ describe('나누지 않는 서버(기본) — 예전과 똑같다', () => {
     const id = await upload(owner);
     expect(await listed(kim)).toEqual([id]);
     expect((await kim('GET', `/packages/${id}/lint`)).status).toBe(200);
-    // 주인도 적히지 않는다 — 나중에 나누기를 켜도 이 파일들은 공용으로 남는다
+    // No owner is recorded either — even if isolation is turned on later, these files remain shared
     expect((await store.getPackage(id))?.owner).toBeUndefined();
   });
 
-  it('켜면(AAS_WORKSPACE=private) 체험판이 아니어도 나뉜다', async () => {
+  it('when enabled (AAS_WORKSPACE=private) files are isolated even outside the trial edition', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store, { privateWorkspaces: true }) as Api;
@@ -377,6 +377,6 @@ describe('나누지 않는 서버(기본) — 예전과 똑같다', () => {
 
     const id = await upload(kim);
     expect(await listed(lee)).toEqual([]);
-    expect(await listed(owner)).toEqual([id]); // 관리자는 본다
+    expect(await listed(owner)).toEqual([id]); // admins can see it
   });
 });

@@ -1,10 +1,10 @@
 /**
- * MQTT 3.1.1 바이트 — 구독해서 받기에 필요한 패킷만(CONNECT · SUBSCRIBE · PUBACK · PINGREQ · DISCONNECT 를 만들고,
- * CONNACK · SUBACK · PUBLISH · PINGRESP 를 읽는다). 클라이언트와 시험 브로커가 함께 쓴다.
+ * MQTT 3.1.1 bytes — only the packets needed to subscribe and receive (builds CONNECT / SUBSCRIBE / PUBACK / PINGREQ / DISCONNECT,
+ * reads CONNACK / SUBACK / PUBLISH / PINGRESP). Shared by the client and the test broker.
  */
 import { tr } from '@aas/core';
 
-/** 남은 길이(가변 길이 정수) */
+/** Remaining length (variable-length integer) */
 export function encodeLength(length: number): Buffer {
   const bytes: number[] = [];
   let rest = length;
@@ -34,7 +34,7 @@ export interface Packet {
   body: Buffer;
 }
 
-/** 버퍼 앞에서 온전한 패킷을 떼어 낸다 — 덜 왔으면 undefined */
+/** Takes a complete packet off the front of the buffer — undefined if not fully received yet */
 export function takePacket(buffer: Buffer): { packet: Packet; rest: Buffer } | undefined {
   if (buffer.length < 2) return undefined;
   let length = 0;
@@ -56,7 +56,7 @@ export function takePacket(buffer: Buffer): { packet: Packet; rest: Buffer } | u
   };
 }
 
-/** PUBLISH 본문을 푼다 */
+/** Decodes a PUBLISH body */
 export function readPublish(packet: Packet): { topic: string; payload: Buffer; qos: number; packetId?: number; retain: boolean } {
   const topicLength = packet.body.readUInt16BE(0);
   const topic = packet.body.subarray(2, 2 + topicLength).toString('utf8');

@@ -1,18 +1,18 @@
 /**
- * 파일 복제 — 「호기별로 나누기」의 실체.
+ * File cloning - what "split by unit" actually does.
  *
- * 롤포밍기 ×2를 호기별로 나누면 사용자가 원하는 것은 **서브모델까지 그대로 든**
- * RollFormingMachine_1·_2 파일이다(실측 제보: "기존 장비파일에 작성되어 있는
- * 서브모델은 안딸려오네", 2026-08-27). 이름만 단 빈 마디로는 부족하다.
+ * When roll forming machine x2 is split by unit, what the user wants is RollFormingMachine_1 and _2 files
+ * **with the submodels carried over as-is** (field report: "the submodels written in the existing equipment file
+ * don't come along", 2026-08-27). Empty nodes with just a name are not enough.
  *
- * 복제는 겉보기 복사가 아니라 **개명**이다 — id를 그대로 두면 두 파일이 같은
- * id를 주장해 레지스트리·저장소에서 충돌한다. 바꾸는 것:
- *   - AAS idShort → 새 이름
- *   - AAS id · Asset 주소 · 서브모델 id → 옛 이름 자리를 새 이름으로
- *   - 위 id를 가리키는 모든 참조(Reference.keys[].value) → 새 id로
+ * Cloning is not a surface copy but a **rename** - if the id is kept, both files claim the same
+ * id and collide in the registry and repository. What changes:
+ *   - AAS idShort -> new name
+ *   - AAS id, Asset address, submodel id -> old name segment replaced with the new name
+ *   - every reference pointing to those ids (Reference.keys[].value) -> the new id
  *
- * ConceptDescription은 바꾸지 않는다 — 개념은 호기가 달라도 같은 개념이다
- * (cd id는 idShort 기반이라 장비명이 들어 있지 않다).
+ * ConceptDescriptions are not changed - a concept is the same concept across units
+ * (cd ids are idShort-based and do not contain the equipment name).
  */
 import { tr, type Environment } from '@aas/core';
 
@@ -22,7 +22,7 @@ interface Identifiable {
   assetInformation?: { globalAssetId?: string };
 }
 
-/** 옛 id 안의 장비명 조각을 새 이름으로 바꾼다. 규약 밖 id면 표준 꼴로 새로 짓는다 */
+/** Replace the equipment-name segment of the old id with the new name. Ids outside the convention are rebuilt in the standard form */
 function renameId(
   id: string,
   kind: 'aas' | 'sm' | 'asset',
@@ -36,7 +36,7 @@ function renameId(
   return `${iriBase}/${kind}/${newName}/${tail}`;
 }
 
-/** 환경 전체를 돌며 옛 id와 정확히 같은 문자열을 새 id로 바꾼다 (참조 포함) */
+/** Walk the whole environment and replace strings exactly equal to the old id with the new id (including references) */
 function replaceIds(value: unknown, map: Map<string, string>): unknown {
   if (typeof value === 'string') return map.get(value) ?? value;
   if (Array.isArray(value)) return value.map((item) => replaceIds(item, map));
@@ -79,9 +79,9 @@ export function renameEnvironment(
   const renamedShell = ((renamed['assetAdministrationShells'] ?? []) as Identifiable[])[0];
   if (renamedShell) {
     renamedShell.idShort = newName;
-    // 🔴 어디서 나왔는지 표준 필드로 남긴다(AAS 메타모델 derivedFrom — 파생된 AAS → 원본 AAS).
-    //    이것이 없으면 호기에서 모은 수집값을 원본(형식) 모델의 증빙으로 이을 길이 없다
-    //    (레퍼런스 번들 증빙, 2026-09-30). 원본이 이미 무엇에서 파생됐다면 그 끈은 원본 쪽 것이라 덮어쓴다
+    // Important: record the origin in a standard field (AAS metamodel derivedFrom - derived AAS -> original AAS).
+    //    Without it there is no way to link values collected from a unit back to the original (type) model as evidence
+    //    (reference bundle evidence, 2026-09-30). If the original itself was derived from something, that link is the original's, so overwrite it
     if (shell.id) {
       (renamedShell as Record<string, unknown>)['derivedFrom'] = {
         type: 'ModelReference',

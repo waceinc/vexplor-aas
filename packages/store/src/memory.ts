@@ -1,8 +1,8 @@
 /**
- * 인메모리 저장소 — 개발·테스트용.
+ * In-memory store — for development and testing.
  *
- * PostgresStore와 **같은 적합성 테스트**를 통과한다(test/conformance.ts).
- * 두 구현의 동작이 갈리는 순간 그 테스트가 깨지도록 해 뒀다.
+ * Passes **the same conformance tests** as PostgresStore (test/conformance.ts).
+ * Set up so that the tests break the moment the two implementations' behavior diverges.
  */
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
@@ -44,10 +44,10 @@ function clone<T>(value: T): T {
 
 interface PackageState {
   record: PackageRecord;
-  /** 수집값 — 모델과 같은 자리에 두지만 서로 참조하지 않는다(A안) */
+  /** Collected values — kept alongside the model but neither references the other (Option A) */
   values: CollectedValue[];
   files: PackageFileRecord[];
-  /** uid → 레코드 */
+  /** uid → record */
   identifiables: Map<string, IdentifiableRecord>;
   history: HistoryRecord[];
   nextUid: number;
@@ -57,14 +57,14 @@ interface PackageState {
 export class InMemoryStore implements AasStore {
   private readonly packages = new Map<string, PackageState>();
   private nextPackageId = 1;
-  /** 사용자 — id → 레코드. login은 소문자로 맞춰 찾는다 */
+  /** Users — id → record. login is lowercased for lookup */
   private readonly users = new Map<string, UserRecord>();
   private nextUserId = 1;
-  /** 시각 주입 — 테스트에서 결정론적으로 쓰기 위해 열어 둔다 */
+  /** Clock injection — left open so tests can run deterministically */
   constructor(private readonly now: () => string = () => new Date().toISOString()) {}
 
   async init(): Promise<void> {
-    // 인메모리는 준비할 것이 없다
+    // Nothing to prepare for the in-memory store
   }
 
   private state(packageId: string): PackageState {
@@ -83,7 +83,7 @@ export class InMemoryStore implements AasStore {
     modelType: IdentifiableModelType,
     id: string,
   ): IdentifiableRecord | undefined {
-    // id 중복은 실측 결함(KOSMO-CD-5)이라 실제로 들어온다. 먼저 나온 것을 대표로 본다
+    // Duplicate ids are a measured defect (KOSMO-CD-5), so they really do come in. The first one is treated as representative
     const matches = [...state.identifiables.values()]
       .filter((r) => r.modelType === modelType && r.id === id)
       .sort((a, b) => a.ordinal - b.ordinal);
@@ -109,7 +109,7 @@ export class InMemoryStore implements AasStore {
       revision: 1,
       createdAt: at,
       updatedAt: at,
-      // 🔴 없으면 키를 만들지 않는다 — 「공용」과 「주인이 빈 문자열」을 섞지 않는다
+      // Important: no key when absent — do not mix "shared" with "owner is an empty string"
       ...(input.owner ? { owner: input.owner } : {}),
     };
     const state: PackageState = {
@@ -159,7 +159,7 @@ export class InMemoryStore implements AasStore {
   async listPackages(page: PageQuery = {}, scope?: PackageScope): Promise<PageResult<PackageRecord>> {
     const all = [...this.packages.values()]
       .map((s) => s.record)
-      // 거른 **뒤에** 쪽을 나눈다 — 순서가 바뀌면 한 쪽이 덜 차고 다음 쪽 유무가 틀린다
+      // Paginate **after** filtering — in the other order a page comes up short and whether a next page exists is wrong
       .filter((r) => scope === undefined || r.owner === undefined || r.owner === scope.owner)
       .sort((a, b) => a.id.localeCompare(b.id));
     return paginate(all, page, (r) => r.id, clone);
@@ -177,7 +177,7 @@ export class InMemoryStore implements AasStore {
   async appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void> {
     const state = this.state(packageId);
     for (const value of values) state.values.push({ ...value });
-    // 수집은 모델을 바꾸지 않으므로 패키지 리비전을 올리지 않는다 — 편집이 아니다
+    // Collection does not change the model, so the package revision is not bumped — it is not an edit
   }
 
   async readValues(packageId: string, query: ValueQuery = {}): Promise<CollectedValue[]> {
@@ -196,7 +196,7 @@ export class InMemoryStore implements AasStore {
   async pruneValues(before: string): Promise<number> {
     let removed = 0;
     for (const state of this.packages.values()) {
-      // 수신 시각으로 본다 — 값이 일정한 태그는 장비 시각이 멈춰 있어, 장비 시각으로 지우면 방금 받은 값까지 지운다(2026-10-14)
+      // Judged by receive time — for constant-value tags the device time is frozen, so deleting by device time would also delete values just received (2026-10-14)
       const kept = state.values.filter((v) => (v.receivedAt ?? v.observedAt) >= before);
       removed += state.values.length - kept.length;
       state.values = kept;
@@ -260,7 +260,7 @@ export class InMemoryStore implements AasStore {
       throw new InvalidContentError(fill(tr('이미 있는 id입니다: {0}'), { 0: derived.id }));
     }
     const uid = String(state.nextUid++);
-    // 자리를 지정하면 그 자리에, 아니면 맨 뒤에. 지정한 자리가 끝보다 뒤면 다음 자리도 그 뒤로 민다
+    // At the given position if specified, otherwise at the end. If the given position is past the end, push the next position beyond it too
     const ordinal = options.ordinal ?? state.nextOrdinal++;
     state.nextOrdinal = Math.max(state.nextOrdinal, ordinal + 1);
     const record: IdentifiableRecord = {
@@ -360,9 +360,9 @@ export class InMemoryStore implements AasStore {
       .map((h) => clone(h));
   }
 
-  // ── 사용자 (2026-10-02) ───────────────────────────────────────────────────
-  // 🔴 login은 **소문자로 맞춰** 넣고 찾는다. 사람은 Kim과 kim을 같은 이름으로 여기는데
-  //    표의 UNIQUE는 다른 것으로 보아, 둘 다 만들어지면 누가 로그인되는지 알 수 없다.
+  // ── Users (2026-10-02) ────────────────────────────────────────────────────
+  // Important: login is stored and looked up **lowercased**. People treat Kim and kim as the same name,
+  //    but the table's UNIQUE sees them as different, so if both were created nobody could tell who gets logged in.
 
   async findUserByLogin(login: string): Promise<UserRecord | undefined> {
     const key = login.trim().toLowerCase();
@@ -391,7 +391,7 @@ export class InMemoryStore implements AasStore {
       passwordHash: user.passwordHash,
       disabled: false,
       createdAt: this.now(),
-      // 🔴 빈 문자열은 키를 만들지 않는다 — 「안 적었다」와 「빈 값을 적었다」를 섞지 않는다
+      // Important: empty strings do not create a key — do not mix "not entered" with "entered an empty value"
       ...(user.email?.trim() ? { email: user.email.trim() } : {}),
       ...(user.company?.trim() ? { company: user.company.trim() } : {}),
       ...(user.consentAt ? { consentAt: user.consentAt } : {}),
@@ -406,7 +406,7 @@ export class InMemoryStore implements AasStore {
   ): Promise<UserRecord | undefined> {
     const found = this.users.get(id);
     if (!found) return undefined;
-    // 🔴 준 것만 바꾼다 — undefined를 얹으면 멀쩡한 값이 지워진다
+    // Important: change only what is given — applying undefined would wipe out valid values
     if (patch.displayName !== undefined) found.displayName = patch.displayName;
     if (patch.role !== undefined) found.role = patch.role;
     if (patch.passwordHash !== undefined) found.passwordHash = patch.passwordHash;
@@ -415,7 +415,7 @@ export class InMemoryStore implements AasStore {
       if (patch.email.trim() === '') delete found.email;
       else found.email = patch.email.trim();
     }
-    // 회사명도 같다 — 빈 문자열은 「지우라」는 뜻(2026-10-08 내 계정 설정)
+    // Same for the company name — an empty string means "clear it" (2026-10-08, my account settings)
     if (patch.company !== undefined) {
       if (patch.company.trim() === '') delete found.company;
       else found.company = patch.company.trim();
@@ -436,31 +436,31 @@ export class InMemoryStore implements AasStore {
     return this.users.size;
   }
 
-  // ── 폴더 보관함이 쓰는 창구 ────────────────────────────────────────────────
-  // FolderStore(폴더에 파일로 남기는 보관함)가 이 상태를 그대로 저장·복원한다.
-  // 여기를 열어 두는 대신 FolderStore가 내부 자료구조를 다시 만들지 않아도 되고,
-  // 두 보관함의 동작이 갈릴 여지도 없다(같은 적합성 테스트를 돌린다).
+  // ── Access points used by the folder store ─────────────────────────────────
+  // FolderStore (the store that keeps files in a folder) saves and restores this state as-is.
+  // Exposing this means FolderStore does not have to rebuild the internal data structures,
+  // and there is no room for the two stores' behavior to diverge (they run the same conformance tests).
 
-  /** 계정 전부를 JSON으로 옮길 수 있는 형태로 꺼낸다 — 다음 번호까지 함께 */
+  /** Extracts all accounts in a JSON-transferable form — including the next id number */
   userSnapshot(): UserSnapshot {
     return { users: [...this.users.values()].map((user) => clone(user)), nextUserId: this.nextUserId };
   }
 
-  /** userSnapshot()이 꺼낸 것을 되돌린다 */
+  /** Restores what userSnapshot() extracted */
   restoreUsers(snapshot: UserSnapshot): void {
     this.users.clear();
     for (const user of snapshot.users) this.users.set(user.id, clone(user));
-    // 🔴 번호를 되돌리지 않으면 지운 계정의 id가 새 계정에 다시 붙는다 — 감사 기록의 「누가」가 섞인다
+    // Important: if the counter is not restored, a deleted account's id gets reattached to a new account — mixing up the audit log's "who"
     const highest = Math.max(0, ...snapshot.users.map((user) => Number(/^user_(d+)$/.exec(user.id)?.[1] ?? 0)));
     this.nextUserId = Math.max(snapshot.nextUserId, highest + 1);
   }
 
-  /** 저장된 패키지 id 전부 */
+  /** All stored package ids */
   packageIds(): string[] {
     return [...this.packages.keys()];
   }
 
-  /** 한 패키지의 상태를 JSON으로 옮길 수 있는 형태로 꺼낸다. 수집값은 뺀다(따로 쌓는다) */
+  /** Extracts one package's state in a JSON-transferable form. Collected values are excluded (stored separately) */
   snapshot(packageId: string): PackageSnapshot {
     const state = this.state(packageId);
     return {
@@ -469,7 +469,7 @@ export class InMemoryStore implements AasStore {
         part: f.part,
         role: f.role,
         contentType: f.contentType,
-        // 🔴 Uint8Array는 JSON에 그대로 담기지 않는다 — {"0":12,...}가 되어 되살릴 때 깨진다
+        // Important: Uint8Array does not survive JSON as-is — it becomes {"0":12,...} and breaks on restore
         dataBase64: Buffer.from(f.data).toString('base64'),
       })),
       identifiables: [...state.identifiables.values()].map((r) => clone(r)),
@@ -479,7 +479,7 @@ export class InMemoryStore implements AasStore {
     };
   }
 
-  /** snapshot()이 꺼낸 것을 되돌린다. 수집값은 따로 넣는다 */
+  /** Restores what snapshot() extracted. Collected values are added separately */
   restore(snapshot: PackageSnapshot, values: readonly CollectedValue[] = []): void {
     const identifiables = new Map<string, IdentifiableRecord>();
     for (const record of snapshot.identifiables) identifiables.set(record.uid, clone(record));
@@ -497,19 +497,19 @@ export class InMemoryStore implements AasStore {
       nextUid: snapshot.nextUid,
       nextOrdinal: snapshot.nextOrdinal,
     });
-    // 되돌린 뒤 새로 만드는 패키지가 기존 id와 부딪히지 않도록 번호를 밀어 둔다
+    // Advance the counter so packages created after restoring do not collide with existing ids
     const match = /^pkg_(\d+)$/.exec(snapshot.record.id);
     if (match) this.nextPackageId = Math.max(this.nextPackageId, Number(match[1]) + 1);
   }
 }
 
-/** 폴더에 남기는 계정 — 비밀번호는 scrypt 해시로만 있다 */
+/** Accounts kept in the folder — passwords exist only as scrypt hashes */
 export interface UserSnapshot {
   users: UserRecord[];
   nextUserId: number;
 }
 
-/** 폴더에 남기는 형태 — Uint8Array만 base64로 바꾼 것 외에는 내부 상태 그대로다 */
+/** The form kept in the folder — identical to internal state except that Uint8Array is converted to base64 */
 export interface PackageSnapshot {
   record: PackageRecord;
   files: { part: string; role: PackageFileRole; contentType: string; dataBase64: string }[];
@@ -525,7 +525,7 @@ function checkRevision(options: WriteOptions, actual: number): void {
   }
 }
 
-/** cursor는 정렬 키 그 자체다 — 그 뒤부터 limit개를 준다 */
+/** The cursor is the sort key itself — returns limit items after it */
 function paginate<T>(
   all: readonly T[],
   page: PageQuery,

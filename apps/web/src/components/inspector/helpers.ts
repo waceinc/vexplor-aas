@@ -1,6 +1,6 @@
 /**
- * 속성 편집 칸의 작은 도우미 — 이름을 바꿀 수 있는 자리인가 · 붙은 파일 이름 · valueType 설명.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화).
+ * Small helpers for the property editor — whether a spot can be renamed · attached file name · valueType description.
+ * Split out of components/Inspector.tsx (componentization, 2026-10-13).
  */
 import { tr } from '../../i18n.js';
 import type { TreeNode } from '../../model.js';
@@ -11,9 +11,9 @@ export interface LangText {
 }
 
 /**
- * 이름을 바꿀 수 있는 자리인가.
- * Submodel과 일반 요소는 되고, **리스트 자식은 안 된다**(순서로 가리키는 자리다).
- * AAS·AssetInformation·ConceptDescription은 이 화면의 편집 대상이 아니다.
+ * Whether this spot can be renamed.
+ * Submodels and ordinary elements can; **list children cannot** (they are addressed by position).
+ * AAS, AssetInformation, and ConceptDescription are not edit targets of this screen.
  */
 export function renameable(node: TreeNode): boolean {
   if (node.modelType === 'Submodel') return true;
@@ -22,7 +22,7 @@ export function renameable(node: TreeNode): boolean {
   return !last.endsWith(']');
 }
 
-/** File.value(`file:///aasx/suppl/매뉴얼.pdf`)에서 사람이 읽을 파일명만 꺼낸다 */
+/** Extract only the human-readable file name from File.value (`file:///aasx/suppl/manual.pdf`) */
 export function attachedName(raw: Record<string, unknown>): string | undefined {
   const value = typeof raw['value'] === 'string' ? (raw['value'] as string) : undefined;
   if (!value) return undefined;
@@ -31,7 +31,7 @@ export function attachedName(raw: Record<string, unknown>): string | undefined {
   return name || path;
 }
 
-/** 추가 폼과 같은 말 — 두 화면이 다른 설명을 하면 안 된다 */
+/** Same wording as the add form — the two screens must not describe it differently */
 export const VALUE_TYPE_HINTS: Record<string, string> = {
   'xs:string': tr('글자'),
   'xs:boolean': tr('참/거짓'),

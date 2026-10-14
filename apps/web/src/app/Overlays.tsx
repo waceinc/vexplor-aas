@@ -1,7 +1,7 @@
 /**
- * 떠 있는 것들 — 내주기 창 · 자동 고치기 미리보기 · 계정 · 설정 · 지적 목록 · 도움말 · 둘러보기 · 시작하기 목록.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업 · 클래스 이름 · 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름의 props 로 받는다.
+ * Overlays — serving dialog · auto-fix preview · account · settings · findings list · help · tour · getting-started checklist.
+ * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
+ * and the state and actions it uses arrive as props with the same names.
  */
 import { FindingsPanel } from '../components/FindingsPanel.js';
 import { FixPreview } from '../components/FixPreview.js';
@@ -23,8 +23,8 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
   return (
     <>
       {/*
-        내주기 팝업 — 이 주소가 **어떤 종류의 주소인지** 여기서 못박는다.
-        🔴 사고의 원인이 「주소가 두 개인데 둘 다 그냥 '주소'로 보인 것」이었다.
+        Serving popup — pins down here **what kind of address** this is.
+        Important: the incident was caused by "two addresses that both just looked like 'address'".
       */}
       {showOpcua && opcua?.running && (
         <OpcuaDialog
@@ -36,11 +36,11 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
       )}
 
       {/*
-        지적 목록 — 볼 때만 뜬다. 헤더의 「위반 N건」을 누르면 열린다.
-        🔴 지적을 누르면 그 요소로 가야 하므로 **닫고 나서** 이동한다 —
-           팝업이 덮고 있으면 어디로 갔는지 볼 수 없다.
+        Findings list — shown only on demand. Opens when the header's "N violations" is clicked.
+        Important: clicking a finding must take you to that element, so navigate **after closing** —
+           while the popup covers the screen you cannot see where you went.
       */}
-      {/* 자동 고치기 미리보기 — 파일별로 묶어 항목별 전/후, 체크한 것만 반영 */}
+      {/* Auto-fix preview — grouped by file with before/after per item; only checked items are applied */}
       {fixPlans && (
         <Dialog className="fix-modal" label={tr('자동 고치기 미리보기')} onClose={() => setFixPlans(undefined)}>
           <FixPreview
@@ -71,7 +71,7 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
         </Dialog>
       )}
 
-      {/* 설정 — 지금은 언어 하나. 고르면 바로 적용되고 이 브라우저에 남는다 */}
+      {/* Settings — currently just the language. Applied immediately on selection and remembered in this browser */}
       {showSettings && (
         <Dialog label={tr('설정')} onClose={() => setShowSettings(false)}>
             <Settings
@@ -80,8 +80,8 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
               onChange={(next) => {
                 if (next === lang) return;
                 writeLang(next);
-                // 🔴 새로 읽는다 — 파일 맨 위의 글자표는 처음 읽힌 언어로 굳어 있다(i18n.ts `current`).
-                //    상태만 바꿔 다시 그리면 반은 영어, 반은 한국어가 된다
+                // Important: reload — the string tables at the top of files are fixed to the language read first (i18n.ts `current`).
+                //    Changing only state and re-rendering would leave the UI half English, half Korean
                 window.location.reload();
               }}
               onClose={() => setShowSettings(false)}
@@ -90,7 +90,7 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
       )}
 
       {showFindings && (
-        // 속성 칸에도 「닫기 ✕」가 있다 — 무엇을 닫는지 읽어 주는 이름을 따로 준다
+        // The property pane also has a "Close ✕" — give this one a separate accessible name saying what it closes
         <Dialog
           label={tr('지적 목록')}
           onClose={() => setShowFindings(false)}
@@ -135,7 +135,7 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
         />
       )}
 
-      {/* 시작하기 목록 — 다 했거나 닫으면 사라진다. 「? 도움말」에서 다시 꺼낸다 */}
+      {/* Getting-started checklist — disappears once done or closed. Reopen it from "? Help" */}
       {inside && !start.hidden && !tour && start.done.length < START_STEPS.length && (
         <GettingStarted
           t={t}

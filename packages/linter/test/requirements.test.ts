@@ -1,5 +1,5 @@
 /**
- * 템플릿 요구 수준 — IDTA 템플릿의 개수 조건에서 「필수 · 선택」을 읽는다(src/requirements.ts).
+ * Template requirement levels — reads "required / optional" from IDTA template cardinality (src/requirements.ts).
  */
 import type { Environment } from '@aas/core';
 import { describe, expect, it } from 'vitest';
@@ -36,15 +36,15 @@ const NAMEPLATE = {
         { modelType: 'SubmodelElementCollection', ...q('OneToMany'), value: [{ modelType: 'Property', idShort: 'MarkingName', ...q('One') }] },
       ],
     },
-    // 옛 판 한정자 이름
+    // legacy qualifier name
     { modelType: 'Property', idShort: 'YearOfConstruction', ...q('One', 'Multiplicity') },
-    // 개수 조건이 없는 요소 — 모른다
+    // element without a cardinality — unknown
     { modelType: 'Property', idShort: 'Unknown' },
   ],
 };
 
-describe('템플릿 요구 수준', () => {
-  it('개수 조건을 읽는다 — SMT/Cardinality · 옛 판 Multiplicity, 없으면 모른다', () => {
+describe('Template requirement levels', () => {
+  it('reads cardinality — SMT/Cardinality or legacy Multiplicity; unknown if absent', () => {
     expect(cardinalityOf(q('One'))).toBe('One');
     expect(cardinalityOf(q('zerotomany'))).toBe('ZeroToMany');
     expect(cardinalityOf(q('One', 'Multiplicity'))).toBe('One');
@@ -52,7 +52,7 @@ describe('템플릿 요구 수준', () => {
     expect(cardinalityOf(q('Several'))).toBeUndefined();
   });
 
-  it('경로마다 필수·선택 — 🔴 선택 묶음 안의 One 은 필수가 아니다', () => {
+  it('required/optional per path — Important: One inside an optional collection is not required', () => {
     const r = templateRequirements(NAMEPLATE);
     expect(r['ManufacturerName']).toEqual({ cardinality: 'One', required: true });
     expect(r['SerialNumber']).toEqual({ cardinality: 'ZeroToOne', required: false });
@@ -60,17 +60,17 @@ describe('템플릿 요구 수준', () => {
     expect(r['AddressInformation.CityTown']).toEqual({ cardinality: 'One', required: true });
     expect(r['YearOfConstruction']!.required).toBe(true);
     expect(r['Unknown']).toBeUndefined();
-    // 리스트 자식은 자리 번호 없이 `[]`
+    // list children use `[]` without an index
     expect(r['Markings[]']).toEqual({ cardinality: 'OneToMany', required: false });
     expect(r['Markings[].MarkingName']!.required).toBe(false);
   });
 
-  it('인스턴스 경로의 자리 번호를 지워 템플릿과 맞춘다', () => {
+  it('strips indices from instance paths to match the template', () => {
     expect(normalizeElementPath('Markings[3].MarkingName')).toBe('Markings[].MarkingName');
     expect(normalizeElementPath('A.B')).toBe('A.B');
   });
 
-  it('카탈로그 — Template 서브모델만, semanticId 로 묶는다. 인스턴스(kind 없음)는 넣지 않는다', () => {
+  it('catalog — Template submodels only, grouped by semanticId; instances (no kind) are excluded', () => {
     const instance = { ...NAMEPLATE, kind: 'Instance', id: 'urn:inst' };
     const catalog = collectTemplateCatalog([
       { submodels: [instance] } as unknown as Environment,

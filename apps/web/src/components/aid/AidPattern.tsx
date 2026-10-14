@@ -1,12 +1,12 @@
 /**
- * 수집 연결 만들기 — 「패턴으로 여러 개」. 같은 꼴의 태그 수십 개를 손으로 적지 않게 한다(계산은 pattern.ts).
+ * Create collection connection — "Many by pattern". Saves typing dozens of same-shaped tags by hand (calculation in pattern.ts).
  */
 import { useState } from 'react';
 import { fill, tr } from '../../i18n.js';
 import { expandPattern, PATTERN_LIMIT } from './pattern.js';
 
 interface Props {
-  /** 주소 틀의 보기 — 프로토콜마다 다르다 */
+  /** Example of the address template — differs per protocol */
   hrefExample: string;
   onAdd: (rows: { name: string; href: string }[]) => void;
   onClose: () => void;

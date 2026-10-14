@@ -1,6 +1,6 @@
 /**
- * 레퍼런스 번들 — 한눈에 — 숫자 다섯(설비 · 사전 점검 · 공통 항목 · 확인할 점 · 실동작 증빙).
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — at a glance — five numbers (equipment · pre-check · common items · points to check · live-operation evidence).
+ * Split out of components/BundlePanel.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { fill, locale, tr } from '../../i18n.js';
 import { T } from '../T.js';

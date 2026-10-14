@@ -1,8 +1,8 @@
 /**
- * 아주 작은 경로 라우터.
+ * A very small path router.
  *
- * 프레임워크를 들이지 않은 이유는 Part 2의 경로가 단순하고(정적 세그먼트 + 식별자),
- * 의존성 하나가 늘 때마다 라이선스 검토가 따라붙기 때문이다(기획서 Ⅲ-2 라이선스 항목).
+ * Why no framework: Part 2 paths are simple (static segments + identifiers),
+ * and every added dependency brings a license review with it (plan Ⅲ-2 license item).
  */
 import type { ApiRequest, ApiResponse } from './http.js';
 
@@ -13,11 +13,11 @@ export interface RouteContext {
 
 export interface Route {
   method: string;
-  /** `/packages/:packageId/api/v3.0/submodels/:id` 형태. `:name`은 한 세그먼트를 잡는다 */
+  /** Of the form `/packages/:packageId/api/v3.0/submodels/:id`. `:name` captures one segment */
   pattern: string;
   /**
-   * 규격이 정한 성공 상태코드. 규격 대조(scripts/part2-coverage.mjs)가 이 값을 원문과 맞대어 본다.
-   * 규격 밖 확장 경로는 비워 둔다.
+   * Success status code defined by the spec. The spec check (scripts/part2-coverage.mjs) compares this value against the original text.
+   * Left empty for extension routes outside the spec.
    */
   success?: number[];
   handle: (ctx: RouteContext) => Promise<ApiResponse>;
@@ -25,7 +25,7 @@ export interface Route {
 
 interface Compiled extends Route {
   segments: string[];
-  /** 매개변수 개수. 적을수록(=고정 세그먼트가 많을수록) 더 구체적인 경로다 */
+  /** Number of parameters. Fewer (= more fixed segments) means a more specific route */
   params: number;
 }
 
@@ -46,12 +46,12 @@ export interface MatchResult {
 }
 
 /**
- * 경로를 찾는다.
+ * Find a route.
  *
- * 여러 개가 맞으면 **고정 세그먼트가 많은 쪽**이 이긴다.
- * `/submodels/$reference`(고정)와 `/submodels/{id}`(매개변수)는 둘 다 맞는데, 등록 순서에 맡기면
- * 수식자 경로가 식별자로 먹혀 base64url 해석에서 엉뚱하게 실패한다.
- * 경로만 맞고 메서드가 다른 경우는 405로 구분한다.
+ * When several match, the one with **more fixed segments** wins.
+ * `/submodels/$reference` (fixed) and `/submodels/{id}` (parameter) both match; leaving it to registration order would
+ * let the modifier path be swallowed as an identifier and fail oddly in base64url decoding.
+ * A path match with a different method is distinguished as 405.
  */
 export function match(
   routes: readonly Compiled[],

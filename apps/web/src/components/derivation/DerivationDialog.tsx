@@ -1,8 +1,8 @@
 /**
- * 형식 변경 확인 — 형식 파일에서 바뀐 곳을 줄마다 보여 주고, 고른 줄만 이 호기에 내려받는다.
+ * Type-change review — shows, row by row, what changed in the type file, and pulls only the picked rows down to this unit.
  *
- * 세 값을 나란히 둔다: 나눌 때의 형식 값(기준) · 지금 형식 값 · 이 호기의 지금 값.
- * 현장에서 고친 값은 덮지 않는다 — 「건너뜀」으로 보이고 고를 수 없다. 반영은 「되돌리기」로 되돌린다.
+ * Three values side by side: the type value at split time (baseline) · the current type value · this unit's current value.
+ * Values changed on site are not overwritten — they show as "Skipped" and cannot be picked. Applying is reverted with "Undo".
  */
 import { useState } from 'react';
 import type { DerivationChange } from '../../api.js';
@@ -29,7 +29,7 @@ function reasonLabel(reason: NonNullable<DerivationChange['reason']>): string {
   return tr('이 호기에서 고친 값 — 그대로 둡니다');
 }
 
-/** 표에 넣을 짧은 값 — 길면 줄이고, 없으면 대시 */
+/** Short value for the table — truncated when long, a dash when absent */
 function shown(value: string | undefined): string {
   if (value === undefined || value === '') return '—';
   return value.length > 60 ? `${value.slice(0, 57)}…` : value;

@@ -1,6 +1,6 @@
-/** 영어 사전 — packages. 열쇠 = 한국어 원문 그대로, 값 = 영어. 자리 표시({0} · <b>)는 원문과 똑같이 */
+/** English dictionary — packages. Key = the original Korean text verbatim, value = English. Placeholders ({0} · <b>) must match the original exactly */
 export const EN_PACKAGES: Record<string, string> = {
-  // ── aasx — AASX 읽기 · 상한 · XML ──
+  // ── aasx — AASX reading · limits · XML ──
   'AASX ZIP을 열 수 없습니다: {0}': 'Cannot open the AASX ZIP: {0}',
   '[Content_Types].xml이 없습니다.': '[Content_Types].xml is missing.',
   '_rels/.rels가 없거나 비어 있습니다.': '_rels/.rels is missing or empty.',
@@ -20,7 +20,7 @@ export const EN_PACKAGES: Record<string, string> = {
   '<environment> 요소가 없습니다.': 'The <environment> element is missing.',
   'ZIP을 열 수 없습니다: {0}': 'Cannot open the ZIP: {0}',
 
-  // ── store — 저장소 오류 ──
+  // ── store — store errors ──
   '{0}을(를) 찾을 수 없습니다.': '{0} not found.',
   '패키지 {0}': 'Package {0}',
   '파트 {0}': 'Part {0}',
@@ -41,7 +41,7 @@ export const EN_PACKAGES: Record<string, string> = {
   'Identifiable에는 id가 있어야 합니다.': 'An Identifiable must have an id.',
   '리비전이 어긋납니다: 기대 {0}, 현재 {1}. 다시 읽고 편집하십시오.': 'Revision mismatch: expected {0}, current {1}. Reload and edit again.',
 
-  // ── collector — 수집 연결(AID) 만들기 · 수집 ──
+  // ── collector — building collection connections (AID) · collection ──
   '접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// 중 하나로 시작해야 합니다: {0}':
     'The endpoint must start with opc.tcp:// · modbus+tcp:// · mqtt://: {0}',
   '태그가 하나도 없습니다.': 'There are no tags.',
@@ -64,7 +64,7 @@ export const EN_PACKAGES: Record<string, string> = {
   '(이름 없음)': '(no name)',
   '값 대기': 'Awaiting value',
 
-  // ── opcua — 훑기 · 읽기 · 내주기 ──
+  // ── opcua — browse · read · expose ──
   '[{0}개]': '[{0} items]',
   '(구조체)': '(structure)',
   '이 주소는 지금 이 저작도구가 값을 내주는 OPC UA 서버입니다. 여기서 보이는 것은 설비 태그가 아니라 열려 있는 AAS 파일의 내용입니다. 수집할 곳은 설비(PLC)의 주소여야 합니다.':

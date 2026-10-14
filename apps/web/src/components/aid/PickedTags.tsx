@@ -1,6 +1,6 @@
 /**
- * 수집 연결 만들기 — 담은 태그 — 한 줄에 이름 · 주소 · 타입. 모델에 없는 이름은 테두리로 짚는다.
- * components/AddAid.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Create collection connection — picked tags — name · address · type on one line. Names not in the model are flagged with a border.
+ * Split out of components/AddAid.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { fill, tr } from '../../i18n.js';
 import { aidTypeOf, fromModiconAddress, MODBUS_ENTITIES, MODBUS_TYPES, type AidProtocolChoice } from './protocol.js';
@@ -10,7 +10,7 @@ interface Props {
   rows: TagRow[];
   setRows: (rows: TagRow[]) => void;
   leafNames: readonly string[];
-  /** 접속 주소로 정한 프로토콜 — Modbus 면 종류 · 자료형을, MQTT 면 토픽을 받는다 */
+  /** Protocol set by the endpoint address — Modbus takes kind and data type, MQTT takes a topic */
   protocol?: AidProtocolChoice;
 }
 

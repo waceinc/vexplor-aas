@@ -1,7 +1,7 @@
 /**
- * 계정 — 계정 관리(관리자) — 사람들 표 · 역할 · 잠그기 · 비밀번호 초기화 · 삭제 · 사람 더하기.
- * components/Accounts.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
- * 성공·실패 알림은 Accounts 의 act 가 맡는다(서버가 준 문구 그대로).
+ * Accounts — account management (admin) — people table · roles · lock · password reset · delete · add person.
+ * Split out of components/Accounts.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
+ * Success/failure notices are handled by Accounts' act (using the server's message as-is).
  */
 import { useCallback, useEffect, useState } from 'react';
 import { api, type AuthState, type UserView } from '../../api.js';
@@ -20,9 +20,9 @@ interface Props {
 export function PeopleSection({ me, working, act: actOnce, onError, describeError, t }: Props): React.JSX.Element {
   const roleName = (role: Role): string => roleLabel(role, t);
   const [users, setUsers] = useState<UserView[]>([]);
-  /** 가입 때 회사명·이메일을 받은 사람이 있으면 그 칸을 보인다(없으면 칸 자체를 숨긴다) */
+  /** Show those columns if anyone gave a company name/email at sign-up (otherwise hide the columns entirely) */
   const hasProfile = users.some((user) => user.company !== undefined || user.email !== undefined);
-  // 사람 더하기
+  // Add person
   const [login, setLogin] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<Role>('editor');
@@ -40,7 +40,7 @@ export function PeopleSection({ me, working, act: actOnce, onError, describeErro
     void load();
   }, [load]);
 
-  /** 한 가지 일을 하고, 되면 알리고 목록을 다시 읽는다 */
+  /** Do one action; on success, notify and reload the list */
   const act: Act = async (work, done) => {
     const ok = await actOnce(work, done);
     if (ok) await load();
@@ -57,7 +57,7 @@ export function PeopleSection({ me, working, act: actOnce, onError, describeErro
     }
   };
 
-  /** 비밀번호를 새로 정해 줄 사람 — 표 아래에 칸이 열린다 */
+  /** The person whose password is being reset — a field opens below the table */
   const [resetFor, setResetFor] = useState<UserView>();
   const [resetValue, setResetValue] = useState('');
 
@@ -77,14 +77,14 @@ export function PeopleSection({ me, working, act: actOnce, onError, describeErro
   return (
     <section>
       <h3>{t('사람들')}</h3>
-      {/* 🔴 칸이 많아(회사명·이메일) 창보다 넓어진다 — 표만 옆으로 밀리게 하고 창은 화면 안에 둔다(2026-10-06) */}
+      {/* Important: many columns (company name, email) make it wider than the window — only the table scrolls sideways, the window stays on screen (2026-10-06) */}
       <div className="table-scroll">
       <table className="accounts-table">
         <thead>
           <tr>
             <th>{t('로그인 이름')}</th>
             <th>{t('표시 이름')}</th>
-            {/* 가입 때 받은 회사명 · 이메일 — 처리방침을 올린 서버에서만 값이 있다 */}
+            {/* Company name · email received at sign-up — only present on servers that published a privacy policy */}
             {hasProfile && <th>{t('회사명')}</th>}
             {hasProfile && <th>{t('이메일')}</th>}
             <th>{t('역할')}</th>
@@ -125,7 +125,7 @@ export function PeopleSection({ me, working, act: actOnce, onError, describeErro
               </td>
               <td className="dim">{user.lastLoginAt ? user.lastLoginAt.slice(0, 10) : '—'}</td>
               <td className="row-buttons">
-                {/* 데모 계정은 바꾸지 못한다 — 비밀번호가 화면에 공개된 공용 입구다(서버도 막는다) */}
+                {/* Demo accounts cannot be changed — it is a shared entry whose password is shown on screen (the server blocks it too) */}
                 {user.demo !== true && (
                 <button
                   className="link"
@@ -153,7 +153,7 @@ export function PeopleSection({ me, working, act: actOnce, onError, describeErro
                   {user.disabled ? t('잠금 풀기') : t('잠그기')}
                 </button>
                 )}
-                {/* 🔴 나 자신은 지우지 못한다(내 것은 「설정 → 탈퇴」). 서버도 막는다 */}
+                {/* Important: you cannot delete yourself (your own account is under "Settings → Leave"). The server blocks it too */}
                 {user.id !== me.id && user.demo !== true && (
                   <button
                     className="link danger"
@@ -179,7 +179,7 @@ export function PeopleSection({ me, working, act: actOnce, onError, describeErro
       </table>
       </div>
 
-      {/* 창(prompt)을 띄우지 않는다 — 비밀번호가 그대로 보이고, 잘못 눌러 닫기 쉽다 */}
+      {/* No prompt window — the password would be shown in plain text, and it is easy to close by mistake */}
       {resetFor && (
         <form className="login-form reset-form" onSubmit={(event) => void resetPassword(event)}>
           <label>

@@ -1,7 +1,7 @@
 /**
- * 로그인 화면(로그인 상태를 안 뒤에만 그린다 — auth 는 늘 있다) — 로그인 · 회원가입 · 첫 관리자 만들기. 계정이 없거나 스스로 「첫 관리자 만들기」를 열었을 때 이 화면만 그린다.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업 · 클래스 이름 · 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름의 props 로 받는다.
+ * Login screen (rendered only once the login state is known — auth is always present) — sign in · sign up · create the first admin. Rendered alone when there is no account or the user opened "Create first admin" themselves.
+ * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
+ * and the state and actions it uses arrive as props with the same names.
  */
 import { api, type AuthState } from '../api.js';
 import { Login } from '../components/Login.js';
@@ -14,7 +14,7 @@ export function LoginScreen(props: Omit<Pick<Screen, 'auth' | 'bootstrap' | 'bus
   return (
     <div className="app" data-scale="content">
       <main className="login-wrap">
-        {/* onCancel은 **스스로 들어온 사람에게만** 준다 — 갇힌 사람에게 「그만두기」는 뜻이 없다 */}
+        {/* onCancel is passed **only to users who came here on their own** — "Cancel" means nothing to someone who is stuck here */}
         <Login
           setupNeeded={auth.setupNeeded}
           setupCodeRequired={auth.setupCodeRequired === true}

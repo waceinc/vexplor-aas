@@ -1,11 +1,11 @@
 /**
- * AAS V3.0 (IEC 63278-1) 공통 타입.
+ * AAS V3.0 (IEC 63278-1) common types.
  *
- * 열거값은 스펙 원문 표기를 그대로 쓴다. JSON 직렬화 시 값이 곧 문자열이므로
- * TypeScript enum 대신 문자열 리터럴 유니온 + 런타임 배열 쌍으로 정의한다.
+ * Enumeration values use the spec's original notation verbatim. Since the value itself is the string in JSON serialization,
+ * they are defined as string literal unions + runtime arrays instead of TypeScript enums.
  */
 
-/** KeyTypes — Reference 키의 대상 종류 */
+/** KeyTypes — the kind of target of a Reference key */
 export const KEY_TYPES = [
   'AnnotatedRelationshipElement',
   'AssetAdministrationShell',
@@ -34,7 +34,7 @@ export const KEY_TYPES = [
 ] as const;
 export type KeyType = (typeof KEY_TYPES)[number];
 
-/** AASd-121 — Reference 첫 키로 허용되는 GloballyIdentifiable */
+/** AASd-121 — GloballyIdentifiables allowed as the first key of a Reference */
 export const GLOBALLY_IDENTIFIABLE: readonly KeyType[] = [
   'AssetAdministrationShell',
   'ConceptDescription',
@@ -46,7 +46,7 @@ export const GLOBALLY_IDENTIFIABLE: readonly KeyType[] = [
 export const REFERENCE_TYPES = ['ExternalReference', 'ModelReference'] as const;
 export type ReferenceType = (typeof REFERENCE_TYPES)[number];
 
-/** DataTypeDefXsd — Property.valueType 허용값 */
+/** DataTypeDefXsd — allowed values of Property.valueType */
 export const DATA_TYPE_DEF_XSD = [
   'xs:anyURI', 'xs:base64Binary', 'xs:boolean', 'xs:byte', 'xs:date', 'xs:dateTime',
   'xs:decimal', 'xs:double', 'xs:duration', 'xs:float', 'xs:gDay', 'xs:gMonth',
@@ -75,7 +75,7 @@ export type Direction = (typeof DIRECTIONS)[number];
 export const STATES_OF_EVENT = ['on', 'off'] as const;
 export type StateOfEvent = (typeof STATES_OF_EVENT)[number];
 
-/** AasSubmodelElements — SubmodelElementList.typeValueListElement 등에 쓰인다 */
+/** AasSubmodelElements — used by SubmodelElementList.typeValueListElement and others */
 export const AAS_SUBMODEL_ELEMENTS = [
   'AnnotatedRelationshipElement', 'BasicEventElement', 'Blob', 'Capability',
   'DataElement', 'Entity', 'EventElement', 'File', 'MultiLanguageProperty',
@@ -129,7 +129,7 @@ export interface Qualifier {
   valueId?: Reference;
 }
 
-/** 구체 내용은 concept.ts의 DataSpecificationIec61360 — 순환 참조를 피해 여기서는 느슨하게 둔다 */
+/** The concrete content is DataSpecificationIec61360 in concept.ts — kept loose here to avoid a circular reference */
 export interface EmbeddedDataSpecification {
   dataSpecification: Reference;
   dataSpecificationContent: DataSpecificationContent;
@@ -139,7 +139,7 @@ export interface DataSpecificationContent {
   modelType: string;
 }
 
-/** Referable — idShort를 갖는 모든 요소의 공통 상위 */
+/** Referable — common supertype of every element that has an idShort */
 export interface Referable {
   idShort?: string;
   category?: string;
@@ -148,7 +148,7 @@ export interface Referable {
   extensions?: Extension[];
 }
 
-/** Identifiable — 전역 id를 갖는 최상위 3종(AAS · Submodel · ConceptDescription) */
+/** Identifiable — the 3 top-level kinds with a global id (AAS · Submodel · ConceptDescription) */
 export interface Identifiable extends Referable {
   id: string;
   administration?: AdministrativeInformation;

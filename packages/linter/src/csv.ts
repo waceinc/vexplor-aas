@@ -1,10 +1,11 @@
 /**
- * CSV 한 칸 — 화면에서 내려받는 표(주소 목록 · 문서용 표 · 연계 정의 · 수집값)가 함께 쓴다.
+ * One CSV cell - shared by the tables downloaded from the UI (address list, documentation table, integration definitions,
+ * collected values).
  *
- * 🔴 **엑셀 수식 주입(CSV Injection)을 막는다**(2026-10-08 보안 점검). 남이 만든 AASX의 값이
- *    `=HYPERLINK(...)`·`+cmd|...`처럼 시작하면, 받은 표를 엑셀로 여는 사람의 PC에서 수식으로
- *    돌아간다. 그런 칸은 앞에 작은따옴표(')를 붙여 글자로 만든다(OWASP 권고).
- *    음수 같은 **숫자**(-12.5)는 그대로 둔다 — 값이 바뀌면 표를 쓰는 의미가 없다.
+ * Important: **guards against Excel formula injection (CSV Injection)** (security review 2026-10-08). If a value in someone
+ *    else's AASX starts like `=HYPERLINK(...)` or `+cmd|...`, it runs as a formula on the PC of whoever opens the downloaded
+ *    table in Excel. Such cells are prefixed with a single quote (') to make them text (OWASP recommendation).
+ *    **Numbers** such as negatives (-12.5) are left as-is - if the value changes, the table loses its purpose.
  */
 export function csvCell(value: string, quote: 'always' | 'needed' = 'needed'): string {
   let text = value;
@@ -13,11 +14,13 @@ export function csvCell(value: string, quote: 'always' | 'needed' = 'needed'): s
 }
 
 /**
- * CSV 읽기 — 설비 대장 같은 표를 받아 값을 채울 때 쓴다(RFC 4180: 큰따옴표 · 칸 안 줄바꿈 · "" 이스케이프).
+ * CSV parsing - used to fill values from a table such as an equipment register (RFC 4180: double quotes, line breaks inside
+ * cells, "" escapes).
  *
- * 엑셀이 붙이는 BOM 을 떼고, 구분자는 첫 줄에서 고른다 — 쉼표가 없고 탭이 있으면 탭(엑셀에서 복사해 붙여 넣은 경우).
- * csvCell 이 수식 주입을 막으려고 붙인 작은따옴표(')는 되읽을 때 뗀다 — 내려받은 표를 그대로 다시 올려도 값이 같다.
- * 빈 줄은 버린다.
+ * Strips the BOM that Excel adds, and picks the delimiter from the first line - tab if there is no comma but there is a tab
+ * (pasted after copying from Excel). The single quote (') that csvCell adds to block formula injection is stripped on
+ * read-back - re-uploading a downloaded table as-is yields the same values.
+ * Empty lines are discarded.
  */
 export function parseCsv(text: string): string[][] {
   const source = text.replace(/^﻿/, '');

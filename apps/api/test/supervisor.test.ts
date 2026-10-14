@@ -1,8 +1,8 @@
 /**
- * 수집 감독 — 서버가 사람 없이 주기적으로 수집한다.
+ * Collection supervisor — the server collects periodically without a person.
  *
- * 🔴 지키는 것 셋: ① AID 없는 파일은 건드리지 않는다 ② 파일 하나가 깨져도 나머지는 계속한다
- *    ③ 마지막 주기의 결과를 물어볼 수 있다("돌고는 있는 건가")
+ * Important: three things guarded: 1. files without an AID are left alone 2. if one file breaks the rest keep going
+ *    3. the result of the last cycle can be queried ("is it actually running?")
  */
 import { readAasx } from '@aas/aasx';
 import { CollectSupervisor } from '@aas/api';
@@ -16,9 +16,9 @@ const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-
 async function seeded() {
   const store = new InMemoryStore();
   await store.init();
-  // AID 없는 파일 하나
+  // One file without an AID
   await store.importPackage({ name: '민짜.aasx', package: readAasx(goldenBytes) });
-  // AID 있는 파일 하나
+  // One file with an AID
   const pkg = readAasx(goldenBytes);
   pkg.environment.submodels!.push(
     buildAidSubmodel({
@@ -32,8 +32,8 @@ async function seeded() {
   return { store, withAid: withAid.id };
 }
 
-describe('수집 감독', () => {
-  it('AID가 있는 파일만 수집하고, 결과를 들고 있는다', async () => {
+describe('collection supervisor', () => {
+  it('collects only files with an AID and keeps the result', async () => {
     const { store, withAid } = await seeded();
     const supervisor = new CollectSupervisor({
       store,
@@ -47,22 +47,22 @@ describe('수집 감독', () => {
     });
 
     const report = await supervisor.sweep();
-    expect(report!.packages).toBe(1); // AID 없는 파일은 세지 않는다
+    expect(report!.packages).toBe(1); // files without an AID are not counted
     expect(report!.collected).toBe(1);
     expect(report!.results[0]!.packageId).toBe(withAid);
 
-    // 시계열에 실제로 쌓였다
+    // Values actually accumulated in the time series
     const values = await store.readValues(withAid);
     expect(values).toHaveLength(1);
     expect(values[0]!.valueNumber).toBe(42);
 
-    // 상태를 물어볼 수 있다
+    // The status can be queried
     const status = supervisor.status();
     expect(status.lastSweep?.collected).toBe(1);
     await supervisor.stop();
   });
 
-  it('🔴 접속이 안 돼도 주기는 끝까지 돌고 사유를 남긴다', async () => {
+  it('Important: even when the connection fails, the cycle runs to the end and records the reason', async () => {
     const { store } = await seeded();
     const supervisor = new CollectSupervisor({
       store,
@@ -79,7 +79,7 @@ describe('수집 감독', () => {
     await supervisor.stop();
   });
 
-  it('🔴 앞 주기가 도는 중이면 겹쳐 돌지 않는다', async () => {
+  it('Important: does not overlap while the previous cycle is still running', async () => {
     const { store } = await seeded();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -88,7 +88,7 @@ describe('수집 감독', () => {
       openReader: async (descriptor) => ({
         base: descriptor.base ?? '',
         read: async (sources) => {
-          await gate; // 첫 주기를 붙잡아 둔다
+          await gate; // hold the first cycle
           return sources.map((source) => ({ source, value: 1 }));
         },
         close: async () => {},
@@ -97,7 +97,7 @@ describe('수집 감독', () => {
     });
 
     const first = supervisor.sweep();
-    const second = await supervisor.sweep(); // 겹침 — 건너뛰어야 한다
+    const second = await supervisor.sweep(); // overlap — must be skipped
     expect(second).toBeUndefined();
     release();
     expect((await first)!.collected).toBe(1);

@@ -1,19 +1,19 @@
 /**
- * 레퍼런스 번들 — 공정(묶음) 파일 하나를 **제출용 꾸러미 한 벌**로 내보내고 다시 연다.
+ * Reference bundle — exports one process (composite) file as **a single submission package** and reopens it.
  *
- * 근거: 레퍼런스번들_추진방안_정리_260930.md §2.1(폴더 구조) · §2.3(자체 검증 기준).
+ * Basis: 레퍼런스번들_추진방안_정리_260930.md (reference bundle plan summary) §2.1 (folder structure), §2.3 (self-validation criteria).
  *
- *   GET  /packages/{id}/bundle/linkage  공정에 묶인 설비들의 연계 항목 분석(화면용)
- *   GET  /packages/{id}/bundle          번들 ZIP — 공정 파일 + 설비 AASX + manifest + 폴더 골격
- *   POST /bundles                       번들 ZIP을 올려 공정·설비를 한 번에 연다(해시 대조)
+ *   GET  /packages/{id}/bundle/linkage  Linkage item analysis of the equipment tied to the process (for the UI)
+ *   GET  /packages/{id}/bundle          Bundle ZIP — process file + equipment AASX + manifest + folder skeleton
+ *   POST /bundles                       Upload a bundle ZIP to open the process and equipment at once (hash check)
  *
- * 🔴 번들은 **복사본이 아니라 지문이 붙은 사본**이다. 「모델은 v0.0.2로 바뀌었는데 번들에는
- *    v0.0.1이 남는」 사고를 막는 것이 manifest의 SHA256이다. writeAasx는 수정시각을 고정해
- *    같은 내용이면 같은 바이트를 내므로, 해시는 **내용이 같은가**를 그대로 말해 준다.
- * 🔴 이 도구의 검사 결과는 **사전 점검**이다. 번들에도 그렇게 적는다 — 공식 판정은
- *    KOSMO Validator 결과서다(CLAUDE.md 검증 도구 원칙). 🔴 Validator는 **장비별 AASX를 만들 때** 받는 검증이라
- *    번들에는 공식 검증기가 없다 — 번들이 Validator 판정을 받는 것처럼 쓰지 않는다(사용자 2026-09-30).
- * 🔴 문서(Use-Case·가이던스)는 쓰지 않는다. 폴더와 「채울 자리」만 만든다(문서용 자료와 같은 원칙).
+ * Important: a bundle is **not a plain copy but a fingerprinted copy**. The manifest's SHA256 prevents the incident of
+ *    "the model changed to v0.0.2 but the bundle still holds v0.0.1". writeAasx pins the modification time,
+ *    so identical content yields identical bytes, and the hash tells directly **whether the content is the same**.
+ * Important: this tool's check results are a **pre-check**. The bundle says so too — the official verdict is
+ *    the KOSMO Validator report (CLAUDE.md validation tool principle). Important: the Validator is a check performed **when producing per-equipment AASX**,
+ *    so there is no official validator for bundles — do not write as if the bundle receives a Validator verdict (user, 2026-09-30).
+ * Important: documents (Use-Case, guidance) are not written. Only folders and "slots to fill" are created (same principle as document materials).
  */
 import { createHash } from 'node:crypto';
 import {
@@ -69,39 +69,39 @@ import type { Route } from '../router.js';
 import { localTimestamp } from './packages.js';
 
 /**
- * 레퍼런스 번들 분류 7건 — 코드는 manifest와 파일명에 쓴다.
- * 🔴 이름은 사업이 정한 값이고 기본 제목 = 번들 폴더 이름이 된다 — 한국어 그대로 둔다.
- *    사람이 읽는 자리(README)에서만 `tr()`로 옮긴다(사전: en/bundle.ts)
+ * The 7 reference bundle categories — codes are used in the manifest and file names.
+ * Important: the names are values set by the program and the default title = the bundle folder name — keep them in Korean.
+ *    Translate with `tr()` only where people read them (README) (dictionary: en/bundle.ts)
  */
 export const BUNDLE_CATEGORIES: Record<string, string> = {
-  RB01: '생산최적화/품질관리', // i18n-ignore — 분류 이름(위 설명)
+  RB01: '생산최적화/품질관리', // i18n-ignore — category name (see above)
   RB02: '에너지효율/지속가능성',
-  RB03: '유연생산/자산관리', // i18n-ignore — 분류 이름(위 설명)
+  RB03: '유연생산/자산관리', // i18n-ignore — category name (see above)
   RB04: '데이터통합/보안',
-  RB05: '지능형 자율제조/AI 에이전트', // i18n-ignore — 분류 이름(위 설명)
+  RB05: '지능형 자율제조/AI 에이전트', // i18n-ignore — category name (see above)
   RB06: '설비 예지보전(PdM)',
-  RB07: '공급망 디지털 연결', // i18n-ignore — 분류 이름(위 설명)
+  RB07: '공급망 디지털 연결', // i18n-ignore — category name (see above)
 };
 
 export const BUNDLE_MANIFEST = 'bundle-manifest.json';
 export const BUNDLE_SCHEMA = 'wace-reference-bundle/1';
 
 const FOLDERS = {
-  process: '00_공정구성', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  process: '00_공정구성', // i18n-ignore — submission package folder/file name (spec structure)
   usecase: '01_UseCase문서',
-  models: '02_참조모델', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  models: '02_참조모델', // i18n-ignore — submission package folder/file name (spec structure)
   guidance: '03_가이던스',
-  linkage: '04_데이터연계정의', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  linkage: '04_데이터연계정의', // i18n-ignore — submission package folder/file name (spec structure)
   samples: '05_샘플데이터',
-  evidence: '06_검증결과', // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  evidence: '06_검증결과', // i18n-ignore — submission package folder/file name (spec structure)
 } as const;
 
-/** 번들 안 파일 경로 — README · manifest · 작성 안내가 같은 글자를 쓴다 */
-// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+/** File paths inside the bundle — README, manifest and writing guides use the same text */
+// i18n-ignore — submission package folder/file name (spec structure)
 const LINKAGE_CSV = `${FOLDERS.linkage}/연계항목_초안.csv`;
-// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+// i18n-ignore — submission package folder/file name (spec structure)
 const EVIDENCE_HTML = `${FOLDERS.evidence}/수집기록.html`;
-// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+// i18n-ignore — submission package folder/file name (spec structure)
 const SAMPLES_CSV = `${FOLDERS.samples}/수집값_*.csv`;
 
 const sha256 = (data: Uint8Array): string => createHash('sha256').update(data).digest('hex');
@@ -133,12 +133,12 @@ async function shellInfo(store: AasStore, packageId: string): Promise<ShellInfo>
   };
 }
 
-/** 묶음(공정·회사) 파일인가 — 화면(App.tsx fileUnit)과 같은 기준: assetType에 `/type/` */
+/** Whether this is a composite (process/company) file — same criterion as the UI (App.tsx fileUnit): `/type/` in assetType */
 const isComposite = (info: ShellInfo): boolean => (info.assetType ?? '').includes('/type/');
 
 /**
- * Asset 주소 → 열린 파일. 같은 주소가 여럿이면 **가장 최근에 고친 것**을 고른다 —
- * 사람이 방금 고친 파일이 번들에 들어가야 한다.
+ * Asset address -> open file. If several share the same address, pick **the most recently modified** —
+ * the file a person just edited must go into the bundle.
  */
 async function assetIndex(store: AasStore): Promise<Map<string, PackageRecord>> {
   const index = new Map<string, PackageRecord>();
@@ -153,8 +153,8 @@ async function assetIndex(store: AasStore): Promise<Map<string, PackageRecord>> 
 }
 
 /**
- * 수집 연결(AID)이 붙은 파일인가. 🔴 AID를 붙인 파일은 **시연본**이다 — 접속 주소가 들어 있어
- * 제출 참조모델과 다른 파일이 된다. 번들 화면·manifest·README에 드러내 섞이지 않게 한다(2026-09-30)
+ * Whether the file has a collection connection (AID). Important: files with AID attached are **demo copies** — they contain connection addresses,
+ * making them different from the submitted reference model. Surface this in the bundle UI, manifest and README so they don't get mixed in (2026-09-30)
  */
 export const AID_SUBMODEL_ID_SHORT = 'AssetInterfacesDescription';
 
@@ -167,20 +167,20 @@ export interface BundleMember {
   name: string;
   globalAssetId: string;
   bulkCount: number;
-  /** 공정 파일 안에서 이 설비가 매달린 그룹 경로 — ["WeldingProcess"] */
+  /** Group path in the process file where this equipment hangs — ["WeldingProcess"] */
   groupPath: string[];
   record?: PackageRecord;
   info?: ShellInfo;
-  /** 수집 연결(AID)이 붙은 시연본인가 */
+  /** Whether this is a demo copy with a collection connection (AID) attached */
   demo?: boolean;
 }
 
 interface ResolvedBundle {
   process: PackageRecord;
   processInfo: ShellInfo;
-  /** 파일(설비·하위 묶음)을 가리키는 마디 전부. 같은 설비가 두 번 나와도 둘 다 */
+  /** All nodes pointing at files (equipment, sub-composites). If the same equipment appears twice, both */
   members: BundleMember[];
-  /** 번들에 넣을 하위 묶음 파일(회사 > 공정처럼 겹친 경우) */
+  /** Sub-composite files to include in the bundle (nested cases like company > process) */
   nested: PackageRecord[];
 }
 
@@ -213,21 +213,21 @@ export async function resolveBundle(store: AasStore, packageId: string): Promise
   const walk = async (nodes: HierarchyTreeNode[], groupPath: string[]): Promise<void> => {
     for (const node of nodes) {
       if (!node.globalAssetId) {
-        // 그룹(중간 마디) — 파일이 없다. 경로에만 들어간다
+        // Group (intermediate node) — has no file. Only contributes to the path
         await walk(node.children, [...groupPath, node.name]);
         continue;
       }
       const record = index.get(node.globalAssetId);
       const info = record ? await shellInfo(store, record.id) : undefined;
       if (record && info && isComposite(info)) {
-        // 🔴 하위 묶음은 펼친다. 순환은 계층 편집 때 막히지만 여기서도 한 번 더 막는다
+        // Important: sub-composites are expanded. Cycles are blocked during hierarchy editing, but blocked once more here
         if (visited.has(record.id)) continue;
         visited.add(record.id);
         nested.push(record);
         await walk((await hierarchyOf(store, record.id)) ?? [], [...groupPath, node.name]);
         continue;
       }
-      // 설비. 설비 파일 안의 계층은 부품(BoM)이라 펼치지 않는다
+      // Equipment. The hierarchy inside an equipment file is parts (BoM), so it is not expanded
       members.push({
         name: node.name,
         globalAssetId: node.globalAssetId,
@@ -244,8 +244,8 @@ export async function resolveBundle(store: AasStore, packageId: string): Promise
 }
 
 /**
- * 번들에 넣을 바이트 — 올린 원본이 있고 **모델이 그대로면 원본**, 아니면 다시 포장한 것.
- * 같은지는 둘 다 같은 방식(writeAasx)으로 정규화해 비교한다 — 리비전 번호가 아니라 내용으로 판단한다
+ * Bytes to put in the bundle — the **original if one was uploaded and the model is unchanged**, otherwise a repackaged one.
+ * Sameness is compared by normalizing both the same way (writeAasx) — judged by content, not revision number
  */
 async function modelBytes(store: AasStore, packageId: string): Promise<{ data: Uint8Array; original: boolean }> {
   const current = await exportBytes(store, packageId);
@@ -255,7 +255,7 @@ async function modelBytes(store: AasStore, packageId: string): Promise<{ data: U
       const normalized = writeAasx(readAasx(kept.data));
       if (sha256(normalized) === sha256(current)) return { data: kept.data, original: true };
     } catch {
-      // 원본을 못 읽으면 다시 포장한 것을 쓴다
+      // If the original can't be read, use the repackaged one
     }
   }
   return { data: current, original: false };
@@ -276,7 +276,7 @@ function lintBytes(data: Uint8Array, policy: Partial<LinterPolicy>) {
   };
 }
 
-/** 번들에 넣을 파일명 — 원래 이름을 지키되 경로 문자는 뺀다 */
+/** File name to put in the bundle — keeps the original name but strips path characters */
 const safeName = (name: string): string => name.replace(/[\\/:*?"<>|]/g, '_');
 
 async function linkageFor(store: AasStore, resolved: ResolvedBundle): Promise<BundleLinkage> {
@@ -293,13 +293,13 @@ export interface BundleOptions {
   code: string;
   title: string;
   version: string;
-  /** 증빙 수준. 'auto'면 인터페이스 이름으로 제안(시뮬레이션뿐이면 C), 아니면 비워 둔다 */
+  /** Evidence level. 'auto' suggests from interface names (C if simulation only), otherwise left blank */
   evidence?: EvidenceLevel | 'auto' | 'none';
-  /** 최근 N분 수집값만 싣는다. 비우면 전부 */
+  /** Include only collected values from the last N minutes. Empty means all */
   evidenceMinutes?: number;
 }
 
-/** `evidenceMinutes` 질의 → 시작 시각(ISO) */
+/** `evidenceMinutes` query -> start time (ISO) */
 function evidenceWindow(request: ApiRequest, now: Date): { from?: string } {
   const raw = request.query['evidenceMinutes'];
   if (raw === undefined || raw === '' || raw === 'all') return {};
@@ -330,7 +330,7 @@ function bundleOptions(request: ApiRequest, fallbackTitle: string): BundleOption
   };
 }
 
-/** 트리를 글자로 — README와 화면이 같은 모양을 쓴다 */
+/** Tree as text — README and the UI use the same shape */
 function treeText(rootName: string, members: BundleMember[]): string {
   const lines = [rootName];
   let lastGroup = '';
@@ -349,7 +349,7 @@ function treeText(rootName: string, members: BundleMember[]): string {
 const pendingNote = (title: string, lines: string[]): string =>
   [`# ${title}`, '', tr('> 이 파일은 **채울 자리 안내**입니다. 도구가 문서를 대신 쓰지 않습니다.'), '', ...lines, ''].join('\n');
 
-/** manifest·README·화면이 함께 쓰는 증빙 요약 — 값 자체는 빼고 */
+/** Evidence summary shared by manifest, README and UI — excluding the values themselves */
 function evidenceEntry(source: EvidenceSource, file?: string) {
   return {
     model: source.model,
@@ -365,7 +365,7 @@ function evidenceEntry(source: EvidenceSource, file?: string) {
   };
 }
 
-/** 번들 ZIP과 manifest를 만든다 */
+/** Build the bundle ZIP and manifest */
 export async function buildBundle(
   store: AasStore,
   packageId: string,
@@ -381,12 +381,12 @@ export async function buildBundle(
     files[`${root}/${path}`] = typeof data === 'string' ? encode(data) : data;
   };
   const stamp = now.toISOString();
-  // 「누가 내보냈나」 — 요청 문맥에서 집어 온다(actor.ts). 로그인을 안 쓰는 서버면 undefined
+  // "Who exported it" — picked from the request context (actor.ts). undefined on servers that don't use login
   const exporter = currentActor();
-  // 사람이 읽는 문서(결과서·기록서)는 서버 지역 시각 — /report와 같은 규칙. manifest는 ISO 그대로
+  // Human-readable documents (reports, records) use server local time — same rule as /report. The manifest stays ISO
   const printed = localTimestamp(now);
 
-  // ① 공정 구성 — 공정 파일(과 하위 묶음). 🔴 참조모델로 제출하지 않는다(필수 서브모델 4종 없음)
+  // 1. Process composition — the process file (and sub-composites). Important: not submitted as a reference model (lacks the 4 mandatory submodels)
   const processFiles = [];
   for (const record of [resolved.process, ...resolved.nested]) {
     const data = await exportBytes(store, record.id);
@@ -395,7 +395,7 @@ export async function buildBundle(
     const path = `${FOLDERS.process}/${safeName(record.name)}`;
     put(path, data);
     put(
-      // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+      // i18n-ignore — submission package folder/file name (spec structure)
       `${FOLDERS.evidence}/사전점검_${safeName(record.name.replace(/\.aasx$/i, ''))}.html`,
       formatHtmlReport(result, { title: fill(tr('{0} (공정 구성 — 사전 점검)'), { 0: record.name }), generatedAt: printed, policy: effectivePolicy }),
     );
@@ -411,7 +411,7 @@ export async function buildBundle(
     });
   }
 
-  // ② 참조모델 — 설비 AASX. 같은 설비가 두 공정에 있어도 파일은 한 번만 넣는다
+  // 2. Reference models — equipment AASX. Even if the same equipment is in two processes, the file is included only once
   interface ModelEntry {
     assetName: string;
     globalAssetId: string;
@@ -421,9 +421,9 @@ export async function buildBundle(
     version?: string;
     revision?: string;
     file: string;
-    /** 같은 파일이 이미 번들에 있으면 첫 자리를 가리킨다 */
+    /** If the same file is already in the bundle, points to its first position */
     duplicateOf?: string;
-    /** 수집 연결(AID)이 붙은 시연본 — 제출 참조모델로 쓰면 안 된다 */
+    /** Demo copy with a collection connection (AID) attached — must not be used as a submitted reference model */
     demo?: boolean;
     sha256?: string;
     original?: boolean;
@@ -446,14 +446,14 @@ export async function buildBundle(
       packed.set(member.record.id, path);
       put(path, data);
       put(
-        // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+        // i18n-ignore — submission package folder/file name (spec structure)
         `${FOLDERS.evidence}/사전점검_${safeName(member.record.name.replace(/\.aasx$/i, ''))}.html`,
         formatHtmlReport(result, { title: fill(tr('{0} (사전 점검)'), { 0: member.record.name }), generatedAt: printed, policy: effectivePolicy }),
       );
       entry = {
         file: path,
         sha256: sha256(data),
-        // true — 올린 원본 그대로(운영기관 제출본과 해시가 같다). false — 도구에서 고쳐 다시 포장했다
+        // true — the uploaded original as-is (same hash as the copy submitted to the operating agency). false — edited in the tool and repackaged
         original,
         lint: { passed: result.passed, ...result.countBySeverity },
       };
@@ -471,13 +471,13 @@ export async function buildBundle(
     });
   }
 
-  // ②-1 실동작 증빙 — 설비 자신과 거기서 파생된 호기(derivedFrom)의 수집값. 시연을 대신하는 기록
+  // 2-1. Live operation evidence — collected values of the equipment itself and units derived from it (derivedFrom). A record that substitutes for a demo
   const evidenceSources = await gatherEvidence(
     store,
     resolved.members.filter((m) => m.record).map((m) => ({ name: m.name, record: m.record! })),
     options.evidenceMinutes ? { from: new Date(now.getTime() - options.evidenceMinutes * 60_000).toISOString() } : {},
   );
-  // 새 수집이 없으면 이전 번들의 증빙을 이어받는다 — 번들을 다시 열어 모델만 고친 경우다
+  // If there is no new collection, carry over the previous bundle's evidence — the case where the bundle was reopened and only the model was edited
   const carried = evidenceSources.length === 0 ? await readCarried(store, resolved.process.id) : undefined;
   const carriedLevel = carried?.level === 'A' || carried?.level === 'B' || carried?.level === 'C' ? carried.level : null;
   const level: EvidenceLevel | null =
@@ -495,16 +495,16 @@ export async function buildBundle(
   const evidenceEntries: Record<string, unknown>[] = [...(carried?.entries ?? []).map((e) => ({ ...e, carried: true }))];
   if (evidenceSources.length > 0) {
     for (const source of evidenceSources) {
-      // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+      // i18n-ignore — submission package folder/file name (spec structure)
       const csvPath = `${FOLDERS.samples}/수집값_${safeName(source.instance)}.csv`;
       put(csvPath, evidenceCsv(source));
       evidenceEntries.push(evidenceEntry(source, csvPath));
     }
     put(
-      // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+      // i18n-ignore — submission package folder/file name (spec structure)
       `${FOLDERS.evidence}/수집기록.html`,
       evidenceHtml({
-        // 제목이 분류 이름 그대로면(기본값) 그 이름도 옮긴다(README와 같은 규칙)
+        // If the title is the category name as-is (default), translate that name too (same rule as README)
         title: `${options.code} ${tr(options.title)}`,
         level,
         generatedAt: printed,
@@ -514,13 +514,13 @@ export async function buildBundle(
     );
   }
 
-  // ③ 연계 정의 — 공통 항목표(초안). 「연계 키」「KPI 용도」는 사람이 채운다
+  // 3. Linkage definition — common item table (draft). "Linkage key" and "KPI usage" are filled in by people
   const linkage = await linkageFor(store, resolved);
-  // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+  // i18n-ignore — submission package folder/file name (spec structure)
   put(`${FOLDERS.linkage}/연계항목_초안.csv`, linkageCsv(linkage));
   const findingLines = linkage.findings.map((f) => `- ${f.severity === 'warning' ? '⚠' : 'ℹ'} ${f.message}`);
   put(
-    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+    // i18n-ignore — submission package folder/file name (spec structure)
     `${FOLDERS.linkage}/연계_확인사항.md`,
     [
       tr('# 데이터 연계 — 확인할 점'),
@@ -539,9 +539,9 @@ export async function buildBundle(
     ].join('\n'),
   );
 
-  // ④ 채울 자리 — 문서는 사람이 쓴다
+  // 4. Slots to fill — documents are written by people
   put(
-    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+    // i18n-ignore — submission package folder/file name (spec structure)
     `${FOLDERS.usecase}/_작성안내.md`,
     pendingNote(tr('Use-Case 문서 (hwpx 또는 docx + pdf)'), [
       tr('목차(안) — 추진방안 §2.2'),
@@ -557,19 +557,19 @@ export async function buildBundle(
     ]),
   );
   put(
-    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+    // i18n-ignore — submission package folder/file name (spec structure)
     `${FOLDERS.guidance}/_작성안내.md`,
     pendingNote(tr('가이던스 (장비별 1:1)'), [
       tr('아래 설비마다 작성한 가이던스를 넣습니다. 참조모델과 **같은 버전**이어야 합니다.'),
       '',
       ...[...new Set(resolved.members.filter((m) => m.record).map((m) => m.record!.name))].map(
-        // i18n-ignore — 넣을 파일 이름(제출 묶음 규격의 가이던스 파일명)
+        // i18n-ignore — file names to include (guidance file name per the submission package spec)
         (name) => `- [ ] ${name.replace(/\.aasx$/i, '')}_AAS활용가이던스`,
       ),
     ]),
   );
   put(
-    // i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+    // i18n-ignore — submission package folder/file name (spec structure)
     `${FOLDERS.samples}/_작성안내.md`,
     pendingNote(tr('샘플 데이터 (KPI 산출용)'), [
       tr('- 🔴 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).'),
@@ -577,8 +577,8 @@ export async function buildBundle(
     ]),
   );
 
-  // ④-1 사람이 넣은 첨부 — 공정 파일에 보관된 것을 되살린다. 도구가 만든 것과 겹치면 도구 것이 이긴다.
-  //      새 수집 기록이 있으면 옛 수집 기록은 통째로 뺀다(새 기록서와 옛 CSV가 섞이지 않게)
+  // 4-1. Attachments added by people — restored from those stored in the process file. If they overlap with tool-generated ones, the tool's wins.
+  //      If there is a new collection record, old collection records are dropped entirely (so the new record and old CSV don't mix)
   const attachments = [];
   for (const attachment of await listAttachments(store, resolved.process.id)) {
     if (isGeneratedPath(attachment.path)) continue;
@@ -596,16 +596,16 @@ export async function buildBundle(
       title: options.title,
       version: options.version,
       createdAt: stamp,
-      // 🔴 **누가 내보냈나.** 제출 꾸러미라 「언제·무엇을」만으로는 모자라고, 나중에
-      //    물어볼 사람이 적혀 있어야 한다. 로그인을 안 쓰는 서버면 null이다 —
-      //    모르는 것을 아는 척하지 않는다
+      // Important: **who exported it.** For a submission package, "when and what" isn't enough; the person to ask
+      //    later must be recorded. On servers that don't use login it is null —
+      //    we don't pretend to know what we don't
       createdBy: exporter?.name ?? null,
       tool: `${PRODUCT_NAME} ${PRODUCT_VERSION}`,
-      // 증빙 수준(A/B/C) — 사람이 고른 것. 고르지 않았으면 시뮬레이션뿐일 때만 C를 제안하고 그 밖엔 비운다
+      // Evidence level (A/B/C) — chosen by a person. If not chosen, suggest C only when simulation-only, otherwise leave blank
       evidenceLevel: level,
     },
     evidence: evidenceEntries,
-    /** 사람이 넣은 문서·증빙 — 번들을 다시 열어도 보존된다 */
+    /** Documents and evidence added by people — preserved when the bundle is reopened */
     attachments,
     process: processFiles,
     models,
@@ -630,7 +630,7 @@ export async function buildBundle(
   put(
     'README.md',
     [
-      // 제목이 분류 이름 그대로면(기본값) 그 이름도 옮긴다 — 사람이 적은 제목은 사전에 없어 그대로 나간다
+      // If the title is the category name as-is (default), translate that name too — titles written by people aren't in the dictionary and go out unchanged
       fill(tr('# {0} {1} — 레퍼런스 번들 v{2}'), { 0: options.code, 1: tr(options.title), 2: options.version }),
       '',
       fill(tr('- 카테고리: {0}'), { 0: BUNDLE_CATEGORIES[options.code] ? tr(BUNDLE_CATEGORIES[options.code]!) : tr('(미지정)') }),
@@ -735,19 +735,19 @@ export async function buildBundle(
   return { zip: zipArchive(files), manifest, root };
 }
 
-// ── 번들 열기 ──────────────────────────────────────────────────────────────
+// ── Opening a bundle ──────────────────────────────────────────────────────────────
 
 export interface BundleImportResult {
   bundle: Record<string, unknown>;
   processPackageId?: string;
-  /** 공정 파일에 보관한 사람 파일 — 다시 내보내면 되살아난다 */
+  /** People's files kept in the process file — restored when exported again */
   attachments: string[];
   files: {
     file: string;
     packageId: string;
-    /** manifest의 해시와 같은가. manifest에 없는 파일이면 null */
+    /** Whether it matches the manifest hash. null if the file isn't in the manifest */
     hashOk: boolean | null;
-    /** 이미 열려 있던 같은 내용의 파일을 그대로 썼는가 */
+    /** Whether an already-open file with the same content was reused as-is */
     reused: boolean;
   }[];
   problems: string[];
@@ -789,7 +789,7 @@ export async function importBundle(
     if (entry.sha256) expected.set(entry.file, entry.sha256);
   }
 
-  // 이미 열린 파일의 지문 — 같은 내용이면 새로 올리지 않는다(같은 Asset 주소가 둘이면 공정이 헷갈린다)
+  // Fingerprints of already-open files — same content isn't uploaded again (two identical Asset addresses would confuse the process)
   const opened = new Map<string, string>();
   const all = await store.listPackages({ limit: 1000 });
   for (const record of all.items) opened.set(sha256((await modelBytes(store, record.id)).data), record.id);
@@ -797,7 +797,7 @@ export async function importBundle(
   const problems: string[] = [];
   const files: BundleImportResult['files'] = [];
   let processPackageId: string | undefined;
-  // 설비 먼저, 공정 나중 — 공정이 열릴 때 가리킬 설비가 이미 있어야 화면이 바로 이어 그린다
+  // Equipment first, process last — the equipment the process points to must already exist so the UI can draw it right away
   const aasxPaths = Object.keys(entries)
     .filter((p) => p.startsWith(base) && /\.aasx$/i.test(p))
     .sort((a, b) => Number(a.slice(base.length).startsWith('00_')) - Number(b.slice(base.length).startsWith('00_')));
@@ -816,7 +816,7 @@ export async function importBundle(
     if (!packageId) {
       const pkg = readAasx(bytes, { limits });
       const name = relative.split('/').pop()!;
-      // 원본을 함께 보관 — 다시 내보내도 같은 바이트, 해시가 이어진다
+      // Keep the original as well — re-exporting yields the same bytes, so the hash chain continues
       packageId = (await store.importPackage({ name, package: pkg, keep: [originalFile(bytes)] })).id;
       opened.set(digest, packageId);
     }
@@ -828,7 +828,7 @@ export async function importBundle(
     if (!aasxPaths.some((p) => p.slice(base.length) === file)) problems.push(fill(tr('{0}: manifest에 있는데 번들에 없습니다.'), { 0: file }));
   }
 
-  // 사람이 넣은 파일을 공정 파일에 보관한다 — 다시 내보낼 때 되살린다(왕복 보존)
+  // Keep files added by people in the process file — restored on re-export (round-trip preservation)
   const kept: string[] = [];
   if (processPackageId) {
     for (const [path, bytes] of Object.entries(entries)) {
@@ -873,7 +873,7 @@ export interface BundleRouteOptions {
 export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}): Route[] {
   return [
     {
-      /** 화면용 — 번들 구성과 준비 상태, 연계 항목 */
+      /** For the UI — bundle composition, readiness status and linkage items */
       method: 'GET',
       pattern: '/packages/:packageId/bundle/linkage',
       success: [200],
@@ -893,7 +893,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
                 passed: result.passed,
                 error: result.countBySeverity.error,
                 warning: result.countBySeverity.warning,
-                // 🔴 KOSMO는 안 보지만 표준 검증기(aas-test-engines)는 **오류**로 보고 BaSyx는 그 하위를 버린다
+                // Important: KOSMO doesn't check it, but the standard validator (aas-test-engines) reports it as an **error** and BaSyx drops its children
                 aasd120: result.countByRule['AASd-120'] ?? 0,
               };
               checked.set(member.record.id, lintSummary);
@@ -916,7 +916,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
           evidenceWindow(request, new Date()),
         );
         const carried = await readCarried(store, resolved.process.id);
-        // 수집 기록 파일은 「실동작 증빙」이 맡는다 — 첨부 목록에서 지우면 이어받은 증빙이 깨진다
+        // Collection record files are handled by "live operation evidence" — removing them from the attachment list would break carried-over evidence
         const attachments = (await listAttachments(store, resolved.process.id))
           .filter(({ path }) => !isEvidencePath(path))
           .map(({ path, size }) => ({ path, size }));
@@ -929,7 +929,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
             suggested: suggestedLevel(sources),
             levels: evidenceLevelNames(),
             sources: sources.map((s) => evidenceEntry(s)),
-            // 번들을 열 때 이어받은 기록 — 새 수집이 없으면 이것이 실린다
+            // Record carried over when the bundle was opened — included when there is no new collection
             ...(carried ? { carried } : {}),
           },
           attachments,
@@ -948,7 +948,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
         const bundleOpts = bundleOptions(request, record.name.replace(/\.aasx$/i, ''));
         const minutes = request.query['evidenceMinutes'];
         if (minutes !== undefined && minutes !== '' && minutes !== 'all') {
-          evidenceWindow(request, new Date()); // 형식 검사
+          evidenceWindow(request, new Date()); // format check
           bundleOpts.evidenceMinutes = Number(minutes);
         }
         const { zip, root } = await buildBundle(store, packageId, bundleOpts, options.policy ?? {}, new Date());
@@ -956,7 +956,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
           status: 200,
           headers: {
             'content-type': 'application/zip',
-            // ASCII 이름 + UTF-8 원본(기획서 Ⅷ 인코딩 항목)
+            // ASCII name + UTF-8 original (spec VIII encoding item)
             'content-disposition': `attachment; filename="bundle-${bundleOpts.code}-v${bundleOpts.version}.zip"; filename*=UTF-8''${encodeURIComponent(`${root}.zip`)}`,
           },
           body: zip,
@@ -964,7 +964,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       },
     },
     {
-      /** 첨부 올리기 — 본문은 파일 바이트, 경로는 ?path=01_UseCase문서/RB01.docx */
+      /** Upload an attachment — body is the file bytes, path is e.g. ?path=01_UseCase문서/RB01.docx (01_UseCase "documents" folder) */
       method: 'PUT',
       pattern: '/packages/:packageId/bundle/files',
       success: [204],
@@ -977,7 +977,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       },
     },
     {
-      /** 첨부 받기 — 화면에서 열어 본다 */
+      /** Get an attachment — opened for viewing in the UI */
       method: 'GET',
       pattern: '/packages/:packageId/bundle/files',
       success: [200],

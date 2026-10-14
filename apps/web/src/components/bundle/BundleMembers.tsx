@@ -1,12 +1,12 @@
 /**
- * 레퍼런스 번들 — ① 구성과 준비 상태 — 공정 → 설비 카드.
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — ① composition and readiness — process → equipment cards.
+ * Extracted from components/BundlePanel.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
  */
 import type { BundleMemberView, BundleView } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
 import { T } from '../T.js';
 
-/** 그룹 경로별로 묶는다 — 화면이 「공정 → 설비」로 읽히게 */
+/** Group by group path — so the screen reads as "process → equipment" */
 function byGroup(members: BundleMemberView[]): [string, BundleMemberView[]][] {
   const groups = new Map<string, BundleMemberView[]>();
   for (const member of members) {

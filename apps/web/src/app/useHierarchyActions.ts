@@ -1,7 +1,7 @@
 /**
- * 구성(공정 · 설비 · 부품) 동작 — 넣기 · 호기별 나눠 넣기 · 공정 층 · 이름만 설비 · 빼기.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름으로 받는다(c 에서 꺼낸다).
+ * Composition (process · equipment · component) actions — insert · insert split per unit · process level · name-only equipment · remove.
+ * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
+ * the state and actions it uses arrive under the same names (taken from c).
  */
 import { api } from '../api.js';
 import { fill, tr } from '../i18n.js';
@@ -9,12 +9,12 @@ import type { Core } from './context.js';
 
 export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 'packages' | 'run' | 'setNotice' | 'setPackages'>) {
   const { loadPackage, packageId, packages, run, setNotice, setPackages } = c;
-  /** 요소 추가 — 부모가 Submodel이면 바로 아래, 아니면 그 요소 아래에 붙인다 */
+  /** Add an element — directly under the parent if it is a Submodel, otherwise under that element */
   /**
-   * 공정에 설비를 넣는다.
+   * Insert equipment into a process.
    *
-   * 🔴 고른 파일에서 이름과 Asset 주소를 **서버가 읽는다.** 화면이 옮겨 적지 않는 이유는
-   *    그 값이 두 파일을 잇는 유일한 끈이기 때문이다 — 틀리면 조용히 끊긴다.
+   * Important: **the server reads** the name and Asset address from the chosen file. The screen does not copy them over
+   *    because that value is the only string linking the two files — if it is wrong the link breaks silently.
    */
   const onAddHierarchyNode = async (
     sourcePackageId: string,
@@ -31,9 +31,9 @@ export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 
     );
     if (!added) return;
     await loadPackage(packageId);
-    // 🔴 수집 연결(AID)이 있는 설비를 ×n으로 넣으면, 그 값은 "그중 한 대"의 것일 뿐이다.
-    //    대별 가동값이 목적이면 파일을 나눠야 한다 — 도구가 이 함정을 알아채고 말해 준다
-    //    (2026-08-26 사용자 질문에서 확정된 Type/Instance 경계)
+    // Important: inserting equipment with a collection connection (AID) as ×n means the values belong to "one of them" only.
+    //    If per-unit operating values are the goal, the files must be split — the tool notices this trap and says so
+    //    (the Type/Instance boundary settled from a user question on 2026-08-26)
     let caution = '';
     if (bulkCount > 1) {
       const hasAid = await api
@@ -54,9 +54,9 @@ export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 
     );
   };
   /**
-   * 호기별로 나눠 넣기 — ×n 대신 **원본을 복제한 파일**(이름_1…이름_n)을 각각 잇는다.
-   * 각 호기는 서로 다른 개체라 복제 시 id·Asset 주소가 호기 이름으로 개명된다.
-   * 원본의 주소를 같이 쓰면 안 된다 — "같은 자산이 n번"이라는 모순이 된다.
+   * Insert split per unit — instead of ×n, link **a file cloned from the original** (name_1…name_n) for each.
+   * Each unit is a distinct object, so cloning renames the id and Asset address after the unit name.
+   * Reusing the original's address is not allowed — it would be the contradiction "the same asset n times".
    */
   const onAddHierarchySplit = async (
     sourcePackageId: string,
@@ -89,7 +89,7 @@ export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 
         : fill(tr('{0}_1 … _{1} 파일을 복제해 나눠 넣었습니다 — 서브모델까지 그대로 담겨 있습니다. 호기마다 값·수집 주소를 따로 고치면 됩니다.'), { 0: base, 1: count }),
     );
   };
-  /** 파일 없는 중간 마디 — 회사 파일 안의 「용접공정」. 이걸로 회사>공정>장비를 한 파일에 그린다 */
+  /** An intermediate node without a file — "welding process" inside a company file. Draws company > process > equipment in one file */
   const onAddHierarchyGroup = async (name: string, parentPath: string[], line = false): Promise<void> => {
     if (!packageId) return;
     const added = await run(() =>
@@ -127,7 +127,7 @@ export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 
     await loadPackage(packageId);
     setNotice(fill(tr('「{0}」을(를) 넣었습니다.'), { 0: name }));
   };
-  /** 🔴 뺄 때 관계도 함께 빠진다(서버가 한다). 하나만 지우면 짝이 안 맞는 파일이 된다 */
+  /** Important: removing also removes the relationship (the server does it). Deleting only one side leaves mismatched files */
   const onRemoveHierarchyNode = async (name: string, parentPath: string[] = []): Promise<void> => {
     if (!packageId) return;
     if (!window.confirm(fill(tr('「{0}」을(를) 이 목록에서 뺍니다. 설비 파일 자체는 지워지지 않습니다.'), { 0: name }))) {

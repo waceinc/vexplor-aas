@@ -1,6 +1,6 @@
 /**
- * Modbus TCP · MQTT 수집 — 화면이 부르는 길 그대로: AID 만들기(POST /aid) → 규칙 검사 → 수집(POST /collect) → 값 조회.
- * 실장비 대신 @aas/fieldbus 의 시험 장치 · 시험 브로커에 붙는다. 리더 선택은 server.ts 와 같다.
+ * Modbus TCP / MQTT collection — the same path the UI calls: create AID (POST /aid) -> rule check -> collect (POST /collect) -> query values.
+ * Connects to the test device and test broker from @aas/fieldbus instead of real hardware. Reader selection matches server.ts.
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -32,7 +32,7 @@ async function harness() {
   return { store, id, call, errors };
 }
 
-describe('Modbus · MQTT 수집 — AID 만들기부터 값까지', () => {
+describe('Modbus / MQTT collection — from creating the AID to values', () => {
   let device: ModbusTestServer | undefined;
   let broker: MqttTestBroker | undefined;
   afterEach(async () => {
@@ -40,7 +40,7 @@ describe('Modbus · MQTT 수집 — AID 만들기부터 값까지', () => {
     await broker?.close();
   });
 
-  it('Modbus — 만든 AID 가 규칙 위반을 더하지 않고, 수집하면 값이 쌓인다', async () => {
+  it('Modbus — the created AID adds no rule violations, and collecting accumulates values', async () => {
     const h = await harness();
     const before = await h.errors();
     device = new ModbusTestServer();
@@ -63,7 +63,7 @@ describe('Modbus · MQTT 수집 — AID 만들기부터 값까지', () => {
     expect(Object.fromEntries(values.map((v) => [v.propertyName, v.valueNumber]))).toEqual({ Counter: 777, Running: 1 });
   });
 
-  it('MQTT — 보관된 값을 읽어 쌓고, 안 온 토픽은 값 대기로 보고한다', async () => {
+  it('MQTT — reads and accumulates retained values, and reports topics that never arrived as awaiting value', async () => {
     const h = await harness();
     const before = await h.errors();
     broker = new MqttTestBroker();

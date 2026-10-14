@@ -1,9 +1,9 @@
 /**
- * 수집값 읽기 전용 덧씌우기.
+ * Read-only overlay of collected values.
  *
- * 🔴 이 시험의 핵심은 두 가지다.
- *  ① 응답에는 현장 값이 보인다 (BaSyx DataBridge와 같은 겉모습)
- *  ② **원본은 그대로다** — A안(파일이 원본)이 깨지면 이 제품의 전제가 무너진다
+ * Important: this test has two key points.
+ *  (1) Responses show live field values (same appearance as BaSyx DataBridge)
+ *  (2) **The original stays unchanged** — if option A (the file is the source of truth) breaks, the product's premise collapses
  */
 import { overlayEnvironment, overlaySubmodel, latestByProperty, type ValueSample } from '@aas/collector';
 import { describe, expect, it } from 'vitest';
@@ -36,8 +36,8 @@ const submodel = {
   ],
 } as never;
 
-describe('덧씌우기', () => {
-  it('최신 값만 쓴다 — 같은 이름이 여러 번 들어와도', () => {
+describe('Overlay', () => {
+  it('uses only the latest value — even when the same name arrives several times', () => {
     const latest = latestByProperty([
       sample('LineSpeed', 10, '2026-08-25T00:00:00Z'),
       sample('LineSpeed', 18.5, '2026-08-25T00:00:05Z'),
@@ -46,7 +46,7 @@ describe('덧씌우기', () => {
     expect(latest.get('LineSpeed')?.valueNumber).toBe(18.5);
   });
 
-  it('이름이 맞는 요소에 값을 얹는다 (깊은 곳도)', () => {
+  it('overlays values onto elements with a matching name (including deeply nested ones)', () => {
     const result = overlaySubmodel(submodel, [
       sample('MachineState', 'RUNNING', '2026-08-25T00:00:00Z'),
       sample('LineSpeed', 18.5, '2026-08-25T00:00:00Z'),
@@ -57,19 +57,19 @@ describe('덧씌우기', () => {
     expect(result.applied).toBe(2);
   });
 
-  it('🔴 원본은 건드리지 않는다 — A안(파일이 원본)', () => {
+  it('does not touch the original — option A (the file is the source of truth)', () => {
     const before = JSON.stringify(submodel);
     overlaySubmodel(submodel, [sample('MachineState', 'RUNNING', '2026-08-25T00:00:00Z')]);
     expect(JSON.stringify(submodel)).toBe(before);
   });
 
-  it('못 찾은 값은 조용히 버리지 않고 알린다', () => {
+  it('reports unmatched values instead of silently dropping them', () => {
     const result = overlaySubmodel(submodel, [sample('MotorSpeed', 1200, '2026-08-25T00:00:00Z')]);
     expect(result.applied).toBe(0);
     expect(result.notes[0]).toMatchObject({ propertyName: 'MotorSpeed', outcome: 'unmatched' });
   });
 
-  it('🔴 이름이 겹치면 얹지 않는다 — 엉뚱한 요소에 현장 값이 들어가는 게 최악이다', () => {
+  it('does not overlay on duplicate names — live values landing on the wrong element is the worst case', () => {
     const twins = {
       modelType: 'Submodel',
       id: 'x',
@@ -89,7 +89,7 @@ describe('덧씌우기', () => {
     expect(result.notes[0]!.paths).toEqual(['Temp', 'Group.Temp']);
   });
 
-  it('담는 요소에는 얹지 않는다', () => {
+  it('does not overlay onto container elements', () => {
     const result = overlaySubmodel(submodel, [
       sample('ProcessMonitoring', 'x', '2026-08-25T00:00:00Z'),
     ]);
@@ -97,7 +97,7 @@ describe('덧씌우기', () => {
     expect(result.notes[0]!.outcome).toBe('unmatched');
   });
 
-  it('환경 전체에도 얹을 수 있다', () => {
+  it('can overlay onto an entire environment', () => {
     const environment = { submodels: [submodel] } as never;
     const result = overlayEnvironment(environment, [
       sample('AlarmActive', 'true', '2026-08-25T00:00:00Z'),
@@ -107,7 +107,7 @@ describe('덧씌우기', () => {
     expect(applied.value).toBe('true');
   });
 
-  it('언제 읽은 값인지 함께 알려 준다', () => {
+  it('also reports when each value was read', () => {
     const result = overlaySubmodel(submodel, [
       sample('AlarmActive', 'true', '2026-08-25T01:02:03Z'),
     ]);
@@ -119,9 +119,9 @@ describe('덧씌우기', () => {
   });
 });
 
-describe('🔴 서브모델 경계를 넘는 이름 중복', () => {
-  it('다른 서브모델에 같은 이름이 있으면 **어느 쪽에도 얹지 않는다**', () => {
-    // 실제로 생길 수 있는 모습: 명판의 ManufacturerName과, 수집용으로 새로 세운 같은 이름
+describe('Duplicate names across submodel boundaries', () => {
+  it('overlays onto **neither** when the same name exists in another submodel', () => {
+    // A realistic case: the nameplate ManufacturerName and a same-named item newly created for collection
     const environment = {
       submodels: [
         {
@@ -153,7 +153,7 @@ describe('🔴 서브모델 경계를 넘는 이름 중복', () => {
       },
     ] as never);
 
-    // 🔴 명판 값이 수집값으로 덮이면 안 된다 — 이것이 「최악」으로 못박은 경우다
+    // Important: the nameplate value must not be overwritten by a collected value — this is the case pinned down as "worst"
     expect(result.applied).toBe(0);
     expect(result.notes[0]!.outcome).toBe('ambiguous');
     expect(result.notes[0]!.paths).toHaveLength(2);
@@ -162,7 +162,7 @@ describe('🔴 서브모델 경계를 넘는 이름 중복', () => {
     expect(shown).not.toContain('엉뚱한값');
   });
 
-  it('겹친 자리가 어느 서브모델인지 말해 준다 — 안 그러면 찾아갈 수 없다', () => {
+  it('says which submodels the duplicates are in — otherwise they cannot be located', () => {
     const environment = {
       submodels: [
         { modelType: 'Submodel', id: 'a', idShort: 'DigitalNameplate',

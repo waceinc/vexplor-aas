@@ -1,9 +1,9 @@
 /**
- * 서브모델 추가.
+ * Add submodel.
  *
- * 만들자마자 KOSMO 규칙을 지키도록 기본값을 채운다 — kind=Template(SM-4),
- * semanticId=자기 id(SM-3), administration과 id 접미 일치(SM-2).
- * 규약의 뿌리(iriBase)는 **서버(린터 정책)에서 받아 온다**. UI에 복사해 두면 규칙이 둘이 된다.
+ * Fills defaults so that it follows the KOSMO rules from the moment it is created — kind=Template (SM-4),
+ * semanticId=own id (SM-3), id suffix matching administration (SM-2).
+ * The convention root (iriBase) is **fetched from the server (linter policy)**. Copying it into the UI would make two rules.
  */
 import { useState } from 'react';
 import type { Policy } from '../api.js';
@@ -12,9 +12,9 @@ import { T } from './T.js';
 
 interface Props {
   policy?: Policy;
-  /** id를 만들 때 쓰는 장비명 — AAS의 idShort */
+  /** Equipment name used to build the id — the AAS idShort */
   assetName: string;
-  /** 지금 파일에 있는 서브모델 이름들 — 같은 이름·9종 초과를 미리 알린다 */
+  /** Submodel names already in this file — warns ahead about duplicate names and exceeding 9 kinds */
   existing?: readonly string[];
   busy: boolean;
   onCancel: () => void;
@@ -37,8 +37,8 @@ export function AddSubmodel({ policy, assetName, existing = [], busy, onCancel, 
     kind: 'Template',
     administration: { version, revision },
     semanticId: { type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: id }] },
-    // 🔴 `submodelElements: []`를 넣지 않는다 — 공식 스키마가 빈 배열을 허용하지 않는다
-    //    (PKG-EMPTY-ARRAY). 요소를 넣을 때 서버가 배열을 만들어 붙인다
+    // Important: do not put `submodelElements: []` — the official schema does not allow an empty array
+    //    (PKG-EMPTY-ARRAY). The server creates and attaches the array when an element is added
   });
 
   return (

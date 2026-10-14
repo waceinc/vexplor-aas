@@ -1,43 +1,44 @@
 /**
- * 수집 계약 — 기획서 M8.
+ * Collection contract — spec M8.
  *
- * 🔴 값 동기화 **A안**(docs/PROGRESS.md §2-2)이 이 설계를 지배한다.
- * 수집값은 **모델로 되돌아가지 않는다.** 산출물이 Type/Template이라 런타임 값을 되쓰면
- * 메타모델 의미 위반이고(KOSMO-AAS-6·SM-4), Package Explorer가 겪은 사고를 되풀이하게 된다.
- * 그래서 이 패키지의 어떤 함수도 Environment를 수정하지 않는다 — 읽기만 한다.
+ * Important: value sync **Option A** (docs/PROGRESS.md §2-2) governs this design.
+ * Collected values are **never written back into the model.** The output is a Type/Template, so writing
+ * runtime values back violates metamodel semantics (KOSMO-AAS-6 · SM-4) and repeats the incident
+ * Package Explorer ran into. So no function in this package modifies an Environment — it only reads.
  */
 
 export interface ValueSample {
-  /** 어느 파일(작업 단위)의 자산인지 */
+  /** Which file (unit of work) the asset belongs to */
   packageId: string;
-  /** AID 인터페이스 이름 */
+  /** AID interface name */
   interfaceName: string;
-  /** AID property 이름 */
+  /** AID property name */
   propertyName: string;
-  /** 읽어 온 주소(NodeId 등) — 나중에 매핑을 되짚을 때 쓴다 */
+  /** Address that was read (NodeId, etc.) — used later to trace the mapping back */
   source?: string;
-  /** 관측 시각(ISO). 장비가 준 시각이 있으면 그것을 쓴다 */
+  /** Observation time (ISO). Uses the device-supplied timestamp when available */
   observedAt: string;
   /**
-   * 이 도구가 **실제로 읽어 온 시각**(ISO). 2026-10-13 추가.
-   * 🔴 `observedAt`은 장비가 준 시각(OPC UA SourceTimestamp)이라 **값이 바뀔 때만** 움직인다 — 값이 일정한 태그는
-   *    매번 잘 읽어도 시각이 옛날에 멈춰 있어, 그걸로 「받는 중」을 판정하면 멀쩡한 태그가 끊긴 것으로 보인다.
-   *    값마다 수신 시각을 따로 남긴다(실운영 교훈 — digital-twin 점검에서 271행의 시각이 모두 같아 「받는 중」이
-   *    뜻을 잃은 사례). 옛 기록에는 없다 — 그때는 observedAt 으로 대신한다.
+   * The time this tool **actually read** the value (ISO). Added 2026-10-13.
+   * Important: `observedAt` is the device-supplied time (OPC UA SourceTimestamp), so it moves **only when the value
+   *    changes** — for a tag with a constant value the timestamp stays frozen in the past even though every read
+   *    succeeds, so judging "receiving" from it makes a healthy tag look disconnected.
+   *    We record the receive time separately per value (production lesson — in a digital-twin check all 271 rows had
+   *    the same timestamp and "receiving" lost its meaning). Older records lack it — fall back to observedAt then.
    */
   receivedAt?: string;
-  /** 숫자로 읽히면 여기, 아니면 text */
+  /** Here if it parses as a number, otherwise text */
   valueNumber?: number;
   valueText?: string;
-  /** 품질(OPC UA StatusCode 등). 나쁜 값도 버리지 않고 표시해 남긴다 */
+  /** Quality (OPC UA StatusCode, etc.). Bad values are kept and flagged, not discarded */
   quality?: string;
 }
 
-/** 한 번 읽어 오는 쪽(프로토콜 어댑터)이 만족해야 하는 모양 */
+/** Shape that the one-shot reader side (protocol adapter) must satisfy */
 export interface ProtocolReader {
-  /** 접속 주소 */
+  /** Endpoint address */
   readonly base: string;
-  /** 주소 목록을 한 번에 읽는다 */
+  /** Reads a list of addresses in one call */
   read(sources: readonly string[]): Promise<ReadResult[]>;
   close(): Promise<void>;
 }
@@ -45,26 +46,26 @@ export interface ProtocolReader {
 export interface ReadResult {
   source: string;
   value: unknown;
-  /** 장비가 준 시각. 없으면 수집기가 채운다 */
+  /** Device-supplied time. Filled in by the collector if absent */
   observedAt?: string;
   quality?: string;
-  /** 읽지 못했을 때의 사유 */
+  /** Reason when the read failed */
   error?: string;
   /**
-   * 🔴 **아직 값이 안 들어온 것** — 「읽다 실패했다」가 아니다.
+   * Important: **no value has arrived yet** — this is not "the read failed".
    *
-   * 우리 산출물은 Type/Template이라 **빈 값이 정상**이고(PROGRESS §4 「OPC UA 노출」 설계 5번),
-   * 설비도 기동 직후에는 `BadWaitingForInitialData`처럼 「값 없음」 계열 상태를 준다.
-   * 이것을 고장과 한 통에 세면 멀쩡한 설비가 「나쁜 태그 60」으로 보이고, 초보 사용자는
-   * 설비가 망가졌다고 읽는다. 그래서 사유(`error`)와 **다른 칸**에 싣는다.
+   * Our output is a Type/Template, so **empty values are normal** (PROGRESS §4 "OPC UA exposure", design item 5),
+   * and equipment right after startup also reports "no value" statuses such as `BadWaitingForInitialData`.
+   * Counting these together with faults makes healthy equipment show "60 bad tags", and novice users
+   * read that as broken equipment. So it goes in a **separate field** from the reason (`error`).
    *
-   * 🔴 pending은 실패가 아니지만 **성공도 아니다.** 수집기는 표본을 만들지 않는다 —
-   *    없는 값을 빈 문자열로 바꿔 시계열에 쌓으면 그때부터 가짜 이력이 남는다.
+   * Important: pending is not a failure, but **not a success either.** The collector creates no sample —
+   *    turning a missing value into an empty string and storing it in the time series leaves fake history from then on.
    */
   pending?: boolean;
 }
 
-/** 모은 값을 어디에 쌓을지 — 시계열 저장소 */
+/** Where collected values are stored — the time-series store */
 export interface SampleSink {
   append(samples: readonly ValueSample[]): Promise<void>;
 }
