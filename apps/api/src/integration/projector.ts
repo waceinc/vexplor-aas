@@ -130,9 +130,20 @@ export class IntegrationProjector {
     // Called after a change outside the model (external refs) — the cached join block is stale too
     this.join.invalidate(packageId);
     if (!this.dirty.has(packageId)) {
-      this.dirty.set(packageId, { firstSeq: Number.MAX_SAFE_INTEGER, occurredAt: new Date(this.now()).toISOString(), due: 0, deadline: 0 });
+      this.dirty.set(packageId, { firstSeq: Number.MAX_SAFE_INTEGER, occurredAt: await this.lastChangeAt(packageId), due: 0, deadline: 0 });
     }
     return this.flushPackages([packageId]);
+  }
+
+  /**
+   * When a package last changed — the time a flush without a triggering event uses. It must come from stored data, not
+   * the clock: a retry after a crash then derives the same event ids and the store skips them (review M3).
+   */
+  private async lastChangeAt(packageId: string): Promise<string> {
+    const times = [(await this.store.getPackage(packageId))?.updatedAt, (await this.store.getExternalRefs(packageId))?.updatedAt]
+      .filter((time): time is string => typeof time === 'string')
+      .sort();
+    return times[times.length - 1] ?? new Date(0).toISOString();
   }
 
   private async poll(): Promise<void> {
@@ -144,6 +155,8 @@ export class IntegrationProjector {
       const page = await this.store.readEvents({ after: cursor, limit: 500, includeAudit: true });
       const settled: StoredEvent[] = settledPrefix(page.items, cursor, now);
       for (const event of settled) {
+        // Every model.* event marks its package — including `model.externalrefs.updated`, so a refs change reaches the
+        // projection from the log even if the route's flushNow never ran (crash, projector off; review M3)
         if (!event.type.startsWith('kr.vexplor.aas.model.') || event.packageId === undefined) continue;
         const known = this.dirty.get(event.packageId);
         this.dirty.set(event.packageId, {
@@ -231,7 +244,12 @@ export class IntegrationProjector {
   ): Promise<{ events: NewEvent[]; state: ProjectorState | undefined; placed: string[] }> {
     const previous = ((await this.store.getRuntimeState(stateKey(packageId))) ?? undefined) as ProjectorState | undefined;
     const record = await this.store.getPackage(packageId);
-    const state = record ? await computeState(this.store, (await this.join(packageId))!, packageId, locations) : undefined;
+    const state = record
+      ? { ...(await computeState(this.store, (await this.join(packageId))!, packageId, locations)), owner: record.owner ?? null }
+      : undefined;
+    // Explicit owner on every event: the package's, or for a deleted one the owner kept in the digest. Without either the
+    // store files the row as admin-only (ORPHAN_OWNER) — never visible to another workspace (review H1)
+    const owner = record ? (record.owner ?? null) : previous?.owner;
     const events: NewEvent[] = [];
     const revision = record?.revision ?? 0;
     const event = (type: string, key: string, asset: AssetJoin, operation: ProjectionOperation, hash: string, data: EquipmentProjectionChangedData | EquipmentMasterChangedData): void => {
@@ -243,6 +261,7 @@ export class IntegrationProjector {
         packageId,
         ...(asset.globalAssetId ? { subject: asset.globalAssetId } : {}),
         ...(record ? { packageRevision: revision } : {}),
+        ...(owner !== undefined ? { owner } : {}),
         data,
       });
     };

@@ -12,7 +12,7 @@ import { fill, tr, type ConfigError, type ParseResult } from '@aas/core';
 import { ApiError } from '../http.js';
 import { asArray, asRecord, assetInformationOf, shellsOf, type Json } from './exports/elements.js';
 import { isPublicRef } from './exports/join.js';
-import { integrationStore } from './exports/store.js';
+import { integrationStore, type IntegrationAasStore } from './exports/store.js';
 
 export const EXTERNAL_REFS_SCHEMA = 'vexplor.externalRefs/1';
 const SUBJECT_KINDS = ['asset', 'bomChild', 'consumable', 'tool'] as const;
@@ -205,13 +205,17 @@ export interface SaveResult {
   projected: { added: ProjectedId[]; removed: ProjectedId[] };
 }
 
-/**
- * Validates subjects against the package, stores the doc (revision check, uniqueness), then projects published refs.
- * Throws `ConflictError` (stale revision) and `ExternalRefConflictError` (claimed elsewhere) from the store.
- */
-export async function saveExternalRefs(store: AasStore, packageId: string, doc: ExternalRefsDoc, expectedRevision: number): Promise<SaveResult> {
-  const full = integrationStore(store);
-  const environment = await full.getEnvironment(packageId);
+interface PreparedSave {
+  packageId: string;
+  doc: ExternalRefsDoc;
+  expectedRevision: number;
+  shell: Json | undefined;
+  projection: Projection | undefined;
+}
+
+/** Validates subjects against the package and computes the projection — writes nothing */
+async function prepareSave(store: IntegrationAasStore, packageId: string, doc: ExternalRefsDoc, expectedRevision: number): Promise<PreparedSave> {
+  const environment = await store.getEnvironment(packageId);
   const shells = shellsOf(environment);
   const assets = new Set(shells.map((shell) => assetInformationOf(shell)['globalAssetId']).filter((id): id is string => typeof id === 'string'));
   doc.subjects.forEach((entry, i) => {
@@ -219,23 +223,56 @@ export async function saveExternalRefs(store: AasStore, packageId: string, doc: 
       throw new ApiError(400, 'BadRequest', fill(tr('/subjects/{0}: 이 패키지의 자산이 아닙니다: {1}'), { 0: i, 1: entry.subject.globalAssetId }));
     }
   });
-
-  const previous: Versioned<ExternalRefsDoc> | undefined = await full.getExternalRefs(packageId);
+  const previous: Versioned<ExternalRefsDoc> | undefined = await store.getExternalRefs(packageId);
   const shell = shells[0];
   const projection = shell ? projectSpecificAssetIds(shell, doc, previous?.value.managedSpecificAssetIds ?? []) : undefined;
   const managed = projection?.managed ?? previous?.value.managedSpecificAssetIds ?? [];
   const toStore: ExternalRefsDoc = { schema: EXTERNAL_REFS_SCHEMA, subjects: doc.subjects, ...(managed.length > 0 ? { managedSpecificAssetIds: managed } : {}) };
-  const saved = await full.putExternalRefs(packageId, toStore, expectedRevision);
+  return { packageId, doc: toStore, expectedRevision, shell, projection };
+}
 
-  if (shell && projection?.changed) {
+/**
+ * Saves several packages' docs **all or nothing** (one store batch: revision checks, uniqueness), then projects the
+ * published refs into each shell. Throws `ConflictError` (stale revision), `ExternalRefConflictError` (claimed
+ * elsewhere) or `NotFoundError` before anything is written.
+ *
+ * `onWritten` runs with the packages whose docs were stored — also when a later shell projection fails, so the caller
+ * can still audit, invalidate caches and re-project what changed (review M4).
+ */
+export async function saveExternalRefsBatch(
+  store: AasStore,
+  items: readonly { packageId: string; doc: ExternalRefsDoc; expectedRevision: number }[],
+  onWritten?: (packageIds: string[]) => Promise<void>,
+): Promise<SaveResult[]> {
+  const full = integrationStore(store);
+  const prepared: PreparedSave[] = [];
+  for (const item of items) prepared.push(await prepareSave(full, item.packageId, item.doc, item.expectedRevision));
+  const saved = await full.putExternalRefsBatch(prepared.map((entry) => ({ packageId: entry.packageId, doc: entry.doc, expectedRevision: entry.expectedRevision })));
+  try {
     const change = currentChange();
-    await runWithChange({ ...change, cause: 'external-refs' }, () =>
-      full.updateIdentifiable(packageId, 'AssetAdministrationShell', String(shell['id']), projection.content),
-    );
+    for (const entry of prepared) {
+      if (!entry.shell || !entry.projection?.changed) continue;
+      const content = entry.projection.content;
+      const shellId = String(entry.shell['id']);
+      await runWithChange({ ...change, cause: 'external-refs' }, () => full.updateIdentifiable(entry.packageId, 'AssetAdministrationShell', shellId, content));
+    }
+  } finally {
+    await onWritten?.(prepared.map((entry) => entry.packageId));
   }
-  return {
-    value: saved.value,
-    revision: saved.revision,
-    projected: { added: projection?.added ?? [], removed: projection?.removed ?? [] },
-  };
+  return prepared.map((entry, i) => ({
+    value: saved[i]!.value,
+    revision: saved[i]!.revision,
+    projected: { added: entry.projection?.added ?? [], removed: entry.projection?.removed ?? [] },
+  }));
+}
+
+/** One package — a batch of one */
+export async function saveExternalRefs(
+  store: AasStore,
+  packageId: string,
+  doc: ExternalRefsDoc,
+  expectedRevision: number,
+  onWritten?: (packageIds: string[]) => Promise<void>,
+): Promise<SaveResult> {
+  return (await saveExternalRefsBatch(store, [{ packageId, doc, expectedRevision }], onWritten))[0]!;
 }

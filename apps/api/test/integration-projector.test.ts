@@ -3,7 +3,7 @@
  * The schema test validates the events of `projectionScenario()` (helpers/integration-projection.ts).
  */
 import { describe, expect, it } from 'vitest';
-import type { StoredEvent } from '@aas/store';
+import { runInWorkspace, scopeStore, type StoredEvent } from '@aas/store';
 import { createJoinResolver } from '../src/integration/exports/join.js';
 import { IntegrationProjector, PROJECTOR_CURSOR_KEY } from '../src/integration/projector.js';
 import { createIntegrationStore, type IntegrationTestStore } from './helpers/integration-store.js';
@@ -154,6 +154,32 @@ describe('IntegrationProjector', () => {
     expect(retried.some((event) => (event.data as Json)['operation'] === 'removed')).toBe(true);
   });
 
+  it('re-projects a refs change found in the log even without flushNow (M3)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    await store.putExternalRefs(packageId, {
+      schema: 'vexplor.externalRefs/1',
+      subjects: [{ subject: { kind: 'asset', globalAssetId: unitAsset(1) }, refs: [{ system: 'icube:WACE', type: 'equipmentCode', id: 'EQ-LOG' }] }],
+    }, 0);
+    const events = await settle(projector, time);
+    expect(types(events)).toEqual([MASTER]);
+    expect((events[0]!.data as Json)['changedKeys']).toEqual(['externalRefs']);
+  });
+
+  it('gives a flushNow without a triggering event the same ids on a retry at another time (M3)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    const key = `projector:${packageId}`;
+    const real = (await store.getRuntimeState(key)) as { master: Record<string, { hash: string }> };
+    // A digest that differs from the model — as if a projection were cut off before it saved
+    const stale = structuredClone(real);
+    for (const digest of Object.values(stale.master)) digest.hash = 'sha256:stale';
+    await store.putRuntimeState(key, stale);
+    const first = await projector.flushNow(packageId);
+    expect(first).toHaveLength(1);
+    await store.putRuntimeState(key, stale);
+    time.advance(3_600_000);
+    expect(await projector.flushNow(packageId)).toEqual([]);
+  });
+
   it('re-projects after a crash with the same ids, so nothing is announced twice', async () => {
     const { store, time, projector, packageId } = await setup();
     const cursor = await store.getRuntimeState(PROJECTOR_CURSOR_KEY);
@@ -226,5 +252,28 @@ describe('createJoinResolver', () => {
     expect(block!.path).toEqual(['SampleFactory', 'PressLine', 'Forming', 'First']);
     expect(block!.pathAmbiguous).toBe(true);
     expect(shell(await store.getEnvironment(unit.id))['id']).toBe(block!.aasId);
+  });
+});
+
+describe('workspaces (H1)', () => {
+  it('lets the owning workspace see its removal events and never shows them to another workspace', async () => {
+    const base = createIntegrationStore();
+    const scoped = scopeStore(base);
+    const alice = { key: 'user:alice', seesAll: false };
+    const bob = { key: 'user:bob', seesAll: false };
+    const projector = new IntegrationProjector({ store: base, now: () => Date.parse('2026-10-14T00:00:00Z') });
+    await projector.runOnce();
+    const pkg = await runInWorkspace(alice, () => scoped.importPackage({ name: 'secret.aasx', package: unitCopy(1) }));
+    await projector.flushNow();
+    await runInWorkspace(alice, () => scoped.deletePackage(pkg.id));
+    const removed = await projector.flushNow();
+    expect(removed.every((event) => (event.data as Json)['operation'] === 'removed')).toBe(true);
+    expect(removed.length).toBeGreaterThan(0);
+    const projection = (events: readonly StoredEvent[]) => events.filter((event) => event.packageId === pkg.id && event.type.startsWith('kr.vexplor.aas.equipment.'));
+    const seenByBob = projection((await runInWorkspace(bob, () => scoped.readEvents({ after: 0, limit: 1000 }))).items);
+    const seenByAlice = projection((await runInWorkspace(alice, () => scoped.readEvents({ after: 0, limit: 1000 }))).items);
+    expect(seenByBob).toEqual([]);
+    expect(seenByAlice.filter((event) => (event.data as Json)['operation'] === 'removed').map((event) => event.id).sort()).toEqual(removed.map((event) => event.id).sort());
+    expect(removed.every((event) => event.owner === 'user:alice')).toBe(true);
   });
 });

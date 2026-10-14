@@ -2,7 +2,9 @@
  * External references (design D1, D2, §4.5; ERP E-6, E-15, E-16, E-17, E-18; E-23 for refs).
  */
 import { describe, expect, it } from 'vitest';
+import { runInWorkspace, scopeStore } from '@aas/store';
 import { encodeIdentifier } from '../src/base64url.js';
+import { externalRefRoutes } from '../src/integration/routes-external-refs.js';
 import { createIntegrationStore, type IntegrationTestStore } from './helpers/integration-store.js';
 import { harness, shell, unitAsset, unitCopy, type Json } from './helpers/integration-fixtures.js';
 
@@ -249,6 +251,58 @@ describe('external refs import', () => {
     const apply = await call('POST', '/integrations/external-refs/import', { body, headers: { 'content-type': 'text/csv' } });
     expect(apply.status).toBe(422);
     expect(await store.getExternalRefs(ids[0]!)).toBeUndefined();
+  });
+});
+
+describe('import is all or nothing (M4)', () => {
+  it('writes no package when another package changed between planning and saving', async () => {
+    const { store, call, ids } = await setup(2);
+    const read = store.getExternalRefs.bind(store);
+    let raced = false;
+    // A concurrent writer saves package 2 right after the import planned it
+    (store as unknown as { getExternalRefs: typeof read }).getExternalRefs = async (packageId) => {
+      const current = await read(packageId);
+      if (packageId === ids[1] && !raced) {
+        raced = true;
+        await store.putExternalRefs(packageId, { schema: 'vexplor.externalRefs/1', subjects: [] }, 0);
+      }
+      return current;
+    };
+    const response = await call('POST', '/integrations/external-refs/import', {
+      body: {
+        rows: [
+          { globalAssetId: unitAsset(1), system: SAP, type: 'equipment', id: 'EQ-1' },
+          { globalAssetId: unitAsset(2), system: SAP, type: 'equipment', id: 'EQ-2' },
+        ],
+      },
+    });
+    expect(response.status).toBe(412);
+    expect(await read(ids[0]!)).toBeUndefined();
+    expect(await shellIds(store, ids[0]!)).toEqual([]);
+  });
+
+  it('reports a key held in another workspace on the dry run, with the holder masked, and applies nothing', async () => {
+    const base = createIntegrationStore();
+    const scoped = scopeStore(base);
+    const alice = { key: 'user:alice', seesAll: false };
+    const bob = { key: 'user:bob', seesAll: false };
+    const a = await runInWorkspace(alice, () => scoped.importPackage({ name: 'a.aasx', package: unitCopy(3) }));
+    await base.putExternalRefs(a.id, doc(3, [{ system: SAP, type: 'equipment', id: 'EQ-9' }]) as never, 0);
+    const b1 = await runInWorkspace(bob, () => scoped.importPackage({ name: 'b1.aasx', package: unitCopy(1) }));
+    await runInWorkspace(bob, () => scoped.importPackage({ name: 'b2.aasx', package: unitCopy(2) }));
+    const route = externalRefRoutes(scoped, { demo: false }).find((r) => r.pattern === '/integrations/external-refs/import')!;
+    const rows = [
+      { globalAssetId: unitAsset(1), system: SAP, type: 'equipment', id: 'EQ-1' },
+      { globalAssetId: unitAsset(2), system: SAP, type: 'equipment', id: 'EQ-9' },
+    ];
+    const post = (query: Record<string, string>) =>
+      runInWorkspace(bob, () => route.handle({ request: { method: 'POST', path: '', query, queryAll: {}, headers: {}, body: { rows } }, params: {} }));
+    const dry = (await post({ dryRun: '1' })).body as { conflicts: Json[] };
+    expect(dry.conflicts).toHaveLength(1);
+    expect(dry.conflicts[0]!['id']).toBe('EQ-9');
+    expect(JSON.stringify(dry.conflicts)).not.toContain(a.id);
+    expect((await post({})).status).toBe(422);
+    expect(await base.getExternalRefs(b1.id)).toBeUndefined();
   });
 });
 
