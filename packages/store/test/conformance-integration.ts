@@ -415,28 +415,36 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       await store.enqueueDeliveries([1, 2, 3, 4].map((n) => ({ subscriptionId: sub.id, eventSeq: n, eventId: `e${n}` })), T0);
       const [a, b, c] = await store.claimDeliveries(T0, 3, 60_000);
 
-      await store.completeDelivery(a!.id, { outcome: 'retry', at: at(1), nextAttemptAt: at(10), statusCode: 500, error: 'boom', durationMs: 40, address: '10.0.0.5' });
+      expect(await store.completeDelivery(a!.id, { outcome: 'retry', at: at(1), nextAttemptAt: at(10), statusCode: 500, error: 'boom', durationMs: 40, address: '10.0.0.5', attempt: 1 })).toBe(true);
       expect(await store.getDelivery(a!.id)).toMatchObject({ status: 'pending', nextAttemptAt: at(10), lastStatusCode: 500, lastError: 'boom', lastDurationMs: 40, lastAddress: '10.0.0.5', updatedAt: at(1) });
       expect(await store.getDelivery(a!.id)).not.toHaveProperty('leaseUntil');
-      await store.completeDelivery(a!.id, { outcome: 'succeeded', at: at(2), statusCode: 204 });
+      // The row is no longer in flight — a second result for that claim is refused
+      expect(await store.completeDelivery(a!.id, { outcome: 'succeeded', at: at(2), attempt: 1 })).toBe(false);
+
+      // a (attempt 2) and the never-claimed d (attempt 1) are due at 10 s
+      const [d, a2] = await store.claimDeliveries(at(10), 2, 60_000);
+      expect([d!.eventSeq, a2!.eventSeq, a2!.attempts]).toEqual([4, 1, 2]);
+      expect(await store.completeDelivery(a!.id, { outcome: 'succeeded', at: at(2), statusCode: 204, attempt: 2 })).toBe(true);
       const ok = await store.getDelivery(a!.id);
       expect(ok).toMatchObject({ status: 'succeeded', lastStatusCode: 204, updatedAt: at(2) });
       // "last" describes the last attempt only — fields it did not produce are cleared
       for (const key of ['lastError', 'lastDurationMs', 'lastAddress']) expect(ok).not.toHaveProperty(key);
-      await store.completeDelivery(b!.id, { outcome: 'dead', at: at(3), error: 'gone' });
-      await store.completeDelivery(c!.id, { outcome: 'retry', at: at(4) });
+      expect(await store.completeDelivery(d!.id, { outcome: 'dead', at: at(7), error: 'gone again', attempt: 1 })).toBe(true);
+      expect(await store.completeDelivery(b!.id, { outcome: 'dead', at: at(3), error: 'gone', attempt: 1 })).toBe(true);
+      expect(await store.completeDelivery(c!.id, { outcome: 'retry', at: at(4), attempt: 1 })).toBe(true);
       expect((await store.getDelivery(c!.id))?.nextAttemptAt).toBe(at(4));
 
       // Unknown ids are no-ops
-      await store.completeDelivery('999999', { outcome: 'succeeded', at: at(5) });
-      await store.completeDelivery('not-a-number', { outcome: 'succeeded', at: at(5) });
+      expect(await store.completeDelivery('999999', { outcome: 'succeeded', at: at(5) })).toBe(false);
+      expect(await store.completeDelivery('not-a-number', { outcome: 'succeeded', at: at(5) })).toBe(false);
       expect(await store.getDelivery('999999')).toBeUndefined();
       expect(await store.getDelivery('not-a-number')).toBeUndefined();
       expect(await store.redeliver('999999', at(5))).toBe(false);
 
+      // Redelivery only re-queues finished rows — c is pending already
+      expect(await store.redeliver(c!.id, at(6))).toBe(false);
       expect(await store.redeliver(b!.id, at(6))).toBe(true);
       expect(await store.getDelivery(b!.id)).toMatchObject({ status: 'pending', nextAttemptAt: at(6), attempts: 1, lastError: 'gone' });
-      await store.completeDelivery(b!.id, { outcome: 'dead', at: at(7), error: 'gone again' });
 
       const stats = await store.deliveryStats();
       expect(stats.find((s) => s.subscriptionId === sub.id)).toEqual({ subscriptionId: sub.id, pending: 2, inFlight: 0, dead: 1, succeeded: 1, oldestPendingAt: T0 });
@@ -448,18 +456,59 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       const page2 = await store.listDeliveries(sub.id, { limit: 3, cursor: page1.cursor! });
       expect(page2.items.map((row) => row.eventSeq)).toEqual([1]);
       expect(page2.cursor).toBeUndefined();
-      expect((await store.listDeliveries(sub.id, { status: 'dead' })).items.map((row) => row.eventSeq)).toEqual([2]);
+      expect((await store.listDeliveries(sub.id, { status: 'dead' })).items.map((row) => row.eventSeq)).toEqual([4]);
 
       // Succeeded rows before at(5) and dead rows before at(7) — the dead row was updated at at(7), so it stays
       expect(await store.pruneDeliveries(at(5), at(7))).toBe(1);
       expect(await store.getDelivery(a!.id)).toBeUndefined();
-      expect(await store.getDelivery(b!.id)).toBeDefined();
+      expect(await store.getDelivery(d!.id)).toBeDefined();
       expect(await store.pruneDeliveries(at(5), at(8))).toBe(1);
 
       expect(await store.deleteSubscription(sub.id)).toBe(true);
       expect(await store.getDelivery(c!.id)).toBeUndefined();
       expect((await store.listDeliveries(sub.id)).items).toEqual([]);
       expect((await store.deliveryStats()).map((s) => s.subscriptionId)).toEqual([idle.id]);
+    });
+
+    it('delivery guards — a stale claim cannot finish a reclaimed row, redeliver never touches queued rows, leases extend', async () => {
+      const store = await fresh();
+      const sub = await store.createSubscription(subscription());
+      const other = await store.createSubscription(subscription({ name: 'other' }));
+      await store.enqueueDeliveries([{ subscriptionId: sub.id, eventSeq: 1, eventId: 'e1' }, { subscriptionId: other.id, eventSeq: 1, eventId: 'e1' }], T0);
+
+      // Per-subscription claim leaves the other subscription's row alone
+      const [first] = await store.claimDeliveries(T0, 10, 60_000, sub.id);
+      expect(first).toMatchObject({ subscriptionId: sub.id, attempts: 1 });
+      expect((await store.getDelivery((await store.listDeliveries(other.id)).items[0]!.id))?.status).toBe('pending');
+
+      // Worker A holds attempt 1 and stalls; its lease expires and worker B reclaims (attempt 2)
+      const [second] = await store.claimDeliveries(at(61), 10, 60_000, sub.id);
+      expect(second).toMatchObject({ id: first!.id, attempts: 2 });
+      expect(await store.extendLease(first!.id, 1, at(500))).toBe(false);
+      expect(await store.extendLease(first!.id, 2, at(500))).toBe(true);
+      expect((await store.getDelivery(first!.id))?.leaseUntil).toBe(at(500));
+      // The extended lease holds: nobody reclaims at 200 s
+      expect(await store.claimDeliveries(at(200), 10, 60_000, sub.id)).toEqual([]);
+      // A's late result arrives while B still holds the row — refused, B's claim stays intact
+      expect(await store.completeDelivery(first!.id, { outcome: 'dead', at: at(62), error: 'late', attempt: 1 })).toBe(false);
+      expect(await store.getDelivery(first!.id)).toMatchObject({ status: 'in-flight', attempts: 2, leaseUntil: at(500) });
+      expect(await store.getDelivery(first!.id)).not.toHaveProperty('lastError');
+      // Redeliver must not double-send a row in flight
+      expect(await store.redeliver(first!.id, at(62))).toBe(false);
+      expect((await store.getDelivery(first!.id))?.status).toBe('in-flight');
+
+      // B succeeds; A's late failure for attempt 1 must not flip it back to pending
+      expect(await store.completeDelivery(first!.id, { outcome: 'succeeded', at: at(63), statusCode: 200, attempt: 2 })).toBe(true);
+      expect(await store.completeDelivery(first!.id, { outcome: 'retry', at: at(64), nextAttemptAt: at(65), error: 'late', attempt: 1 })).toBe(false);
+      // Even without an attempt a finished row is never overwritten
+      expect(await store.completeDelivery(first!.id, { outcome: 'dead', at: at(64) })).toBe(false);
+      expect(await store.getDelivery(first!.id)).toMatchObject({ status: 'succeeded', lastStatusCode: 200, updatedAt: at(63) });
+      expect(await store.extendLease(first!.id, 2, at(900))).toBe(false);
+      expect(await store.extendLease('999999', 1, at(900))).toBe(false);
+
+      // Finished rows may be redelivered
+      expect(await store.redeliver(first!.id, at(70))).toBe(true);
+      expect(await store.getDelivery(first!.id)).toMatchObject({ status: 'pending', attempts: 2, nextAttemptAt: at(70) });
     });
 
     // ── 9 · configuration and external references ──

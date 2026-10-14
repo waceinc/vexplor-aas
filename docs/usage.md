@@ -843,8 +843,8 @@ OPCUA_SERVER=on OPCUA_PORT=4841 OPCUA_HOST=<this machine's IP> node apps/api/dis
 | Port | Machines usually use 4840, so a **different port such as 4841** is recommended |
 
 - **This address is for others to connect to.** Entering it as the machine endpoint in collection would make the tool read its own served values — the tool blocks that
-- **Clients sign in.** The server is secure by default: a web account over `Sign` or `SignAndEncrypt`, no anonymous
-  sessions. A client's certificate is trusted once in **Settings → Integrations → OPC UA certificates**. With no account
+- **Clients sign in.** The server is secure by default: a web account (UserName token only — no anonymous session, no
+  X.509 user certificate) over `Sign` or `SignAndEncrypt`. A client's certificate is trusted once in **Settings → Integrations → OPC UA certificates**. With no account
   yet the OPC UA server does not start. `OPCUA_ALLOW_INSECURE=on` restores the old unauthenticated port — isolated test
   networks only ([integration.md](integration.md) chapter 9)
 - Everything is **read only.** Empty values are not an error (`BadWaitingForInitialData`)

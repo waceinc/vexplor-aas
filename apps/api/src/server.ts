@@ -263,6 +263,12 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     compose: integrationComposition(),
     // The OPC UA trust store must be reachable also with INTEGRATIONS off (certificate routes)
     opcuaPki: () => publisher?.pki(),
+    opcuaStatus: () => {
+      const status = publisher?.status();
+      // The configured store is shown also before (or instead of) a start — that is where a client certificate will land
+      const pki = status?.pki ?? (opcuaModeFromEnv(process.env) === 'secure' ? opcuaPkiDirFromEnv(process.env) : undefined);
+      return { running: status?.running ?? false, ...(pki ? { pki } : {}) };
+    },
     log: (line) => console.log(`  ${line}`),
   });
 
@@ -316,6 +322,16 @@ export function createHttpServer(options: ServerOptions = {}): Server {
               : { mode },
         });
         await publisher.start();
+        // Said only once it really runs — a refused start must not be logged as "on" (live E2E, D4)
+        const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
+        console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: Number(process.env['OPCUA_PORT'] ?? 4840), 1: every }));
+        console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
+        if (mode === 'secure') {
+          console.log('     ' + fill(tr('보안 모드 — 이 서버의 계정으로 로그인 · 처음 접속한 클라이언트 인증서는 관리자가 신뢰해야 합니다 (인증서 저장소: {0})'), { 0: opcuaPkiDirFromEnv(process.env) }));
+        } else {
+          // Important: this must be said at least once — HTTP may be token-protected, but this port is not
+          console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다(OPCUA_ALLOW_INSECURE=on). 사내망 밖으로 열지 마십시오.'));
+        }
       })
       .catch((error: unknown) => {
       console.error(
@@ -491,7 +507,11 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   });
   integrationBoots.set(server, integrations);
   // Closing the server (tests, embedding) also stops the integration loops — no timers left behind
-  server.on('close', () => void integrations.stop());
+  server.on('close', () => {
+    void integrations.stop();
+    // The OPC UA port belongs to this server's lifetime too (tests open and close servers in one process)
+    void publisher?.stop();
+  });
   return server;
 }
 
@@ -653,18 +673,8 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     // Important: it was refused in demo mode, so **we must not say it is on** (a false log caught in testing)
     if (process.env['OPCUA_SERVER'] === 'on' && bootDemo) {
       console.log('  ' + tr('OPC UA 노출(M6·M7) — 🔴 **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
-    } else if (process.env['OPCUA_SERVER'] === 'on') {
-      const uaPort = Number(process.env['OPCUA_PORT'] ?? 4840);
-      const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
-      console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: uaPort, 1: every }));
-      console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
-      if (opcuaModeFromEnv(process.env) === 'secure') {
-        console.log('     ' + fill(tr('보안 모드 — 이 서버의 계정으로 로그인 · 처음 접속한 클라이언트 인증서는 관리자가 신뢰해야 합니다 (인증서 저장소: {0})'), { 0: opcuaPkiDirFromEnv(process.env) }));
-      } else {
-        // Important: this must be said at least once — HTTP may be token-protected, but this port is not
-        console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다(OPCUA_ALLOW_INSECURE=on). 사내망 밖으로 열지 마십시오.'));
-      }
     }
+    // When OPC UA is on, its lines are printed by the start itself (above) — only once it really runs
 
     // Integration — say whether events only get recorded or also go out, and where secrets are kept
     const integration = integrationsOf(app);

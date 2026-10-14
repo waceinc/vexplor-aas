@@ -110,7 +110,7 @@ export function defaultIntegrationServices(): IntegrationServices {
     masterKey: 'ephemeral',
     now: Date.now,
     status: () => status,
-    opcua: () => ({ security: 'off' }),
+    opcua: () => ({ security: 'off', running: false }),
   };
   return fallback;
 }

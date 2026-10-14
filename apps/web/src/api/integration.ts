@@ -104,7 +104,8 @@ export interface IntegrationStatusView {
   backlog?: { pending: number; oldestPendingAt?: string; dead: number };
   egress?: { allow: string[]; blockedPorts?: number[] };
   masterKey?: 'env' | 'file' | 'ephemeral' | 'missing';
-  opcua?: { security: 'secure' | 'insecure' | 'off'; pki?: string };
+  /** running = it actually started (secure mode without any account does not) */
+  opcua?: { security: 'secure' | 'insecure' | 'off'; running?: boolean; pki?: string };
 }
 
 export type SubscriptionKind = 'webhook' | 'mqtt';

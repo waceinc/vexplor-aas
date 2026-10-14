@@ -200,7 +200,7 @@ describe('rotate, test, replay, deliveries, redeliver, status', () => {
       backlog: { pending: 1, oldestPendingAt: time.iso(), dead: 0 },
       egress: { allow: ['10.20.0.0/16'] },
       masterKey: 'env',
-      opcua: { security: 'off' },
+      opcua: { security: 'off', running: false },
     });
     expect(reply.body.egress.blockedPorts).toContain(6379);
   });

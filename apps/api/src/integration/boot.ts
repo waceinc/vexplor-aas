@@ -20,6 +20,7 @@ import { MqttSink } from './mqtt-sink.js';
 import { loadMasterKey, type StoreKind } from './secrets.js';
 import { ensureInstanceId, randomInstanceId, supportsIntegration } from './store-port.js';
 import { DEFAULT_TIMEOUT_MS } from './webhook.js';
+import { opcuaModeFromEnv } from './opcua-env.js';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -62,6 +63,8 @@ export interface StartIntegrationsOptions {
   log?: (line: string) => void;
   /** The OPC UA trust store while the OPC UA server runs in secure mode (server.ts) */
   opcuaPki?: () => OpcUaPki | undefined;
+  /** Whether the OPC UA server actually runs, and its certificate store (server.ts) */
+  opcuaStatus?: () => { running: boolean; pki?: string };
 }
 
 function positiveNumber(value: string | undefined, fallback: number): number {
@@ -74,9 +77,13 @@ export function timeoutFromEnv(env: Record<string, string | undefined>): number 
   return Math.min(60_000, Math.max(1_000, positiveNumber(env['INTEGRATION_TIMEOUT_MS'], DEFAULT_TIMEOUT_MS)));
 }
 
-function opcuaFromEnv(env: Record<string, string | undefined>, demo: boolean): ReturnType<IntegrationServices['opcua']> {
-  if (env['OPCUA_SERVER'] !== 'on' || demo) return { security: 'off' };
-  return { security: env['OPCUA_ALLOW_INSECURE'] === 'on' ? 'insecure' : 'secure' };
+function opcuaFromEnv(
+  env: Record<string, string | undefined>,
+  demo: boolean,
+  live: { running: boolean; pki?: string } | undefined,
+): ReturnType<IntegrationServices['opcua']> {
+  if (env['OPCUA_SERVER'] !== 'on' || demo) return { security: 'off', running: false };
+  return { security: opcuaModeFromEnv(env), running: live?.running ?? false, ...(live?.pki ? { pki: live.pki } : {}) };
 }
 
 export function startIntegrations(options: StartIntegrationsOptions): IntegrationBoot {
@@ -130,7 +137,7 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
     masterKey: masterKey.source,
     now,
     status,
-    opcua: () => opcuaFromEnv(options.env, options.demo),
+    opcua: () => opcuaFromEnv(options.env, options.demo, options.opcuaStatus?.()),
   };
   if (masterKey.warning) log(masterKey.warning);
   if (masterKey.file) log(fill(tr('웹훅 비밀값을 잠그는 키: {0} — 데이터 폴더 백업에 이 키도 들어갑니다.'), { 0: masterKey.file }));

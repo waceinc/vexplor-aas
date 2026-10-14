@@ -1272,4 +1272,5 @@ export const EN_MORE: Record<string, string> = {
   '지금 보내는 중인 건은 다시 보낼 차례에 넣을 수 없습니다 — 이번 시도가 끝난 뒤 다시 하십시오.': 'A delivery that is being sent right now cannot be queued again — try once this attempt has finished.',
   '주소의 호스트를 바꾸면 저장된 브로커 계정이 지워집니다 — 새 호스트의 계정을 주소에 user:password@ 로 함께 적으십시오.': 'Changing the host in the address clears the stored broker credentials — write the new host\'s credentials into the address as user:password@.',
   '방식은 만든 뒤 바꿀 수 없습니다 — 바꾸려면 새 구독을 만드십시오.': 'The kind cannot change after creation — create a new subscription to use another kind.',
+  '설정은 켜져 있지만 서버가 뜨지 않았습니다. 보안 모드는 계정이 하나 이상 있어야 시작합니다.': 'It is switched on but did not start. Secure mode needs at least one account to start.',
 };

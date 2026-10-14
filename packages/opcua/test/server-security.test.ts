@@ -5,14 +5,16 @@
  * certificate refused until an administrator trusts it, then a read over Basic256Sha256 / SignAndEncrypt, writes still
  * refused. Certificates are generated into temporary folders (RSA key generation takes seconds — hence the timeouts).
  */
-import { mkdtempSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+// Must stay the first import — see fake-home.ts
+import { fakeHome, fakeRoot, restoreEnv } from './fake-home.js';
+import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   AttributeIds,
   DataType,
   MessageSecurityMode,
   OPCUACertificateManager,
+  getDefaultCertificateManager,
   OPCUAClient,
   SecurityPolicy,
   StatusCodes,
@@ -40,7 +42,7 @@ const environment = {
   ],
 } as unknown as Environment;
 
-const root = mkdtempSync(join(tmpdir(), 'aas-opcua-sec-'));
+const root = fakeRoot;
 const serverPki = join(root, 'server-pki');
 let server: AasOpcUaServer;
 let endpoint = '';
@@ -106,6 +108,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await server?.stop();
   await clientManager?.dispose().catch(() => undefined);
+  restoreEnv();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -114,7 +117,7 @@ describe('OPC UA server — secure mode', () => {
     expect(server.currentStatus()).toMatchObject({ running: true, security: 'secure', pki: serverPki });
     if (process.platform !== 'win32') expect(statSync(serverPki).mode & 0o777).toBe(0o700);
 
-    const discovery = OPCUAClient.create({ endpointMustExist: false, connectionStrategy: { maxRetry: 0 } });
+    const discovery = OPCUAClient.create({ endpointMustExist: false, clientCertificateManager: clientManager, connectionStrategy: { maxRetry: 0 } });
     await discovery.connect(endpoint);
     const endpoints = await discovery.getEndpoints();
     await discovery.disconnect();
@@ -123,8 +126,8 @@ describe('OPC UA server — secure mode', () => {
     expect(endpoints.map((e) => e.securityMode)).not.toContain(MessageSecurityMode.None);
     // No endpoint offers an anonymous token
     const tokens = endpoints.flatMap((e) => (e.userIdentityTokens ?? []).map((t) => t.tokenType));
-    expect(tokens).not.toContain(UserTokenType.Anonymous);
-    expect(tokens).toContain(UserTokenType.UserName);
+    // Only user name + password: no anonymous and no X509 user certificate token (D3)
+    expect(new Set(tokens)).toEqual(new Set([UserTokenType.UserName]));
   }, 60_000);
 
   it('refuses an unknown client certificate until it is trusted through the trust store', async () => {
@@ -156,6 +159,30 @@ describe('OPC UA server — secure mode', () => {
     const trusted = (await server.pki()!.list()).trusted[0]!.thumbprint;
     expect(clients.at(-1)).toMatchObject({ certificateThumbprint: trusted, address: expect.stringMatching(/127\.0\.0\.1/) });
   }, 60_000);
+
+  it('refuses an X509 user token signed by a self-signed certificate, even with a trusted client app certificate (D3)', async () => {
+    const rogue = new OPCUACertificateManager({ rootFolder: join(root, 'rogue-pki'), automaticallyAcceptUnknownCertificate: true });
+    await rogue.initialize();
+    const certificateFile = join(root, 'rogue-user.pem');
+    await rogue.createSelfSignedCertificate({ applicationUri: 'urn:rogue-user', subject: '/CN=rogue-user', dns: [], startDate: new Date(), validity: 30, outputFile: certificateFile });
+    const pem = readFileSync(certificateFile, 'latin1');
+    const certificateData = Buffer.from(/-----BEGIN CERTIFICATE-----([^-]+)-----END CERTIFICATE-----/.exec(pem)![1]!.replace(/\s+/g, ''), 'base64');
+    const privateKey = readFileSync(rogue.privateKey, 'utf8');
+    await rogue.dispose();
+    await expect(withSession({ type: UserTokenType.Certificate, certificateData, privateKey } as UserIdentityInfo, async (session) => (await session.read({ nodeId: NODE, attributeId: AttributeIds.Value })).statusCode.name)).rejects.toThrow();
+  }, 60_000);
+
+  it('writes nothing into the default node-opcua folders of the home directory', () => {
+    const found = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? found(join(dir, entry.name)) : [join(dir, entry.name)]));
+    expect(found(fakeHome)).toEqual([]);
+    expect(readdirSync(serverPki)).toContain('user');
+  });
+
+  it('control: node-opcua resolves its default stores inside the fake home, so the check above is meaningful', async () => {
+    const probe = getDefaultCertificateManager('UserPKI');
+    expect(probe.rootDir.startsWith(fakeHome)).toBe(true);
+    await probe.dispose();
+  });
 
   it('reads over Basic256Sha256 / SignAndEncrypt with the right password, and writes stay refused', async () => {
     await withSession({ type: UserTokenType.UserName, userName: 'operator', password: 'correct-horse' }, async (session) => {

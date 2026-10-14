@@ -515,7 +515,7 @@ export class PostgresIntegration implements IntegrationStore {
     });
   }
 
-  async claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> {
+  async claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
     const leaseUntil = new Date(Date.parse(now) + leaseMs).toISOString();
     // SKIP LOCKED: two dispatchers (two server instances) never claim the same row inside one lease
     const { rows } = await this.client.query<DeliveryRow>(
@@ -523,13 +523,14 @@ export class PostgresIntegration implements IntegrationStore {
           SET status = 'in-flight', lease_until = $2::timestamptz, attempts = attempts + 1, updated_at = $1::timestamptz
         WHERE id IN (
           SELECT id FROM integration_delivery
-           WHERE (status = 'pending' AND next_attempt_at <= $1::timestamptz)
-              OR (status = 'in-flight' AND lease_until < $1::timestamptz)
+           WHERE ((status = 'pending' AND next_attempt_at <= $1::timestamptz)
+              OR (status = 'in-flight' AND lease_until < $1::timestamptz))
+             AND ($4::text IS NULL OR subscription_id = $4::text)
            ORDER BY next_attempt_at, id
            LIMIT $3
            FOR UPDATE SKIP LOCKED)
         RETURNING ${DELIVERY_COLUMNS}`,
-      [now, leaseUntil, Math.max(0, Math.floor(limit))],
+      [now, leaseUntil, Math.max(0, Math.floor(limit)), subscriptionId ?? null],
     );
     // RETURNING has no order — restore the claim order (oldest due first)
     return rows
@@ -537,15 +538,20 @@ export class PostgresIntegration implements IntegrationStore {
       .sort((a, b) => Date.parse(a.nextAttemptAt) - Date.parse(b.nextAttemptAt) || Number(a.id) - Number(b.id));
   }
 
-  async completeDelivery(id: string, result: DeliveryResult): Promise<void> {
-    if (!isDeliveryId(id)) return;
+  /**
+   * Conditional on the claim still being current (status and attempt in the WHERE), so a late result of a worker whose
+   * lease expired cannot overwrite the worker that reclaimed the row — the check and the write are one statement.
+   */
+  async completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
+    if (!isDeliveryId(id)) return false;
     const status = result.outcome === 'retry' ? 'pending' : result.outcome;
-    await this.client.query(
+    const { rows } = await this.client.query(
       `UPDATE integration_delivery
           SET status = $2, next_attempt_at = COALESCE($3::timestamptz, next_attempt_at), lease_until = NULL,
               last_status_code = $4::integer, last_error = $5, last_duration_ms = $6::integer, last_address = $7,
               updated_at = $8::timestamptz
-        WHERE id = $1::bigint`,
+        WHERE id = $1::bigint AND status = 'in-flight' AND ($9::integer IS NULL OR attempts = $9::integer)
+        RETURNING id`,
       [
         id,
         status,
@@ -556,8 +562,20 @@ export class PostgresIntegration implements IntegrationStore {
         result.durationMs === undefined ? null : Math.round(result.durationMs),
         result.address ?? null,
         result.at,
+        result.attempt ?? null,
       ],
     );
+    return rows.length > 0;
+  }
+
+  async extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    if (!isDeliveryId(id)) return false;
+    const { rows } = await this.client.query(
+      `UPDATE integration_delivery SET lease_until = $3::timestamptz
+        WHERE id = $1::bigint AND status = 'in-flight' AND attempts = $2::integer RETURNING id`,
+      [id, attempt, leaseUntil],
+    );
+    return rows.length > 0;
   }
 
   async getDelivery(id: string): Promise<DeliveryRecord | undefined> {
@@ -590,7 +608,7 @@ export class PostgresIntegration implements IntegrationStore {
     const { rows } = await this.client.query(
       `UPDATE integration_delivery
           SET status = 'pending', next_attempt_at = $2::timestamptz, lease_until = NULL, updated_at = $2::timestamptz
-        WHERE id = $1::bigint RETURNING id`,
+        WHERE id = $1::bigint AND status IN ('succeeded', 'dead') RETURNING id`,
       [id, now],
     );
     return rows.length > 0;
