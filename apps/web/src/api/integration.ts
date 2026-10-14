@@ -104,6 +104,8 @@ export interface IntegrationStatusView {
   backlog?: { pending: number; oldestPendingAt?: string; dead: number };
   egress?: { allow: string[]; blockedPorts?: number[] };
   masterKey?: 'env' | 'file' | 'ephemeral' | 'missing';
+  /** Subscriptions whose secrets were sealed with another AAS_SECRET_KEY — they cannot sign until fixed */
+  masterKeyMismatch?: string[];
   /** running = it actually started (secure mode without any account does not) */
   opcua?: { security: 'secure' | 'insecure' | 'off'; running?: boolean; pki?: string };
 }
