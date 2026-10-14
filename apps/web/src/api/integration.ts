@@ -97,8 +97,8 @@ export interface IntegrationStatusView {
   instanceId?: string;
   serverTime?: string;
   workers?: {
-    dispatcher?: { running: boolean; lastFanoutAt?: string; cursor?: string | number };
-    projector?: { running: boolean; lastFlushAt?: string; cursor?: string | number };
+    dispatcher?: { running: boolean; lastFanoutAt?: string; cursor?: string | number; inFlight?: number };
+    projector?: { running: boolean; lastRunAt?: string };
     detector?: { enabled: boolean; lastCycleAt?: string };
   };
   backlog?: { pending: number; oldestPendingAt?: string; dead: number };

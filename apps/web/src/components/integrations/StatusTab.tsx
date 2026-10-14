@@ -85,7 +85,11 @@ export function StatusTab({ admin, feed }: Props): React.JSX.Element {
                 : '—'}
             </dd>
             <dt>{tr('마스터 데이터 알림')}</dt>
-            <dd>{status.workers?.projector ? (status.workers.projector.running ? tr('도는 중') : tr('멈춤')) : '—'}</dd>
+            <dd>
+              {status.workers?.projector
+                ? fill(tr('{0} · 마지막 계산 {1}'), { 0: status.workers.projector.running ? tr('도는 중') : tr('멈춤'), 1: when(status.workers.projector.lastRunAt) })
+                : '—'}
+            </dd>
             <dt>{tr('상태 판정')}</dt>
             <dd>
               {status.workers?.detector

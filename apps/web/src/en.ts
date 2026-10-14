@@ -1267,4 +1267,5 @@ export const EN_MORE: Record<string, string> = {
   '복사': 'Copy',
   '다른 곳에서 먼저 저장했습니다. 다시 읽은 뒤 고쳐 주십시오 — 지금 고친 내용은 저장되지 않았습니다.': 'Saved elsewhere first. Reload and make your change again — what you changed here was not saved.',
   '적용하지 않았습니다 — 바뀔 번호 {0}개 · 오류 {1}줄 · 충돌 {2}건이 있어 아무것도 바꾸지 않았습니다': 'Not applied — {0} number(s) to change, but {1} row error(s) and {2} conflict(s), so nothing was changed',
+  '{0} · 마지막 계산 {1}': '{0} · last run {1}',
 };
