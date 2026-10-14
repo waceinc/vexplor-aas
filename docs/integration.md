@@ -168,8 +168,8 @@ lookup, on purpose: lookup and the AASX download must never disagree.
 | `source` | `urn:vexplor-aas:<instanceId>` — 12 hex chars, stable across restarts |
 | `subject` | Runtime / master-data events: the raw `globalAssetId`. Model events: `packages/<id>/<shells\|submodels\|concept-descriptions>/<base64url id>` |
 | `dataschema` | Only when `AAS_PUBLIC_URL` is set |
-| `sequence` | Store sequence, zero-padded to 20 digits. Monotonic, **not** gap-free on PostgreSQL |
-| `vxrevision` | Package revision after the change (model events) |
+| `sequence` | Store sequence, zero-padded to 20 digits. Monotonic, **not** gap-free (folder and PostgreSQL stores) |
+| `vxrevision` | Package revision after the change (model events). A `model.package.deleted` event carries the last revision + 1 |
 | `vxcause` | `edit`, `fix`, `import`, `undo`, `redo`, `derivation`, `external-refs`, `seed`, `system` |
 
 Events are **thin**: identifiers, revisions, actor and links — never submodel content. Re-read the content through
@@ -247,8 +247,11 @@ The JSON Schema of every type: `GET /integrations/schemas` (list) and `GET /inte
   `sequence`, `time` and (model events) `vxrevision`. For one package, ignore a model event whose `vxrevision` is not
   greater than the one already applied.
 - The **pull feed is totally ordered** by `sequence`. Consumers that need order use it.
-- `sequence` can have gaps on PostgreSQL (a rolled-back transaction). The feed holds back rows after a fresh gap for up
-  to 30 seconds so a late commit is never skipped.
+- `sequence` can have **gaps** on the folder and PostgreSQL stores: the event of a write that crashed half-way is voided
+  (folder store), and a rolled-back transaction or a skipped duplicate still uses a number (PostgreSQL). **A gap is not
+  data loss** — do not raise an alarm or re-sync because of it. Keep reading with the feed cursor (`nextAfter`); it never
+  skips a committed event. The feed holds back rows after a fresh gap for up to 30 seconds so a late commit is still
+  delivered in order.
 
 ### 4.4 The pull feed
 

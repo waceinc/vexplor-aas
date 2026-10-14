@@ -25,7 +25,7 @@ import {
 } from '@aas/core';
 import { useEffect, useState } from 'react';
 import { api, type PackageDescription } from '../../api.js';
-import { integrationApi, isStale } from '../../api/integration.js';
+import { fieldErrorsOf, integrationApi, isStale } from '../../api/integration.js';
 import { fill, tr } from '../../i18n.js';
 import { ErrorNote, PackagePicker, StaleNote, splitList } from './common.js';
 import { RuleRows } from './RuleRows.js';
@@ -129,6 +129,7 @@ function ServerRules({ admin }: { admin: boolean }): React.JSX.Element {
       setSaved(true);
     } catch (caught) {
       if (isStale(caught)) setStale(true);
+      else if (fieldErrorsOf(caught).length > 0) setErrors(fieldErrorsOf(caught));
       else setError(caught);
     }
   };
@@ -237,6 +238,7 @@ function PackageRules({ edit, packages }: { edit: boolean; packages: readonly Pa
       setSaved(true);
     } catch (caught) {
       if (isStale(caught)) setStale(true);
+      else if (fieldErrorsOf(caught).length > 0) setErrors(fieldErrorsOf(caught));
       else setError(caught);
     }
   };

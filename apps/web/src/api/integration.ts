@@ -241,8 +241,9 @@ export interface RefImportResult {
 
 export interface OpcuaCertificate {
   thumbprint: string;
-  subject?: string;
-  notAfter?: string;
+  /** null when the certificate does not say */
+  subject?: string | null;
+  notAfter?: string | null;
 }
 
 export interface EventPageView {
@@ -257,6 +258,13 @@ export function claimsOf(caught: unknown): RefClaim[] {
   if (!(caught instanceof IntegrationError) || caught.status !== 409) return [];
   const body = caught.body as { claims?: RefClaim[]; messages?: { claims?: RefClaim[] }[] } | undefined;
   return body?.claims ?? body?.messages?.[0]?.claims ?? [];
+}
+
+/** 400 body of a config PUT — the server names each invalid field as a JSON Pointer (same notation as the core parser) */
+export function fieldErrorsOf(caught: unknown): { path: string; message: string }[] {
+  if (!(caught instanceof IntegrationError) || caught.status !== 400) return [];
+  const errors = (caught.body as { errors?: unknown } | undefined)?.errors;
+  return Array.isArray(errors) ? errors.filter((item): item is { path: string; message: string } => typeof item?.path === 'string' && typeof item?.message === 'string') : [];
 }
 
 // ── URLs ────────────────────────────────────────────────────────────────────

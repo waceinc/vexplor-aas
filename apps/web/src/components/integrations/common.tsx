@@ -31,7 +31,7 @@ export function packageLabel(item: PackageDescription): string {
   return item.assetName ?? item.name ?? item.packageId;
 }
 
-export function when(iso: string | undefined): string {
+export function when(iso: string | undefined | null): string {
   if (!iso) return '—';
   const at = new Date(iso);
   return Number.isNaN(at.getTime()) ? iso : at.toLocaleString(locale());

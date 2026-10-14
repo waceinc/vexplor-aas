@@ -5,7 +5,7 @@
  */
 import { defaultServerIntegrationConfig } from '@aas/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { claimsOf, exportPath, feedUrl, ifMatch, IntegrationError, integrationApi, isMissingRoute, isStale, query } from '../src/api/integration.js';
+import { claimsOf, exportPath, fieldErrorsOf, feedUrl, ifMatch, IntegrationError, integrationApi, isMissingRoute, isStale, query } from '../src/api/integration.js';
 
 interface Call {
   url: string;
@@ -101,6 +101,13 @@ describe('integration API client — errors', () => {
     const missing = await integrationApi.serverConfig().catch((e: unknown) => e);
     expect(isMissingRoute(missing)).toBe(true);
     expect(isStale(missing)).toBe(false);
+  });
+
+  it('reads per-field errors from a 400', async () => {
+    answer(400, { messages: [{ code: 'BadRequest', text: 'invalid' }], errors: [{ path: '/alarms/0/property', message: 'required' }, { bad: 1 }] });
+    const caught = await integrationApi.savePackageConfig('pkg_1', {} as never, 0).catch((e: unknown) => e);
+    expect(fieldErrorsOf(caught)).toEqual([{ path: '/alarms/0/property', message: 'required' }]);
+    expect(fieldErrorsOf(new Error('x'))).toEqual([]);
   });
 
   it('reads 409 claims from the body', async () => {
