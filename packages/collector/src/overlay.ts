@@ -124,6 +124,39 @@ function applyTo(elements: readonly SubmodelElement[], latest: Map<string, Value
   return { notes, applied };
 }
 
+/** Where a collected property lands in the model — the same element `overlayEnvironment` would write to */
+export interface ValuedElementLocation {
+  submodelId: string;
+  /** Part 2 idShortPath (`Collection.Property`, list items as `List[0]`) */
+  idShortPath: string;
+  element: SubmodelElement;
+  /** Key steps from the submodel down to the element: idShort, or the index for an item of a SubmodelElementList */
+  steps: { modelType: string; value: string }[];
+}
+
+/**
+ * Finds the element a collected property name resolves to, by the **same rule** as the overlay (idShort match among
+ * valued elements, unique across the whole Environment). Used by the integration events to name the model element a
+ * runtime event is about (`source.submodelId` / `idShortPath` / `semanticId`).
+ * Important: 'ambiguous' and undefined are answers, not errors — a name that is not unique must not be pinned to one
+ *    of its candidates, exactly as the overlay refuses to write it.
+ */
+export function findValuedElement(environment: Environment, name: string): ValuedElementLocation | 'ambiguous' | undefined {
+  const found: ValuedElementLocation[] = [];
+  type Step = ValuedElementLocation['steps'][number];
+  const walk = (submodelId: string, elements: readonly SubmodelElement[], prefix: string, inList: boolean, steps: Step[]): void => {
+    elements.forEach((element, index) => {
+      const path = inList ? `${prefix}[${index}]` : prefix === '' ? (element.idShort ?? '') : `${prefix}.${element.idShort ?? ''}`;
+      const chain = [...steps, { modelType: element.modelType, value: inList ? String(index) : (element.idShort ?? '') }];
+      if (element.idShort === name && VALUED.has(element.modelType)) found.push({ submodelId, idShortPath: path, element, steps: chain });
+      walk(submodelId, childrenOf(element), path, element.modelType === 'SubmodelElementList', chain);
+    });
+  };
+  for (const submodel of environment.submodels ?? []) walk(submodel.id, submodel.submodelElements ?? [], '', false, []);
+  if (found.length === 0) return undefined;
+  return found.length === 1 ? found[0] : 'ambiguous';
+}
+
 /**
  * Collects names of elements that collected values **can be overlaid onto**.
  *

@@ -11,15 +11,39 @@
  *
  * Important: keep the result of the last cycle — we must be able to answer "is it actually running?".
  */
-import type { AidInterface, ProtocolReader } from '@aas/collector';
+import type { AidInterface, CycleReport, ProtocolReader, ValueSample } from '@aas/collector';
 import { CollectionRunner, parseAid } from '@aas/collector';
-import type { AasStore } from '@aas/store';
+import type { Environment } from '@aas/core';
+import type { AasStore, PackageRecord } from '@aas/store';
+
+/**
+ * One package's collection cycle, handed to the integration detector (docs/design/integration-v1.md §6.2).
+ * `samples` are exactly what the sink stored in this cycle — the detector judges the same values the time series holds.
+ */
+export interface PackageCycle {
+  record: PackageRecord;
+  environment: Environment;
+  interfaces: readonly AidInterface[];
+  cycle: CycleReport;
+  samples: readonly ValueSample[];
+  startedAt: string;
+  finishedAt: string;
+  intervalMs: number;
+}
 
 export interface SupervisorOptions {
   store: AasStore;
   openReader: (descriptor: AidInterface) => Promise<ProtocolReader>;
   /** Interval (ms) */
   intervalMs: number;
+  /**
+   * Called after each package cycle that ran (integration detector).
+   * Important: its failure is recorded in that package's `errors` as `integration: …` and never breaks collection —
+   *    a broken event pipeline must not stop the time series from filling.
+   */
+  onPackageCycle?: (cycle: PackageCycle) => Promise<void>;
+  /** Clock (ISO) for cycle and sample times — injected by tests */
+  now?: () => string;
 }
 
 export interface SweepPackageResult {
@@ -88,7 +112,8 @@ export class CollectSupervisor {
     // Important: overlap guard — if the previous cycle runs long, skip this one. Overlapping would connect to devices twice
     if (this.sweeping) return undefined;
     this.sweeping = true;
-    const startedAt = new Date().toISOString();
+    const now = this.options.now ?? ((): string => new Date().toISOString());
+    const startedAt = now();
     const results: SweepPackageResult[] = [];
 
     try {
@@ -101,24 +126,50 @@ export class CollectSupervisor {
             const interfaces = parseAid(environment);
             if (interfaces.length === 0) continue;
 
+            // What the sink stored this cycle — only kept when someone listens
+            const stored: ValueSample[] = [];
+            const listening = this.options.onPackageCycle !== undefined;
             const runner = new CollectionRunner({
               packageId: record.id,
               interfaces,
               openReader: this.options.openReader,
               sink: {
-                append: (samples) => this.options.store.appendValues(record.id, samples),
+                append: async (samples) => {
+                  await this.options.store.appendValues(record.id, samples);
+                  // Only after the store accepted them — the detector must never judge values the time series lacks
+                  if (listening) stored.push(...samples);
+                },
               },
               intervalMs: 0,
+              ...(this.options.now ? { now: this.options.now } : {}),
             });
             try {
+              const cycleStart = now();
               const report = await runner.runOnce();
+              const errors = report.interfaces
+                .filter((entry) => entry.error !== undefined)
+                .map((entry) => `${entry.name}: ${entry.error}`);
+              if (this.options.onPackageCycle) {
+                try {
+                  await this.options.onPackageCycle({
+                    record,
+                    environment,
+                    interfaces,
+                    cycle: report,
+                    samples: stored,
+                    startedAt: cycleStart,
+                    finishedAt: now(),
+                    intervalMs: this.options.intervalMs,
+                  });
+                } catch (error) {
+                  errors.push(`integration: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
               results.push({
                 packageId: record.id,
                 ...(record.name === undefined ? {} : { name: record.name }),
                 collected: report.collected,
-                errors: report.interfaces
-                  .filter((entry) => entry.error !== undefined)
-                  .map((entry) => `${entry.name}: ${entry.error}`),
+                errors,
               });
             } finally {
               await runner.stop();
@@ -141,7 +192,7 @@ export class CollectSupervisor {
 
     const report: SweepReport = {
       startedAt,
-      finishedAt: new Date().toISOString(),
+      finishedAt: now(),
       packages: results.length,
       collected: results.reduce((sum, entry) => sum + entry.collected, 0),
       results,

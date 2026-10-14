@@ -1,0 +1,74 @@
+{
+  "schema": "vexplor.bom/1",
+  "exportedAt": "2026-10-14T00:00:00.000Z",
+  "source": {
+    "tool": "VEXPLOR AAS Studio",
+    "version": "<version>",
+    "instanceId": null
+  },
+  "packageId": "pkg_1",
+  "revision": 1,
+  "rootKey": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+  "items": [
+    {
+      "rootKey": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "parentPath": "RollFormingMachine",
+      "childPath": "RollFormingMachine/CutOffPress",
+      "childName": "CutOffPress",
+      "childGlobalAssetId": "https://www.smart-factory.kr/ids/asset/CutOffPress/1/0",
+      "quantity": 1,
+      "level": 1,
+      "entityType": "SelfManagedEntity",
+      "erpMaterial": [],
+      "mapped": false
+    },
+    {
+      "rootKey": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "parentPath": "RollFormingMachine",
+      "childPath": "RollFormingMachine/RollStandUnit",
+      "childName": "RollStandUnit",
+      "childGlobalAssetId": "https://www.smart-factory.kr/ids/asset/RollStandUnit/1/0",
+      "quantity": 12,
+      "level": 1,
+      "entityType": "SelfManagedEntity",
+      "erpMaterial": [],
+      "mapped": false
+    },
+    {
+      "rootKey": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "parentPath": "RollFormingMachine/RollStandUnit",
+      "childPath": "RollFormingMachine/RollStandUnit/DriveMotor",
+      "childName": "DriveMotor",
+      "childGlobalAssetId": "https://www.smart-factory.kr/ids/asset/DriveMotor/1/0",
+      "quantity": 1,
+      "level": 2,
+      "entityType": "SelfManagedEntity",
+      "erpMaterial": [],
+      "mapped": false
+    },
+    {
+      "rootKey": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "parentPath": "RollFormingMachine/RollStandUnit",
+      "childPath": "RollFormingMachine/RollStandUnit/FormingRoll",
+      "childName": "FormingRoll",
+      "childGlobalAssetId": "https://www.smart-factory.kr/ids/asset/FormingRoll/1/0",
+      "quantity": 1,
+      "level": 2,
+      "entityType": "SelfManagedEntity",
+      "erpMaterial": [],
+      "mapped": false
+    },
+    {
+      "rootKey": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "parentPath": "RollFormingMachine",
+      "childPath": "RollFormingMachine/Uncoiler",
+      "childName": "Uncoiler",
+      "childGlobalAssetId": "https://www.smart-factory.kr/ids/asset/Uncoiler/1/0",
+      "quantity": 1,
+      "level": 1,
+      "entityType": "SelfManagedEntity",
+      "erpMaterial": [],
+      "mapped": false
+    }
+  ]
+}
