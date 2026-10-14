@@ -312,7 +312,24 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
 
     it('an empty log reports oldestSeq null and lastSeq 0', async () => {
       const store = await fresh();
-      expect(await store.readEvents({ after: 0, limit: 10 })).toEqual({ items: [], oldestSeq: null, lastSeq: 0 });
+      expect(await store.readEvents({ after: 0, limit: 10 })).toEqual({ items: [], oldestSeq: null, lastSeq: 0, frontier: 0 });
+    });
+
+    it('frontier: a filtered read advances past rows it does not return; settle holds nothing without a gap (D5)', async () => {
+      const store = await fresh();
+      const time = new Date().toISOString();
+      await store.appendEvents([
+        { id: 'a', type: 'kr.vexplor.aas.integration.audit.v1', time, data: {} },
+        { id: 'b', type: 'kr.vexplor.aas.equipment.alarm.raised.v1', time, data: {} },
+        { id: 'c', type: 'kr.vexplor.aas.equipment.state.changed.v1', time, data: {} },
+      ]);
+      const settle = { now: new Date(Date.now() + 1000).toISOString(), settleMs: 30_000 };
+      const states = await store.readEvents({ after: 0, limit: 10, types: ['equipment.state.*'], settle });
+      expect(states.items.map((row) => row.id)).toEqual(['c']);
+      expect(states.frontier).toBe(states.lastSeq);
+      const limited = await store.readEvents({ after: 0, limit: 1, settle });
+      expect(limited.items.map((row) => row.id)).toEqual(['b']);
+      expect(limited.frontier).toBe(limited.items[0]!.seq);
     });
 
     // ── 4 · append ──

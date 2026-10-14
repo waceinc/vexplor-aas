@@ -76,6 +76,12 @@ export interface EventQuery {
   packageId?: string;
   /** Default false — `integration.audit` rows are left out unless asked for */
   includeAudit?: boolean;
+  /**
+   * Outbox settle rule (design §2.4), applied to the **unfiltered** sequence: a missing seq (a transaction not yet
+   * committed, or rolled back) holds the read back until the row after it is older than `settleMs`. Rows that are
+   * merely filtered out (other types, packages, workspaces, audit) are not gaps. Absent = gaps never hold.
+   */
+  settle?: { now: string; settleMs: number };
 }
 
 export interface EventPage {
@@ -85,6 +91,12 @@ export interface EventPage {
   oldestSeq: number | null;
   /** Highest retained seq of the whole log (unfiltered), 0 when the log is empty */
   lastSeq: number;
+  /**
+   * The cursor to continue from: every seq ≤ frontier has been looked at (matching rows returned, the others filtered
+   * out). It advances past non-matching rows, so a filtered reader moves on, and stops before an unsettled gap.
+   * Equals `after` when nothing was passed.
+   */
+  frontier: number;
 }
 
 export type SubscriptionKind = 'webhook' | 'mqtt';

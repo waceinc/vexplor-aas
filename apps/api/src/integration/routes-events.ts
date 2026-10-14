@@ -15,8 +15,8 @@ import type { AasStore } from '@aas/store';
 import { ApiError, json } from '../http.js';
 import type { Route } from '../router.js';
 import { toCloudEvent } from './cloudevents.js';
+import { SETTLE_MS } from './ids.js';
 import type { IntegrationRouteDeps } from './deps.js';
-import { settledPrefix } from './ids.js';
 import { errorWith, integerParam, isAdminSession, servicesOf } from './route-helpers.js';
 import { eventSchema, schemaTypes } from './schemas.js';
 import { integrationStore } from './store-port.js';
@@ -38,6 +38,7 @@ export function eventRoutes(rawStore: AasStore, deps: IntegrationRouteDeps): Rou
           .map((type) => type.trim())
           .filter((type) => type !== '');
         const packageId = request.query['packageId'];
+        const now = services.now();
         const page = await store.readEvents({
           after,
           limit,
@@ -45,6 +46,9 @@ export function eventRoutes(rawStore: AasStore, deps: IntegrationRouteDeps): Rou
           ...(packageId ? { packageId } : {}),
           // Audit events tell who changed which subscription — admins only
           includeAudit: isAdminSession(request),
+          // Settled on the unfiltered sequence inside the store (§2.4): only a real uncommitted gap holds the feed back,
+          // never the rows this reader is not shown
+          settle: { now: new Date(now).toISOString(), settleMs: SETTLE_MS },
         });
         if (page.oldestSeq !== null && after < page.oldestSeq - 1) {
           return errorWith(
@@ -57,17 +61,15 @@ export function eventRoutes(rawStore: AasStore, deps: IntegrationRouteDeps): Rou
             { oldestSeq: String(page.oldestSeq) },
           );
         }
-        // Only PostgreSQL can make a later seq visible before an earlier one commits (§2.4). The other gaps — filtered-out
-        // rows, a crash-voided folder event — are permanent; holding the feed back for them would only delay it
-        const now = services.now();
-        const rows = services.storeKind === 'postgres' ? settledPrefix(page.items, after, now) : page.items;
+        const rows = page.items;
         const instanceId = await services.instanceId();
         const items = rows.map((row) =>
           toCloudEvent(row, { instanceId, ...(deps.publicBaseUrl ? { publicBaseUrl: deps.publicBaseUrl } : {}) }),
         );
         return json(200, {
           items,
-          nextAfter: String(rows.length > 0 ? rows[rows.length - 1]!.seq : after),
+          // The store's frontier: also past rows this reader is not shown, so a filtered consumer moves on
+          nextAfter: String(Math.max(after, page.frontier)),
           oldestSeq: page.oldestSeq === null ? null : String(page.oldestSeq),
           serverTime: new Date(now).toISOString(),
         });

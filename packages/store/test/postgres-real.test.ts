@@ -108,6 +108,37 @@ if (!url) {
       await pool.end();
     });
 
+    it('D5: settled on the raw sequence — filtered readers get committed rows at once; a held transaction still holds', async () => {
+      const pool = await freshPool();
+      const store = new PostgresStore(poolClient(pool));
+      await store.init();
+      const event = (id: string, type = 'kr.vexplor.aas.equipment.state.changed.v1') => ({ id, type, time: '2026-10-14T00:00:00.000Z', data: {} });
+      const settle = () => ({ now: new Date(Date.now() + 1000).toISOString(), settleMs: 30_000 });
+      // Audit (not shown to viewers) and an alarm (not in a state-only filter) ahead of the rows a reader wants
+      await store.appendEvents([event('audit', 'kr.vexplor.aas.integration.audit.v1'), event('alarm', 'kr.vexplor.aas.equipment.alarm.raised.v1'), event('state')]);
+      const viewer = await store.readEvents({ after: 0, limit: 10, settle: settle() });
+      expect(viewer.items.map((row) => row.id)).toEqual(['alarm', 'state']);
+      const states = await store.readEvents({ after: 0, limit: 10, types: ['kr.vexplor.aas.equipment.state.*'], settle: settle() });
+      expect(states.items.map((row) => row.id)).toEqual(['state']);
+      expect(states.frontier).toBe(3);
+      // A transaction holding seq 4 while seq 5 commits: every reader waits at 3
+      const slow = await pool.connect();
+      try {
+        await slow.query('BEGIN');
+        await slow.query("INSERT INTO integration_event (id, type, occurred_at, data) VALUES ('slow', 'kr.vexplor.aas.equipment.state.changed.v1', now(), '{}'::jsonb)");
+        await store.appendEvents([event('fast')]);
+        const held = await store.readEvents({ after: 3, limit: 10, settle: settle() });
+        expect(held.items).toEqual([]);
+        expect(held.frontier).toBe(3);
+        await slow.query('COMMIT');
+      } finally {
+        slow.release();
+      }
+      const all = await store.readEvents({ after: 3, limit: 10, settle: settle() });
+      expect(all.items.map((row) => row.id)).toEqual(['slow', 'fast']);
+      await pool.end();
+    });
+
     it('two dispatchers claiming at once never get the same delivery (SKIP LOCKED)', async () => {
       const pool = await freshPool();
       const a = new PostgresStore(poolClient(pool));

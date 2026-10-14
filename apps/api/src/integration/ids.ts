@@ -89,6 +89,9 @@ export function maskCredentials(url: string): string {
   });
 }
 
+/** A missing seq whose follower is older than this belongs to a rolled-back transaction, not a slow one (§2.4) */
+export const SETTLE_MS = 30_000;
+
 /**
  * The part of a seq-ordered batch that is safe to hand out (outbox pitfall, §2.4).
  *

@@ -18,11 +18,11 @@ import { cloudEventBody, toCloudEvent } from './cloudevents.js';
 import { judgeAttempt, shouldAutoDisable, subscriptionMatches } from './delivery-policy.js';
 import type { IntegrationAasStore, TestDeliveryResult } from './deps.js';
 import type { EgressPolicy } from './egress.js';
-import { settledPrefix } from './ids.js';
 import type { MqttSink } from './mqtt-sink.js';
 import type { SecretBox, StoreKind } from './secrets.js';
 import { claimFor, completeGuarded, extendGuarded } from './delivery-store.js';
 import { RESOLVE_TIMEOUT_MS } from './egress.js';
+import { SETTLE_MS } from './ids.js';
 import { MQTT_ATTEMPT_MS, Transport, type SendResult } from './transport.js';
 import { DEFAULT_TIMEOUT_MS } from './webhook.js';
 import type { WebhookAttempt, WebhookOutcome } from './webhook.js';
@@ -177,17 +177,19 @@ export class Dispatcher {
       await store.putRuntimeState(CURSOR_KEY, head.lastSeq);
       return 0;
     }
-    let page = await store.readEvents({ after: cursor, limit: FANOUT_BATCH, includeAudit: true });
+    // Settled on the raw sequence inside the store (§2.4) — the same primitive as the pull feed
+    const read = (after: number) => store.readEvents({ after, limit: FANOUT_BATCH, includeAudit: true, settle: { now: this.iso(), settleMs: SETTLE_MS } });
+    let page = await read(cursor);
     if (page.oldestSeq !== null && cursor < page.oldestSeq - 1) {
       // Pruned while integrations were off — those events are gone; continue with what is retained
       cursor = page.oldestSeq - 1;
-      page = await store.readEvents({ after: cursor, limit: FANOUT_BATCH, includeAudit: true });
+      page = await read(cursor);
     }
-    // Only PostgreSQL can show a later seq before an earlier one commits (§2.4); a crash-voided folder seq never appears
-    const rows = this.options.storeKind === 'postgres' ? settledPrefix(page.items, cursor, this.now()) : page.items;
+    const rows = page.items;
     this.lastFanoutAt = this.iso();
     if (rows.length === 0) {
-      this.cursor = cursor;
+      this.cursor = Math.max(cursor, page.frontier);
+      if (this.cursor !== cursor) await store.putRuntimeState(CURSOR_KEY, this.cursor);
       return 0;
     }
     const subscriptions = (await store.listSubscriptions()).filter((subscription) => subscription.enabled);
@@ -200,7 +202,7 @@ export class Dispatcher {
       }
     }
     const inserted = enqueue.length === 0 ? 0 : await store.enqueueDeliveries(enqueue, this.iso());
-    this.cursor = rows[rows.length - 1]!.seq;
+    this.cursor = Math.max(cursor, page.frontier);
     await store.putRuntimeState(CURSOR_KEY, this.cursor);
     return inserted;
   }

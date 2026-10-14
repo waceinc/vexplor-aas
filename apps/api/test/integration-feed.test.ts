@@ -3,7 +3,8 @@
  * requests and the 409 mapping of external-ref conflicts (§13.3 api.ts edits).
  */
 import { ALL_EVENT_TYPES, EVENT_TYPES } from '@aas/core';
-import { ExternalRefConflictError, type EventQuery, type StoredEvent } from '@aas/store';
+import { PGlite } from '@electric-sql/pglite';
+import { ExternalRefConflictError, PostgresStore } from '@aas/store';
 import { describe, expect, it } from 'vitest';
 
 import { toErrorResponse } from '../src/api.js';
@@ -87,16 +88,54 @@ describe('GET /integrations/events', () => {
     expect(JSON.stringify(again.body.items)).toBe(JSON.stringify(first.body.items));
   });
 
-  it('PostgreSQL: a young gap holds the feed back, an old gap passes (outbox pitfall §2.4)', async () => {
-    const { store, time, call } = await feed('postgres');
-    const row = (seq: number, recordedAt: string): StoredEvent => ({ seq, id: `evt_${seq}`, type: EVENT_TYPES.equipmentStateChanged, time: recordedAt, recordedAt, data: {} });
-    let rows = [row(1, time.iso()), row(2, time.iso()), row(4, time.iso())];
-    store.readEvents = async (query: EventQuery) => ({ items: rows.filter((item) => item.seq > query.after), oldestSeq: 1, lastSeq: 4 });
-    const young = await call('GET', '/integrations/events', { principal: VIEWER });
-    expect(young.body).toMatchObject({ nextAfter: '2' });
-    rows = [row(1, time.iso()), row(2, time.iso()), row(4, new Date(time.now() - 31_000).toISOString())];
-    const old = await call('GET', '/integrations/events', { principal: VIEWER });
-    expect(old.body).toMatchObject({ nextAfter: '4' });
+  it('nextAfter moves past rows a filtered reader is not shown', async () => {
+    const { store, call } = await feed();
+    await store.appendEvents([event(1), event(2, EVENT_TYPES.equipmentAlarmRaised), event(3)]);
+    const alarms = await call('GET', '/integrations/events?types=equipment.alarm.*', { principal: VIEWER });
+    expect(alarms.body.items).toHaveLength(1);
+    expect(alarms.body.nextAfter).toBe('3');
+  });
+});
+
+describe('PostgreSQL (PGlite): settled on the unfiltered sequence — live E2E D5', () => {
+  async function pgFeed() {
+    const db = new PGlite();
+    const store = new PostgresStore({
+      async query(text, params) {
+        return { rows: (await db.query(text, params as unknown[])).rows as never[] };
+      },
+    });
+    await store.init();
+    const call = routeCaller(store, { demo: false, services: testServices({ storeKind: 'postgres' }) });
+    return { db, store, call };
+  }
+
+  it('repro 1: an audit row ahead of a model row does not hold back a reader who is not shown audit', async () => {
+    const { store, call } = await pgFeed();
+    await store.appendEvents([event(1, EVENT_TYPES.integrationAudit), event(2)]);
+    const admin = await call('GET', '/integrations/events', { principal: ADMIN });
+    expect(admin.body.items).toHaveLength(2);
+    const viewer = await call('GET', '/integrations/events', { principal: VIEWER });
+    expect(viewer.body.items.map((item: { data: { n: number } }) => item.data.n)).toEqual([2]);
+    expect(viewer.body.nextAfter).toBe('2');
+  });
+
+  it('repro 2: a types-filtered reader gets committed rows at once', async () => {
+    const { store, call } = await pgFeed();
+    await store.appendEvents([event(1, EVENT_TYPES.modelShellUpdated), event(2), event(3, EVENT_TYPES.equipmentAlarmRaised)]);
+    const reply = await call('GET', '/integrations/events?types=equipment.*', { principal: VIEWER });
+    expect(reply.body.items).toHaveLength(2);
+    expect(reply.body.nextAfter).toBe('3');
+  });
+
+  it('a real gap (rolled-back insert, next row young) still holds every reader', async () => {
+    const { db, store, call } = await pgFeed();
+    await store.appendEvents([event(1)]);
+    await db.exec(`BEGIN; INSERT INTO integration_event (id, type, occurred_at, data) VALUES ('gone', '${EVENT_TYPES.equipmentStateChanged}', now(), '{}'::jsonb); ROLLBACK;`);
+    await store.appendEvents([event(3)]);
+    const reply = await call('GET', '/integrations/events', { principal: ADMIN });
+    expect(reply.body.items).toHaveLength(1);
+    expect(reply.body.nextAfter).toBe('1');
   });
 });
 
