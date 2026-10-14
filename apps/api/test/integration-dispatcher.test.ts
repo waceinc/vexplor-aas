@@ -403,25 +403,6 @@ describe('commit then crash (folder store, platform 7.2)', () => {
 
 // ── Security review (2026-10-14): lease, stale completion, fairness ───────────────────────────────────────────────
 
-/** Whether the store filters claims by subscription and guards completions (WP1 store change) — probed on a scratch store */
-async function storeGuards(): Promise<{ filter: boolean; complete: boolean }> {
-  const store = await memoryStore();
-  const box = new SecretBox(KEY);
-  const sub = await store.createSubscription({
-    name: 'p', kind: 'webhook', url: 'https://x.example.com/', types: ['*'], packageIds: [], enabled: true, options: {}, secretHint: 'x',
-    secrets: { keyId: box.keyId, secretSealed: box.seal('whsec_x') },
-  });
-  const now = new Date().toISOString();
-  await store.enqueueDeliveries([{ subscriptionId: sub.id, eventSeq: 1, eventId: 'e1' }], now);
-  const claim = store.claimDeliveries.bind(store) as (n: string, l: number, ms: number, s?: string) => Promise<unknown[]>;
-  const filter = (await claim(now, 1, 60_000, 'sub_none')).length === 0;
-  const [row] = await store.claimDeliveries(now, 1, 60_000);
-  const complete = store.completeDelivery.bind(store) as (id: string, r: object) => Promise<boolean | void>;
-  const stale = row ? await complete((row as { id: string }).id, { outcome: 'succeeded', at: now, attempt: 99 }) : undefined;
-  return { filter, complete: stale === false };
-}
-const guards = await storeGuards();
-
 describe('security review — lease, stale completions, fairness', () => {
   it('item 1: the lease outlives the longest attempt; the timeout setting is clamped', async () => {
     const { leaseFor } = await import('../src/integration/dispatcher.js');
@@ -517,7 +498,27 @@ describe('security review — lease, stale completions, fairness', () => {
     expect((await store.getSubscription(subscription.id))!.consecutiveDead).toBe(0);
   });
 
-  it.runIf(guards.complete)('item 2 (store): a stale completion does not overwrite a newer outcome', async () => {
+  it('item 2: a late result of this process does not overwrite another process that re-claimed the row', async () => {
+    const releases: (() => void)[] = [];
+    const send = (attempt: WebhookAttempt): Promise<WebhookOutcome> =>
+      new Promise((resolve) => releases.push(() => resolve({ statusCode: 500, durationMs: 1, address: attempt.address, snippet: '' })));
+    const { store, dispatcher, subscribe, time } = await setup({ send });
+    const { subscription } = await subscribe();
+    await store.appendEvents([stateEvent()]);
+    await dispatcher.fanOut();
+    await dispatcher.claimAndStart();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const { leaseFor } = await import('../src/integration/dispatcher.js');
+    time.advance(leaseFor(300) + 1);
+    // Another process takes the expired row and is still sending it
+    const [other] = await store.claimDeliveries(time.iso(), 1, 60_000);
+    expect(other!.attempts).toBe(2);
+    releases.splice(0).forEach((release) => release());
+    await dispatcher.idle();
+    expect((await deliveries(store, subscription.id))[0]).toMatchObject({ status: 'in-flight', attempts: 2 });
+  });
+
+  it('item 2 (store): a stale completion does not overwrite a newer outcome', async () => {
     const time = clock();
     const store = await memoryStore(time.iso);
     const { subscribe } = await setup({ store, time });
@@ -532,7 +533,7 @@ describe('security review — lease, stale completions, fairness', () => {
     expect((await store.getDelivery(first!.id))!.status).toBe('succeeded');
   });
 
-  it.runIf(guards.filter)('item 4: one slow receiver with a backlog does not starve a healthy subscription', async () => {
+  it('item 4: one slow receiver with a backlog does not starve a healthy subscription', async () => {
     const bySub: Record<string, number> = {};
     const send = (attempt: WebhookAttempt): Promise<WebhookOutcome> => {
       const which = attempt.url.endsWith('/slow') ? 'slow' : 'healthy';

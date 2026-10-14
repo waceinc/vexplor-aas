@@ -155,6 +155,21 @@ describe('rotate, test, replay, deliveries, redeliver, status', () => {
     expect((await on.call('POST', `/integrations/subscriptions/${created.subscription.id}/test`)).body).toEqual(result);
   });
 
+  it('D1: a test delivery writes subscription.tested with ok, status, duration and the masked target — never the secret', async () => {
+    const result = { ok: false as const, error: 'HTTP 500', statusCode: 500, durationMs: 41, address: '93.184.216.34', serverTime: 'now' };
+    const on = await admin({ runtime: { status: () => ({ enabled: true, running: ['dispatcher'] }), testSubscription: async () => result } });
+    const created = (await on.call('POST', '/integrations/subscriptions', { ...WEBHOOK, url: 'https://mes.example.com/hook?token=SECRET1' })).body;
+    await on.call('POST', `/integrations/subscriptions/${created.subscription.id}/test`);
+    const audit = (await on.store.readEvents({ after: 0, limit: 100, includeAudit: true })).items.filter((row) => row.data['action'] === 'subscription.tested');
+    expect(audit).toHaveLength(1);
+    expect(audit[0]!.data).toMatchObject({
+      target: created.subscription.id,
+      details: { ok: false, statusCode: 500, durationMs: 41, target: 'https://mes.example.com/hook?token=***' },
+    });
+    expect(JSON.stringify(audit)).not.toContain('SECRET1');
+    expect(JSON.stringify(audit)).not.toContain(created.secret);
+  });
+
   it('replay from a seq or a time enqueues matching events; a second replay re-sets finished rows to pending', async () => {
     const { call, store, time } = await admin();
     const { subscription } = (await call('POST', '/integrations/subscriptions', WEBHOOK)).body;

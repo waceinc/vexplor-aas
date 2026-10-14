@@ -125,6 +125,12 @@ describe('rendering (toCloudEvent)', () => {
     expect(runtime).not.toHaveProperty('vxrevision');
   });
 
+  it('external-refs events are package events: subject packages/<id>, no links', () => {
+    const rendered = toCloudEvent(sampleRow(EVENT_TYPES.modelExternalRefsUpdated), ctx);
+    expect(rendered.subject).toBe('packages/pkg_12');
+    expect(rendered.data).not.toHaveProperty('links');
+  });
+
   it('links are path-only without AAS_PUBLIC_URL', () => {
     const rendered = toCloudEvent(sampleRow(EVENT_TYPES.modelShellCreated), { instanceId: 'x' });
     expect((rendered.data['links'] as { self: string }).self).toMatch(/^\/packages\/pkg_12\/api\/v3\.0\/shells\//);

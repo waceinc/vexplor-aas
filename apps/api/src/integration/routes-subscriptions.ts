@@ -210,12 +210,28 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
     {
       method: 'POST',
       pattern: '/integrations/subscriptions/:id/test',
-      handle: guarded(async ({ params }) => {
+      handle: guarded(async ({ request, params }) => {
         const runtime = requireRuntime(deps);
+        const store = integrationStore(rawStore);
         const id = params['id']!;
-        if (!(await integrationStore(rawStore).getSubscription(id))) throw notFound(id);
+        const subscription = await store.getSubscription(id);
+        if (!subscription) throw notFound(id);
         const result = await runtime.testSubscription?.(id);
         if (!result) throw notFound(id);
+        // Design §4.2: a test delivery is recorded (never the secret, the target with its query masked)
+        await audit(
+          deps.auditStore ?? store,
+          request,
+          'subscription.tested',
+          id,
+          {
+            ok: result.ok,
+            ...(result.statusCode === undefined ? {} : { statusCode: result.statusCode }),
+            ...(result.durationMs === undefined ? {} : { durationMs: result.durationMs }),
+            target: maskUrlQuery(subscription.url),
+          },
+          servicesOf(deps).now(),
+        );
         return json(200, result);
       }),
     },
