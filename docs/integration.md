@@ -446,7 +446,7 @@ then the first). Two exports without edits differ only in `exportedAt`. In the U
 |---|---|---|
 | `GET /integrations/exports/equipment` | `vexplor.equipmentMaster/1` | One row per Instance shell; `packageId` optional (all visible files); `includeTypes=1`, `trace=1` (source paths), `profile=sap-pm` (length warnings) |
 | `GET /integrations/exports/bom?packageId=` | `vexplor.bom/1` | Refused with 422 `BomRootMismatch` when INT-2 fails, 422 `NoBom` when the file has no hierarchy |
-| `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | A process file; flat list with parent ids. 422 `NoHierarchy` for any other file |
+| `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | Any file with `HierarchicalStructures` (plant structure of a process file, or the BOM tree of an equipment file); flat list with parent ids. 422 `NoHierarchy` only when the file has none |
 | `GET /integrations/exports/maintenance?packageId=` | `vexplor.maintenancePlan/1` | CSV has one row per step |
 | `GET /integrations/exports/documents?packageId=` | `vexplor.documents/1` | One row per document × version × file |
 
@@ -464,7 +464,8 @@ Columns are only ever **added at the end**; any other change is a new schema `/2
 
 Formats inside cells: `specificAssetIds` = `name=value;…`, `externalRefs` = `system|type|id;…`, `location.path` =
 `/`-joined. BOM `quantity` is the child's `BulkCount` per parent (default 1); unmapped children are kept with
-`mapped=false`. Hierarchy rows are never multiplied by a quantity (a quantity above 1 is a warning, INT-4).
+`mapped=false`. Hierarchy rows are never multiplied by a quantity. In a process file a quantity above 1 on equipment is
+an INT-4 warning; in an equipment file's BOM tree a quantity is a part count and carries no warning.
 Maintenance `interval` stays empty with `intervalStatus: "missing"` unless the model holds an explicit value and unit.
 Documents `url` points at the Part 2 attachment route (absolute with `AAS_PUBLIC_URL`); a missing file part gives
 `available=false` and an empty `url`.
@@ -494,7 +495,7 @@ refused. They are not lint findings and do not change the submission report.
 | INT-1 | warning | A Type shell has a DigitalNameplate `SerialNumber` | Excluded from the equipment export unless `includeTypes=1` |
 | INT-2 | error | The hierarchy entry node's `globalAssetId` differs from the shell's | BOM export refused (422 `BomRootMismatch`) |
 | INT-3 | warning | A maintenance instruction has no explicit interval value + unit | `intervalStatus: "missing"` |
-| INT-4 | warning | A hierarchy node with `BulkCount > 1` points at one `globalAssetId` | Hierarchy export warning; never expanded |
+| INT-4 | warning | A process-file hierarchy node with `BulkCount > 1` points at one `globalAssetId` | Hierarchy export warning; never expanded |
 | INT-5 | warning | An Instance shell has no `SerialNumber` | `missing` includes `nameplate.serialNumber` |
 
 ## 8. Runtime rules
