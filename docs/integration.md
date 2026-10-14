@@ -119,8 +119,11 @@ test labs), internal numbers should not.
 - `system` names the system **including tenant / client** (`sap-s4:PRD:100`, `icube:WACE`). It must not contain `|`.
 - One `(system, type, id)` belongs to **one** asset only. A second claim is refused with 409 and the existing holder.
 - `publish: true` writes the ref into the shell's `specificAssetIds` as `name = "<system>:<type>"`, through a normal edit
-  (history, undo, a `model.shell.updated` event). Unpublishing removes it again; other specificAssetIds are untouched.
-- `type: costCenter` and `sensitive: true` refs are **never** published, exported or put in events.
+  (history and a `model.shell.updated` event). Unpublishing removes it again; other specificAssetIds are untouched.
+- A refs change is **not undoable** and clears the file's undo history (↶): undo restores the model only, so it would
+  remove a published id while the refs document still says `publish: true`. To revert, save the refs again.
+- `type: costCenter` (in any spelling — the type is stored as `costCenter`) and `sensitive: true` refs are **never**
+  published, exported or put in events.
 - Edit them in **Integrations → External references**, or import a CSV (columns
   `globalAssetId,subjectKind,subjectKey,system,type,id,publish,sensitive,externalSubjectId`). The import is always shown
   as a dry run first; it adds and updates only — it never deletes numbers missing from the file. Importing the same file
