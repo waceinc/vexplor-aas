@@ -2,7 +2,9 @@
  * The detector's memory between cycles (persisted as runtime state `detector:<packageId>`) and the small sample
  * selection helpers the detection steps share.
  */
-import type { MachineStateOrUnknown } from '@aas/core';
+import type { AssetJoin, effectiveStateRules, ElementSource, MachineStateOrUnknown, PackageIntegrationConfig } from '@aas/core';
+import type { PackageCycle } from '../../supervisor.js';
+import type { NewEvent } from '@aas/store';
 import type { AlarmTrack } from './alarms.js';
 import type { ConnectionTrack } from './connection.js';
 import { isGoodQuality, sampleMs, type CounterReading, type RuntimeSample } from './counters.js';
@@ -19,6 +21,12 @@ export interface DetectorState {
   thresholds: Record<string, ThresholdTrack>;
   counters: Record<string, CounterReading>;
   connections: Record<string, ConnectionTrack>;
+  /**
+   * Events of the last processed cycle that may not have reached the event log yet. Written **together with** the new
+   * state before the events are appended, cleared afterwards; re-appended first on the next cycle (ids are
+   * deterministic, so a second append of an already stored event is skipped).
+   */
+  pending?: NewEvent[];
 }
 
 export function detectorStateKey(packageId: string): string {
@@ -50,4 +58,18 @@ export function latestGood(samples: readonly RuntimeSample[], property: string, 
 /** Drops tracks of rules that no longer exist, so a re-added rule with the same id starts clean */
 export function keepOnly<T>(tracks: Record<string, T>, ids: readonly string[]): Record<string, T> {
   return Object.fromEntries(Object.entries(tracks).filter(([id]) => ids.includes(id)));
+}
+
+/** Everything one detection step needs about the cycle being processed */
+export interface DetectContext {
+  config: PackageIntegrationConfig;
+  rules: ReturnType<typeof effectiveStateRules>;
+  hash: string;
+  state: DetectorState;
+  cycle: PackageCycle;
+  asset: AssetJoin;
+  subject: string;
+  suppressed: boolean;
+  push: (type: string, key: string, time: string, value: unknown, data: Record<string, unknown>) => void;
+  sourceOf: (sample: RuntimeSample) => ElementSource;
 }

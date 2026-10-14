@@ -9,9 +9,10 @@
  * Important: never written back to the model. Overlays are applied only to a copy — value sync option A.
  */
 import { overlayEnvironment, type ValueSample } from '@aas/collector';
-import { AasOpcUaServer, planForPackage, type OpcUaSecurityOptions, type OpcUaTrustStore, type PublishPlan, type ServerStatus } from '@aas/opcua';
+import { AasOpcUaServer, planForPackage, type OpcUaClientInfo, type OpcUaSecurityOptions, type OpcUaTrustStore, type PublishPlan, type ServerStatus } from '@aas/opcua';
 import type { AasStore } from '@aas/store';
-import { verifyPassword } from './password.js';
+import { randomBytes } from 'node:crypto';
+import { hashPassword, verifyPassword } from './password.js';
 import { LoginThrottle } from './session.js';
 
 export interface PublisherOptions {
@@ -22,28 +23,45 @@ export interface PublisherOptions {
   hostname?: string;
   /** How many values to scan per file — only the latest is used, so a generous number is fine */
   valueLimit?: number;
-  /** OPC UA security (docs/design/integration-v1.md §7). server.ts sets it from OPCUA_ALLOW_INSECURE / OPCUA_PKI_DIR */
+  /**
+   * OPC UA security (docs/design/integration-v1.md §7). server.ts sets it from OPCUA_ALLOW_INSECURE / OPCUA_PKI_DIR.
+   * Absent = secure, which needs `verifyUser` — the server refuses to start rather than open an unauthenticated port
+   */
   security?: OpcUaSecurityOptions;
+}
+
+/** A hash nobody's password matches — checked for unknown logins so the answer takes as long as for real ones */
+let dummyHash: Promise<string> | undefined;
+
+/** The throttle slot of one OPC UA client: its certificate, else its address, else one shared slot */
+function clientSlot(client: OpcUaClientInfo | undefined): string {
+  if (client?.certificateThumbprint) return `opcua-cert:${client.certificateThumbprint}`;
+  if (client?.address) return `opcua-addr:${client.address}`;
+  return 'opcua';
 }
 
 /**
  * The OPC UA user check for secure mode: the server's own accounts, any role (the address space is read-only),
  * disabled accounts refused, guessing slowed by the same `LoginThrottle` the web login uses.
- * Important: node-opcua does not hand the client address to the check, so the throttle's address slot is the fixed
- *    word 'opcua': five failures block the account on OPC UA for a while, and the account-wide cap still stops guessing.
- *    Pass the web login's throttle to make OPC UA failures count towards the same account-wide cap.
+ * Important: the throttle counts per account **and client** (certificate thumbprint, else peer address — review L5).
+ *    With one shared slot, five wrong passwords from anyone would lock the account for every MES. The throttle's
+ *    account-wide cap still stops guessing from many clients. Pass the web login's throttle to share that cap.
+ * Important: an unknown login still runs a full password check against a dummy hash, so the response time does not
+ *    tell which logins exist.
  */
 export function accountVerifier(
   store: Pick<AasStore, 'findUserByLogin'>,
   throttle: LoginThrottle = new LoginThrottle(),
-): (username: string, password: string) => Promise<boolean> {
-  return async (username, password) => {
+): (username: string, password: string, client?: OpcUaClientInfo) => Promise<boolean> {
+  return async (username, password, client) => {
     const login = username.trim();
-    if (login === '' || throttle.blocked(login, 'opcua')) return false;
+    const slot = clientSlot(client);
+    if (login === '' || throttle.blocked(login, slot)) return false;
     const user = await store.findUserByLogin(login);
-    const ok = user !== undefined && !user.disabled && (await verifyPassword(password, user.passwordHash));
-    if (ok) throttle.pass(login, 'opcua');
-    else throttle.fail(login, 'opcua');
+    const matches = await verifyPassword(password, user?.passwordHash ?? (await (dummyHash ??= hashPassword(randomBytes(24).toString('base64')))));
+    const ok = user !== undefined && !user.disabled && matches;
+    if (ok) throttle.pass(login, slot);
+    else throttle.fail(login, slot);
     return ok;
   };
 }

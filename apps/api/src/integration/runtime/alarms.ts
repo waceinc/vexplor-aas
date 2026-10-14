@@ -89,6 +89,8 @@ export interface AlarmTrack extends DebounceTrack {
   occurrences: number;
   code?: string | null;
   text?: string | null;
+  /** Kept while open, so the alarm can still be cleared with its details when its rule is removed */
+  rule?: { property: string; severity: string | null; maintenanceIds: string[] };
 }
 
 export interface AlarmCycle {

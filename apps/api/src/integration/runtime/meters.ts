@@ -13,9 +13,9 @@ import type { AidInterface } from '@aas/collector';
 import type { CounterFlags, CounterRule, Environment, StateRules } from '@aas/core';
 import type { AasStore, CollectedValue } from '@aas/store';
 import { readingIdFor } from '../ids.js';
-import { counterStep, isGoodQuality, numericValue, sampleMs, summarizeSteps, type CounterReading, type CounterStep } from './counters.js';
+import { counterStep, isGoodQuality, numericValue, sampleMs, sampleTime, summarizeSteps, type CounterReading, type CounterStep } from './counters.js';
 import { elementSourceFor, isVirtualPlc } from './element-ref.js';
-import { computeSegments, readWindow } from './segments.js';
+import { lowerBound, readStateSamples, readWindow, segmentsOf } from './segments.js';
 import type { Period } from './zoned.js';
 
 export type MeterFlags = CounterFlags & { simulated: boolean };
@@ -67,86 +67,81 @@ function interfaceOf(context: MeterContext, interfaceName: string | undefined, p
   );
 }
 
-/** Device counter readings, one per period that holds at least one good value */
-export async function deviceCounterReadings(context: MeterContext, rule: CounterRule, periods: readonly Period[]): Promise<{ readings: MeterReading[]; truncated: boolean }> {
-  if (periods.length === 0) return { readings: [], truncated: false };
+/** Device counter readings, one per period that holds at least one good value. One read, one sorted pass */
+export async function deviceCounterReadings(context: MeterContext, rule: CounterRule, periods: readonly Period[]): Promise<MeterReading[]> {
+  if (periods.length === 0) return [];
   const first = periods[0]!.start;
   const last = periods[periods.length - 1]!.end;
-  const { values, truncated } = await readWindow(context.store, context.packageId, { propertyName: rule.property }, new Date(first - context.holdMs).toISOString(), new Date(last).toISOString());
+  const values = await readWindow(context.store, context.packageId, { propertyName: rule.property }, new Date(first - context.holdMs).toISOString(), new Date(last).toISOString());
 
-  // Good readings with their samples, and bad ones counted per period
-  const good: { reading: CounterReading; sample: CollectedValue }[] = [];
-  const bad: number[] = [];
+  // Good readings with their samples (oldest first), and the times of bad ones
+  const good: { at: number; reading: CounterReading; sample: CollectedValue }[] = [];
+  const bad: { at: number }[] = [];
   for (const sample of values) {
     const value = numericValue(sample);
-    if (!isGoodQuality(sample.quality) || value === undefined) bad.push(sampleMs(sample));
-    else good.push({ reading: { value, at: sample.receivedAt ?? sample.observedAt }, sample });
+    const at = sampleMs(sample);
+    if (!isGoodQuality(sample.quality) || value === undefined) bad.push({ at });
+    else good.push({ at, reading: { value, at: sampleTime(sample) }, sample });
   }
-  const steps: CounterStep[] = [];
-  for (let i = 1; i < good.length; i++) {
-    const step = counterStep(good[i - 1]!.reading, good[i]!.reading, rule, context.holdMs);
-    if (step) steps.push(step);
-  }
+  // steps[i] ends at good[i + 1]; a step whose value did not change is null
+  const steps: (CounterStep | undefined)[] = [];
+  for (let i = 1; i < good.length; i++) steps.push(counterStep(good[i - 1]!.reading, good[i]!.reading, rule, context.holdMs));
 
   const out: MeterReading[] = [];
   for (const period of periods) {
-    const inPeriod = good.filter((entry) => {
-      const at = Date.parse(entry.reading.at);
-      return at >= period.start && at < period.end;
-    });
-    const lastEntry = inPeriod[inPeriod.length - 1];
-    if (!lastEntry) continue;
-    const periodSteps = steps.filter((step) => {
-      const at = Date.parse(step.intervalEnd);
-      return at >= period.start && at < period.end;
-    });
+    const lo = lowerBound(good, period.start);
+    const hi = lowerBound(good, period.end);
+    if (hi <= lo) continue;
+    const lastEntry = good[hi - 1]!;
+    // Steps ending inside the period: the one from the previous reading into it, then those between its readings
+    const periodSteps = steps.slice(Math.max(0, lo - 1), hi - 1).filter((step): step is CounterStep => step !== undefined);
     // The delta is measured against the previous period's last good value (D20); without one it is unknown — the
     // count before the first reading of the period is not known, so the steps inside it are not the period's change
-    const hasPrevious = good.some((entry) => Date.parse(entry.reading.at) < period.start);
+    const hasPrevious = lo > 0;
     const summary = summarizeSteps(periodSteps);
     const iface = interfaceOf(context, lastEntry.sample.interfaceName, rule.property);
     const simulated = iface ? isVirtualPlc(iface) : false;
     out.push({
-      readingId: readingIdFor(context.assetId, rule.id, lastEntry.sample.observedAt),
+      // Important: keyed by the receive time (review M5). The device time of an idle counter stays frozen, so keying by
+      //    it would give the readings of several periods one id and the CMMS would drop all but the first
+      readingId: readingIdFor(context.assetId, rule.id, lastEntry.reading.at),
       assetId: context.assetId,
       meterId: rule.id,
       meterKind: 'deviceCounter',
       unit: rule.unit,
       reading: lastEntry.reading.value,
-      // No earlier good value at all: the change over the period is unknown, not zero
       delta: hasPrevious ? summary.delta : null,
       periodStart: new Date(period.start).toISOString(),
       periodEnd: new Date(period.end).toISOString(),
       observedAt: lastEntry.sample.observedAt,
       receivedAt: lastEntry.sample.receivedAt ?? null,
       flags: { ...summary.flags, simulated },
-      excludedBadSamples: bad.filter((at) => at >= period.start && at < period.end).length,
+      excludedBadSamples: lowerBound(bad, period.end) - lowerBound(bad, period.start),
       source: elementSourceFor(context.environment, iface, lastEntry.sample.interfaceName, rule.property, lastEntry.sample.source, simulated),
       evidence: evidenceUrl(context.packageId, rule.property, period.start, period.end),
     });
   }
-  return { readings: out, truncated };
+  return out;
 }
 
-/** Running time per finished period from the state segments */
+/** Running time per finished period from the state segments. One read for all periods */
 export async function runTimeReadings(
   context: MeterContext,
   state: { property: string; interfaceName: string | null },
   rules: StateRules,
   periods: readonly Period[],
-): Promise<{ readings: MeterReading[]; truncated: boolean }> {
-  const out: MeterReading[] = [];
-  let truncated = false;
+): Promise<MeterReading[]> {
+  const finished = periods.filter((period) => period.end <= context.now);
+  if (finished.length === 0) return [];
   const iface = interfaceOf(context, state.interfaceName ?? undefined, state.property);
   const simulated = iface ? isVirtualPlc(iface) : false;
-  for (const period of periods) {
-    if (period.end > context.now) continue;
-    const result = await computeSegments(context.store, context.packageId, state, rules, period.start, period.end, context.holdMs);
-    truncated ||= result.truncated;
-    const seconds = (ms: number): number => Math.round(ms / 10) / 100;
+  const samples = await readStateSamples(context.store, context.packageId, state, rules, finished[0]!.start, finished[finished.length - 1]!.end, context.holdMs);
+  const seconds = (ms: number): number => Math.round(ms / 10) / 100;
+  return finished.map((period) => {
+    const { totals } = segmentsOf(samples, period.start, period.end, context.holdMs);
     const periodEnd = new Date(period.end).toISOString();
-    const running = seconds(result.totals.run);
-    out.push({
+    const running = seconds(totals.run);
+    return {
       readingId: readingIdFor(context.assetId, 'runtime', periodEnd),
       assetId: context.assetId,
       meterId: 'runtime',
@@ -159,16 +154,15 @@ export async function runTimeReadings(
       observedAt: periodEnd,
       receivedAt: null,
       // gap = part of the period had no data: the running time is a lower bound for that period
-      flags: { reset: false, rollover: false, implausible: false, gap: result.totals.none > 0, simulated },
+      flags: { reset: false, rollover: false, implausible: false, gap: totals.none > 0, simulated },
       excludedBadSamples: 0,
       source: elementSourceFor(context.environment, iface, iface?.name ?? state.interfaceName ?? '', state.property, undefined, simulated),
       evidence: evidenceUrl(context.packageId, state.property, period.start, period.end),
       runningSeconds: running,
-      stoppedSeconds: seconds(result.totals.stop),
-      alarmSeconds: seconds(result.totals.alarm),
-      offSeconds: seconds(result.totals.off),
-      unknownSeconds: seconds(result.totals.unknown),
-    });
-  }
-  return { readings: out, truncated };
+      stoppedSeconds: seconds(totals.stop),
+      alarmSeconds: seconds(totals.alarm),
+      offSeconds: seconds(totals.off),
+      unknownSeconds: seconds(totals.unknown),
+    } satisfies MeterReading;
+  });
 }

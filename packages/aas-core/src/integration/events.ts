@@ -240,7 +240,12 @@ export type EquipmentAlarmData = {
   maintenanceIds: string[];
   detectionResolutionMs: number;
   suppressed: boolean;
+  /** Only on `cleared`: present when the alarm was closed because its rule was removed, not because it went inactive */
+  reason?: ClosedReason;
 };
+
+/** Why an open alarm or threshold was closed without the value saying so */
+export type ClosedReason = 'rule-removed';
 
 export const COUNTER_KINDS = ['total', 'good', 'reject', 'runHours', 'energy', 'other'] as const;
 export type CounterKind = (typeof COUNTER_KINDS)[number];
@@ -278,6 +283,8 @@ export type EquipmentThresholdData = {
   observedAt: string;
   detectedAt: string;
   suppressed: boolean;
+  /** Only on `returned`: present when the crossing was closed because its rule was removed (value/observedAt = last seen) */
+  reason?: ClosedReason;
 };
 
 export type CollectionConnectionData = {

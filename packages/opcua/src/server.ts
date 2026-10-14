@@ -16,6 +16,7 @@
  *    certificates trusted only after an administrator trusts them. The old unauthenticated behaviour (node-opcua
  *    defaults) needs the explicit `insecure` mode — "never point an MES at an unauthenticated port".
  */
+import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -59,14 +60,25 @@ export interface AasOpcUaServerOptions {
   refreshMs?: number;
   /** Host to advertise. Empty means the node-opcua default */
   hostname?: string;
-  /** Absent = insecure (the behaviour before §7) — kept so library callers and old tests keep working; server.ts always sets it */
+  /**
+   * Absent = **secure** (fail-closed, review H2): a caller that forgets the option gets the locked-down server and a
+   * start error asking for `verifyUser`, never an open port. The unauthenticated behaviour needs `{ mode: 'insecure' }`.
+   */
   security?: OpcUaSecurityOptions;
+}
+
+/** Who is asking, as far as the secure channel tells — the key a password-guessing throttle counts by */
+export interface OpcUaClientInfo {
+  /** Peer IP address of the secure channel */
+  address?: string;
+  /** SHA-1 of the client application certificate (DER), lowercase hex — stable across NAT, unlike the address */
+  certificateThumbprint?: string;
 }
 
 export interface OpcUaSecurityOptions {
   mode: 'secure' | 'insecure';
   /** Required for 'secure'. Any account may read (the address space is read-only); a disabled account must answer false */
-  verifyUser?: (username: string, password: string) => Promise<boolean>;
+  verifyUser?: (username: string, password: string, client: OpcUaClientInfo) => Promise<boolean>;
   /** Root folder of the certificate store (own certificate, trusted and rejected client certificates). Default ./opcua-pki */
   pkiDir?: string;
 }
@@ -178,7 +190,7 @@ export class AasOpcUaServer {
   private readonly instanceUri = `urn:aas-authoring-tool:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 
   constructor(private readonly options: AasOpcUaServerOptions) {
-    this.status = { running: false, packages: 0, variables: 0, security: options.security?.mode ?? 'insecure' };
+    this.status = { running: false, packages: 0, variables: 0, security: options.security?.mode ?? 'secure' };
   }
 
   /** The certificate trust store — undefined unless the server runs in secure mode */
@@ -189,8 +201,8 @@ export class AasOpcUaServer {
 
   /** node-opcua options for the configured security mode */
   private async securityOptions(): Promise<Partial<OPCUAServerOptions>> {
-    const security = this.options.security;
-    if (!security || security.mode === 'insecure') return {};
+    const security = this.options.security ?? { mode: 'secure' };
+    if (security.mode === 'insecure') return {};
     const verifyUser = security.verifyUser;
     if (!verifyUser) throw new Error(tr('보안 모드 OPC UA 서버에는 사용자 확인 함수가 필요합니다.'));
     const pkiDir = resolve(security.pkiDir ?? 'opcua-pki');
@@ -207,8 +219,15 @@ export class AasOpcUaServer {
       serverCertificateManager: manager,
       userManager: {
         isValidUserAsync(username, password, callback) {
+          // `this` is the server session; its secure channel knows the peer address and the client certificate
+          const channel = this.channel;
+          const certificate = channel?.clientCertificate;
+          const client: OpcUaClientInfo = {
+            ...(channel?.remoteAddress ? { address: channel.remoteAddress } : {}),
+            ...(certificate ? { certificateThumbprint: createHash('sha1').update(certificate).digest('hex') } : {}),
+          };
           // Important: a throwing or rejecting verifier must deny, never crash the session handshake
-          verifyUser(username, password).then(
+          verifyUser(username, password, client).then(
             (ok) => callback(null, ok === true),
             () => callback(null, false),
           );

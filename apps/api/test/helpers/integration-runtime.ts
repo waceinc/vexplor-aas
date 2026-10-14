@@ -179,5 +179,13 @@ export async function runtimeEventScenario(): Promise<StoredEvent[]> {
   ];
   const events: StoredEvent[] = [];
   for (const [values, failed] of steps) events.push(...(await detector.onPackageCycle(clock.cycle(values, failed))));
+  // Raise the alarm and cross the threshold again, then remove both rules while open: closed with reason 'rule-removed'
+  events.push(...(await detector.onPackageCycle(clock.cycle({ AlarmActive: 1, MotorTemperature: 95 }))));
+  await store.putPackageIntegrationConfig(
+    record.id,
+    { schema: 'vexplor.packageIntegrationConfig/1', state: { property: 'MachineState', interfaceName: null, rules: null } },
+    1,
+  );
+  events.push(...(await detector.onPackageCycle(clock.cycle({ MachineState: 'run' }))));
   return events;
 }
