@@ -3,544 +3,446 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VEXPLOR AAS Studio</title>
-<meta name="description" content="AAS(Asset Administration Shell)를 만들고 · 검사하고 · 내주고 · 현장 값까지 모으는 일을 웹 화면 하나로. 처음 쓰는 사람도 따라올 수 있는 통합 도구.">
-<meta property="og:title" content="VEXPLOR AAS Studio">
-<meta property="og:description" content="AASX 편집 · 검사 · 자동 고치기 · 표준 API · OPC UA 수집을 웹 화면 하나로">
-<meta property="og:image" content="img/v2/hero.jpg">
+<title>VEXPLOR AAS Studio — AASX 작성 · 검사 · 수집 · 연동 오픈소스</title>
+<meta name="description" content="AASX를 만들고 규칙 43종으로 검사하고, IDTA Part 2 REST API로 내주고, OPC UA · Modbus TCP · MQTT로 설비 값을 모아 MES · ERP · CMMS에 보내는 오픈소스 웹 도구(Apache-2.0).">
+<link rel="canonical" href="https://waceinc.github.io/vexplor-aas/">
+<link rel="alternate" hreflang="ko" href="https://waceinc.github.io/vexplor-aas/?lang=ko">
+<link rel="alternate" hreflang="en" href="https://waceinc.github.io/vexplor-aas/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://waceinc.github.io/vexplor-aas/">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://waceinc.github.io/vexplor-aas/">
+<meta property="og:site_name" content="VEXPLOR AAS Studio">
+<meta property="og:title" content="VEXPLOR AAS Studio">
+<meta property="og:description" content="Open-source web app (Apache-2.0) to author AASX, check it against 43 rules, serve it over the IDTA Part 2 REST API, collect machine values over OPC UA, Modbus TCP and MQTT, and feed MES, ERP and CMMS.">
+<meta property="og:image" content="https://waceinc.github.io/vexplor-aas/img/v3/og-en.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="VEXPLOR AAS Studio workspace in the dark theme">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="VEXPLOR AAS Studio">
+<meta name="twitter:description" content="Open-source web app (Apache-2.0) to author AASX, check it against 43 rules, serve it over the IDTA Part 2 REST API, collect machine values over OPC UA, Modbus TCP and MQTT, and feed MES, ERP and CMMS.">
+<meta name="twitter:image" content="https://waceinc.github.io/vexplor-aas/img/v3/og-en.jpg">
+<meta name="theme-color" content="#0E0F12">
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="favicon-180.png">
-<script>document.documentElement.classList.add('js');</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+<script>(function(){var d=document.documentElement,l=null;try{var q=new URLSearchParams(location.search).get('lang');if(q==='ko'||q==='en')l=q;}catch(e){}
+if(!l){try{var s=localStorage.getItem('vx-lang');if(s==='ko'||s==='en')l=s;}catch(e){}}
+if(!l){var n=(navigator.languages&&navigator.languages[0])||navigator.language||'en';l=/^ko/i.test(n)?'ko':'en';}
+d.lang=l;d.classList.add('js');})();</script>
 <style>
-  :root {
-    --bg: #0b1016; --panel: #141b24; --panel2: #1a222d; --line: #253041;
-    --text: #e3e8ee; --dim: #97a3b0; --accent: #4c9aff; --accent2: #2f7cf6;
-    --ok: #4ec9a5; --warn: #ffb454; --mark: #f59e0b;
-    --ease: cubic-bezier(.22, .8, .24, 1);
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body { margin: 0; background: var(--bg); color: var(--text); word-break: keep-all; overflow-x: hidden;
-    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-
-  /* ── 머리줄 + 읽은 만큼 차오르는 선 ── */
-  .top { position: sticky; top: 0; z-index: 20; background: rgba(11, 16, 22, .82); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-  .top .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
-  .brand { font-weight: 800; letter-spacing: .14em; color: var(--accent); font-size: 18px; }
-  .brand small { color: var(--text); letter-spacing: 0; font-weight: 700; margin-left: 8px; font-size: 15px; }
-  .top nav { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
-  .top nav a { color: var(--dim); transition: color .2s; }
-  .top nav a:hover { color: var(--text); text-decoration: none; }
-  .progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%; transform-origin: 0 50%; transform: scaleX(var(--p, 0));
-    background: linear-gradient(90deg, var(--accent2), var(--ok)); }
-
-  /* ── 단추 ── */
-  .btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 15px; border: 1px solid transparent;
-    transition: transform .25s var(--ease), box-shadow .25s, filter .2s; }
-  .btn:hover { text-decoration: none; transform: translateY(-2px); }
-  .btn.primary { background: var(--accent2); color: #fff; box-shadow: 0 8px 28px rgba(47, 124, 246, .35); }
-  .btn.primary:hover { box-shadow: 0 12px 36px rgba(47, 124, 246, .5); }
-  .btn.primary::after { content: ''; position: absolute; inset: 0; transform: translateX(-120%);
-    background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); animation: shine 3.6s 1.2s infinite; }
-  @keyframes shine { 0% { transform: translateX(-120%); } 35%, 100% { transform: translateX(120%); } }
-  .btn.ghost { border-color: var(--line); color: var(--text); background: rgba(20, 27, 36, .8); }
-  .btn.ghost:hover { border-color: #3a4a60; }
-  .btn[aria-disabled="true"] { opacity: .55; pointer-events: none; }
-
-  /* ── 첫 화면 ── */
-  .hero { position: relative; padding: 76px 0 40px; text-align: center; isolation: isolate; }
-  .hero-bg { position: absolute; inset: -60px 0 0; z-index: -1; overflow: hidden; pointer-events: none; }
-  .hero-bg .grid { position: absolute; inset: 0; opacity: .5;
-    background-image: linear-gradient(rgba(76,154,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(76,154,255,.07) 1px, transparent 1px);
-    background-size: 48px 48px; mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
-    animation: drift 24s linear infinite; }
-  @keyframes drift { to { background-position: 48px 48px, 48px 48px; } }
-  .hero-bg .glow { position: absolute; width: 720px; height: 720px; border-radius: 50%; filter: blur(90px); opacity: .32; }
-  .hero-bg .g1 { background: #2f7cf6; left: 50%; top: -260px; margin-left: -520px; animation: float1 14s ease-in-out infinite alternate; }
-  .hero-bg .g2 { background: #13a38a; left: 50%; top: -200px; margin-left: -60px; opacity: .2; animation: float2 16s ease-in-out infinite alternate; }
-  @keyframes float1 { to { transform: translate(120px, 60px) scale(1.1); } }
-  @keyframes float2 { to { transform: translate(-140px, 40px) scale(.9); } }
-  .hero h1 { font-size: clamp(30px, 5vw, 50px); line-height: 1.25; margin: 0 0 18px; letter-spacing: -.01em; }
-  .hero h1 .line { display: block; }
-  .hero h1 span.hl { background: linear-gradient(90deg, #4c9aff, #4ec9a5, #4c9aff); background-size: 200% 100%;
-    -webkit-background-clip: text; background-clip: text; color: transparent; animation: flow 6s linear infinite; }
-  @keyframes flow { to { background-position: -200% 0; } }
-  .hero p.lead { color: var(--dim); font-size: clamp(16px, 2.2vw, 19px); max-width: 900px; margin: 0 auto 28px; }
-  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-  .demo-note { margin-top: 14px; font-size: 13px; color: var(--dim); }
-  .demo-note code { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--text); }
-
-  /* 숫자 */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 860px; margin: 36px auto 0; }
-  .stat { padding: 14px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(20, 27, 36, .6); }
-  .stat b { display: block; font-size: clamp(24px, 3.4vw, 32px); line-height: 1.2; color: #fff; font-variant-numeric: tabular-nums; }
-  .stat b em { font-style: normal; color: var(--accent); }
-  .stat > span { font-size: 13px; color: var(--dim); }
-
-  /* ── 제품 시연 무대 ── */
-  .player { margin-top: 44px; text-align: left; }
-  .browser { position: relative; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #0d1117;
-    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(76,154,255,.06), 0 0 80px rgba(47,124,246,.12); }
-  .chrome { display: flex; align-items: center; gap: 7px; padding: 10px 14px; background: #111821; border-bottom: 1px solid var(--line); }
-  .chrome i { width: 11px; height: 11px; border-radius: 50%; background: #2b3646; }
-  .chrome i:nth-child(1) { background: #ff5f57; } .chrome i:nth-child(2) { background: #febc2e; } .chrome i:nth-child(3) { background: #28c840; }
-  .chrome .url { margin-left: 12px; flex: 1; max-width: 420px; font-size: 12px; color: var(--dim); background: #0b1016; border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; }
-  .stage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #0d1117; }
-  .canvas { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; transform-origin: 0 0; transform: scale(var(--k, .6)); }
-  .canvas img { position: absolute; display: block; }
-  .base { left: 0; top: 0; width: 1600px; height: 900px; opacity: 0; transform: scale(1.04); transform-origin: 60% 30%; transition: opacity .6s var(--ease), filter .6s, transform 4s var(--ease); }
-  .base.on { opacity: 1; transform: none; }
-  .base.dim { filter: brightness(.45) saturate(.8); }
-  .over { opacity: 0; border-radius: 10px; box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);
-    transition: opacity .55s var(--ease), transform .7s var(--ease); }
-  .over.from-right { transform: translateX(80px); } .over.from-up { transform: translateY(60px) scale(.96); }
-  .over.on { opacity: 1; transform: none; }
-  .hbox { position: absolute; border: 3px solid var(--mark); border-radius: 8px; opacity: 0; transform: scale(1.15);
-    transition: opacity .35s, transform .45s var(--ease); box-shadow: 0 0 0 6px rgba(245,158,11,.15); }
-  .hbox.on { opacity: 1; transform: none; }
-  .cursor { position: absolute; left: 0; top: 0; width: 34px; height: 34px; z-index: 5; transition: transform 1.1s var(--ease); filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
-  .cursor .ripple { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #fff; opacity: 0; }
-  .cursor.click .ripple { animation: ripple .6s var(--ease); }
-  @keyframes ripple { from { opacity: .9; transform: scale(.3); } to { opacity: 0; transform: scale(1.6); } }
-  .toast { position: absolute; left: 50%; top: 120px; transform: translate(-50%, -20px); opacity: 0; padding: 18px 30px; border-radius: 14px; font-size: 30px; font-weight: 800;
-    background: rgba(14, 40, 32, .95); color: #6ee7c4; border: 2px solid #2bb38c; box-shadow: 0 20px 60px rgba(0,0,0,.5); transition: opacity .4s, transform .6s var(--ease); white-space: nowrap; }
-  .toast.on { opacity: 1; transform: translate(-50%, 0); }
-  .caption { position: absolute; left: 22px; bottom: 22px; z-index: 6; max-width: 70%; padding: 10px 16px; border-radius: 10px;
-    background: rgba(11, 16, 22, .88); border: 1px solid var(--line); backdrop-filter: blur(6px); font-size: clamp(12px, 1.6vw, 15px); color: var(--text);
-    transition: opacity .3s, transform .4s var(--ease); }
-  .caption.swap { opacity: 0; transform: translateY(8px); }
-  .caption b { color: var(--accent); margin-right: 8px; }
-  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
-  .steps button { position: relative; overflow: hidden; font: inherit; font-size: 13px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px 12px; cursor: pointer; transition: color .2s, border-color .2s; }
-  .steps button b { display: block; font-size: 12px; color: #5d6b7c; }
-  .steps button.on { color: var(--text); border-color: #36507a; }
-  .steps button.on b { color: var(--accent); }
-  .steps button i { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--accent2); }
-  .steps button.done i { transform: scaleX(1); }
-  .steps button.on i { animation: fill var(--dur, 3.6s) linear forwards; }
-  .player.paused .steps button.on i { animation-play-state: paused; }
-  @keyframes fill { to { transform: scaleX(1); } }
-
-  /* ── 구획 ── */
-  section { padding: 72px 0; border-top: 1px solid var(--line); }
-  section h2 { font-size: clamp(24px, 3.4vw, 32px); margin: 0 0 10px; }
-  section .sub { color: var(--dim); margin: 0 0 32px; max-width: 760px; }
-
-  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; position: relative; z-index: 1; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; transition: transform .35s var(--ease), border-color .3s, box-shadow .35s; }
-  .three .card:hover { transform: translateY(-4px); border-color: #34445c; box-shadow: 0 16px 40px rgba(0,0,0,.35); }
-  .card .no { width: 36px; height: 36px; border-radius: 50%; background: var(--accent2); color: #fff; display: grid; place-items: center; font-weight: 800; margin-bottom: 12px; }
-  .card h3 { margin: 0 0 8px; font-size: 19px; }
-  .card .was { color: var(--dim); font-size: 13px; margin: 0 0 10px; }
-  .card p { margin: 0; font-size: 15px; }
-  .merge { display: block; width: 100%; height: 110px; margin: -2px 0 0; overflow: visible; }
-  .merge path { fill: none; stroke: #2f7cf6; stroke-width: 2; stroke-dasharray: 520; stroke-dashoffset: 520; opacity: .8; vector-effect: non-scaling-stroke; }
-  .merge.on path { animation: draw 1.4s var(--ease) forwards; }
-  .merge.on path:nth-of-type(2) { animation-delay: .15s; } .merge.on path:nth-of-type(3) { animation-delay: .3s; }
-  @keyframes draw { to { stroke-dashoffset: 0; } }
-  .merge .pulse { fill: #4c9aff; opacity: 0; }
-  .merge.on .pulse { opacity: 1; }
-  .unity { display: flex; justify-content: center; margin-top: -6px; }
-  .unity span { display: inline-flex; align-items: center; gap: 10px; padding: 12px 22px; border-radius: 999px; font-weight: 800; letter-spacing: .02em;
-    background: linear-gradient(135deg, #1b3a6b, #133d36); border: 1px solid #2f5c9a; box-shadow: 0 0 0 0 rgba(76,154,255,.5); }
-  .unity.in span { animation: beacon 2.4s 1.4s infinite; }
-  .unity span em { font-style: normal; color: var(--accent); letter-spacing: .14em; }
-  @keyframes beacon { 0% { box-shadow: 0 0 0 0 rgba(76,154,255,.45); } 70% { box-shadow: 0 0 0 18px rgba(76,154,255,0); } 100% { box-shadow: 0 0 0 0 rgba(76,154,255,0); } }
-
-  .feature { display: grid; grid-template-columns: 1fr 1.25fr; gap: 40px; align-items: center; margin-bottom: 72px; }
-  .feature:last-child { margin-bottom: 0; }
-  .feature.flip { grid-template-columns: 1.25fr 1fr; }
-  .feature.flip .text { order: 2; }
-  .feature h3 { font-size: 22px; margin: 0 0 10px; }
-  .feature ul { margin: 0; padding-left: 0; list-style: none; }
-  .feature li { padding-left: 26px; position: relative; margin: 6px 0; color: var(--text); }
-  .feature li::before { content: '✅'; position: absolute; left: 0; top: 1px; font-size: 15px; }
-  .feature .narrow { max-width: 340px; justify-self: center; width: 100%; }
-  .shot { position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.45); background: #000; }
-  .shot img { display: block; width: 100%; height: auto; }
-  .shot .m { position: absolute; border: 2.5px solid var(--mark); border-radius: 6px; opacity: 0; transform: scale(1.25); transition: opacity .4s, transform .55s var(--ease); }
-  .shot .m::before { content: attr(data-n); position: absolute; left: -12px; top: -12px; width: 22px; height: 22px; border-radius: 50%; background: var(--mark); color: #fff;
-    font-size: 12px; font-weight: 800; display: grid; place-items: center; border: 1.5px solid #fff; }
-  .shot .m.edge::before { left: 3px; top: 3px; }
-  .shot.in .m { opacity: 1; transform: none; }
-  .shot .m:nth-of-type(1) { transition-delay: .7s; } .shot .m:nth-of-type(2) { transition-delay: 1s; } .shot .m:nth-of-type(3) { transition-delay: 1.3s; }
-
-  /* 수집 흐름 */
-  .flowline { margin-top: 18px; width: 100%; max-width: 460px; height: auto; }
-  .flowline .node rect { fill: #141b24; stroke: #2a3a52; }
-  .flowline .node.mid rect { fill: #17304f; stroke: #3d6fb3; }
-  .flowline text { fill: #c9d4e5; font-size: 13px; font-weight: 700; text-anchor: middle; font-family: inherit; }
-  .flowline .lbl { fill: #7f8ea3; font-size: 11px; font-weight: 400; }
-  .flowline path { stroke: #2f4a70; stroke-width: 2; fill: none; stroke-dasharray: 4 6; animation: dash 1.2s linear infinite; }
-  @keyframes dash { to { stroke-dashoffset: -20; } }
-  .flowline circle { fill: #4ec9a5; }
-
-  .trial { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  .trial table { width: 100%; border-collapse: collapse; font-size: 15px; }
-  .trial th, .trial td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-  .trial th { color: var(--dim); font-weight: 600; font-size: 13px; }
-  .lock { color: var(--warn); }
-
-  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--dim); font-size: 14px; }
-  footer .wrap { display: flex; gap: 18px; flex-wrap: wrap; justify-content: space-between; }
-
-  /* ── 스크롤 등장 ── */
-  html.js .rv { opacity: 0; transform: translateY(26px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: var(--d, 0s); }
-  html.js .rv.rv-l { transform: translateX(-34px); } html.js .rv.rv-r { transform: translateX(34px); }
-  html.js .hero .rv { transform: translateY(18px); }
-  html.js .rv.in { opacity: 1; transform: none; }
-
-  .three > *, .trial > *, .feature > * { min-width: 0; }
-  .trial .card { overflow-x: auto; }
-
-  @media (max-width: 860px) {
-    .three, .trial, .feature, .feature.flip { grid-template-columns: 1fr; }
-    .feature.flip .text { order: 0; }
-    .top nav { display: none; }
-    section { padding: 52px 0; }
-    .stats { grid-template-columns: repeat(2, 1fr); }
-    .steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-    .steps button { font-size: 11px; padding: 8px 2px 10px; }
-    .caption { position: static; max-width: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 9px 12px; }
-    .merge { display: none; }
-    .unity { margin-top: 18px; }
-    .trial table { font-size: 13px; }
-    .trial th, .trial td { padding: 8px 6px; }
-    html.js .rv.rv-l, html.js .rv.rv-r { transform: translateY(26px); }
-  }
-
-  /* 움직임을 줄이도록 설정한 사람에게는 처음부터 다 보이게 */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-    html.js .rv { opacity: 1; transform: none; }
-    .shot .m { opacity: 1; transform: none; }
-    .merge path { stroke-dashoffset: 0; }
-    .merge .pulse { display: none; }
-  }
+:root{
+  --canvas:#0E0F12;--canvas-alt:#131417;--panel:#16171C;--panel-raised:#1B1C22;--band:#1F2027;
+  --text-high:#F2F0EC;--text-body:#B3B0A8;--caption:#807E75;
+  --amber:#F5A623;--amber-bright:#FFB84D;--cta-text:#1A1204;
+  --line:rgba(220,216,205,.13);--line-strong:rgba(220,216,205,.28);--line-solid:#353640;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:Pretendard,"Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --gutter:clamp(16px,3vw,40px);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:80px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--canvas);color:var(--text-body);font:400 17px/1.6 var(--sans);word-break:keep-all;overflow-wrap:break-word}
+html[lang="ko"] body [lang="en"]:not(.keep),html[lang="en"] body [lang="ko"]:not(.keep){display:none!important}
+a{color:var(--text-high);text-decoration-color:var(--line-strong);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--text-high)}
+:focus-visible{outline:2px solid var(--amber-bright);outline-offset:3px}
+img{max-width:100%;height:auto;display:block}
+code{font-family:var(--mono);font-size:.88em;color:var(--text-high);background:var(--panel-raised);padding:1px 6px}
+.wrap{max-width:1280px;margin:0 auto;padding:0 var(--gutter)}
+/* 건너뛰기 링크 — 초점을 받으면 보인다 */
+.skip{position:absolute;left:-9999px;top:auto}
+.skip:focus{position:fixed;left:16px;top:12px;z-index:50;background:var(--text-high);color:var(--canvas);padding:12px 16px;font-weight:700;text-decoration:none}
+/* 머리줄 */
+.gnb{position:sticky;top:0;z-index:30;background:var(--canvas);border-bottom:1px solid var(--line)}
+.gnb-in{display:flex;align-items:center;gap:28px;height:64px}
+.brand{display:flex;align-items:baseline;gap:8px;text-decoration:none;color:var(--text-high);white-space:nowrap}
+.brand b{font-weight:800;letter-spacing:.06em;font-size:17px}
+.brand span{font-weight:400;font-size:15px;color:var(--text-body)}
+.gnb-nav{display:flex;gap:6px;font-size:14px;font-weight:600}
+.gnb-nav a{color:var(--text-body);text-decoration:none;padding:12px 8px}
+.gnb-nav a:hover{color:var(--text-high)}
+.gnb-right{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14px}
+.gh{color:var(--text-body);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;min-height:44px;padding:0 10px}
+.gh:hover{color:var(--text-high)}
+.lang{display:flex;align-items:center;font:500 13px/1 var(--mono);color:var(--caption)}
+.lang button{font:inherit;background:none;border:0;color:var(--caption);min-width:44px;min-height:44px;padding:0 8px;cursor:pointer;letter-spacing:.06em;display:inline-flex;align-items:center;justify-content:center}
+.lang button[aria-pressed="true"]{color:var(--text-high);text-decoration:underline;text-decoration-color:var(--text-high);text-underline-offset:5px}
+@media (max-width:1000px){.gnb-nav{display:none}.gnb-in{gap:8px}}
+@media (max-width:400px){.brand b{font-size:16px}.brand span{font-size:13px}.gh{padding:0 6px}.lang button{min-width:44px;padding:0 4px}}
+/* 글자 */
+.eyebrow{display:flex;align-items:center;gap:12px;margin:0 0 18px;font:500 12px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--amber-bright)}
+html[lang="ko"] .eyebrow{font:600 13px/1.4 var(--sans);letter-spacing:.02em}
+.eyebrow::before{content:"";width:3px;height:14px;background:var(--amber);flex:none}
+h1,h2,h3{color:var(--text-high);margin:0;text-wrap:balance}
+h1{font-size:clamp(32px,3.8vw,54px);font-weight:800;line-height:1.14;letter-spacing:-.03em;max-width:24em}
+html[lang="ko"] h1{max-width:23em}
+h2{font-size:clamp(28px,3.4vw,46px);font-weight:700;line-height:1.15;letter-spacing:-.028em;margin-bottom:32px;max-width:24ch}
+html[lang="en"] h2{max-width:28ch}
+h3{font-size:clamp(22px,2.2vw,30px);font-weight:700;line-height:1.25;letter-spacing:-.02em;margin:0 0 16px}
+.lead{font-size:18px;line-height:1.7;max-width:720px;margin:0 0 16px}
+.meta-note{font-size:14px;color:var(--caption);margin:14px 0 0}
+.sec{padding:clamp(72px,9vw,110px) 0;border-top:1px solid var(--line)}
+/* 버튼 */
+.cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:0 0 6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 26px;font-weight:700;font-size:16px;text-decoration:none;transition:background-color .15s ease,border-color .15s ease}
+.btn-primary{background:var(--amber);color:var(--cta-text)}
+.btn-primary:hover{background:var(--amber-bright)}
+.btn-line{border:1px solid var(--line-strong);color:var(--text-high)}
+.btn-line:hover{border-color:var(--text-body)}
+.cta-docs{margin:8px 0 0}
+.lnk{color:var(--text-high);font-weight:600;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:4px;display:inline-flex;align-items:center;gap:6px;min-height:44px}
+.lnk:hover{text-decoration-color:var(--text-high)}
+/* 체험 서버 상태 */
+.ds,.when-up,.when-down{display:none}
+body[data-demo="loading"] .ds-loading,body[data-demo="up"] .ds-up,body[data-demo="down"] .ds-down{display:inline}
+body[data-demo="up"] .when-up,body:not([data-demo="up"]) .when-down{display:inline}
+html[lang="ko"] body [lang="en"].ds,html[lang="en"] body [lang="ko"].ds,html[lang="ko"] body [lang="en"].when-up,html[lang="en"] body [lang="ko"].when-up,html[lang="ko"] body [lang="en"].when-down,html[lang="en"] body [lang="ko"].when-down{display:none!important}
+.demo-state{font-size:14.5px;color:var(--text-body);margin:4px 0 0;min-height:1.6em}
+body:not([data-demo="up"]) .trial-live,body:not([data-demo="up"]) .privacy-item{display:none}
+/* 첫 화면 */
+.hero{padding:clamp(48px,6vw,80px) 0 clamp(56px,7vw,92px)}
+.hero-sub{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(24px,4vw,64px);align-items:start;margin-top:28px}
+.for{font-size:15px;color:var(--caption);margin:0;max-width:720px}
+.hero-shot{margin:40px 0 48px}
+@media (max-width:1000px){.hero-sub{grid-template-columns:1fr}}
+/* 사실 띠 */
+.facts{display:grid;grid-template-columns:repeat(4,1fr);margin:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.facts div{padding:22px 20px;border-left:1px solid var(--line)}
+.facts div:first-child{border-left:0}
+.facts dt{font-size:clamp(26px,3vw,36px);font-weight:800;color:var(--text-high);letter-spacing:-.02em;line-height:1.1}
+.facts dd{margin:6px 0 0;font-size:14px;color:var(--text-body)}
+@media (max-width:760px){.facts{grid-template-columns:1fr 1fr}.facts div:nth-child(3){border-left:0}.facts div:nth-child(n+3){border-top:1px solid var(--line)}}
+/* 표 */
+.tbl-wrap{overflow-x:auto;border-top:1px solid var(--line)}
+.tbl{width:100%;border-collapse:collapse;font-size:16px}
+.tbl th,.tbl td{text-align:left;padding:16px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl thead th{background:var(--band);color:var(--text-high);font-weight:700;font-size:14px}
+.tbl tbody th{color:var(--text-high);font-weight:600}
+.tbl tbody tr:nth-child(even){background:var(--canvas-alt)}
+.cell-h{display:none}
+@media (max-width:640px){
+  .tbl-why thead{display:none}
+  .tbl-why,.tbl-why tbody,.tbl-why tr,.tbl-why th,.tbl-why td{display:block;width:100%}
+  .tbl-why tr{padding:14px 0;border-bottom:1px solid var(--line)}
+  .tbl-why tbody tr:nth-child(even){background:none}
+  .tbl-why th,.tbl-why td{border:0;padding:4px 0}
+  .tbl-why th{font-size:16px;margin-bottom:4px}
+  .tbl-why .cell-h{display:block;font-size:13px;color:var(--caption);font-weight:600}
+  html[lang="ko"] .tbl-why .cell-h [lang="en"],html[lang="en"] .tbl-why .cell-h [lang="ko"]{display:none}
+}
+.why{margin-top:36px}
+/* 그림 */
+figure{margin:0}
+.frame{position:relative;border:1px solid var(--line-solid);background:#000}
+.frame img{width:100%}
+/* 기능 */
+.f-no{display:flex;align-items:center;flex-wrap:wrap;gap:10px 12px;margin:0 0 14px;font:500 12px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--caption)}
+html[lang="ko"] .f-no{font:600 14px/1.4 var(--sans);letter-spacing:0;text-transform:none}
+.f-no .num{font:500 12px/1.4 var(--mono);letter-spacing:.12em;color:var(--text-high)}
+.badge-new{border:1px solid var(--amber);color:var(--amber-bright);padding:3px 8px;font:600 12px/1.2 var(--mono);letter-spacing:.06em}
+.bl{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.bl li{position:relative;padding-left:20px}
+.bl li::before{content:"";position:absolute;left:0;top:.8em;width:8px;height:1px;background:var(--text-body)}
+.bl b{color:var(--text-high);font-weight:600}
+.f-note{margin:18px 0 0;font-size:15px;border-left:1px solid var(--line-strong);padding-left:14px}
+.f-guide{margin:12px 0 0}
+.code{margin:20px 0 0;background:var(--panel);border:1px solid var(--line);padding:18px 20px;overflow-x:auto;font:400 13.5px/1.75 var(--mono);color:var(--text-high);white-space:pre}
+.code code{background:none;padding:0;font-size:inherit}
+/* 둘러보기 */
+.tour-grid{display:grid;grid-template-columns:220px 1fr;gap:56px;align-items:start}
+.tour-nav{position:sticky;top:96px}
+.tour-cap{font:500 12px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--caption);margin:0 0 14px}
+html[lang="ko"] .tour-cap{font:600 13px/1.4 var(--sans);letter-spacing:0}
+.tour-nav ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--line)}
+.tour-nav a{display:flex;gap:12px;padding:10px 0 10px 16px;margin-left:-1px;border-left:2px solid transparent;color:var(--text-body);text-decoration:none;font-size:15px;line-height:1.35;min-height:44px;align-items:center}
+.tour-nav a .tn{font:500 12px/1.6 var(--mono);color:var(--caption)}
+.tour-nav a:hover{color:var(--text-high)}
+.tour-nav a.on{color:var(--text-high);border-left-color:var(--text-high)}
+.tour-nav a.on .tn{color:var(--text-high)}
+.steps{display:grid;gap:0}
+.step{padding:0 0 72px;margin-bottom:72px;border-bottom:1px solid var(--line);scroll-margin-top:96px}
+.step:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.step-text{max-width:760px}
+.step-media{margin-top:28px;display:grid;gap:18px}
+.step.side{display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start}
+.step.side .step-media{margin-top:0}
+@media (max-width:1180px){.step.side{grid-template-columns:1fr}.step.side .step-media{margin-top:28px;max-width:420px}}
+@media (max-width:1000px){
+  .tour-grid{grid-template-columns:1fr;gap:24px}
+  .tour-nav{top:64px;z-index:20;background:var(--canvas);border-bottom:1px solid var(--line);margin:0 calc(var(--gutter) * -1);padding:0 var(--gutter)}
+  .tour-cap{display:none}
+  .tour-nav ol{display:flex;overflow-x:auto;border-left:0;gap:4px;scrollbar-width:none}
+  .tour-nav ol::-webkit-scrollbar{display:none}
+  .tour-nav a{white-space:nowrap;border-left:0;border-bottom:2px solid transparent;padding:0 10px;margin:0}
+  .tour-nav a.on{border-bottom-color:var(--text-high)}
+  .step{scroll-margin-top:130px;padding-bottom:56px;margin-bottom:56px}
+}
+/* 연결 그림 */
+.dia{display:grid;grid-template-columns:1fr 56px 1.1fr 56px 1.5fr;align-items:center}
+.d-col{background:var(--panel);border:1px solid var(--line);padding:24px}
+.d-cap{margin:0 0 14px;color:var(--text-high);font-weight:700;font-size:17px}
+.proto{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.proto li{font:600 14px/1.4 var(--mono);color:var(--text-high);border:1px solid var(--line-strong);padding:8px 12px}
+.d-sub{font-size:14px;color:var(--text-body);margin:12px 0 0}
+.d-hub{background:var(--panel-raised);border-color:var(--line-strong)}
+.hub-name{font-size:20px;letter-spacing:-.01em}
+.hub-list{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:15px}
+.hub-list li{border-top:1px solid var(--line);padding-top:8px}
+.d-dst{display:grid;gap:14px;background:none;border:0;padding:0}
+.d-node{background:var(--panel);border:1px solid var(--line);padding:16px 18px}
+.d-name{margin:0 0 6px;color:var(--text-high);font-weight:700}
+.d-node ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px}
+.d-node li{font-size:14px;color:var(--text-body)}
+.d-arrow{position:relative;height:2px;margin:0 6px}
+.d-arrow .ln{position:absolute;inset:0;background:var(--line-strong)}
+.d-arrow .hd{position:absolute;right:-1px;top:-5px;border-left:9px solid var(--text-body);border-top:6px solid transparent;border-bottom:6px solid transparent}
+.dia-note{margin:22px 0 0;font-size:15px;color:var(--text-body);border-left:1px solid var(--line-strong);padding-left:14px;max-width:820px}
+@media (max-width:1000px){.dia{grid-template-columns:1fr}.d-arrow{height:34px;width:2px;margin:6px auto}.d-arrow .hd{right:auto;left:-5px;top:auto;bottom:-1px;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid var(--text-body);border-bottom:0}}
+/* 보안 */
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);margin:0;border-top:1px solid var(--line)}
+.s-item{padding:22px 22px 24px 0;border-bottom:1px solid var(--line);margin-right:22px}
+.s-item dt{color:var(--text-high);font-weight:700;margin:0 0 8px}
+.s-item dd{margin:0;font-size:15px}
+@media (max-width:1080px){.sgrid{grid-template-columns:1fr 1fr}}
+@media (max-width:620px){.sgrid{grid-template-columns:1fr}.s-item{margin-right:0;padding-right:0}}
+/* 한계 */
+.limits{list-style:none;margin:0 0 24px;padding:0;counter-reset:l;max-width:900px}
+.limits li{counter-increment:l;display:grid;grid-template-columns:44px 1fr;padding:14px 0;border-bottom:1px solid var(--line)}
+.limits li::before{content:counter(l,decimal-leading-zero);font:500 12px/1.9 var(--mono);color:var(--caption)}
+/* 시작 */
+.start-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(32px,5vw,80px);align-items:start}
+.code-bar{display:flex;align-items:center;justify-content:space-between;background:var(--panel-raised);border:1px solid var(--line);border-bottom:0;padding:4px 4px 4px 16px}
+.code-cap{font:500 12px/1 var(--mono);color:var(--text-body);letter-spacing:.08em}
+.copy{font:600 14px/1 var(--sans);background:var(--canvas);color:var(--text-high);border:1px solid var(--line-strong);min-height:40px;padding:0 14px;cursor:pointer}
+.copy:hover{border-color:var(--text-body)}
+.copy .c1{display:none!important}.copy.done .c0{display:none!important}
+html[lang="ko"] .copy.done .c1[lang="ko"],html[lang="en"] .copy.done .c1[lang="en"]{display:inline!important}
+.code-start{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.copy-status{font-size:14px;color:var(--text-body);margin:6px 0 0;min-height:1.4em}
+.code-note{font-size:15px;margin:6px 0 0}
+.after{margin:16px 0 18px;font-size:16px}
+.links{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.trial{background:var(--panel);border:1px solid var(--line);padding:26px}
+.trial-h{margin:0 0 8px;color:var(--text-high);font-weight:700;font-size:20px}
+.trial-p{margin:0 0 16px;font-size:15px}
+.tbl-trial{font-size:14.5px}
+.tbl-trial th,.tbl-trial td{padding:10px 8px}
+.tbl-trial td.y{color:var(--text-high)}
+.tbl-trial td.n{color:var(--text-body)}
+.trial-cta{margin:20px 0 8px}
+.trial .meta-note{color:var(--text-body)}
+@media (max-width:900px){.start-grid{grid-template-columns:1fr}}
+/* 바닥 */
+.foot{border-top:1px solid var(--line);padding:48px 0 56px;font-size:14px}
+.foot-in{display:grid;grid-template-columns:1.4fr 1fr;gap:24px 48px}
+.foot p{margin:0 0 6px}
+.foot-brand{color:var(--text-high);font-size:16px}
+.foot-brand b{letter-spacing:.06em}
+.ver{font-family:var(--mono);font-size:12px;color:var(--caption);margin-left:6px}
+.tm{color:var(--caption);font-size:13px}
+.foot-links{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.foot-links a{color:var(--text-body);display:inline-flex;align-items:center;min-height:40px}
+.copy-line{grid-column:1/-1;color:var(--caption);font-size:13px;border-top:1px solid var(--line);padding-top:18px}
+@media (max-width:700px){.foot-in{grid-template-columns:1fr}}
+/* 격자 칸은 내용 폭으로 늘지 않는다(좁은 화면 가로 넘침 방지) */
+.start-grid>*,.tour-grid>*,.hero-sub>*,.dia>*,.steps>*,.step>*{min-width:0}
+/* 등장 */
+html.js .rv{opacity:0;transform:translateY(12px);transition:opacity .45s ease,transform .45s ease}
+html.js .rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){html.js .rv{opacity:1;transform:none;transition:none}}
 </style>
 </head>
-<body>
-<header class="top">
-  <div class="wrap">
-    <span class="brand">VEXPLOR<small>AAS Studio</small></span>
-    <nav aria-label="차례">
-      <a href="#why">소개</a>
-      <a href="#features">기능</a>
-      <a href="#trial">체험</a>
-      <a href="https://github.com/waceinc/vexplor-aas">GitHub</a>
-    </nav>
-  </div>
-  <div class="progress" aria-hidden="true"></div>
-</header>
+<body data-demo="loading">
+<a class="skip" href="#main"><span lang="ko">본문으로 건너뛰기</span><span lang="en">Skip to content</span></a>
+<header class="gnb"><div class="wrap gnb-in">
+<a class="brand" href="#top"><b>VEXPLOR</b><span>AAS Studio</span></a>
+<nav class="gnb-nav" data-aria-ko="차례" data-aria-en="Sections" aria-label="Sections"><a href="#features"><span lang="ko">기능</span><span lang="en">Features</span></a><a href="#connect"><span lang="ko">연결</span><span lang="en">Connections</span></a><a href="#security"><span lang="ko">보안&nbsp;· 설치</span><span lang="en">Security</span></a><a href="#limits"><span lang="ko">한계</span><span lang="en">Limits</span></a><a href="#start"><span lang="ko">시작하기</span><span lang="en">Get started</span></a></nav>
+<div class="gnb-right">
+<a class="gh" href="https://github.com/waceinc/vexplor-aas">GitHub</a>
+<div class="lang" role="group" data-aria-ko="언어" data-aria-en="Language" aria-label="Language"><button type="button" data-set-lang="ko" aria-pressed="false" lang="ko" class="keep">KO</button><span aria-hidden="true">|</span><button type="button" data-set-lang="en" aria-pressed="false" lang="en" class="keep">EN</button></div>
+</div></div></header>
+<main id="main">
+<section class="hero" id="top"><div class="wrap">
+<p class="eyebrow"><span lang="ko">오픈소스&nbsp;· Apache-2.0&nbsp;· v2.0.0</span><span lang="en">Open source&nbsp;· Apache-2.0&nbsp;· v2.0.0</span></p>
+<h1 lang="ko">VEXPLOR AAS Studio는 AASX 작성&nbsp;· 검사부터 설비 값 수집과 MES&nbsp;· ERP&nbsp;· CMMS 연동까지 웹 화면 하나로 처리합니다</h1><h1 lang="en">VEXPLOR AAS Studio handles AASX authoring, validation, live collection and MES, ERP and CMMS integration in one web app</h1>
+<div class="hero-sub">
+<div><p lang="ko" class="lead">설비 AASX를 올리면 규칙 43종이 어긋난 곳을 짚고, 고칠 수 있는 지적은 미리 보고 한 번에 고칩니다. 같은 서버가 IDTA Part 2 REST API로 AAS를 내주고, OPC UA&nbsp;· Modbus TCP&nbsp;· MQTT로 설비 값을 모으고, MES&nbsp;· ERP&nbsp;· CMMS에 사건(이벤트)과 설비 정보를 보냅니다.</p><p lang="en" class="lead">Upload a machine's AASX: 43 rules show what breaks, and the fixable findings are repaired in one step after a preview. The same server serves the AAS over the IDTA Part 2 REST API, collects machine values over OPC UA, Modbus TCP and MQTT, and sends events and equipment data to MES, ERP and CMMS.</p><p lang="ko" class="for">제조 IT&nbsp;· OT 엔지니어, MES&nbsp;· ERP&nbsp;· CMMS 연동 담당, AAS 제출을 준비하는 기업이 직접 설치해 쓰는 오픈소스입니다.</p><p lang="en" class="for">Built for manufacturing IT/OT engineers, MES&nbsp;· ERP&nbsp;· CMMS integrators and teams preparing AAS submissions — self-hosted.</p></div>
+<div class="hero-act">
+<div class="cta">
+<a class="btn btn-primary hero-cta" href="#start"><span lang="ko" class="when-up">체험해 보기</span><span lang="en" class="when-up">Try it</span><span lang="ko" class="when-down">Docker로 시작하기</span><span lang="en" class="when-down">Start with Docker</span></a>
+<a class="btn btn-line" href="https://github.com/waceinc/vexplor-aas"><span lang="ko">GitHub에서 받기</span><span lang="en">Get it on GitHub</span></a>
+</div>
+<p class="cta-docs"><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/docs/usage.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/docs/사용법.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/docs/usage.md"><span lang="ko">문서 읽기</span><span lang="en">Read the docs</span> <span aria-hidden="true">→</span></a></p>
+<p class="demo-state" role="status"><span lang="ko" class="ds ds-loading">체험 서버 상태를 확인하는 중입니다.</span><span lang="en" class="ds ds-loading">Checking the trial server.</span><span lang="ko" class="ds ds-up">데모 계정 <code>demo</code> / <code>0629</code> — 새 창으로 열립니다. 체험 서버는 시연용입니다.</span><span lang="en" class="ds ds-up">Demo account <code>demo</code> / <code>0629</code> — opens in a new tab. The trial server is for demonstration.</span><span lang="ko" class="ds ds-down">체험 서버가 지금 응답하지 않습니다. 「시작하기」 절의 Docker 명령으로 내 컴퓨터에서 실행할 수 있습니다.</span><span lang="en" class="ds ds-down">The trial server is not responding right now. The Docker commands in "Get started" run it on your own machine.</span></p>
+</div>
+</div>
+<div class="hero-shot"><figure class="shot"><div class="frame"><picture lang="ko"><source media="(max-width: 700px)" srcset="img/v3/ko-hero-m.webp" width="800" height="960"><img src="img/v3/ko-hero.webp" srcset="img/v3/ko-hero.webp 1600w, img/v3/ko-hero-2400.webp 2400w" sizes="(max-width: 1320px) 100vw, 1200px" width="1600" height="1000" alt="VEXPLOR AAS Studio 작업 화면 — AAS 트리, 규칙 검사 요약, 자동 수집이 켜진 가상 PLC에서 받은 값" loading="lazy" fetchpriority="high" decoding="async"></picture><picture lang="en"><source media="(max-width: 700px)" srcset="img/v3/en-hero-m.webp" width="800" height="960"><img src="img/v3/en-hero.webp" srcset="img/v3/en-hero.webp 1600w, img/v3/en-hero-2400.webp 2400w" sizes="(max-width: 1320px) 100vw, 1200px" width="1600" height="1000" alt="VEXPLOR AAS Studio workspace — AAS tree, rule summary and values from the virtual PLC with automatic collection on" loading="lazy" fetchpriority="high" decoding="async"></picture></div></figure></div>
+<dl class="facts"><div><dt>43</dt><dd><span lang="ko">검사 규칙</span><span lang="en">lint rules</span></dd></div><div><dt>19</dt><dd><span lang="ko">자동 고치기 규칙</span><span lang="en">auto-fix rules</span></dd></div><div><dt>V3.0</dt><dd><span lang="ko">AAS 메타모델</span><span lang="en">AAS metamodel</span></dd></div><div><dt>3</dt><dd><span lang="ko">수집 규약 OPC UA&nbsp;· Modbus TCP&nbsp;· MQTT</span><span lang="en">collection protocols: OPC UA&nbsp;· Modbus TCP&nbsp;· MQTT</span></dd></div></dl>
+</div></section>
+<section id="why" class="sec"><div class="wrap">
+<p class="eyebrow"><span lang="ko">왜 만들었나</span><span lang="en">Why</span></p>
+<h2 lang="ko">VEXPLOR AAS Studio는 도구 셋이 하던 일을 브라우저 한 화면에 모읍니다</h2><h2 lang="en">VEXPLOR AAS Studio brings the work of three tools into one browser screen</h2>
+<div class="tbl-wrap"><table class="tbl tbl-why"><thead><tr><th scope="col"><span lang="ko">하던 일</span><span lang="en">Task</span></th><th scope="col"><span lang="ko">예전 도구</span><span lang="en">Usual tool</span></th><th scope="col"><span lang="ko">여기서는</span><span lang="en">Here</span></th></tr></thead><tbody><tr><th scope="row"><span lang="ko">AASX 열기&nbsp;· 고치기&nbsp;· 내려받기</span><span lang="en">Open&nbsp;· edit&nbsp;· export AASX</span></th><td><span class="cell-h"><span lang="ko">예전 도구</span><span lang="en">Usual tool</span></span><span lang="ko">AASX Package Explorer (설치형)</span><span lang="en">AASX Package Explorer (desktop)</span></td><td><span class="cell-h"><span lang="ko">여기서는</span><span lang="en">Here</span></span><span lang="ko">브라우저에서, 고칠 곳을 짚어 주고 자동으로 고칩니다</span><span lang="en">In the browser, with findings and auto-fix</span></td></tr><tr><th scope="row"><span lang="ko">다른 시스템에 AAS 내주기 (Part 2 REST&nbsp;· 레지스트리)</span><span lang="en">Serve AAS to other systems (Part 2 REST&nbsp;· registry)</span></th><td><span class="cell-h"><span lang="ko">예전 도구</span><span lang="en">Usual tool</span></span><span lang="ko">Eclipse BaSyx 서버</span><span lang="en">Eclipse BaSyx server</span></td><td><span class="cell-h"><span lang="ko">여기서는</span><span lang="en">Here</span></span><span lang="ko">같은 서버가 내줍니다</span><span lang="en">The same server does it</span></td></tr><tr><th scope="row"><span lang="ko">설비 값 모으기&nbsp;· 구독으로 내주기</span><span lang="en">Collect machine values&nbsp;· publish by subscription</span></th><td><span class="cell-h"><span lang="ko">예전 도구</span><span lang="en">Usual tool</span></span><span lang="ko">별도 OPC UA 클라이언트&nbsp;· 서버</span><span lang="en">Separate OPC UA client / server</span></td><td><span class="cell-h"><span lang="ko">여기서는</span><span lang="en">Here</span></span><span lang="ko">AAS 안의 AID대로 모으고 OPC UA 서버로 내줍니다</span><span lang="en">Collects per the AID in the AAS and publishes via an OPC UA server</span></td></tr></tbody></table></div>
+<p lang="ko" class="meta-note">위 도구들과 제휴하거나 그 소스를 쓴 것이 아닙니다 — 같은 일을 한곳에 모았다는 뜻입니다.</p><p lang="en" class="meta-note">Not affiliated with, and not derived from, the tools above — it combines the same jobs in one place.</p>
+<p lang="ko" class="lead why">표준 검증을 모두 통과한 AASX도 제출처 검증기의 사업 규칙(semanticId 허용 목록&nbsp;· 필수 서브모델&nbsp;· 패키지 구조)에서 떨어질 수 있습니다. VEXPLOR AAS Studio는 그 규칙을 제출 전에 미리 검사합니다. 최종 합격 판정은 제출처 검증기가 합니다.</p><p lang="en" class="lead why">An AASX can pass every standard check and still fail the receiving validator's business rules (semantic-ID allow-lists, mandatory submodels, package structure). VEXPLOR AAS Studio checks those rules before you submit. The receiving validator remains the only authority on acceptance.</p>
+</div></section>
+<section id="features" class="sec tour"><div class="wrap">
+<p class="eyebrow"><span lang="ko">기능</span><span lang="en">Features</span></p>
+<h2 lang="ko">VEXPLOR AAS Studio의 기능 6가지 — 그림은 모두 실제 화면입니다</h2><h2 lang="en">Six things VEXPLOR AAS Studio does — every picture is a real screen</h2>
+<div class="tour-grid">
+<nav class="tour-nav" data-aria-ko="기능 둘러보기" data-aria-en="Feature tour" aria-label="Feature tour"><p class="tour-cap"><span lang="ko">둘러보기</span><span lang="en">Tour</span></p><ol><li><a href="#f-author"><span class="tn">01</span><span lang="ko">작성&nbsp;· 트리</span><span lang="en">Author & tree</span></a></li><li><a href="#f-lint"><span class="tn">02</span><span lang="ko">검사&nbsp;· 자동 고치기</span><span lang="en">Findings & auto-fix</span></a></li><li><a href="#f-collect"><span class="tn">03</span><span lang="ko">현장 값 수집</span><span lang="en">Live collection</span></a></li><li><a href="#f-api"><span class="tn">04</span><span lang="ko">표준 API</span><span lang="en">Standard API</span></a></li><li><a href="#f-bundle"><span class="tn">05</span><span lang="ko">제출 번들&nbsp;· 결과서</span><span lang="en">Bundle & report</span></a></li><li><a href="#f-integ"><span class="tn">06</span><span lang="ko">MES&nbsp;· ERP&nbsp;· CMMS 연동</span><span lang="en">MES&nbsp;· ERP&nbsp;· CMMS integration</span></a></li></ol></nav>
+<div class="steps"><article class="step rv" id="f-author"><div class="step-text"><p class="f-no"><span class="num">01</span><span lang="ko">작성&nbsp;· 트리</span><span lang="en">Author & tree</span></p><h3 lang="ko">트리 화면은 AASX 구조를 펼쳐 보여 주고, 사용자는 그 화면에서 바로 값을 고칩니다</h3><h3 lang="en">The tree shows the whole AASX, and you edit values in place</h3><ul class="bl"><li><span lang="ko">AASX(JSON&nbsp;· XML)를 열어 AAS → 서브모델 → 요소 순서로 봅니다</span><span lang="en">Open AASX (JSON or XML) and browse AAS → submodel → element</span></li><li><span lang="ko">값&nbsp;· 요소&nbsp;· 서브모델&nbsp;· ConceptDescription을 고치고, 값 표나 CSV 설비 대장으로 여러 값을 한 번에 채웁니다</span><span lang="en">Edit values, elements, submodels and concept descriptions; fill many values at once from a value table or a CSV equipment list</span></li><li><span lang="ko">한 번에 되돌리고, 서브모델을 지난 시점으로 복원합니다</span><span lang="en">One-step undo, and restore a submodel to an earlier point</span></li><li><span lang="ko">파일이 없으면 「견본으로 시작하기」가 다 채운 설비 1종과 공정 구성을 엽니다</span><span lang="en">No file yet? "Start with a sample" opens a fully filled machine and a process structure</span></li></ul></div><div class="step-media"><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-workspace.webp" width="1600" height="1000" alt="작업 화면 — 왼쪽 AAS 트리에 경고 표시, 가운데 요약과 부품 구성, 오른쪽 수집 칸" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-workspace.webp" width="1600" height="1000" alt="Workspace — AAS tree with warning badges on the left, summary and parts in the middle, collection panel on the right" loading="lazy" decoding="async"></div></figure></div></article><article class="step rv" id="f-lint"><div class="step-text"><p class="f-no"><span class="num">02</span><span lang="ko">검사&nbsp;· 자동 고치기</span><span lang="en">Findings & auto-fix</span></p><h3 lang="ko">규칙 43종이 어긋난 곳을 짚고, 고치기 전에 바뀔 값을 먼저 보여 줍니다</h3><h3 lang="en">43 rules point to what breaks and show each change before it applies</h3><ul class="bl"><li><span lang="ko">패키지 구조(L1)&nbsp;· 메타모델 제약(L2)&nbsp;· 제출처 사업 규칙(L3)으로 나눠 검사합니다</span><span lang="en">Three layers: package structure (L1), metamodel constraints (L2), submission business rules (L3)</span></li><li><span lang="ko">위반&nbsp;· 경고&nbsp;· 참고로 나누고, 왜 틀렸는지와 고치는 법을 함께 적습니다</span><span lang="en">Errors, warnings and notes, each with the reason and how to fix it</span></li><li><span lang="ko">고칠 수 있는 지적(규칙 19종)은 전 / 후를 보고 체크한 것만 반영합니다. 바꾼 내용은 이관 대장에 남습니다</span><span lang="en">Fixable findings (19 rules) show before / after; only the checked ones apply, and every relocation is recorded</span></li></ul></div><div class="step-media"><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-findings.webp" width="1360" height="970" alt="검사 결과 — 위반 0건, 경고 13건, 규칙 AASd-120과 고치는 법" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-findings.webp" width="1360" height="970" alt="Findings — 0 errors, 13 warnings for rule AASd-120 with how to fix them" loading="lazy" decoding="async"></div></figure><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-fix.webp" width="1400" height="872" alt="자동 고치기 미리보기 — 항목마다 체크 상자, 고치기 전 값과 후 값" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-fix.webp" width="1400" height="872" alt="Auto-fix preview — a checkbox per item with the value before and after" loading="lazy" decoding="async"></div></figure></div></article><article class="step side rv" id="f-collect"><div class="step-text"><p class="f-no"><span class="num">03</span><span lang="ko">현장 값 수집</span><span lang="en">Live collection</span></p><h3 lang="ko">서버가 AAS 안의 AID대로 설비 값을 모으고, 설비마다 하루 상태를 그립니다</h3><h3 lang="en">The server collects machine values by the AID inside the AAS and draws each machine's day</h3><ul class="bl"><li><span lang="ko">OPC UA&nbsp;· Modbus TCP&nbsp;· MQTT — 주소는 AAS 안의 AID(IDTA 02017) 서브모델이 정합니다</span><span lang="en">OPC UA, Modbus TCP and MQTT, addressed by the AID submodel (IDTA 02017) inside the AAS</span></li><li><span lang="ko">값마다 받는 중&nbsp;· 끊김&nbsp;· 값 없음을 보여 줍니다</span><span lang="en">Each value shows whether it is live, stale or missing</span></li><li><span lang="ko">설비마다 하루 상태 막대(가동&nbsp;· 정지&nbsp;· 알람)를 그립니다</span><span lang="en">Each machine gets a daily status bar (running&nbsp;· stopped&nbsp;· alarm)</span></li><li><span lang="ko">실물 PLC가 없으면 도구 안의 가상 PLC로 바로 시험합니다</span><span lang="en">No PLC at hand? Test with the virtual PLC built into the tool</span></li></ul></div><div class="step-media"><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-collect.webp" width="790" height="1127" alt="수집 칸 — 위: 가상 PLC 연결과 받은 값 목록, 아래: 하루 상태 막대(가동 12분 · 알람 2분)" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-collect.webp" width="790" height="1127" alt="Collection panel — top: the virtual PLC connection and its values; bottom: the daily status bar (running 12 min, alarm 2 min)" loading="lazy" decoding="async"></div></figure></div></article><article class="step rv" id="f-api"><div class="step-text"><p class="f-no"><span class="num">04</span><span lang="ko">표준 API</span><span lang="en">Standard API</span></p><h3 lang="ko">다른 시스템은 IDTA Part 2 REST API로 이 서버의 AAS를 읽어 갑니다</h3><h3 lang="en">Other systems read the AAS held here through the IDTA Part 2 REST API</h3><ul class="bl"><li><span lang="ko">AasxFileServer 6/6&nbsp;· ConceptDescription 7/7&nbsp;· AAS Repository 47/54&nbsp;· Submodel Repository 38/45, 레지스트리와 Discovery 일부</span><span lang="en">AasxFileServer 6/6&nbsp;· ConceptDescription 7/7&nbsp;· AAS Repository 47/54&nbsp;· Submodel Repository 38/45, partial Registry and Discovery</span></li><li><span lang="ko">globalAssetId로 셸을 찾고, 레지스트리 디스크립터에 적힌 주소로 서브모델을 읽습니다</span><span lang="en">Look up a shell by globalAssetId, then read submodels at the endpoint in its registry descriptor</span></li><li><span lang="ko"><code>node scripts/part2-coverage.mjs</code>가 명세의 OpenAPI와 구현을 대조해 정확한 범위를 출력합니다</span><span lang="en"><code>node scripts/part2-coverage.mjs</code> compares the implementation with the specification's OpenAPI files</span></li></ul><pre class="code" tabindex="0"><code lang="ko"># 셸 찾기 (globalAssetId)
+GET /api/v3.0/lookup/shells?assetIds=&lt;base64url&gt;
 
-<main>
-  <div class="hero">
-    <div class="hero-bg" aria-hidden="true"><div class="grid"></div><div class="glow g1"></div><div class="glow g2"></div></div>
-    <div class="wrap">
-      <h1><span class="line rv">AAS를 만들고 · 검사하고 · 내주고</span><span class="line rv" style="--d:.15s"><span class="hl">현장 값까지</span> — 웹 화면 하나로</span></h1>
-      <p class="lead rv" style="--d:.3s">✅ 설비 AASX 파일을 제작하거나 규칙에 어긋난 부분을 확인하고 편집 / 연결하는 도구입니다.</p>
-      <div class="cta rv" style="--d:.45s">
-        <a class="btn primary demo-link" href="#trial" aria-disabled="true">체험해 보기 →</a>
-        <a class="btn ghost" href="VEXPLOR_AAS_Studio_user_manual.pptx" download>사용자 매뉴얼 (PPT)</a>
-        <a class="btn ghost" href="https://github.com/waceinc/vexplor-aas">GitHub 소스</a>
-      </div>
-      <p class="demo-note rv" style="--d:.55s" id="demo-state">체험 서버 주소를 확인하는 중…</p>
+# 파일별 Part 2 기준 주소
+GET /packages/{packageId}/api/v3.0/shells
+GET /packages/{packageId}/api/v3.0/submodels/{id}</code><code lang="en"># find the shell (globalAssetId)
+GET /api/v3.0/lookup/shells?assetIds=&lt;base64url&gt;
 
-      <div class="stats" aria-label="한눈에 보는 숫자">
-        <div class="stat rv" style="--d:.6s"><b><span class="count" data-to="43">43</span><em>종</em></b><span>검사 규칙</span></div>
-        <div class="stat rv" style="--d:.7s"><b><span class="count" data-to="19">19</span><em>종</em></b><span>자동 고치기 규칙</span></div>
-        <div class="stat rv" style="--d:.8s"><b>3 <em>→</em> 1</b><span>도구를 하나로</span></div>
-        <div class="stat rv" style="--d:.9s"><b><span class="count" data-to="0" data-from="9">0</span><em>개</em></b><span>설치할 프로그램</span></div>
-      </div>
-
-      <div class="player rv" style="--d:.5s" id="player">
-        <div class="browser">
-          <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span class="url">VEXPLOR AAS Studio</span></div>
-          <div class="stage" role="img" aria-label="제품 시연 — 파일 열기, 검사, 자동 고치기, 위반 0건 확인, 검증 결과서 내보내기">
-            <div class="canvas">
-              <img class="base" data-k="welcome" src="img/v2/s-welcome.jpg" alt="" width="1600" height="891">
-              <img class="base" data-k="layout" src="img/v2/s-layout.jpg" alt="" width="1600" height="900">
-              <img class="base" data-k="fixed" src="img/v2/s-fixed.jpg" alt="" width="1600" height="900">
-              <img class="over from-right" data-k="findings" src="img/v2/findings.jpg" alt="" style="left:870px;top:96px;width:690px">
-              <img class="over from-up" data-k="fix" src="img/v2/fix.jpg" alt="" style="left:250px;top:110px;width:1100px">
-              <img class="over from-up" data-k="report" src="img/v2/report.jpg" alt="" style="left:330px;top:70px;width:940px">
-              <div class="hbox" data-k="open" style="left:603px;top:487px;width:155px;height:56px"></div>
-              <div class="hbox" data-k="chip" style="left:1357px;top:4px;width:168px;height:40px"></div>
-              <div class="hbox" data-k="apply" style="left:263px;top:744px;width:117px;height:42px"></div>
-              <div class="toast" data-k="pass">✓ 위반 0건 · 경고 0건</div>
-              <div class="cursor" aria-hidden="true"><span class="ripple"></span>
-                <svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 2l15 10.5-6.6 1.3 3.9 7.4-2.9 1.5-3.9-7.5L4 20z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/></svg>
-              </div>
-            </div>
-          </div>
-          <div class="caption" aria-live="polite"><b>1</b><span>AASX 파일을 엽니다</span></div>
-        </div>
-        <div class="steps" role="tablist" aria-label="시연 단계">
-          <button role="tab" data-i="0"><b>01</b>생성 / 열기<i></i></button>
-          <button role="tab" data-i="1"><b>02</b>제작 / 검사<i></i></button>
-          <button role="tab" data-i="2"><b>03</b>자동 고치기<i></i></button>
-          <button role="tab" data-i="3"><b>04</b>확인<i></i></button>
-          <button role="tab" data-i="4"><b>05</b>내보내기<i></i></button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <section id="why">
-    <div class="wrap">
-      <h2 class="rv">세 가지 도구가 하던 일을 한 화면에서</h2>
-      <p class="sub rv" style="--d:.1s">지금까지는 편집기 · AAS 서버 · OPC UA 도구를 오가야 했습니다. 브라우저 하나로 모았습니다.</p>
-      <div class="three">
-        <div class="card rv" style="--d:.1s"><div class="no">1</div><h3>AASX 편집</h3><p class="was">예전: AASX Package Explorer(설치형)</p><p>브라우저에서 열고 고치고 내려받습니다. 고칠 자리를 짚어 주고 자동으로 고칩니다.</p></div>
-        <div class="card rv" style="--d:.25s"><div class="no">2</div><h3>AAS 서버</h3><p class="was">예전: Eclipse BaSyx 서버</p><p>같은 서버가 IDTA Part 2 REST API · 레지스트리로 다른 시스템에 AAS를 내줍니다.</p></div>
-        <div class="card rv" style="--d:.4s"><div class="no">3</div><h3>OPC UA</h3><p class="was">예전: 별도 클라이언트 · 서버</p><p>AAS 안의 AID대로 설비 값을 모으고, OPC UA 서버로 상위 앱에 구독으로 내줍니다.</p></div>
-      </div>
-      <svg class="merge" viewBox="0 0 1080 110" aria-hidden="true" preserveAspectRatio="none">
-        <path id="mp1" d="M180 0 C180 60, 540 40, 540 104"/>
-        <path id="mp2" d="M540 0 L540 104"/>
-        <path id="mp3" d="M900 0 C900 60, 540 40, 540 104"/>
-        <circle class="pulse" r="4"><animateMotion dur="2.2s" repeatCount="indefinite" begin="1.4s"><mpath href="#mp1"/></animateMotion></circle>
-        <circle class="pulse" r="4"><animateMotion dur="2.2s" repeatCount="indefinite" begin="1.8s"><mpath href="#mp2"/></animateMotion></circle>
-        <circle class="pulse" r="4"><animateMotion dur="2.2s" repeatCount="indefinite" begin="2.2s"><mpath href="#mp3"/></animateMotion></circle>
-      </svg>
-      <div class="unity rv" style="--d:.9s"><span><em>VEXPLOR</em> AAS Studio — 웹 화면 하나</span></div>
-    </div>
-  </section>
-
-  <section id="features">
-    <div class="wrap">
-      <h2 class="rv">주요 기능</h2>
-      <p class="sub rv" style="--d:.1s">모든 그림은 실제 화면입니다.</p>
-
-      <div class="feature">
-        <div class="text rv rv-l">
-          <h3>검사 — 무엇이 어긋났는지</h3>
-          <ul>
-            <li>규칙 43종 — 패키지 구조 · 메타모델 제약 · KOSMO 사업 규칙</li>
-            <li>위반 · 경고 · 참고로 나눠 어디가 왜 틀렸는지, 어떻게 고치는지까지</li>
-            <li>표준 검증을 다 통과해도 KOSMO 규칙에 어긋나는 자리를 미리 걸러 줍니다</li>
-          </ul>
-        </div>
-        <div class="shot rv rv-r" data-marks="findings"><img src="img/v2/findings.jpg" alt="검사 결과 — 위반 0건, 경고 9건과 고치는 법" loading="lazy" width="1035" height="747"></div>
-      </div>
-
-      <div class="feature flip">
-        <div class="text rv rv-r">
-          <h3>자동 고치기 — 선택 기능</h3>
-          <ul>
-            <li>고칠 수 있는 지적을 전 / 후로 보여 주고, 체크한 것만 고칩니다</li>
-            <li>무엇을 바꿨는지 이관 대장에 남고, 「되돌리기」로 돌아올 수 있습니다</li>
-            <li>인쇄하면 그대로 PDF가 되는 검증 결과서</li>
-          </ul>
-        </div>
-        <div class="shot rv rv-l" data-marks="fix"><img src="img/v2/fix.jpg" alt="자동 고치기 미리보기 — 항목마다 고치기 전과 후" loading="lazy" width="1650" height="1036"></div>
-      </div>
-
-      <div class="feature">
-        <div class="text rv rv-l">
-          <h3>공정 묶음 · 레퍼런스 번들</h3>
-          <ul>
-            <li>회사 / 공정 단위의 설비를 제작 및 편집</li>
-            <li>공정 · 설비 · 사전 점검 결과를 ZIP 묶음 하나로</li>
-            <li>받은 쪽은 해시로 바뀐 파일이 없는지 확인합니다</li>
-          </ul>
-        </div>
-        <div class="shot rv rv-r" data-marks="group"><img src="img/v2/group.jpg" alt="공정 구성 — 회사, 공정, 설비 트리" loading="lazy" width="1242" height="1218"></div>
-      </div>
-
-      <div class="feature flip">
-        <div class="text rv rv-r">
-          <h3>현장 값 수집 · 내주기</h3>
-          <ul>
-            <li>실물 PLC가 없어도 「가상 PLC로 연결」로 바로 시험</li>
-            <li>AAS 안의 AID(IDTA 02017)가 정한 주소로 OPC UA 값을 모읍니다</li>
-            <li>모은 값을 OPC UA 서버로 MES · SCADA에 구독으로 내줍니다</li>
-          </ul>
-          <svg class="flowline" viewBox="0 0 460 92" aria-hidden="true">
-            <path id="fl1" d="M112 46 H174"/><path id="fl2" d="M286 46 H348"/>
-            <g class="node"><rect x="2" y="22" width="110" height="48" rx="10"/><text x="57" y="51">설비 · PLC</text></g>
-            <g class="node mid"><rect x="174" y="16" width="112" height="60" rx="12"/><text x="230" y="44">AAS Studio</text><text class="lbl" x="230" y="62">수집 · 저장</text></g>
-            <g class="node"><rect x="348" y="22" width="110" height="48" rx="10"/><text x="403" y="51">MES · SCADA</text></g>
-            <text class="lbl" x="143" y="36">OPC UA</text><text class="lbl" x="317" y="36">구독</text>
-            <circle r="4"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#fl1"/></animateMotion></circle>
-            <circle r="4"><animateMotion dur="1.6s" begin=".8s" repeatCount="indefinite"><mpath href="#fl2"/></animateMotion></circle>
-          </svg>
-        </div>
-        <div class="shot narrow rv rv-l" data-marks="collect"><img src="img/v2/collect.jpg" alt="수집 칸 — 가상 PLC에서 받은 값 목록" loading="lazy" width="600" height="1218"></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="trial">
-    <div class="wrap">
-      <h2 class="rv">체험해 보기</h2>
-      <p class="sub rv" style="--d:.1s">✅ 가입 없이 데모 계정으로 바로 사용할 수 있습니다.<br>✅ 작업한 결과물 파일을 내려받으려면 회원가입이 필요합니다.</p>
-      <div class="trial">
-        <div class="card rv rv-l">
-          <table>
-            <tr><th></th><th>데모 계정</th><th>회원</th></tr>
-            <tr><td>열기 · 고치기 · 검사 · 자동 고치기</td><td>✅</td><td>✅</td></tr>
-            <tr><td>검증 결과서 보기</td><td>✅</td><td>✅</td></tr>
-            <tr><td>AASX · 번들 내려받기</td><td class="lock">🔒</td><td>✅</td></tr>
-          </table>
-          <p style="margin:16px 0 0"><a class="btn primary demo-link" href="#trial" aria-disabled="true">체험 서버 열기 →</a></p>
-          <p class="demo-note" id="demo-state2" style="text-align:left"></p>
-        </div>
-        <div class="shot rv rv-r"><img src="img/v2/login.jpg" alt="로그인 화면 — 위는 회원 로그인, 아래는 데모 계정 안내" loading="lazy" width="672" height="1129" style="max-height:540px;object-fit:contain;background:#14181d"></div>
-      </div>
-    </div>
-  </section>
-
+# Part 2 base path per file
+GET /packages/{packageId}/api/v3.0/shells
+GET /packages/{packageId}/api/v3.0/submodels/{id}</code></pre></div></article><article class="step rv" id="f-bundle"><div class="step-text"><p class="f-no"><span class="num">05</span><span lang="ko">제출 번들&nbsp;· 결과서</span><span lang="en">Bundle & report</span></p><h3 lang="ko">공정 묶음은 제출용 레퍼런스 번들과 검증 결과서로 나갑니다</h3><h3 lang="en">A process grouping exports as a submission bundle and a validation report</h3><ul class="bl"><li><span lang="ko">회사 → 라인 → 공정 → 설비 → 부품 계층으로 설비를 묶습니다</span><span lang="en">Group machines as company → line → process → equipment → part</span></li><li><span lang="ko">레퍼런스 번들 ZIP 하나에 모델&nbsp;· 첨부&nbsp;· 사전 점검 결과를 담고, bundle-manifest.json에 파일마다 SHA256을 적습니다</span><span lang="en">One reference-bundle ZIP with models, attachments and pre-check results; bundle-manifest.json records a SHA256 per file</span></li><li><span lang="ko">검증 결과서는 HTML이라 인쇄하면 그대로 PDF가 됩니다</span><span lang="en">The validation report is HTML and prints straight to PDF</span></li></ul></div><div class="step-media"><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-bundle.webp" width="1400" height="917" alt="레퍼런스 번들 화면 — 설비 수, 사전 점검, 실동작 증빙 집계와 구성 상태" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-bundle.webp" width="1400" height="917" alt="Reference bundle — equipment count, pre-check, operation evidence and structure" loading="lazy" decoding="async"></div></figure></div></article><article class="step rv" id="f-integ"><div class="step-text"><p class="f-no"><span class="num">06</span><span lang="ko">MES&nbsp;· ERP&nbsp;· CMMS 연동</span><span lang="en">MES&nbsp;· ERP&nbsp;· CMMS integration</span> <span class="badge-new">NEW 2.0</span></p><h3 lang="ko">2.0부터 MES&nbsp;· ERP&nbsp;· CMMS가 설비 사건과 설비 정보를 받아 갑니다</h3><h3 lang="en">New in 2.0: MES, ERP and CMMS receive equipment events and master data</h3><ul class="bl"><li><span lang="ko"><b>읽어 가는 주소(pull feed)</b> — 모든 변경과 가동 사건을 CloudEvents 1.0으로 순서대로 내주고, 원하는 번호부터 다시 읽을 수 있습니다</span><span lang="en"><b>Pull feed</b> — every model change and runtime event as CloudEvents 1.0, totally ordered, resumable from any cursor</span></li><li><span lang="ko"><b>서명 웹훅</b> — HMAC-SHA256 서명, 실패하면 다시 보내고 끝내 실패한 건은 따로 남깁니다</span><span lang="en"><b>Signed webhooks</b> — HMAC-SHA256 signatures, retries, and dead letters kept for replay</span></li><li><span lang="ko"><b>MQTT</b> — 같은 사건을 토픽으로 보내고, 설비마다 현재 상태를 retained로 둡니다</span><span lang="en"><b>MQTT</b> — the same events on topics, with each machine's current state retained</span></li><li><span lang="ko"><b>판정 규칙</b> — 수집한 값으로 가동 상태&nbsp;· 알람&nbsp;· 계수기&nbsp;· 한계값 사건을 만듭니다</span><span lang="en"><b>Runtime rules</b> — state, alarm, counter and threshold events from collected values</span></li><li><span lang="ko"><b>내보내기</b> — 설비 마스터&nbsp;· BOM&nbsp;· 공정 계층&nbsp;· 보전 계획&nbsp;· 문서 목록을 JSON&nbsp;· CSV로</span><span lang="en"><b>Exports</b> — equipment master, BOM, hierarchy, maintenance plan and documents as JSON or CSV</span></li><li><span lang="ko"><b>외부 번호</b> — ERP&nbsp;· MES&nbsp;· CMMS 번호는 AASX 안이 아니라 옆에 따로 보관합니다</span><span lang="en"><b>External references</b> — ERP, MES and CMMS numbers are kept next to the AASX, not inside it</span></li></ul><p lang="ko" class="f-note">연동은 <code>INTEGRATIONS=on</code>으로 켭니다(기본은 꺼짐). PostgreSQL에서 구독을 만들려면 <code>AAS_SECRET_KEY</code>도 필요합니다. 체험 서버에서는 항상 꺼져 있습니다.</p><p lang="en" class="f-note">Integrations are off by default — turn them on with <code>INTEGRATIONS=on</code>. Creating subscriptions on PostgreSQL also needs <code>AAS_SECRET_KEY</code>. They are always off on the trial server.</p><p class="f-guide"><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/docs/integration.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/docs/연동.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/docs/integration.md"><span lang="ko">연동 안내 (MES&nbsp;· ERP&nbsp;· CMMS)</span><span lang="en">Integration guide (MES&nbsp;· ERP&nbsp;· CMMS)</span> <span aria-hidden="true">→</span></a></p></div><div class="step-media"><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-integ-subs.webp" width="1400" height="368" alt="연동 창 — 보내기 구독 탭, https 웹훅 구독 1건과 보낸 현황" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-integ-subs.webp" width="1400" height="368" alt="Integrations window — Subscriptions tab with one https webhook and its delivery counts" loading="lazy" decoding="async"></div></figure><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-integ-exports.webp" width="1400" height="658" alt="연동 창 — 내보내기 탭, 설비 마스터 · BOM · 공정 계층 · 보전 계획 · 문서 목록" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-integ-exports.webp" width="1400" height="658" alt="Integrations window — Export tab: equipment master, BOM, hierarchy, maintenance plan, documents" loading="lazy" decoding="async"></div></figure><figure class="shot"><div class="frame"><img lang="ko" src="img/v3/ko-integ-ready.webp" width="1400" height="581" alt="연동 창 — 준비 점검 탭, 내보내기 전에 빠진 값을 파일별로 표시" loading="lazy" decoding="async"><img lang="en" src="img/v3/en-integ-ready.webp" width="1400" height="581" alt="Integrations window — Readiness tab listing what would make an export wrong, per file" loading="lazy" decoding="async"></div></figure></div></article></div>
+</div>
+</div></section>
+<section id="connect" class="sec"><div class="wrap">
+<p class="eyebrow"><span lang="ko">연결</span><span lang="en">Connections</span></p>
+<h2 lang="ko">VEXPLOR AAS Studio는 설비와 공장 시스템을 표준 규약으로 연결합니다</h2><h2 lang="en">VEXPLOR AAS Studio connects machines and plant systems with standard protocols</h2>
+<div class="dia" role="group" data-aria-ko="연결 구성도" data-aria-en="Connection diagram" aria-label="Connection diagram">
+<div class="d-col d-src"><p class="d-cap"><span lang="ko">설비&nbsp;· PLC</span><span lang="en">Machines&nbsp;· PLCs</span></p><ul class="proto"><li>OPC UA</li><li>Modbus TCP</li><li>MQTT</li></ul><p lang="ko" class="d-sub">주소는 AAS 안의 AID가 정합니다</p><p lang="en" class="d-sub">Addressed by the AID in the AAS</p></div>
+<div class="d-arrow" aria-hidden="true"><span class="ln"></span><span class="hd"></span></div>
+<div class="d-col d-hub"><p class="d-cap hub-name">VEXPLOR AAS Studio</p><ul class="hub-list"><li><span lang="ko">AASX 보관&nbsp;· 편집</span><span lang="en">AASX storage&nbsp;· editing</span></li><li><span lang="ko">규칙 43종 검사</span><span lang="en">43-rule check</span></li><li><span lang="ko">수집값 시계열</span><span lang="en">Collected time series</span></li><li><span lang="ko">사건 기록 (event log)</span><span lang="en">Event log</span></li></ul></div>
+<div class="d-arrow" aria-hidden="true"><span class="ln"></span><span class="hd"></span></div>
+<div class="d-col d-dst"><div class="d-node"><p class="d-name">MES</p><ul><li><span lang="ko">CloudEvents 읽어 가는 주소</span><span lang="en">CloudEvents pull feed</span></li><li><span lang="ko">웹훅&nbsp;· MQTT</span><span lang="en">Webhook&nbsp;· MQTT</span></li><li><span lang="ko">OPC UA 구독 (읽기 전용)</span><span lang="en">OPC UA subscription (read-only)</span></li><li><span lang="ko">공정 계층 CSV&nbsp;· JSON</span><span lang="en">Hierarchy CSV&nbsp;· JSON</span></li></ul></div><div class="d-node"><p class="d-name">ERP</p><ul><li><span lang="ko">설비 마스터&nbsp;· BOM 내보내기</span><span lang="en">Equipment master&nbsp;· BOM export</span></li><li><span lang="ko">equipment.master.changed 사건</span><span lang="en">equipment.master.changed events</span></li></ul></div><div class="d-node"><p class="d-name">CMMS</p><ul><li><span lang="ko">알람 웹훅</span><span lang="en">Alarm webhooks</span></li><li><span lang="ko">보전 계획&nbsp;· 문서 목록</span><span lang="en">Maintenance plan&nbsp;· documents</span></li><li><span lang="ko">계량값 (meters)</span><span lang="en">Meters</span></li></ul></div><div class="d-node"><p class="d-name"><span lang="ko">다른 AAS 도구</span><span lang="en">Other AAS tools</span></p><ul><li><span lang="ko">AAS Part 2 REST</span><span lang="en">AAS Part 2 REST</span></li><li><span lang="ko">레지스트리&nbsp;· Discovery</span><span lang="en">Registry&nbsp;· Discovery</span></li></ul></div></div>
+</div>
+<p lang="ko" class="dia-note">VEXPLOR AAS Studio는 내보내기만 합니다 — MES&nbsp;· ERP&nbsp;· CMMS에 쓰지 않고, 설비에 명령하지 않습니다. OPC UA 서버도 읽기 전용입니다.</p><p lang="en" class="dia-note">VEXPLOR AAS Studio only publishes — it never writes into MES, ERP or CMMS and never commands machines. Its OPC UA server is read-only.</p>
+<p class="f-guide"><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/docs/integration.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/docs/연동.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/docs/integration.md"><span lang="ko">연동 안내 (MES&nbsp;· ERP&nbsp;· CMMS)</span><span lang="en">Integration guide (MES&nbsp;· ERP&nbsp;· CMMS)</span> <span aria-hidden="true">→</span></a></p>
+</div></section>
+<section id="security" class="sec"><div class="wrap">
+<p class="eyebrow"><span lang="ko">보안&nbsp;· 설치</span><span lang="en">Security & deployment</span></p>
+<h2 lang="ko">운영자가 서버를 직접 설치하고 계정과 권한을 정합니다</h2><h2 lang="en">You host the server and decide accounts and roles</h2>
+<dl class="sgrid"><div class="s-item"><dt><span lang="ko">직접 설치</span><span lang="en">Self-hosted</span></dt><dd><span lang="ko">Docker Compose 또는 Node.js 22 이상에서 소스로 실행합니다. 외부 클라우드가 필요 없습니다.</span><span lang="en">Docker Compose, or from source on Node.js 22 or later. No external cloud is involved.</span></dd></div><div class="s-item"><dt><span lang="ko">저장소</span><span lang="en">Storage</span></dt><dd><span lang="ko">공유 운영은 PostgreSQL, 혼자 쓸 때는 데이터 폴더 하나에 저장합니다.</span><span lang="en">PostgreSQL for shared use, or a single data folder for one person.</span></dd></div><div class="s-item"><dt><span lang="ko">계정&nbsp;· 역할</span><span lang="en">Accounts & roles</span></dt><dd><span lang="ko">관리자&nbsp;· 편집자&nbsp;· 열람자. 누가 무엇을 고쳤는지 변경 이력에 남습니다.</span><span lang="en">Admin, editor, viewer — with an audit trail of who changed what.</span></dd></div><div class="s-item"><dt><span lang="ko">어디에서 열리나</span><span lang="en">Who can reach it</span></dt><dd><span lang="ko">소스로 실행하고 계정도 API 키도 없으면 127.0.0.1에서만 열립니다. Docker 예시는 <code>.env.example</code>의 <code>AAS_ALLOW_OPEN=1</code> 때문에 같은 망에 열리므로, 띄운 직후 첫 관리자를 만들고 앞단에 HTTPS를 둡니다.</span><span lang="en">Run from source with neither accounts nor an API key and it listens on 127.0.0.1 only. The Docker example opens it to your network (<code>AAS_ALLOW_OPEN=1</code> in <code>.env.example</code>), so create the first administrator right after start and put HTTPS in front.</span></dd></div><div class="s-item"><dt><span lang="ko">OPC UA 서버</span><span lang="en">OPC UA server</span></dt><dd><span lang="ko">기본은 꺼짐. 켜면 웹 계정으로 로그인하고 Sign&nbsp;· SignAndEncrypt만 받습니다. 익명 접속은 없고, 클라이언트 인증서는 관리자가 한 번 신뢰해 줍니다.</span><span lang="en">Off by default. When on, clients sign in with a web account over Sign or SignAndEncrypt; no anonymous sessions, and an administrator trusts each client certificate once.</span></dd></div><div class="s-item"><dt><span lang="ko">개인 작업 공간</span><span lang="en">Private workspaces</span></dt><dd><span lang="ko"><code>AAS_WORKSPACE=private</code>로 사람마다 자기가 올린 파일만 봅니다.</span><span lang="en"><code>AAS_WORKSPACE=private</code> shows each person only what they uploaded.</span></dd></div><div class="s-item"><dt><span lang="ko">로그인 보호</span><span lang="en">Sign-in protection</span></dt><dd><span lang="ko">비밀번호는 scrypt 해시만 저장하고, 5회 실패하면 5분 잠급니다. 쿠키는 HttpOnly&nbsp;· SameSite=Strict입니다.</span><span lang="en">Only scrypt hashes are stored; five failures lock the account for five minutes. Cookies are HttpOnly and SameSite=Strict.</span></dd></div><div class="s-item"><dt><span lang="ko">밖으로 나가는 연결</span><span lang="en">Outbound connections</span></dt><dd><span lang="ko">웹훅&nbsp;· MQTT는 루프백&nbsp;· 메타데이터 주소를 거부하고, 사설망은 허용 목록에 적은 곳만 갑니다. 서명 비밀값은 AES-256-GCM으로 봉합니다.</span><span lang="en">Webhooks and MQTT refuse loopback and metadata addresses; private networks only when listed. Signing secrets are sealed with AES-256-GCM.</span></dd></div></dl>
+</div></section>
+<section id="limits" class="sec"><div class="wrap">
+<p class="eyebrow"><span lang="ko">한계</span><span lang="en">Limits</span></p>
+<h2 lang="ko">VEXPLOR AAS Studio가 하지 않는 일과 알려진 제약</h2><h2 lang="en">What VEXPLOR AAS Studio does not do, and known limitations</h2>
+<ul class="limits"><li><span lang="ko">합격 판정은 제출처 검증기가 합니다. 이 도구는 제출 전 사전 점검입니다.</span><span lang="en">The receiving validator decides acceptance. This tool is a pre-check.</span></li><li><span lang="ko">MES&nbsp;· ERP&nbsp;· CMMS에 쓰지 않고, 설비에 명령하지 않고, OEE 숫자를 계산하지 않습니다(재료가 되는 시간과 계수만 줍니다).</span><span lang="en">It never writes into MES, ERP or CMMS, never commands machines and never computes an OEE number (it gives the time and counter inputs).</span></li><li><span lang="ko">기본은 공유입니다. 로그인한 사람은 같은 파일을 봅니다. 개인 모드에서도 관리자와 API 키는 모든 파일을 봅니다.</span><span lang="en">Shared by default: everyone who signs in sees the same files. Even in private mode, administrators and API keys see everything.</span></li><li><span lang="ko">세션은 서버 메모리에 있습니다. 서버를 다시 켜면 모두 로그아웃되고, 서버 1대를 전제로 합니다.</span><span lang="en">Sessions live in server memory: a restart signs everyone out, and one server instance is assumed.</span></li><li><span lang="ko">메일을 보내지 않습니다. 비밀번호를 잊으면 관리자가 다시 정합니다.</span><span lang="en">No e-mail is sent. If someone forgets a password, an administrator resets it.</span></li><li><span lang="ko">연동 구독은 서버 전체 범위입니다. 한 고객의 자료가 다른 시스템에 가면 안 될 때는 구독을 파일 단위로 좁힙니다.</span><span lang="en">Integration subscriptions cover the whole server; narrow a subscription to its files when one customer's data must not reach another system.</span></li><li><span lang="ko">AAS 메타모델은 V3.0에 고정돼 있고 3.1로 자동 전환하지 않습니다. Part 2 API는 위 범위만 구현돼 있습니다.</span><span lang="en">The AAS metamodel is pinned to V3.0 and not auto-upgraded to 3.1. The Part 2 API covers the operations listed above.</span></li></ul>
+<p><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/SECURITY.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/SECURITY.ko.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/SECURITY.md"><span lang="ko">보안 정책 전문</span><span lang="en">Full security policy</span> <span aria-hidden="true">→</span></a></p>
+</div></section>
+<section id="start" class="sec sec-start"><div class="wrap">
+<p class="eyebrow"><span lang="ko">시작하기</span><span lang="en">Get started</span></p>
+<h2 lang="ko">VEXPLOR AAS Studio는 Docker 명령 4줄로 실행됩니다</h2><h2 lang="en">Four lines start VEXPLOR AAS Studio with Docker</h2>
+<div class="start-grid">
+<div class="start-main">
+<div class="codebox"><div class="code-bar"><span class="code-cap">Terminal</span><button type="button" class="copy" data-copy><span lang="ko" class="c0">복사</span><span lang="en" class="c0">Copy</span><span lang="ko" class="c1">복사했습니다</span><span lang="en" class="c1">Copied</span></button></div>
+<pre class="code code-start" tabindex="0"><code>git clone https://github.com/waceinc/vexplor-aas.git &amp;&amp; cd vexplor-aas
+cp .env.example .env
+sed -i.bak &quot;s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/&quot; .env
+docker compose up -d --build</code></pre>
+<p class="copy-status" role="status"></p></div>
+<p lang="ko" class="code-note">셋째 줄은 비어 있는 데이터베이스 비밀번호(<code>POSTGRES_PASSWORD</code>)를 무작위 값으로 채웁니다. 이 값이 비어 있으면 Docker가 시작하지 않습니다.</p><p lang="en" class="code-note">Line three fills the empty database password (<code>POSTGRES_PASSWORD</code>) with a random value — Docker refuses to start while it is empty.</p>
+<p lang="ko" class="after">브라우저에서 <code>http://localhost:8080</code>을 열고 설정 → 첫 관리자 만들기로 들어갑니다. 이 서버는 같은 망에 열려 있어(<code>AAS_ALLOW_OPEN=1</code>) 첫 관리자를 만들 때 설치 코드를 묻습니다. 코드는 <code>docker compose logs app | grep "설치 코드"</code>로 찾습니다. 첫 관리자를 만들기 전까지는 같은 망의 누구나 이 서버를 열 수 있습니다.</p><p lang="en" class="after">Open <code>http://localhost:8080</code> and go to Settings → Create the first administrator. The server is open to your network (<code>AAS_ALLOW_OPEN=1</code>), so it asks for a setup code, printed in the startup log: <code>docker compose logs app | grep "설치 코드"</code> (or <code>grep "setup code"</code> with <code>AAS_LANG=en</code> in <code>.env</code>). Until the first administrator exists, anyone on the network can open it.</p>
+<ul class="links"><li><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/docs/install.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/docs/설치.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/docs/install.md"><span lang="ko">설치 안내</span><span lang="en">Install guide</span> <span aria-hidden="true">→</span></a></li><li><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/docs/integration.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/docs/연동.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/docs/integration.md"><span lang="ko">연동 안내 (MES&nbsp;· ERP&nbsp;· CMMS)</span><span lang="en">Integration guide (MES&nbsp;· ERP&nbsp;· CMMS)</span> <span aria-hidden="true">→</span></a></li><li><a class="lnk" href="https://github.com/waceinc/vexplor-aas/blob/main/docs/usage.md" data-href-ko="https://github.com/waceinc/vexplor-aas/blob/main/docs/사용법.md" data-href-en="https://github.com/waceinc/vexplor-aas/blob/main/docs/usage.md"><span lang="ko">사용법</span><span lang="en">Usage</span> <span aria-hidden="true">→</span></a></li><li><a class="lnk" href="VEXPLOR_AAS_Studio_user_manual.pptx" download><span lang="ko">한국어 사용자 매뉴얼 (PPTX)</span><span lang="en">Korean user manual (PPTX)</span> <span aria-hidden="true">↓</span></a></li></ul>
+</div>
+<div class="trial">
+<p class="trial-h"><span lang="ko">체험 서버</span><span lang="en">Trial server</span></p>
+<div class="trial-live">
+<p lang="ko" class="trial-p">가입 없이 데모 계정으로 바로 써 볼 수 있습니다. 작업한 파일을 내려받으려면 회원가입이 필요합니다.</p><p lang="en" class="trial-p">Use the demo account without signing up. Downloading your files requires an account.</p>
+<table class="tbl tbl-trial"><thead><tr><td></td><th scope="col"><span lang="ko">데모 계정</span><span lang="en">Demo account</span></th><th scope="col"><span lang="ko">회원</span><span lang="en">Member</span></th></tr></thead><tbody><tr><th scope="row"><span lang="ko">열기&nbsp;· 고치기&nbsp;· 검사&nbsp;· 자동 고치기</span><span lang="en">Open&nbsp;· edit&nbsp;· lint&nbsp;· auto-fix</span></th><td class="y"><span lang="ko">가능</span><span lang="en">Yes</span></td><td class="y"><span lang="ko">가능</span><span lang="en">Yes</span></td></tr><tr><th scope="row"><span lang="ko">검증 결과서 보기</span><span lang="en">View the validation report</span></th><td class="y"><span lang="ko">가능</span><span lang="en">Yes</span></td><td class="y"><span lang="ko">가능</span><span lang="en">Yes</span></td></tr><tr><th scope="row"><span lang="ko">AASX&nbsp;· 번들 내려받기</span><span lang="en">Download AASX&nbsp;· bundle</span></th><td class="n"><span lang="ko">회원만</span><span lang="en">Members</span></td><td class="y"><span lang="ko">가능</span><span lang="en">Yes</span></td></tr></tbody></table>
+<p class="trial-cta"><a class="btn btn-primary demo-link" href="https://github.com/waceinc/vexplor-aas"><span lang="ko">체험해 보기</span><span lang="en">Try it</span></a></p>
+</div>
+<p class="demo-state" role="status"><span lang="ko" class="ds ds-loading">체험 서버 상태를 확인하는 중입니다.</span><span lang="en" class="ds ds-loading">Checking the trial server.</span><span lang="ko" class="ds ds-up">데모 계정 <code>demo</code> / <code>0629</code> — 새 창으로 열립니다. 체험 서버는 시연용입니다.</span><span lang="en" class="ds ds-up">Demo account <code>demo</code> / <code>0629</code> — opens in a new tab. The trial server is for demonstration.</span><span lang="ko" class="ds ds-down">체험 서버가 지금 응답하지 않습니다. 이 절의 Docker 명령으로 내 컴퓨터에서 실행할 수 있습니다.</span><span lang="en" class="ds ds-down">The trial server is not responding right now. Use the Docker commands in this section to run it on your own machine.</span></p>
+<p lang="ko" class="meta-note trial-note">데모는 로그인할 때마다 빈 작업 공간이 따로 생기고, 한동안 쓰지 않은 파일은 지워집니다. 운영자가 볼 수 있으므로 기밀 자료는 올리지 마십시오.</p><p lang="en" class="meta-note trial-note">Each demo sign-in gets its own empty workspace, and idle files are deleted. The operator can see them — keep confidential data on your own server.</p>
+</div>
+</div>
+</div></section>
 </main>
-
-<footer>
-  <div class="wrap">
-    <span>© 2026 WACE · VEXPLOR AAS Studio · Apache License 2.0</span>
-    <span>
-      <a href="https://github.com/waceinc/vexplor-aas">GitHub</a> ·
-      <a class="privacy-link" href="#trial">개인정보처리방침</a>
-    </span>
-  </div>
-</footer>
-
+<footer class="foot"><div class="wrap foot-in">
+<div><p class="foot-brand"><b>VEXPLOR</b> AAS Studio <span class="ver">v2.0.0</span></p>
+<p><span lang="ko">Apache License 2.0 — 고쳐 쓰고 상용 제품에 넣을 수 있습니다</span><span lang="en">Apache License 2.0 — modify it and ship it in commercial products</span></p><p class="tm"><span lang="ko">VEXPLOR&nbsp;· WACE 이름과 로고는 Apache-2.0 사용 허락에 들어 있지 않습니다 (NOTICE 참고).</span><span lang="en">The names and logos VEXPLOR and WACE are not licensed under Apache-2.0 (see NOTICE).</span></p></div>
+<ul class="foot-links">
+<li><a href="https://github.com/waceinc/vexplor-aas">GitHub</a></li>
+<li><a href="https://github.com/waceinc/vexplor-aas/releases/tag/v2.0.0"><span lang="ko">v2.0.0 릴리스 노트</span><span lang="en">v2.0.0 release notes</span></a></li>
+<li><a href="https://wace.me">wace.me</a></li>
+<li class="privacy-item"><a class="privacy-link" href="https://github.com/waceinc/vexplor-aas"><span lang="ko">개인정보처리방침 (체험 서버)</span><span lang="en">Privacy policy (trial server)</span></a></li>
+</ul>
+<p class="copy-line">© 2026 <span lang="ko">(주)웨이스&nbsp;· WACE Inc.</span><span lang="en">WACE Inc.</span></p>
+</div></footer>
 <script>
-  // 체험 서버 주소는 demo.json 한 곳에서 읽는다 — 서버 주소가 바뀌면 그 파일만 고친다
-  (async () => {
-    const states = [document.getElementById('demo-state'), document.getElementById('demo-state2')];
-    const say = (html) => states.forEach((el) => { if (el) el.innerHTML = html; });
-    try {
-      const response = await fetch('demo.json?t=' + Date.now(), { cache: 'no-store' });
-      const demo = await response.json();
-      if (!demo.url) throw new Error('no url');
-      document.querySelectorAll('.demo-link').forEach((a) => {
-        a.href = demo.url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.removeAttribute('aria-disabled');
-      });
-      document.querySelectorAll('.privacy-link').forEach((a) => { a.href = demo.url.replace(/\/$/, '') + '/privacy.html'; a.target = '_blank'; });
-      say('데모 계정 <code>demo</code> / <code>0629</code> — 새 창으로 열립니다. 체험 서버는 시연용입니다.');
-      // 아래 체험 칸은 짧게 — 「새 창으로 열립니다」까지만(사용자 요청 2026-10-07)
-      if (states[1]) states[1].innerHTML = '데모 계정 <code>demo</code> / <code>0629</code> — 새 창으로 열립니다.';
-    } catch {
-      say('체험 서버를 준비하는 중입니다. 잠시 뒤 다시 와 주십시오.');
-    }
+(function(){
+  var d=document.documentElement;
+  var TITLES={ko:'VEXPLOR AAS Studio — AASX 작성 · 검사 · 수집 · 연동 오픈소스',en:'VEXPLOR AAS Studio — open-source AASX authoring, validation, collection and integration'}, DESC={ko:'AASX를 만들고 규칙 43종으로 검사하고, IDTA Part 2 REST API로 내주고, OPC UA · Modbus TCP · MQTT로 설비 값을 모아 MES · ERP · CMMS에 보내는 오픈소스 웹 도구(Apache-2.0).',en:'Open-source web app (Apache-2.0) to author AASX, check it against 43 rules, serve it over the IDTA Part 2 REST API, collect machine values over OPC UA, Modbus TCP and MQTT, and feed MES, ERP and CMMS.'};
+  var meta=document.querySelector('meta[name="description"]');
+  function apply(l){
+    d.lang=l; document.title=TITLES[l]; if(meta) meta.content=DESC[l];
+    document.querySelectorAll('[data-set-lang]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.setLang===l));});
+    document.querySelectorAll('[data-href-'+l+']').forEach(function(a){a.href=a.getAttribute('data-href-'+l);});
+    document.querySelectorAll('[data-aria-'+l+']').forEach(function(e){e.setAttribute('aria-label',e.getAttribute('data-aria-'+l));});
+  }
+  apply(d.lang==='ko'?'ko':'en');
+  document.querySelectorAll('[data-set-lang]').forEach(function(b){b.addEventListener('click',function(){
+    var l=b.dataset.setLang; apply(l);
+    try{localStorage.setItem('vx-lang',l);}catch(e){}
+    try{var u=new URL(location.href);if(u.searchParams.has('lang')){u.searchParams.set('lang',l);history.replaceState(null,'',u);}}catch(e){}
+  });});
+
+  // 체험 서버 주소는 demo.json 한 곳에서 읽는다 — 서버 주소가 바뀌면 그 파일만 고친다.
+  // 처음에는 「Docker로 시작하기」(#start)로 두고, 서버가 응답할 때만 「체험해 보기」로 바꾼다.
+  var body=document.body;
+  function demo(state){body.setAttribute('data-demo',state);}
+  demo('loading');
+  (async function(){
+    var url;
+    try{
+      var r=await fetch('demo.json?t='+Date.now(),{cache:'no-store'});
+      var j=await r.json(); url=j&&j.url; if(!url) throw new Error('no url');
+    }catch(e){demo('down');return;}
+    var root=url.replace(/\/$/,'');
+    // 서버가 떠 있는지 아이콘 하나로 확인한다
+    var ok=await new Promise(function(res){var i=new Image(),done=false;var tm=setTimeout(function(){if(!done){done=true;res(false);}},8000);
+      i.onload=function(){if(!done){done=true;clearTimeout(tm);res(true);}};i.onerror=function(){if(!done){done=true;clearTimeout(tm);res(false);}};
+      i.src=root+'/favicon-32.png?t='+Date.now();});
+    if(!ok){demo('down');return;}
+    document.querySelectorAll('.hero-cta,.demo-link').forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});
+    document.querySelectorAll('.privacy-link').forEach(function(a){a.href=root+'/privacy.html';a.target='_blank';a.rel='noopener';});
+    demo('up');
   })();
 
-  // ── 움직임 (2026-10-07) ─────────────────────────────────────────────
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 복사 버튼 — 성공 · 실패를 상태 줄로 알린다. 실패하면 코드를 선택해 둔다
+  document.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){
+    var box=b.closest('.codebox'), code=box.querySelector('code'), st=box.querySelector('.copy-status');
+    var say=function(ko,en){st.textContent=d.lang==='ko'?ko:en;};
+    var fail=function(){var r=document.createRange();r.selectNodeContents(code);var s=getSelection();s.removeAllRanges();s.addRange(r);say('복사하지 못했습니다. 선택해 두었으니 Ctrl+C(⌘C)로 복사하십시오.','Could not copy. The text is selected — press Ctrl+C (⌘C).');};
+    if(!navigator.clipboard){fail();return;}
+    navigator.clipboard.writeText(code.textContent).then(function(){b.classList.add('done');say('명령을 복사했습니다.','Commands copied.');setTimeout(function(){b.classList.remove('done');},1600);},fail);
+  });});
 
-  // 화면 그림 위 강조 상자 — 실제 화면 좌표(CSS px)를 그림 크기 대비 %로 둔다
-  const MARKS = {
-    findings: { size: [690, 498], m: [[18, 53, 654, 77], [18, 144, 654, 294]] },
-    fix: { size: [1100, 691], m: [[20, 104, 1060, 511], [19, 640, 107, 32]] },
-    group: { size: [828, 812], m: [[668, 259, 59, 24], [736, 259, 59, 24], [235, 326, 36, 19]] },
-    collect: { size: [400, 812], m: [[250, 19, 50, 32], [306, 19, 78, 32], [16, 145, 368, 640]] },
-  };
-  document.querySelectorAll('.shot[data-marks]').forEach((shot) => {
-    const def = MARKS[shot.dataset.marks];
-    def.m.forEach(([x, y, w, h], i) => {
-      const box = document.createElement('span');
-      box.className = (x < 14 || y < 14) ? 'm edge' : 'm'; box.dataset.n = i + 1;
-      Object.assign(box.style, { left: (x / def.size[0] * 100) + '%', top: (y / def.size[1] * 100) + '%', width: (w / def.size[0] * 100) + '%', height: (h / def.size[1] * 100) + '%' });
-      shot.appendChild(box);
-    });
-  });
+  // 스크롤 등장 — 움직임을 줄이는 설정이면 처음부터 보인다
+  var still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var els=document.querySelectorAll('.rv');
+  if(still||!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in');});}
+  else{var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -8% 0px'});els.forEach(function(e){io.observe(e);});}
 
-  // 스크롤 등장 · 숫자 세기 · 합쳐지는 선
-  const countUp = (el) => {
-    const to = +el.dataset.to, from = +(el.dataset.from ?? 0);
-    if (still) { el.textContent = to; return; }
-    el.textContent = from;
-    const t0 = performance.now() + 500, dur = 1400;
-    const tick = (t) => { const p = Math.max(0, Math.min(1, (t - t0) / dur)), e = 1 - Math.pow(1 - p, 3); el.textContent = Math.round(from + (to - from) * e); if (p < 1) requestAnimationFrame(tick); };
-    requestAnimationFrame(tick);
-  };
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (!e.isIntersecting) return;
-      const el = e.target;
-      el.classList.add('in', 'on');
-      el.querySelectorAll('.count').forEach(countUp);
-      io.unobserve(el);
-    });
-  }, { threshold: 0.15, rootMargin: '0px 0px -6% 0px' });
-  document.querySelectorAll('.rv, .merge').forEach((el) => io.observe(el));
-
-  // 머리줄 아래 읽은 만큼 차오르는 선
-  const bar = document.querySelector('.progress');
-  const onScroll = () => { const h = document.documentElement; bar.style.setProperty('--p', Math.min(1, h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight))); };
-  addEventListener('scroll', onScroll, { passive: true }); onScroll();
-
-  // ── 제품 시연 — 실제 화면을 겹쳐 커서로 따라가 보인다 ──
-  (() => {
-    const player = document.getElementById('player');
-    const stage = player.querySelector('.stage'), canvas = player.querySelector('.canvas');
-    const fit = () => canvas.style.setProperty('--k', stage.clientWidth / 1600);
-    new ResizeObserver(fit).observe(stage); fit();
-    const $ = (k) => canvas.querySelector(`[data-k="${k}"]`);
-    const cursor = canvas.querySelector('.cursor');
-    const cap = player.querySelector('.caption'), capN = cap.querySelector('b'), capT = cap.querySelector('span');
-    const tabs = [...player.querySelectorAll('.steps button')];
-    const move = (x, y) => { cursor.style.transform = `translate(${x}px, ${y}px)`; };
-    const click = () => { cursor.classList.remove('click'); void cursor.offsetWidth; cursor.classList.add('click'); };
-    let timers = [];
-    const at = (ms, fn) => timers.push(setTimeout(fn, still ? 0 : ms));
-    const reset = () => {
-      timers.forEach(clearTimeout); timers = [];
-      canvas.querySelectorAll('.on').forEach((el) => el.classList.remove('on'));
-      canvas.querySelectorAll('.dim').forEach((el) => el.classList.remove('dim'));
-    };
-    // 장면마다: 바탕 화면 · 커서 길 · 강조 · 설명
-    const SCENES = [
-      { t: 'AASX 파일을 엽니다 — 견본 · 내 파일 · 번들 · 새로 만들기', dur: 3600, run() {
-        $('welcome').classList.add('on'); move(1100, 760);
-        at(500, () => move(690, 520)); at(1700, () => { click(); $('open').classList.add('on'); });
-      } },
-      { t: '규칙 43종으로 바로 검사 — 위반 · 경고 · 참고로 나눠 보여 줍니다', dur: 4600, run() {
-        $('layout').classList.add('on'); move(760, 520);
-        at(400, () => move(1450, 30)); at(1500, () => { click(); $('chip').classList.add('on'); });
-        at(1900, () => $('findings').classList.add('on'));
-      } },
-      { t: '자동 고치기 — 전 / 후를 미리 보고, 고른 것만 고칩니다', dur: 4600, run() {
-        $('layout').classList.add('on', 'dim'); $('fix').classList.add('on'); move(1450, 30);
-        at(700, () => move(320, 770)); at(2000, () => { $('apply').classList.add('on'); click(); });
-      } },
-      { t: '위반 0건 · 경고 0건 — KOSMO 규칙 사전 점검 통과', dur: 3600, run() {
-        $('fixed').classList.add('on'); move(320, 770);
-        at(400, () => move(1450, 30)); at(1300, () => { $('chip').classList.add('on'); $('pass').classList.add('on'); });
-      } },
-      { t: '검증 결과서 · 문서용 자료 · AASX로 내보냅니다', dur: 4000, run() {
-        $('fixed').classList.add('on', 'dim'); move(1450, 30);
-        at(300, () => $('report').classList.add('on')); at(900, () => move(1180, 640));
-      } },
-    ];
-    let i = 0, playing = false, next;
-    const show = (n) => {
-      i = (n + SCENES.length) % SCENES.length; reset(); clearTimeout(next);
-      tabs.forEach((b, j) => { b.classList.toggle('on', j === i); b.classList.toggle('done', j < i); b.setAttribute('aria-selected', j === i); });
-      const s = SCENES[i];
-      player.style.setProperty('--dur', s.dur + 'ms');
-      const fillBar = tabs[i].querySelector('i'); fillBar.style.animation = 'none'; void fillBar.offsetWidth; fillBar.style.animation = '';
-      cap.classList.add('swap');
-      setTimeout(() => { capN.textContent = i + 1; capT.textContent = s.t; cap.classList.remove('swap'); }, still ? 0 : 220);
-      s.run();
-      if (playing) next = setTimeout(() => show(i + 1), s.dur);
-    };
-    tabs.forEach((b) => b.addEventListener('click', () => show(+b.dataset.i)));
-    // 보일 때만 돈다 — 화면 밖에서는 멈춰 둔다. 움직임을 줄이는 설정이면 자동 재생하지 않는다
-    new IntersectionObserver(([e]) => {
-      const was = playing; playing = e.isIntersecting && !still;
-      player.classList.toggle('paused', !playing);
-      if (playing && !was) show(i); else if (!playing) clearTimeout(next);
-    }, { threshold: 0.35 }).observe(stage);
-    show(0);
-  })();
+  // 둘러보기 차례 — 화면 위쪽 기준선(뷰포트 35%)을 지난 마지막 단계를 켠다
+  var links=[].slice.call(document.querySelectorAll('.tour-nav a'));
+  var steps=[].slice.call(document.querySelectorAll('.step'));
+  var narrow=matchMedia('(max-width:1000px)');
+  var cur=null;
+  function mark(){
+    var line=innerHeight*0.35, on=null;
+    steps.forEach(function(s){if(s.getBoundingClientRect().top<=line)on=s;});
+    var tour=document.getElementById('features').getBoundingClientRect();
+    if(tour.bottom<line||tour.top>innerHeight) on=null;
+    if(on===cur) return; cur=on;
+    links.forEach(function(a){var hit=on&&a.getAttribute('href')==='#'+on.id;a.classList.toggle('on',!!hit);if(hit){a.setAttribute('aria-current','step');}else a.removeAttribute('aria-current');});
+    if(on&&narrow.matches){var a=links.filter(function(x){return x.classList.contains('on');})[0];if(a){var ol=a.parentNode.parentNode;ol.scrollLeft=a.parentNode.offsetLeft-16;}}
+  }
+  addEventListener('scroll',mark,{passive:true});
+  addEventListener('resize',mark); mark();
+})();
 </script>
 </body>
 </html>

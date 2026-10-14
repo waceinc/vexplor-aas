@@ -1,6 +1,9 @@
-# VEXPLOR AAS Studio — 소개 페이지
+# VEXPLOR AAS Studio — product page
 
-https://waceinc.github.io/vexplor-aas
+https://waceinc.github.io/vexplor-aas/
 
-- 소스는 main 브랜치에 있습니다
-- 「체험해 보기」 단추 주소는 demo.json 하나에서 읽습니다
+- Source code lives on the `main` branch.
+- One page in Korean and English (`index.html`, KO | EN toggle; default follows the browser language).
+- The "Try it" button reads the trial server address from `demo.json` only. When that server does not answer, the page
+  switches the button to the Docker instructions.
+- Screenshots are in `img/v3/` (taken from v2.0.0, dark theme).
