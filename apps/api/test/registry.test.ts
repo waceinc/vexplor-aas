@@ -133,6 +133,48 @@ describe('discovery — finding an AAS by asset number', () => {
   });
 });
 
+describe('discovery — a name is required and must match (design §4.7)', () => {
+  /** Two AASs: one whose globalAssetId is "EQ-07", one that has "EQ-07" only as its serial number */
+  async function twoAssets() {
+    const { store, packageId, call } = await seeded();
+    const shell = (await store.getIdentifiable(packageId, 'AssetAdministrationShell', AAS_ID))!;
+    const content = structuredClone(shell.content) as { assetInformation: Record<string, unknown> };
+    content.assetInformation['specificAssetIds'] = [{ name: 'SerialNumber', value: 'EQ-07' }];
+    await store.updateIdentifiable(packageId, 'AssetAdministrationShell', AAS_ID, content);
+
+    const other = await store.importPackage({ name: '02.aasx', package: readAasx(goldenBytes) });
+    const otherShell = (await store.getIdentifiable(other.id, 'AssetAdministrationShell', AAS_ID))!;
+    const otherContent = structuredClone(otherShell.content) as { id: string; assetInformation: Record<string, unknown> };
+    otherContent.id = 'urn:test:aas:eq07';
+    otherContent.assetInformation['globalAssetId'] = 'EQ-07';
+    await store.deleteIdentifiable(other.id, 'AssetAdministrationShell', AAS_ID);
+    await store.createIdentifiable(other.id, otherContent);
+    return { call };
+  }
+  const query = (value: object) => ({ assetIds: encode(JSON.stringify(value)) });
+
+  it('an entry without name is 400 — it used to be read as globalAssetId', async () => {
+    const { call } = await seeded();
+    const result = await call('/api/v3.0/lookup/shells', query({ value: ASSET_ID }));
+    expect(result.status).toBe(400);
+    expect(result.body.messages[0].text).toContain('SpecificAssetId.name');
+  });
+
+  it('Important: globalAssetId EQ-07 does not match a specificAssetId EQ-07', async () => {
+    const { call } = await twoAssets();
+    const result = await call('/api/v3.0/lookup/shells', query({ name: 'globalAssetId', value: 'EQ-07' }));
+    expect(result.body.result).toEqual(['urn:test:aas:eq07']);
+  });
+
+  it('a specificAssetId query matches only that name — not the globalAssetId with the same value', async () => {
+    const { call } = await twoAssets();
+    const result = await call('/api/v3.0/lookup/shells', query({ name: 'SerialNumber', value: 'EQ-07' }));
+    expect(result.body.result).toEqual([AAS_ID]);
+    const wrongName = await call('/api/v3.0/lookup/shells', query({ name: 'equipmentCode', value: 'EQ-07' }));
+    expect(wrongName.body.result).toEqual([]);
+  });
+});
+
 describe('Important: registration and reality do not diverge', () => {
   it('deleting a file removes it from the registry — because registrations are derived, not accepted', async () => {
     const { store, packageId, call } = await seeded();

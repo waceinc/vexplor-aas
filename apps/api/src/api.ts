@@ -7,11 +7,13 @@
 import { fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
   ConflictError,
+  ExternalRefConflictError,
   ForbiddenError,
   InvalidContentError,
   NotFoundError,
   runAsActor,
   runInWorkspace,
+  runWithChange,
   scopeStore,
   type AasStore,
   type Actor,
@@ -34,6 +36,8 @@ import { DERIVATION_PART, derivationRoutes } from './routes/derivation.js';
 import { AASX_FILE_SERVER_PROFILES, descriptionRoute, part2Routes } from './routes/part2.js';
 import { describeChange, UndoStack } from './undo.js';
 import { langOf, runInLang } from './lang.js';
+import { integrationRoutes } from './integration/routes.js';
+import { changeContextFor } from './integration/change-context.js';
 
 export type { ApiOptions } from './api-options.js';
 import type { ApiOptions } from './api-options.js';
@@ -79,6 +83,14 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
     ...part2Routes(store),
     // Registry and discovery — server-wide (everything this server holds, not a single file)
     ...registryRoutes(store, options.publicBaseUrl ? { publicBaseUrl: options.publicBaseUrl } : {}),
+    // MES / ERP / CMMS integration — event feed, subscriptions, exports, runtime data (integration/routes.ts)
+    ...integrationRoutes(store, {
+      demo: options.demo !== undefined,
+      ...(options.integration ? { runtime: options.integration } : {}),
+      ...(options.integrationServices ? { services: options.integrationServices } : {}),
+      ...(options.publicBaseUrl ? { publicBaseUrl: options.publicBaseUrl } : {}),
+      ...(options.collectIntervalMs ? { collectIntervalMs: options.collectIntervalMs } : {}),
+    }),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
     {
@@ -161,7 +173,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     const actor = actorOf(principal, allowed);
     // "Through whose eyes the store is viewed" is also set only once, here. Servers that don't partition don't set it
     const workspace = privateWorkspaces ? workspaceOf(principal, allowed, options.demo) : undefined;
-    return runInWorkspace(workspace, () => runAsActor(actor, async () => {
+    // "Why it changed" (edit, undo, fix, import …) is set here too, once — model events carry it (integration/change-context.ts)
+    const change = changeContextFor(request.method, found.route.pattern);
+    return runInWorkspace(workspace, () => runWithChange(change, () => runAsActor(actor, async () => {
       try {
         // Undo — requests that can change the model snapshot the prior state, and push it only when something actually changed.
         // Undo requests themselves are exempt (they move the stack themselves). Deleting a package discards the stack
@@ -196,7 +210,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       } catch (error) {
         return toErrorResponse(error);
       }
-    }));
+    })));
   }
 }
 
@@ -291,6 +305,10 @@ export function toErrorResponse(error: unknown): ApiResponse {
   if (error instanceof NotFoundError) return errorResponse(404, 'NotFound', error.message);
   if (error instanceof ForbiddenError) return errorResponse(403, 'Forbidden', error.message);
   if (error instanceof ConflictError) return errorResponse(409, 'Conflict', error.message);
+  if (error instanceof ExternalRefConflictError) {
+    const base = errorResponse(409, 'ExternalRefConflict', error.message);
+    return { ...base, body: { ...(base.body as Record<string, unknown>), claims: error.claims } };
+  }
   if (error instanceof InvalidContentError) return errorResponse(400, 'BadRequest', error.message);
   if (error instanceof ValueNotSupportedError) return errorResponse(400, 'BadRequest', error.message);
   // Exceeding a limit is not a format error but means "too large" — 413 is correct (spec VIII Zip Bomb)

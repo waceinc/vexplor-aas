@@ -8,6 +8,7 @@ import type { LinterPolicy } from '@aas/linter';
 import type { AuthConfig } from './auth.js';
 import type { ApiRequest } from './http.js';
 import type { DemoConfig } from './demo.js';
+import type { IntegrationRuntimeDeps, IntegrationServices } from './integration/deps.js';
 import type { Route } from './router.js';
 import type { PackageRouteOptions } from './routes/packages.js';
 import type { SessionStore, SignupThrottle } from './session.js';
@@ -80,4 +81,10 @@ export interface ApiOptions {
   publicBaseUrl?: string;
   /** Undo stack. createApi creates and passes it — not needed when checking the route table */
   undo?: UndoStack;
+  /** Integration workers (integration/boot.ts). Absent when INTEGRATIONS is off — routes that send answer 503 */
+  integration?: IntegrationRuntimeDeps;
+  /** Integration server facts (instance id, egress policy, master key). Absent in tests — routes use defaults */
+  integrationServices?: IntegrationServices;
+  /** Collection interval (ms) — the detection resolution the integration routes report */
+  collectIntervalMs?: number;
 }
