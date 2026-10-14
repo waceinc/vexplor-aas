@@ -101,13 +101,8 @@ export function DailyStates({ rows, holdMs, version = '', t }: Props): React.JSX
           <button className="link" onClick={() => saveRules(DEFAULT_STATE_RULES)}>{tr('기본 규칙으로')}</button>
         </div>
       )}
-      <div className="state-ticks" aria-hidden="true">
-        {ticks.map((tick) => (
-          <span key={tick}>{tick}</span>
-        ))}
-      </div>
       {rows.map((row) => (
-        <StateLine key={`${row.packageId}-${day.getTime()}-${JSON.stringify(rules)}`} row={row} day={day} rules={rules} holdMs={holdMs} version={version} />
+        <StateLine key={`${row.packageId}-${day.getTime()}-${JSON.stringify(rules)}`} row={row} day={day} rules={rules} holdMs={holdMs} version={version} ticks={ticks} />
       ))}
       <div className="state-legend">
         {(['run', 'stop', 'alarm', 'off', 'unknown', 'none'] as const).map((state) => (
@@ -118,7 +113,7 @@ export function DailyStates({ rows, holdMs, version = '', t }: Props): React.JSX
   );
 }
 
-function StateLine({ row, day, rules, holdMs, version }: { row: StateRow; day: Date; rules: StateRules; holdMs: number; version: string }): React.JSX.Element {
+function StateLine({ row, day, rules, holdMs, version, ticks }: { row: StateRow; day: Date; rules: StateRules; holdMs: number; version: string; ticks: readonly string[] }): React.JSX.Element {
   const [names, setNames] = useState<string[]>();
   const [tag, setTag] = useState<string>();
   const [segments, setSegments] = useState<Segment[]>();
@@ -171,6 +166,12 @@ function StateLine({ row, day, rules, holdMs, version }: { row: StateRow; day: D
           </select>
         )}
         {names && names.length === 0 && <span className="dim">{tr('수집 연결 없음')}</span>}
+      </div>
+      {/* 시간 눈금은 막대 바로 위에 — 태그 고르는 칸이 사이에 끼면 눈금과 막대가 떨어져 읽힌다 */}
+      <div className="state-ticks" aria-hidden="true">
+        {ticks.map((tick) => (
+          <span key={tick}>{tick}</span>
+        ))}
       </div>
       <div className="state-bar" role="img" aria-label={fill(tr('{0} 하루 상태'), { 0: row.name })}>
         {(segments ?? []).map((segment) => (

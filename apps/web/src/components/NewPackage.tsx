@@ -172,8 +172,15 @@ export function NewPackage({
             <ol className="sm-required">
               {required.map((name, index) => (
                 <li key={name}>
-                  {index + 1}. <b>{name}</b>
-                  {REQUIRED_HINTS[name] && <span className="dim"> — {REQUIRED_HINTS[name]}</span>}
+                  {/* 필수는 잠긴 체크로 — 선택 목록과 같은 열(체크 · 번호 · 이름)에 놓여 이름 시작점이 맞는다 */}
+                  <label>
+                    <input type="checkbox" checked disabled aria-label={tr('자동으로 들어갑니다')} />
+                    <span className="sm-num">{index + 1}.</span>
+                    <span>
+                      <b>{name}</b>
+                      {REQUIRED_HINTS[name] && <span className="dim"> — {REQUIRED_HINTS[name]}</span>}
+                    </span>
+                  </label>
                 </li>
               ))}
             </ol>
@@ -192,8 +199,11 @@ export function NewPackage({
                         }))
                       }
                     />
-                    {required.length + index + 1}. <b>{option.name}</b>
-                    <span className="dim"> — {option.hint}</span>
+                    <span className="sm-num">{required.length + index + 1}.</span>
+                    <span>
+                      <b>{option.name}</b>
+                      <span className="dim"> — {option.hint}</span>
+                    </span>
                   </label>
                 </li>
               ))}

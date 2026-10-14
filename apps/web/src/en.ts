@@ -1051,4 +1051,5 @@ export const EN_MORE: Record<string, string> = {
   '{0}개 담기': 'Add {0}',
   '1분 미만': 'under 1 min',
   ' ← 보는 중': ' ← viewing',
+  '자동으로 들어갑니다': 'Included automatically',
 };
