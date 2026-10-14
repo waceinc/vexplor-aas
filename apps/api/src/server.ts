@@ -1,8 +1,8 @@
 /**
- * node:http 어댑터.
+ * node:http adapter.
  *
- * 여기 있는 것은 전송 계층뿐이다 — 본문 읽기, 질의문자열 파싱, 응답 쓰기.
- * 판단은 전부 api.ts 아래에 있어서 테스트가 서버를 띄우지 않고도 전부 돈다.
+ * Only the transport layer lives here — reading the body, parsing the query string, writing the response.
+ * All decisions live under api.ts, so tests run in full without starting a server.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
@@ -11,12 +11,12 @@ import type { AasxLimits } from '@aas/aasx';
 import type { AuthConfig } from './auth.js';
 import type { AidInterface, ProtocolReader } from '@aas/collector';
 import { parsePolicy, type LinterPolicy } from '@aas/linter';
-// 🔴 OPC UA는 **쓸 때 읽는다**(import()). node-opcua는 파일이 수천 개라, PC가 그 파일들을 잊은
-//    뒤 처음 켜면 읽기만 30초 넘게 걸렸다(2026-10-06 실측 34초 — 그동안 포트가 안 열려
-//    「서버가 죽었다」로 보였다). 저작만 하는 사람은 OPC UA를 한 번도 안 쓴다.
+// Important: OPC UA is **loaded on first use** (import()). node-opcua has thousands of files, so on a
+//    first start after the PC had evicted them from cache, just loading took over 30 s (measured 34 s on
+//    2026-10-06 — the port stayed closed meanwhile and the server looked "dead"). Authoring-only users never use OPC UA.
 import type { SimulatorServer } from '@aas/opcua';
 const opcua = () => import('@aas/opcua');
-// Modbus TCP · MQTT — 외부 의존성 없는 어댑터(@aas/fieldbus). OPC UA 처럼 쓸 때만 불러온다
+// Modbus TCP · MQTT — adapters with no external dependencies (@aas/fieldbus). Like OPC UA, loaded only on use
 const fieldbus = () => import('@aas/fieldbus');
 import { InMemoryStore, visibleInWorkspace, type AasStore } from '@aas/store';
 import { createApi, toErrorResponse } from './api.js';
@@ -34,36 +34,36 @@ import { hashPassword, verifyPassword } from './password.js';
 import { fill, tr } from '@aas/core';
 import { bootLang, langOfRaw, runInLang } from './lang.js';
 
-/** 업로드 상한 — Zip Bomb 대비(기획서 Ⅷ 보안 항목). 기본 512MB */
+/** Upload cap — guards against zip bombs (spec Ⅷ, security). Default 512MB */
 const DEFAULT_MAX_BODY = 512 * 1024 * 1024;
 
 export interface ServerOptions {
   store?: AasStore;
   port?: number;
   maxBodyBytes?: number;
-  /** 업로드 AASX 압축 해제 상한. 환경변수 AASX_MAX_TOTAL_MB로도 준다 */
+  /** Decompression cap for uploaded AASX. Can also be set via the AASX_MAX_TOTAL_MB env var */
   aasxLimits?: Partial<AasxLimits>;
   /**
-   * 수집(M8)을 켤지. 기본은 끔 — 저작만 하는 배포에 OPC UA 스택을 올릴 이유가 없다.
-   * 환경변수 `COLLECT=on`으로도 켠다.
+   * Whether to enable collection (M8). Off by default — an authoring-only deployment has no reason to load the OPC UA stack.
+   * Can also be enabled with the env var `COLLECT=on`.
    */
   collect?: boolean;
-  /** 접근 제어. 주지 않으면 환경변수(AAS_TOKEN·AAS_READONLY_TOKEN)에서 읽는다 */
+  /** Access control. If omitted, read from env vars (AAS_TOKEN, AAS_READONLY_TOKEN) */
   auth?: AuthConfig;
-  /** 교차 출처 허용. 주지 않으면 환경변수 `CORS_ORIGIN`에서 읽는다. 비어 있으면 CORS 헤더를 내지 않는다 */
+  /** Allowed cross origins. If omitted, read from env var `CORS_ORIGIN`. If empty, no CORS headers are sent */
   cors?: CorsPolicy;
   /**
-   * 저작 UI 빌드 결과(`apps/web/dist`)를 같은 포트에서 내줄지. 환경변수 `WEB_ROOT`로도 준다.
-   * 주지 않으면 `apps/web/dist`가 있을 때만 켜진다 — 개발 중(vite 5173)에는 방해하지 않는다.
+   * Whether to serve the authoring UI build (`apps/web/dist`) on the same port. Can also be set via env var `WEB_ROOT`.
+   * If omitted, enabled only when `apps/web/dist` exists — so it does not get in the way during development (vite 5173).
    */
   webRoot?: string;
 }
 
 /**
- * 정책 파일(`AAS_POLICY_FILE`)을 읽는다.
+ * Reads the policy file (`AAS_POLICY_FILE`).
  *
- * 🔴 파일이 있는데 잘못됐으면 **띄우지 않는다.** 정책이 조용히 무시된 채로 도는 것보다
- *    안 뜨는 편이 낫다 — "바꿨는데 안 바뀌었다"를 제출한 뒤에 알면 되돌릴 수 없다.
+ * Important: if the file exists but is invalid, **do not start.** Failing to start is better than running
+ *    with the policy silently ignored — finding out "I changed it but nothing changed" after submission cannot be undone.
  */
 function policyFromFile(): Partial<LinterPolicy> {
   const path = process.env['AAS_POLICY_FILE'];
@@ -84,7 +84,7 @@ function policyFromFile(): Partial<LinterPolicy> {
   return policy;
 }
 
-/** 화면을 어디서 내줄지 — 명시값 > 환경변수 > 있으면 쓰는 기본값 */
+/** Where to serve the UI from — explicit value > env var > default if it exists */
 function webRootFrom(explicit: string | undefined): string | undefined {
   const chosen = explicit ?? process.env['WEB_ROOT'];
   if (chosen) return resolve(chosen);
@@ -92,7 +92,7 @@ function webRootFrom(explicit: string | undefined): string | undefined {
   return existsSync(guess) ? guess : undefined;
 }
 
-/** 환경변수로 상한을 조절한다 — 배포처마다 메모리가 다르다 */
+/** Limits are tunable via env var — memory differs per deployment */
 function limitsFromEnv(): Partial<AasxLimits> | undefined {
   const megabytes = Number(process.env['AASX_MAX_TOTAL_MB']);
   if (!Number.isFinite(megabytes) || megabytes <= 0) return undefined;
@@ -140,7 +140,7 @@ export async function toApiRequest(
   const contentType = headers['content-type'] ?? '';
   let body: unknown;
   if (raw.length > 0) {
-    // JSON이면 파싱하고, 그 밖(AASX 업로드)은 바이트 그대로 넘긴다
+    // Parse JSON; pass anything else (AASX uploads) through as raw bytes
     body = contentType.includes('json') ? JSON.parse(new TextDecoder().decode(raw)) : raw;
   }
 
@@ -160,10 +160,10 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   const store = options.store ?? new InMemoryStore();
   const aasxLimits = options.aasxLimits ?? limitsFromEnv();
   const collect = options.collect ?? process.env['COLLECT'] === 'on';
-  // 규정 충돌 선택을 배포 단위로 정한다. 개별 요청은 질의 인자로 덮어쓸 수 있다
+  // The rule-conflict choice is set per deployment. Individual requests can override it with a query parameter
   const standardTerms = process.env['LINT_STANDARD_TERMS'];
   const policy: Partial<LinterPolicy> = {
-    // 🔴 정책 파일이 먼저다. 규약이 바뀌면 코드를 고치지 않고 파일을 고친다
+    // Important: the policy file comes first. When the conventions change, edit the file, not the code
     ...policyFromFile(),
     ...(standardTerms === 'preserve' || standardTerms === 'kosmo-first'
       ? { standardTemplateSemantics: standardTerms }
@@ -172,17 +172,17 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   const auth = options.auth ?? authFromEnv(process.env);
   const cors = options.cors ?? corsFromEnv(process.env);
   const publicBaseUrl = process.env['AAS_PUBLIC_URL'];
-  // 체험판 여부는 아래 여러 곳이 본다(OPC UA 거절·내려받기 차단·가입) — 먼저 읽어 둔다
+  // Several places below check demo mode (OPC UA refusal, download block, signup) — read it up front
   const demo = demoFromEnv(process.env);
   const simulatorPort = Number(process.env['SIMULATOR_PORT'] ?? 14850);
-  /** 체험판이면 가상 PLC 말고는 밖으로 접속하지 않는다(SSRF 차단 — security.ts) */
+  /** In demo mode, make no outbound connections except to the virtual PLC (SSRF block — security.ts) */
   const guardOutbound = (endpoint: string): void => {
     if (demo && !demoOutboundAllowed(endpoint, simulatorPort)) throw new OutboundBlockedError();
   };
 
   /**
-   * AID가 말한 주소로 붙는다 — OPC UA 는 @aas/opcua, Modbus TCP · MQTT 는 @aas/fieldbus(2026-10-14).
-   * 체험판은 셋 모두 guardOutbound 를 거친다 — 가상 PLC(OPC UA) 말고는 막힌다.
+   * Connects to the address the AID specifies — OPC UA via @aas/opcua, Modbus TCP · MQTT via @aas/fieldbus (2026-10-14).
+   * In demo mode all three go through guardOutbound — everything except the virtual PLC (OPC UA) is blocked.
    */
   const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
     if (descriptor.protocol === 'MODBUS') {
@@ -200,19 +200,19 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   };
 
   /**
-   * 내장 가상 PLC(시뮬레이션) — 설치판만 가진 평가자가 번들을 재현하는 길. 수집이 켜진 서버에서만,
-   * 처음 「가상 PLC로 연결」을 누를 때 뜬다(포트 SIMULATOR_PORT, 기본 14850)
+   * Built-in virtual PLC (simulation) — how an evaluator with only the installed build can reproduce a bundle. Only on servers
+   * with collection enabled, started the first time "Connect to virtual PLC" is pressed (port SIMULATOR_PORT, default 14850)
    */
   let simulator: Promise<SimulatorServer> | undefined;
   const simulatorOnce = (): Promise<SimulatorServer> =>
-    // 약속을 들고 있는다 — 두 번 겹쳐 눌러도 가상 PLC는 하나만 뜬다
+    // Hold on to the promise — even if pressed twice concurrently, only one virtual PLC starts
     (simulator ??= opcua().then(
       ({ SimulatorServer: Simulator }) => new Simulator({ port: simulatorPort }),
     ));
 
   /**
-   * 상시 주기 수집. `COLLECT=on` + `COLLECT_INTERVAL=<초>`일 때만 돈다 —
-   * 저작만 하는 배포에서 장비를 주기적으로 두드릴 이유가 없다.
+   * Continuous periodic collection. Runs only with `COLLECT=on` + `COLLECT_INTERVAL=<seconds>` —
+   * an authoring-only deployment has no reason to poll equipment periodically.
    */
   const intervalSeconds = Number(process.env['COLLECT_INTERVAL']);
   let supervisor: CollectSupervisor | undefined;
@@ -222,15 +222,15 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   }
 
   /**
-   * OPC UA 노출 — 기획서 M6·M7. 「저작 도구 자체가 OPC UA 서버가 된다」(기획서 Ⅱ-3).
+   * OPC UA exposure — spec M6·M7. "The authoring tool itself becomes an OPC UA server" (spec Ⅱ-3).
    *
-   * 🔴 기본은 꺼져 있다. 켜면 **인증 없는 포트가 하나 더 열린다** — HTTP의 토큰 인증과
-   *    성격이 달라서, 여는 것은 배포자가 명시적으로 정해야 한다.
+   * Important: off by default. Enabling it **opens one more port with no authentication** — unlike the HTTP
+   *    token auth, so opening it must be an explicit decision by whoever deploys.
    */
   /**
-   * 🔴 **체험판에서는 띄우지 않는다.** OPC UA 노출 포트에는 아직 인증이 없다.
-   *    사내망이면 「망 안에서만 보인다」가 방어지만, 체험판은 **공개해 두는 서버**라
-   *    그 전제가 통째로 깨진다. 둘을 함께 켠 것은 실수일 가능성이 높으니 거절하고 알린다.
+   * Important: **not started in demo mode.** The OPC UA exposure port has no authentication yet.
+   *    On an internal network, "only visible inside the network" is the defense, but a demo is **a publicly
+   *    exposed server**, so that premise breaks entirely. Enabling both is likely a mistake, so refuse and say so.
    */
   if (demo && process.env['OPCUA_SERVER'] === 'on') {
     console.error('  ⚠️  ' + tr('체험판(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.'));
@@ -238,7 +238,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   const publishing = process.env['OPCUA_SERVER'] === 'on' && !demo;
   let publisher: OpcUaPublisher | undefined;
   if (publishing) {
-    // 서버가 안 서도 저작 기능은 살아야 한다 — 사유만 남기고 계속한다
+    // Authoring must keep working even if this server fails to start — log the reason and continue
     void import('./publisher.js')
       .then(({ OpcUaPublisher: Publisher }) => {
         publisher = new Publisher({
@@ -256,17 +256,17 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     });
   }
 
-  // 🔴 밖으로 열린 서버에서는 첫 관리자를 **아무나 선점하지 못하게** 설치 코드를 묻는다.
-  //    이 컴퓨터에서만 열린 서버(보호 모드)는 묻지 않는다 — 서버 앞에 앉은 사람이다
+  // Important: on an externally reachable server, ask for a setup code so **nobody can grab** the first admin.
+  //    A server open only on this computer (protected mode) does not ask — the user is the one sitting at the server
   const needsSetupCode = setupCodeRequired(resolveBindHost(process.env, auth).protected);
 
-  // 가입은 기본으로 **닫혀 있다**. 체험 서버는 가입이 있어야 뜻이 서므로 함께 열린다
-  // 🔴 스스로 가입한 사람은 **관리자가 될 수 없다.** AAS_SIGNUP_ROLE=admin을 받아 주면 가입 단추가
-  //    곧 관리자 발급 단추가 된다 — 계정 관리·작업 공간 전부 보기·남의 계정 잠그기까지 열린다.
-  //    관리자는 관리자가 「설정 → 계정 관리」에서 올려 준다
+  // Signup is **closed** by default. A demo server only makes sense with signup, so it is opened along with it
+  // Important: self-registered users **cannot become admins.** Accepting AAS_SIGNUP_ROLE=admin would turn the signup
+  //    button into an admin-issuing button — opening account management, viewing all workspaces, even locking others' accounts.
+  //    Admins are promoted by an existing admin under "Settings → Account management"
   const signupRole: 'editor' | 'viewer' = process.env['AAS_SIGNUP_ROLE'] === 'viewer' ? 'viewer' : 'editor';
-  // 🔴 처리방침 주소가 없으면 연락처를 **받지 않는다.** 어떻게 쓰는지 밝히지 않고
-  //    개인정보를 모으지 않겠다는 뜻이다(routes/auth.ts)
+  // Important: without a privacy policy URL, contact details are **not collected.** The point is not to
+  //    gather personal data without stating how it is used (routes/auth.ts)
   const privacyUrl = process.env['AAS_PRIVACY_URL']?.trim();
   const signup =
     process.env['AAS_SIGNUP'] === 'on' || demo
@@ -280,15 +280,15 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     auth,
     ...(demo ? { demo } : {}),
     ...(signup ? { signup } : {}),
-    // 작업 공간을 사람마다 나눌지. 체험판은 createApi가 알아서 켠다
+    // Whether to give each person a separate workspace. In demo mode createApi enables it by itself
     ...(process.env['AAS_WORKSPACE'] === 'private' ? { privateWorkspaces: true } : {}),
     ...(needsSetupCode ? { setupCode: setupCode(process.env) } : {}),
-    // 쿠키 세션으로 들어온 쓰기는 원점을 따진다(security.ts). 허용한 교차 출처는 통과시킨다
+    // Writes arriving via a cookie session have their origin checked (security.ts). Allowed cross origins pass
     corsOrigins: cors.origins,
     ...(publicBaseUrl ? { publicBaseUrl } : {}),
     routes: [
       {
-        /** 밖으로 무엇을 내주고 있는지 — 화면·운영자가 확인하는 자리 */
+        /** What is being exposed externally — where the UI and operators check */
         method: 'GET',
         pattern: '/opcua-status',
         handle: async () =>
@@ -305,22 +305,22 @@ export function createHttpServer(options: ServerOptions = {}): Server {
           ),
       },
       {
-        /** "돌고는 있는 건가"에 답하는 자리 — 마지막 주기의 결과 */
+        /** Answers "is it actually running?" — the result of the last cycle */
         method: 'GET',
         pattern: '/collect-status',
         handle: async () => {
           if (!supervisor) {
             return json(200, {
-              // collect — 수집(과 가상 PLC)을 쓸 수 있는 서버인가. 화면이 버튼을 보일지 여기서 정한다
+              // collect — whether this server can collect (and use the virtual PLC). The UI decides from this whether to show the button
               collect,
               running: false,
               reason: tr('COLLECT_INTERVAL이 설정되지 않았습니다 (수동 수집만).'),
             });
           }
           const status = supervisor.status();
-          // 🔴 지난 주기의 결과는 **모든 패키지**를 돈 것이다(서버 자신이 돌린다). 그대로 내주면
-          //    작업 공간을 나누는 서버에서 남의 파일 이름과 설비 주소가 보인다.
-          //    저장소 겹이 거르지 못하는 「미리 모아 둔 것」이라 내주는 자리에서 직접 거른다
+          // Important: the last cycle's result covers **all packages** (the server runs it itself). Returned as is,
+          //    a server with separate workspaces would reveal other people's file names and equipment addresses.
+          //    It is "pre-aggregated" data the store layer cannot filter, so filter it here where it is served
           if (status.lastSweep) {
             const results = [];
             for (const result of status.lastSweep.results) {
@@ -344,13 +344,13 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       ? {
           simulate: async (environment: Parameters<SimulatorServer['attach']>[0]) => ({
             ...(await (await simulatorOnce()).attach(environment)),
-            // 파일에 적히는 연결 이름 — 만든 사람의 언어로. 증빙 판정은 이름이 아니라 경로 · 표지로 가린다(evidence.ts)
+            // Connection name written into the file — in the creator's language. Evidence is judged by path/marker, not by name (evidence.ts)
             title: tr((await opcua()).SIMULATOR_TITLE),
           }),
         }
       : {}),
-    // 🔴 훑기는 수집이 꺼져 있어도 쓸 수 있어야 한다 — AID를 **만들 때** 필요한 기능이다.
-    //    우리 서버의 신원을 함께 넘겨 **자기 자신을 훑는 사고**를 막는다.
+    // Important: browsing must work even with collection off — it is needed **while creating** an AID.
+    //    Pass our own server identity along to prevent **the server browsing itself** by accident.
     browseDevice: async (endpoint: string) => {
       guardOutbound(endpoint);
       const self = publisher?.status().instanceUri;
@@ -362,14 +362,14 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   let ready: Promise<void> | undefined;
 
   return createServer((request: IncomingMessage, response: ServerResponse) => {
-    // 🔴 언어를 여기서 한 번 더 깐다 — 본문 상한(413)처럼 createApi에 닿기 전에 나가는 오류도
-    //    그 요청의 언어여야 한다. 기동 로그의 언어(AAS_LANG)가 요청으로 새지 않게 하는 뜻도 있다
+    // Important: set the language once more here — errors sent before reaching createApi, like the body cap (413),
+    //    must also be in the request's language. It also keeps the startup log language (AAS_LANG) from leaking into requests
     void runInLang(langOfRaw(request.url, request.headers['accept-language']), async () => {
       try {
-        // 정적 파일이 먼저다. 실제로 있는 파일일 때만 가로채므로 API 경로와 부딪히지 않는다.
-        // 🔴 여기에는 인증을 걸지 않는다 — 화면이 떠야 사용자가 토큰을 넣을 수 있다
-        // 응답마다 붙는 보안 머리글. 🔴 **정적 파일에도 붙여야 한다** — CSP가 지키는 것은
-        // 다름 아닌 그 화면이다. API 응답에만 붙이면 정작 앱 페이지가 무방비다
+        // Static files come first. Only real files are intercepted, so this never collides with API paths.
+        // Important: no authentication here — the UI must load for the user to enter a token
+        // Security headers attached to every response. Important: **they must be on static files too** — what CSP
+        // protects is precisely that UI. Adding them only to API responses would leave the app page itself unprotected
         const guard = securityHeaders(isHttps(request.headers, (request.socket as { encrypted?: boolean }).encrypted === true));
 
         if (webRoot && (request.method === 'GET' || request.method === 'HEAD')) {
@@ -381,8 +381,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
           }
         }
 
-        // 교차 출처 — 허용된 Origin일 때만 헤더가 붙는다. 사전 요청은 인증 전에 답해야
-        // 브라우저가 본 요청을 보낼 수 있다(토큰은 본 요청에 실려 온다)
+        // Cross origin — headers are added only for an allowed Origin. Preflight must be answered before auth
+        // so the browser can send the actual request (the token comes with the actual request)
         const corsExtra = corsHeaders(cors, request.headers.origin);
         if (isPreflight(request.method ?? '', request.headers)) {
           write(response, Object.keys(corsExtra).length > 0 ? 204 : 403, { ...guard, ...corsExtra }, undefined);
@@ -394,10 +394,10 @@ export function createHttpServer(options: ServerOptions = {}): Server {
         const apiRequest = await toApiRequest(request, limit);
         const apiResponse = await handle(apiRequest);
 
-        // API가 모르는 경로인데 브라우저가 화면을 달라고 한 것이면 앱 껍데기를 준다
-        // (새로고침·즐겨찾기). API 요청(JSON)에는 404·401을 그대로 돌려준다.
-        // 401도 함께 보는 이유: 인증을 켜면 경로 대조보다 인가가 먼저라 없는 경로도 401이 된다.
-        // 껍데기는 어차피 누구나 받을 수 있는 것이므로 여기서 내줘도 새는 것이 없다
+        // If the API does not know the path but a browser asked for a page, serve the app shell
+        // (reload, bookmarks). API (JSON) requests get the 404/401 as is.
+        // Why 401 too: with auth enabled, authorization runs before path matching, so unknown paths also become 401.
+        // The shell is available to anyone anyway, so serving it here leaks nothing
         if (
           (apiResponse.status === 404 || apiResponse.status === 401) &&
           webRoot &&
@@ -419,7 +419,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   });
 }
 
-/** 파일은 통째로 읽지 않고 흘려 보낸다 — 큰 파일에서 메모리를 두 배로 쓰지 않기 위해서다 */
+/** Stream files instead of reading them whole — to avoid doubling memory use on large files */
 function writeFile(
   request: IncomingMessage,
   response: ServerResponse,
@@ -461,14 +461,14 @@ function write(
 }
 
 /**
- * 보관함 고르기 — 셋 중 하나.
+ * Choosing the store — one of three.
  *
- *  ① `DATABASE_URL`   PostgreSQL. 여러 명이 함께 쓰고 수집값을 오래 쌓을 때(배포 구성)
- *  ② `AAS_DATA_DIR`   그 폴더에 파일로. **혼자 쓸 때 — Docker가 필요 없다**
- *  ③ 둘 다 없으면      메모리. 서버를 끄면 사라진다(시연·개발)
+ *  ① `DATABASE_URL`   PostgreSQL. For many users sharing and long-term accumulation of collected values (deployment setup)
+ *  ② `AAS_DATA_DIR`   Files in that folder. **For single users — no Docker needed**
+ *  ③ neither          Memory. Gone when the server stops (demos, development)
  *
- * 🔴 ②를 만든 이유는 설치를 쉽게 하기 위해서다. "파일이 남게 하려면 데이터베이스를 띄우십시오"가
- *    혼자 쓰는 사람에게 과했다(2026-08-25 사용자). 어느 것을 쓰는지 기동 로그에 적는다.
+ * Important: ② exists to make installation easy. "Start a database if you want files to persist" was
+ *    too much for a single user (user feedback, 2026-08-25). The startup log states which one is in use.
  */
 async function storeFromEnv(): Promise<{ store: AasStore; kind: string }> {
   const url = process.env['DATABASE_URL'];
@@ -489,21 +489,21 @@ async function storeFromEnv(): Promise<{ store: AasStore; kind: string }> {
   return { store, kind: fill(tr('postgres{0} · 수집값 {1}'), { 0: schema ? ` (schema ${schema})` : '', 1: timescale }) };
 }
 
-/** `node dist/server.js`로 바로 띄운다. 기동 로그 · 주기 작업의 글은 AAS_LANG의 언어로(lang.ts) */
+/** Started directly with `node dist/server.js`. Startup logs and periodic-job messages use the AAS_LANG language (lang.ts) */
 if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env), async () => {
   const port = Number(process.env['PORT'] ?? 8080);
   const { store: bootStore, kind } = await storeFromEnv();
-  // 템플릿 폴더(선택) — 「다른 파일에서 가져오기」의 출처가 되는 AASX를 미리 올려 둔다
+  // Template folder (optional) — preloads AASX files that serve as sources for "Import from another file"
   const templatesDir = process.env['AAS_TEMPLATES_DIR'];
   const seeded = templatesDir ? await seedTemplates(bootStore, templatesDir, limitsFromEnv()) : undefined;
-  // 수집값 보존 기간(선택) — 기동 때 한 번 지우고, 그 뒤 한 시간마다
+  // Retention period for collected values (optional) — prune once at startup, then every hour
   const retentionDays = retentionDaysFromEnv(process.env);
   const retention = startRetention(bootStore, retentionDays);
   const prunedAtBoot = await retention.pruneNow().catch((error: unknown) => {
     console.error('  ⚠️  ' + fill(tr('수집값 정리 실패: {0}'), { 0: error instanceof Error ? error.message : String(error) }));
     return 0;
   });
-  // 체험판 — 계정을 심고, 올린 것을 주기적으로 비운다(demo.ts)
+  // Demo mode — seed the account and periodically clear uploads (demo.ts)
   const bootDemo = demoFromEnv(process.env);
   const demoSeeded = bootDemo ? await seedDemoUser(bootStore, bootDemo, hashPassword, verifyPassword) : undefined;
   if (bootDemo) startDemoReset(bootStore, bootDemo.resetMinutes, (line) => console.log(`  ${line}`));
@@ -513,10 +513,10 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
   const bind = resolveBindHost(process.env, bootAuth);
   const app = createHttpServer({ port, store: bootStore });
 
-  // 🔴 윈도우에서 `localhost`는 IPv6(::1)로 먼저 풀린다. 보호 모드는 IPv4(127.0.0.1)에만
-  //    물리므로 브라우저가 "연결할 수 없음"을 낸다(실측: 윈도우 앱판에서 페이지가 안 떴다).
-  //    같은 처리기를 IPv6 루프백에도 하나 더 물려 둔다 — 밖으로 열리는 것은 아니다.
-  //    안 되는 환경(IPv6 꺼짐)도 있으므로 실패는 그냥 넘긴다.
+  // Important: on Windows, `localhost` resolves to IPv6 (::1) first. Protected mode binds only to IPv4 (127.0.0.1),
+  //    so the browser reports "can't connect" (observed: the page did not load in the Windows app build).
+  //    Bind the same handler to the IPv6 loopback as well — this does not expose anything externally.
+  //    Some environments (IPv6 disabled) can't do this, so failures are simply ignored.
   if (bind.protected) {
     const handler = app.listeners('request')[0] as Parameters<typeof createServer>[0];
     const twin = createServer(handler);
@@ -563,8 +563,8 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       console.log('  ' + fill(tr('수집값 보존 기간 {0}일 — 기동 때 {1}개 정리'), { 0: retentionDays, 1: prunedAtBoot }));
     }
 
-    // OPC UA 노출(M6·M7) — 상위 앱이 붙는 자리.
-    // 🔴 체험판에서는 거절했으므로 **켜졌다고 말하면 안 된다**(실측으로 잡은 거짓 로그)
+    // OPC UA exposure (M6·M7) — where upstream apps connect.
+    // Important: it was refused in demo mode, so **we must not say it is on** (a false log caught in testing)
     if (process.env['OPCUA_SERVER'] === 'on' && bootDemo) {
       console.log('  ' + tr('OPC UA 노출(M6·M7) — 🔴 **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
     } else if (process.env['OPCUA_SERVER'] === 'on') {
@@ -572,11 +572,11 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       const every = Math.max(1, Number(process.env['OPCUA_REFRESH'] ?? 5));
       console.log('  ' + fill(tr('OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신'), { 0: uaPort, 1: every }));
       console.log('     ' + tr('상위 앱(MES·SCADA)이 구독으로 값을 받아 갑니다 · GET /opcua-status'));
-      // 🔴 여기서 한 번은 말해야 한다 — HTTP는 토큰으로 막혀 있어도 이쪽은 아니다
+      // Important: this must be said at least once — HTTP may be token-protected, but this port is not
       console.log('     ⚠️  ' + tr('이 포트에는 인증이 없습니다. 사내망 밖으로 열지 마십시오.'));
     }
 
-    // 체험판 — 무엇이 막혀 있고 무엇이 지워지는지 운영자가 기동할 때 알아야 한다
+    // Demo mode — the operator must know at startup what is blocked and what gets deleted
     if (bootDemo) {
       console.log('');
       console.log('  🧪 ' + tr('체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.'));
@@ -599,11 +599,11 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       console.log('  🗂  ' + tr('작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 저마다 자기가 올린 것만 봅니다.'));
       console.log('     ' + tr('관리자와 API 키는 전부 봅니다. 그 전에 올려 둔 파일은 모두에게 읽기 전용으로 보입니다.'));
       if (process.env['OPCUA_SERVER'] === 'on') {
-        // 🔴 OPC UA 포트에는 인증이 없다 — 나눠 놓은 값이 그 포트로는 **누구에게나** 나간다
+        // Important: the OPC UA port has no auth — values kept separate per workspace go out to **anyone** through it
         console.log('     ⚠️  ' + tr('OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.'));
       }
       if (isOpen(bootAuth) && bootUserCount === 0) {
-        // 🔴 로그인이 없으면 가를 기준이 없다 — 켰다고 믿게 두면 안 된다
+        // Important: without logins there is nothing to separate by — users must not be left believing it is on
         console.log('     ⚠️  ' + tr('계정도 API 키도 없으면 가를 수 없습니다 — 모두가 같은 칸을 씁니다. 계정을 먼저 만드십시오.'));
       }
     }
@@ -615,8 +615,8 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       }
     }
 
-    // 첫 관리자를 만들 때 쓸 설치 코드 — 밖으로 열린 서버에서만 묻는다.
-    // 🔴 로그를 볼 수 있다는 것이 「서버를 만질 수 있다」는 증거다. 그래서 여기에 찍는다
+    // Setup code for creating the first admin — asked only on externally reachable servers.
+    // Important: being able to read the log is proof of "access to the server". That is why it is printed here
     if (setupCodeRequired(bind.protected)) {
       console.log('');
       console.log('  🔑 ' + fill(tr('첫 관리자 설치 코드: {0}'), { 0: setupCode(process.env) }));
@@ -624,7 +624,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       console.log('     ' + tr('계정을 만들고 나면 쓰이지 않습니다. 직접 정하려면 AAS_SETUP_CODE=<값>.'));
     }
 
-    // 🔴 조용히 열려 있으면 안 된다. 사내에 올린 뒤 이 줄을 보고 알아채야 한다
+    // Important: it must not be silently open. After deploying in-house, this line is how someone notices
     const configured = bootAuth;
     if (isOpen(configured)) {
       console.log('');
@@ -633,7 +633,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
         console.log('     ' + tr('다른 사람도 쓰게 하려면 AAS_TOKEN=<토큰>을 주고 다시 띄우십시오.'));
         console.log('     ' + tr('토큰 없이 밖으로 열려면 AAS_ALLOW_OPEN=1 (권하지 않습니다).'));
       } else if (process.env['AAS_ALLOW_OPEN'] === '1') {
-        // 스스로 정하고 연 것이다 — 겁주는 문구를 반복할 이유가 없다
+        // Opened deliberately — no reason to repeat the scary warning
         console.log('  🔓 ' + tr('토큰 없이 열었습니다 (AAS_ALLOW_OPEN=1) — 같은 망의 누구나 열고 고칠 수 있습니다.'));
         console.log('     ' + tr('특정 사람만 쓰게 하려면 AAS_TOKEN=<토큰>을 주고 다시 띄우십시오.'));
       } else {
@@ -645,8 +645,8 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       console.log(
         '  ' + fill(tr('인증 켜짐 — 전체 토큰 {0}개 · 읽기 전용 {1}개'), { 0: configured.tokens.length, 1: configured.readOnlyTokens.length }),
       );
-      // HTTP 헤더는 ASCII가 원칙이다. 한글 토큰은 서버가 되돌려 맞춰 주지만
-      // 중간 프록시가 또 건드릴 수 있어 미리 알린다
+      // HTTP headers should be ASCII. The server recovers Korean (non-ASCII) tokens,
+      // but an intermediate proxy may mangle them again, so warn ahead of time
       const nonAscii = [...configured.tokens, ...configured.readOnlyTokens].filter(
         (token) => !isAsciiToken(token),
       ).length;

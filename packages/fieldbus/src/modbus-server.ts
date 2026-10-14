@@ -1,6 +1,6 @@
 /**
- * 시험용 Modbus TCP 장치 — 읽기 함수 넷에만 답한다. 시험과 가상 설비에 쓴다(실장비 대신).
- * 값은 표(주소 → 값)로 넣는다. maxAddress 를 넘는 주소는 IllegalDataAddress 예외로 답한다(실장비처럼).
+ * Test Modbus TCP device — answers only the four read functions. Used for tests and virtual equipment (instead of real hardware).
+ * Values are loaded as tables (address -> value). Addresses beyond maxAddress get an IllegalDataAddress exception (like real hardware).
  */
 import { createServer, type Server, type Socket } from 'node:net';
 import type { ModbusEntity } from './modbus-target.js';
@@ -14,14 +14,14 @@ export class ModbusTestServer {
     HoldingRegister: new Map(),
     InputRegister: new Map(),
   };
-  /** 받은 요청 수 — 묶어 읽기·재연결을 시험할 때 본다 */
+  /** Number of requests received — checked when testing batched reads and reconnects */
   requests = 0;
   private server?: Server;
   private readonly sockets = new Set<Socket>();
 
   constructor(private readonly maxAddress = 9999) {}
 
-  /** 0 이면 빈 포트를 고른다. 열린 포트를 돌려준다 */
+  /** 0 picks a free port. Returns the opened port */
   listen(port = 0): Promise<number> {
     this.server = createServer((socket) => {
       this.sockets.add(socket);

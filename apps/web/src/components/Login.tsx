@@ -1,12 +1,12 @@
 /**
- * 로그인 · 첫 관리자 만들기.
+ * Sign in · create the first administrator.
  *
- * 🔴 **세션 열쇠를 화면이 들고 있지 않는다.** 서버가 HttpOnly 쿠키로 주고, 브라우저가
- *    요청마다 알아서 싣는다. 화면 코드가 열쇠를 만지면 그 순간 XSS 한 방에 털린다
- *    — 토큰 방식에서 localStorage를 쓰던 것과 가장 크게 달라진 점이다.
+ * Important: **the screen does not hold the session key.** The server issues it as an HttpOnly cookie and the
+ *    browser attaches it to every request on its own. If screen code touched the key, a single XSS would steal it
+ *    — this is the biggest change from the token approach that used localStorage.
  *
- * 🔴 실패 문구를 **서버가 준 그대로** 보여 준다. 화면이 "그 계정은 없습니다" 따위로
- *    고쳐 쓰면 서버가 일부러 가린 것(계정의 존재)이 도로 새어 나간다.
+ * Important: failure messages are shown **exactly as the server sent them.** If the screen rewrote them as
+ *    "that account does not exist" or the like, what the server deliberately hid (whether the account exists) would leak back out.
  */
 import { useState } from 'react';
 import { ConsentBox } from './login/ConsentBox.js';
@@ -14,22 +14,22 @@ import { DemoCard } from './login/DemoCard.js';
 import { ProfileFields } from './login/ProfileFields.js';
 
 interface Props {
-  /** 계정이 하나도 없다 — 로그인이 아니라 첫 관리자를 만든다 */
+  /** There are no accounts at all — create the first administrator instead of signing in */
   setupNeeded: boolean;
   /**
-   * 설치 코드를 물어야 하나 — 밖으로 열린 서버다.
-   * 🔴 없으면 같은 망의 아무나 먼저 관리자가 된다. 서버 기동 로그에 적혀 있다.
+   * Whether to ask for the setup code — the server is exposed to the outside.
+   * Important: without it, anyone on the same network becomes administrator first. The code is in the server startup log.
    */
   setupCodeRequired: boolean;
-  /** 스스로 가입할 수 있는 서버인가 — 아니면 「회원가입」 자체를 보이지 않는다 */
+  /** Whether users may sign up on their own — if not, "Sign up" is not shown at all */
   signupAllowed: boolean;
-  /** 체험판이면 데모 계정으로 바로 들어가는 길을 안내한다 */
+  /** On a trial server, point the way straight in with the demo account */
   demo?: { login: string; password: string };
-  /** 「회원가입」을 눌러 들어왔으면 가입 칸부터 보인다 — 한 번 더 누르게 하지 않는다 */
+  /** If the user came in by pressing "Sign up", show the sign-up fields first — do not make them press again */
   startInSignup?: boolean;
   /**
-   * 개인정보처리방침 주소. **없으면 연락처 칸을 보이지 않는다** —
-   * 어떻게 쓰는지 밝히지 않고 받지 않겠다는 뜻이고, 서버도 같은 기준으로 거절한다.
+   * Privacy policy URL. **Without it the contact fields are not shown** —
+   * we do not collect what we have not said how we use, and the server rejects it by the same rule.
    */
   privacyUrl?: string;
   busy: boolean;
@@ -49,7 +49,7 @@ interface Props {
     agreed: boolean,
   ) => Promise<string | undefined>;
   t: (text: string) => string;
-  /** 스스로 「첫 관리자 만들기」를 연 경우에만 — 갇힌 사람에게는 주지 않는다 */
+  /** Only when the user opened "create the first administrator" themselves — not for someone who is stuck */
   onCancel?: () => void;
 }
 
@@ -68,11 +68,11 @@ export function Login({
   t,
 }: Props): React.JSX.Element {
   /**
-   * 세 가지 모드가 한 폼을 쓴다.
-   *  - `setup`  계정이 하나도 없다 — 첫 관리자를 만든다(설치 코드를 물을 수 있다)
-   *  - `signup` 스스로 가입한다 — 역할은 서버가 정한다. 관리자가 되지 않는다
-   *  - `login`  평소
-   * 🔴 setup은 **고를 수 있는 것이 아니다.** 계정이 없을 때만 나오는 상태다
+   * Three modes share one form.
+   *  - `setup`  there are no accounts — create the first administrator (may ask for the setup code)
+   *  - `signup` self sign-up — the server decides the role. It never becomes administrator
+   *  - `login`  the usual case
+   * Important: setup is **not something you can choose.** It is a state that appears only when there are no accounts
    */
   const [wantSignup, setWantSignup] = useState(startInSignup === true);
   const mode: 'setup' | 'signup' | 'login' = setupNeeded ? 'setup' : wantSignup ? 'signup' : 'login';
@@ -82,7 +82,7 @@ export function Login({
   const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
-  /** 연락처를 적었을 때만 묻는다 — 안 적으면 동의받을 개인정보가 없다 */
+  /** Asked only when contact details were entered — without them there is no personal data to consent to */
   const [agreed, setAgreed] = useState(false);
   const [company, setCompany] = useState('');
   const [error, setError] = useState<string>();
@@ -96,7 +96,7 @@ export function Login({
       return;
     }
     if (profile) {
-      // 회사명은 선택이다(2026-10-08 사용자 요청) — 서버도 같은 규칙이다
+      // Company name is optional (user request, 2026-10-08) — the server applies the same rule
       if (displayName.trim() === '' || email.trim() === '') {
         setError(t('이름 · 이메일을 적어 주십시오.'));
         return;
@@ -121,13 +121,13 @@ export function Login({
     }
   };
 
-  /** 처리방침을 올린 서버의 가입 — 이름 · 회사명 · 이메일 · 동의를 받는다 */
+  /** Sign-up on a server that published a privacy policy — collects name · company · email · consent */
   const profile = mode === 'signup' && privacyUrl !== undefined && privacyUrl !== '';
   const disabled = busy || working || login.trim() === '' || password === '';
-  /** 필수 칸 표시 — 계정을 만드는 화면(가입 · 첫 관리자)에서만. 로그인 화면은 두 칸뿐이라 붙이지 않는다 */
+  /** Required-field marks — only on screens that create an account (sign-up · first administrator). The sign-in screen has just two fields, so none there */
   const marks = mode !== 'login';
-  // 🔴 별표는 글자가 아니라 CSS로 그린다(.req::after) — 글자로 넣으면 칸 이름이 「로그인 이름*」이 되어
-  //    화면 낭독기가 「별표」까지 읽는다. 꼭 적어야 한다는 뜻은 aria-required가 전한다
+  // Important: the asterisk is drawn with CSS (.req::after), not text — as text the field name would become "Login name*" and
+  //    screen readers would read "asterisk" too. aria-required conveys that the field must be filled
   const req = marks ? <span className="req" aria-hidden="true" /> : null;
 
   return (
@@ -192,10 +192,10 @@ export function Login({
         )}
 
         {/*
-          회원 정보 — 처리방침을 올린 서버(공개 체험 서버)에서만 받는다(2026-10-06 사용자 요청).
-          🔴 받는 순간 개인정보다. 무엇을·왜·언제까지를 **동의 칸 바로 위에** 적고, 동의해야 가입된다
-             (개인정보 보호법 제15조 — 수집 항목 · 목적 · 보유 기간 · 거부할 권리를 알린다).
-          🔴 처리방침이 없는 서버는 이 칸들이 아예 없다 — 서버도 거절한다.
+          Member details — collected only on a server that published a privacy policy (the public trial server) (user request, 2026-10-06).
+          Important: the moment we collect it, it is personal data. State what · why · how long **right above the consent box**; sign-up requires consent
+             (Personal Information Protection Act, Article 15 — disclose the items collected · purpose · retention period · right to refuse).
+          Important: a server without a privacy policy has none of these fields — and the server rejects them too.
         */}
         {profile && <ProfileFields company={company} setCompany={setCompany} email={email} setEmail={setEmail} req={req} t={t} />}
 
@@ -230,7 +230,7 @@ export function Login({
 
         {profile && <ConsentBox agreed={agreed} setAgreed={setAgreed} privacyUrl={privacyUrl} req={req} t={t} />}
 
-        {/* 🔴 role="alert" — 화면 낭독기가 실패를 바로 읽어 준다 */}
+        {/* Important: role="alert" — screen readers announce the failure immediately */}
         {error && (
           <p className="note bad" role="alert">
             {error}
@@ -247,7 +247,7 @@ export function Login({
                 : t('로그인')}
         </button>
 
-        {/* 🔴 계정이 하나도 없을 때는 보이지 않는다 — 그때 할 일은 첫 관리자 만들기뿐이다 */}
+        {/* Important: hidden when there are no accounts at all — the only thing to do then is create the first administrator */}
         {signupAllowed && mode !== 'setup' && (
           <button
             className="link"
@@ -263,7 +263,7 @@ export function Login({
           </button>
         )}
 
-        {/* 가입이 닫힌 서버(사내 기본) — 길이 없다고 느끼지 않게 누구에게 받는지 말해 준다 */}
+        {/* Server with sign-up closed (in-house default) — say who grants accounts, so it does not feel like a dead end */}
         {!signupAllowed && mode === 'login' && (
           <p className="hint">
             {t('계정이 없으면 관리자에게 요청하십시오 — 관리자가 「설정 → 계정 관리」에서 만들어 줍니다.')}

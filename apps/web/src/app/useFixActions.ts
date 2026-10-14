@@ -1,7 +1,7 @@
 /**
- * 되돌리기 · 다시 하기 · 자동 고치기(미리보기 → 고른 것만 반영, 파일별) · 이관 대장 되돌리기.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름으로 받는다(c 에서 꺼낸다).
+ * Undo · redo · auto-fix (preview → apply only the chosen items, per file) · revert from the migration ledger.
+ * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
+ * the state and actions it uses arrive under the same names (taken from c).
  */
 import { api, type FixReport } from '../api.js';
 import { type FixPlan } from '../components/FixPreview.js';
@@ -11,8 +11,8 @@ import type { Core } from './context.js';
 export function useFixActions(c: Pick<Core, 'ledger' | 'loadPackage' | 'markStart' | 'mounts' | 'packageId' | 'packages' | 'run' | 'setFixPlans' | 'setFixReport' | 'setNotice' | 'undoState'>) {
   const { ledger, loadPackage, markStart, mounts, packageId, packages, run, setFixPlans, setFixReport, setNotice, undoState } = c;
   /**
-   * 되돌리기·다시 하기 — "실수했을 때 뒤로가기". 어떤 변경이든(값·삭제·순서·자동 고치기) 서버가
-   * 직전 상태를 들고 있어 한 번에 돌아간다. 확인창은 띄우지 않는다 — 되돌리기는 그 자체가 되돌려진다
+   * Undo/redo — "go back when you made a mistake". For any change (value · delete · order · auto-fix) the server
+   * holds the previous state, so it returns in one step. No confirmation dialog — an undo can itself be undone
    */
   const onUndo = async (): Promise<void> => {
     if (!packageId || undoState.undo.length === 0) return;
@@ -29,13 +29,13 @@ export function useFixActions(c: Pick<Core, 'ledger' | 'loadPackage' | 'markStar
     await loadPackage(packageId);
   };
   /**
-   * 「자동 고치기」 — 바로 고치지 않고 **미리보기 팝업**부터. 무엇이 어떻게 바뀌는지 항목별 전/후를 보여 주고
-   * 체크한 것만 반영한다(사용자 2026-09-11 "자체 제작 형식으로 바꿔 버리고 끝이냐").
+   * "Auto-fix" — do not fix right away; start with a **preview popup**. Show per-item before/after of what changes and how,
+   * and apply only the checked ones (user 2026-09-11: "so you just convert it to your own format and that's it?").
    */
   const onFix = async (): Promise<void> => {
     if (!packageId) return;
     markStart('fix');
-    // 공정(묶음)이면 이어 붙인 설비 파일까지 — 각 파일의 미리보기를 따로 받아 파일별로 보여 준다
+    // For a process (bundle), include the spliced equipment files — fetch each file's preview separately and show them per file
     const targets = [
       {
         packageId,
@@ -59,8 +59,8 @@ export function useFixActions(c: Pick<Core, 'ledger' | 'loadPackage' | 'markStar
     setFixPlans(plans);
   };
   /**
-   * 체크한 것만 반영 — **파일별로 나눠** 각자의 원본에 쓴다.
-   * 🔴 한 파일이 실패해도 나머지는 계속한다. 중간에 멈추면 어디까지 갔는지 알 수 없다.
+   * Apply only the checked items — **split per file**, each written to its own source.
+   * Important: if one file fails, continue with the rest. Stopping midway leaves no way to know how far it got.
    */
   const onApplyFix = async (
     select: { packageId: string; ruleId: string; pointer: string }[],
@@ -97,7 +97,7 @@ export function useFixActions(c: Pick<Core, 'ledger' | 'loadPackage' | 'markStar
     }
     await loadPackage(packageId);
   };
-  /** 이관 대장의 원본 IRI로 되돌리기 — KOSMO 우선 정책이면 다시 위반으로 잡힌다. 규정 해석이 바뀌었을 때 쓰는 길 */
+  /** Revert to the original IRI from the migration ledger — under a KOSMO-first policy it is flagged as a violation again. The path for when the interpretation of the rules changes */
   const onRevertLedger = async (): Promise<void> => {
     if (!packageId) return;
     const count = Object.keys(ledger).length;

@@ -1,5 +1,5 @@
 /**
- * MQTT — 시험 브로커에 붙어 구독하고, 마지막으로 받은 값을 수집기로 읽는다.
+ * MQTT — connects to a test broker, subscribes, and reads the last received value via the collector.
  */
 import { collectOnce, type AidInterface, type ValueSample } from '@aas/collector';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -16,13 +16,13 @@ const descriptorFor = (port: number, auth = ''): AidInterface => ({
   ],
 });
 
-describe('MQTT 주소 · 본문', () => {
-  it('토픽은 href 그대로(앞 / 하나는 뗀다), 절대 주소면 경로', () => {
+describe('MQTT address · payload', () => {
+  it('topic is the href as is (one leading / stripped); for an absolute address, the path', () => {
     expect(topicOf('plant/m1/temp')).toBe('plant/m1/temp');
     expect(topicOf('/plant/m1/temp')).toBe('plant/m1/temp');
     expect(topicOf('mqtt://broker:1883/plant/m1/temp')).toBe('plant/m1/temp');
   });
-  it('본문 — 숫자 · 참거짓 · {"value": …} · 글자', () => {
+  it('payload — number · boolean · {"value": …} · text', () => {
     expect(payloadValue(Buffer.from('12.5'))).toBe(12.5);
     expect(payloadValue(Buffer.from('true'))).toBe(true);
     expect(payloadValue(Buffer.from('{"value":"RUN","ts":1}'))).toBe('RUN');
@@ -30,7 +30,7 @@ describe('MQTT 주소 · 본문', () => {
   });
 });
 
-describe('MQTT 수집 — 시험 브로커', () => {
+describe('MQTT collection — test broker', () => {
   let broker: MqttTestBroker | undefined;
   let reader: MqttReader | undefined;
   afterEach(async () => {
@@ -38,10 +38,10 @@ describe('MQTT 수집 — 시험 브로커', () => {
     await broker?.close();
   });
 
-  it('보관 메시지와 새로 온 값을 읽고, 아직 안 온 토픽은 실패가 아니라 값 대기다', async () => {
+  it('reads retained messages and new values; a topic with nothing yet is waiting for a value, not a failure', async () => {
     broker = new MqttTestBroker();
     const port = await broker.listen();
-    broker.publish('plant/m1/temp', '21.5', true); // 붙기 전에 보관된 값
+    broker.publish('plant/m1/temp', '21.5', true); // value retained before connecting
     const descriptor = descriptorFor(port);
     reader = await MqttReader.connect(descriptor, { settleMs: 200 });
     broker.publish('plant/m1/status', '{"value":"RUN"}');
@@ -52,13 +52,13 @@ describe('MQTT 수집 — 시험 브로커', () => {
     expect(report.pending?.map((p) => p.propertyName)).toEqual(['Pressure']);
     expect(report.failures).toEqual([]);
 
-    // 값이 바뀌면 다음 수집이 새 값을 읽는다
+    // When the value changes, the next collection reads the new value
     broker.publish('plant/m1/temp', '22');
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect((await reader.read(['plant/m1/temp']))[0]!.value).toBe(22);
   });
 
-  it('사용자 · 암호가 틀리면 브로커가 거절한 사유를 낸다', async () => {
+  it('reports the reason the broker rejected a wrong username/password', async () => {
     broker = new MqttTestBroker({ username: 'aas', password: 'secret' });
     const port = await broker.listen();
     await expect(MqttReader.connect(descriptorFor(port, 'aas:wrong@'), { timeoutMs: 1000 })).rejects.toThrow(/거절.*4/);

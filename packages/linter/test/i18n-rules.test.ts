@@ -1,9 +1,9 @@
 /**
- * 규칙 문구의 영어 — 지적 문구 · 고칠 방법 · 정책 메모 · 규칙 제목이 영어 요청에서 한국어를 남기지 않는가.
+ * English rule text — for an English request, do messages, remedies, policy notes and rule titles leave no Korean behind?
  *
- * 골든 파일은 지적이 적어 규칙 대부분을 지나치지 않는다. 그래서 골든 파일을 한 번 그대로,
- * 한 번 일부러 망가뜨려(규칙 대부분이 걸리게) 두 언어로 돌린다. `tr()` 하나를 빼면
- * 그 문장이 한국어로 남아 여기서 떨어진다.
+ * The golden file has few findings, so most rules never fire on it. So we run it in both languages
+ * once as is and once deliberately broken (so most rules fire). Drop a single `tr()` and
+ * that sentence stays in Korean and fails here.
  */
 import { readAasx } from '@aas/aasx';
 import { setLangSource, type Environment, type Lang } from '@aas/core';
@@ -15,9 +15,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
 const HANGUL = /[가-힣]/;
 
-const golden = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+const golden = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
 
-/** 규칙 대부분이 걸리도록 골든 Environment를 망가뜨린다 */
+/** Breaks the golden Environment so that most rules fire */
 function broken(): Environment {
   const env = structuredClone(golden.environment) as Environment;
   const raw = env as unknown as Record<string, unknown[]>;
@@ -65,7 +65,7 @@ function broken(): Environment {
   cds[1]!['id'] = 'http://example.com/bad-cd';
   delete cds[2]!['embeddedDataSpecifications'];
   cds.push(structuredClone(cds[3]!), { id: 'urn:x', idShort: 'x', administration: { revision: '1' } });
-  // IEC 61360 내용 — 영문 이름 없음 · 단위 없는 MEASURE · value와 valueList 동시 · 언어 태그 중복
+  // IEC 61360 content — no English name · MEASURE without a unit · both value and valueList · duplicate language tags
   const content = (cds[4]!['embeddedDataSpecifications'] as { dataSpecificationContent: Record<string, unknown> }[])[0]!
     .dataSpecificationContent;
   content['preferredName'] = [{ language: 'de', text: 'Name' }];
@@ -76,13 +76,13 @@ function broken(): Environment {
   content['value'] = '1';
   content['valueList'] = { valueReferencePairs: [{ value: 'a', valueId: { type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: 'urn:a' }] } }] };
 
-  // 보조 semanticId만 · TemplateQualifier(서브모델 kind는 Instance)
+  // supplemental semanticId only · TemplateQualifier (submodel kind is Instance)
   elements.push(
     { modelType: 'Property', idShort: 'Extra', valueType: 'xs:string', value: 'x', supplementalSemanticIds: [{ type: 'ExternalReference', keys: [{ type: 'GlobalReference', value: 'urn:s' }] }] },
     { modelType: 'Property', idShort: 'Templated', valueType: 'xs:string', value: 'x', qualifiers: [{ kind: 'TemplateQualifier', type: 'Cardinality', valueType: 'xs:string', value: 'One' }] },
   );
 
-  // 값 검사 대상 서브모델(명판 · 문서 제외)에 빈 값 · CD와 안 맞는 valueType
+  // empty value and a valueType that mismatches the CD in a value-checked submodel (excluding nameplate · documentation)
   const checked = submodels.find((sm) => !['DigitalNameplate', 'HandoverDocumentation'].includes(String(sm['idShort'])))!;
   delete (checked['administration'] as Record<string, unknown> | undefined)?.['revision'];
   const stringCd = cds[5]!;
@@ -99,7 +99,7 @@ function broken(): Environment {
     },
   );
 
-  // 예약 이름 specificAssetId를 가진 둘째 AAS
+  // a second AAS with the reserved name specificAssetId
   const second = structuredClone(env.assetAdministrationShells![0]!) as unknown as Record<string, unknown>;
   second['id'] = 'urn:second';
   (second['assetInformation'] as Record<string, unknown>)['specificAssetIds'] = [
@@ -107,7 +107,7 @@ function broken(): Environment {
   ];
   raw['assetAdministrationShells']!.push(second);
 
-  // 계층 — 진입점 없는 것 하나, 자기 참조 · 중복 · 주소 없음 · 끊긴 관계 · 틀린 ArcheType이 있는 것 하나
+  // hierarchy — one without an entry point, and one with self-reference · duplicates · missing address · broken relationship · wrong ArcheType
   const asset = (id: string) => ({ modelType: 'Entity', idShort: id, entityType: 'SelfManagedEntity', globalAssetId: `urn:asset:${id}` });
   const relation = (target: string) => ({
     modelType: 'RelationshipElement',
@@ -155,33 +155,33 @@ function texts(result: LintResult): string[] {
 
 afterEach(() => setLangSource(() => 'ko'));
 
-describe('규칙 문구 영어', () => {
-  it('영어 요청이면 지적 문구 · 고칠 방법 · 정책 메모에 한국어가 없다', () => {
+describe('English rule text', () => {
+  it('for an English request, messages · remedies · policy notes contain no Korean', () => {
     const en = run('en');
     expect(en.golden.findings.length).toBeGreaterThan(0);
     const leftover = [...texts(en.golden), ...texts(en.broken)].filter((text) => HANGUL.test(text));
     expect(leftover).toEqual([]);
   });
 
-  it('망가뜨린 파일이 규칙 대부분을 실제로 거친다', () => {
+  it('the broken file actually exercises most rules', () => {
     const en = run('en');
     const fired = new Set(en.broken.findings.map((f) => f.ruleId));
     expect(fired.size).toBeGreaterThanOrEqual(40);
   });
 
-  it('한국어 결과는 그대로다 — 건수 · 규칙 · 문구 모두', () => {
+  it('Korean results are unchanged — counts · rules · text all', () => {
     const ko = run('ko');
     const en = run('en');
     for (const key of ['golden', 'broken'] as const) {
       expect(en[key].findings.length).toBe(ko[key].findings.length);
       expect(en[key].findings.map((f) => f.ruleId)).toEqual(ko[key].findings.map((f) => f.ruleId));
     }
-    // 한국어 쪽은 번역기를 거쳐도 원문 그대로여야 한다
+    // The Korean side must remain the original text even after passing through the translator
     expect(ko.golden.findings.some((f) => HANGUL.test(f.message))).toBe(true);
     expect(ko.broken.findings.filter((f) => HANGUL.test(f.message)).length).toBe(ko.broken.findings.length);
   });
 
-  it('영어 요청이면 규칙 제목에 한국어가 없다 — 규칙 목록(ruleCatalog)으로도', () => {
+  it('for an English request, rule titles contain no Korean — via the rule catalog (ruleCatalog) too', () => {
     setLangSource(() => 'en');
     expect(ALL_RULES.filter((rule) => HANGUL.test(rule.title)).map((rule) => rule.id)).toEqual([]);
     expect(ruleCatalog().rules.filter((rule) => HANGUL.test(rule.title)).map((rule) => rule.id)).toEqual([]);

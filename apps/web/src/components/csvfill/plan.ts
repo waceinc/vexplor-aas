@@ -1,21 +1,22 @@
 /**
- * CSV 로 값 채우기 — 계산부(화면 없음). 설비 대장(한 줄 = 설비 한 대)의 열을 서브모델의 값 항목에 대응시키고,
- * 줄마다 어느 파일의 무엇이 어떻게 바뀌는지 미리 셈한다. 저장은 화면(CsvFillDialog)이 한다.
+ * Fill values from CSV — the computation part (no UI). Maps the columns of an equipment register (one row = one piece of equipment)
+ * to the value items of a submodel, and precomputes, per row, what changes in which file and how. Saving is done by the UI (CsvFillDialog).
  *
- * digital-twin 의 「MES 열 → AAS 경로 대응표」와 4단계 가져오기(연결 → 표 → 미리보기 + 열 대응 → 가져오기) 개념을
- * CSV 로 옮겼다(DB 직접 연결은 자격 증명 보관 부담 때문에 넣지 않는다). 대응은 이름으로 추측하되 사람이 고친다.
- * 빈 칸은 값을 지우지 않는다 — 대장에 비어 있는 것은 「모른다」이지 「없다」가 아니다.
+ * Ports to CSV the digital-twin concepts of the "MES column → AAS path mapping table" and the 4-step import
+ * (connect → table → preview + column mapping → import) (direct DB connections are left out because of the burden of storing credentials).
+ * The mapping is guessed from names, but a person corrects it.
+ * Empty cells do not clear values — an empty cell in the register means "unknown", not "none".
  */
 
 export interface Leaf {
-  /** idShort 를 점으로 이은 경로 */
+  /** Path of idShorts joined with dots */
   path: string;
-  /** 사람이 읽는 이름(상위 › 하위) */
+  /** Human-readable name (parent › child) */
   label: string;
   current: string;
 }
 
-/** 서브모델 JSON 의 값 항목(Property · MLP · Range) — 컬렉션 · Entity 안까지 내려간다(목록은 순번이라 건너뛴다) */
+/** Value items of a submodel JSON (Property · MLP · Range) — descends into collections · Entities (lists are skipped because they are indexed by position) */
 export function leavesOf(submodel: Record<string, unknown>): Leaf[] {
   const out: Leaf[] = [];
   const walk = (elements: unknown, prefix: string, label: string): void => {
@@ -41,7 +42,7 @@ export function leavesOf(submodel: Record<string, unknown>): Leaf[] {
 
 const norm = (text: string): string => text.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
 
-/** 열 이름으로 값 항목을 고른다 — 마지막 idShort 와 같거나 전체 경로와 같을 때만(비슷한 것은 고르지 않는다) */
+/** Pick a value item by column name — only when it equals the last idShort or the full path (similar names are not picked) */
 export function suggestTarget(header: string, leaves: readonly Leaf[]): string | undefined {
   const want = norm(header);
   if (!want) return undefined;
@@ -50,7 +51,7 @@ export function suggestTarget(header: string, leaves: readonly Leaf[]): string |
   return leaves.find((leaf) => norm(leaf.path) === want)?.path;
 }
 
-/** 설비를 가리키는 열 — 이름이 그런 열이 있으면 그것, 없으면 첫 열 */
+/** The column identifying the equipment — a column named that way if present, otherwise the first column */
 export function guessKeyColumn(headers: readonly string[]): number {
   const index = headers.findIndex((header) => /^(name|assetname|idshort|asset|equipment|설비|설비명|설비이름|이름|장비|장비명)$/i.test(norm(header)));
   return index >= 0 ? index : 0;
@@ -58,9 +59,9 @@ export function guessKeyColumn(headers: readonly string[]): number {
 
 export interface FileTarget {
   packageId: string;
-  /** 이 파일을 부를 수 있는 이름들 — AAS idShort · 파일명(확장자 뺌) */
+  /** Names this file can be referred to by — AAS idShort · file name (without extension) */
   names: readonly string[];
-  /** 고른 서브모델(같은 idShort) — 없으면 그 파일에는 넣을 자리가 없다 */
+  /** The chosen submodel (same idShort) — if missing, this file has nowhere to put the values */
   submodel?: { id: string; content: Record<string, unknown> };
 }
 
@@ -74,7 +75,7 @@ export interface RowPlan {
 export function planFill(input: {
   rows: readonly (readonly string[])[];
   keyColumn: number;
-  /** 열마다 넣을 경로 — 비면 그 열은 쓰지 않는다 */
+  /** Target path per column — if empty, that column is not used */
   mapping: readonly (string | undefined)[];
   files: readonly FileTarget[];
 }): RowPlan[] {

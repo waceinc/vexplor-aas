@@ -1,9 +1,9 @@
 /**
- * 태그 패턴 — 기준 이름 · 주소 틀과 번호 범위로 태그를 여러 개 만든다(digital-twin 의 태그 일괄 생성 개념).
+ * Tag pattern — creates many tags from a base name, an address template, and a number range (the bulk tag creation concept from digital-twin).
  *
- * 틀 안의 {n} 은 번호(시작부터 간격씩), {i} 는 몇 번째인지(1부터)다. {n:3} 처럼 자리수를 주면 앞을 0 으로 채운다.
- * 예: 이름 Zone{i}_Temp · 주소 ns=1;s=Zone{n:2}.Temp · 1~4 → Zone1_Temp(ns=1;s=Zone01.Temp) …
- *     Modbus: 이름 Temp_{i} · 주소 {n} · 100~106 간격 2 → Temp_1(100) · Temp_2(102) …
+ * In the template, {n} is the number (from start, by step) and {i} is the ordinal (from 1). Giving a width like {n:3} zero-pads the front.
+ * e.g. name Zone{i}_Temp · address ns=1;s=Zone{n:2}.Temp · 1–4 → Zone1_Temp(ns=1;s=Zone01.Temp) …
+ *     Modbus: name Temp_{i} · address {n} · 100–106 step 2 → Temp_1(100) · Temp_2(102) …
  */
 export interface PatternInput {
   name: string;
@@ -22,7 +22,7 @@ function fillTemplate(template: string, n: number, i: number): string {
   });
 }
 
-/** 펼친 결과 — 틀에 {n}·{i} 가 없거나 범위가 이상하면 이유를 준다(만들지 않는다) */
+/** Expanded result — if the template has no {n}/{i} or the range is invalid, give the reason (create nothing) */
 export function expandPattern(input: PatternInput): { rows: { name: string; href: string }[]; problem?: string } {
   if (!/\{[ni](?::\d+)?\}/.test(input.name)) return { rows: [], problem: 'name' };
   if (![input.from, input.to, input.step].every(Number.isInteger) || input.step < 1 || input.to < input.from) return { rows: [], problem: 'range' };

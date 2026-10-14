@@ -1,51 +1,51 @@
 /**
- * 모델 — 공정 화면의 연결 파일 가지 — 다른 파일의 서브모델을 트리에 이어 붙인다.
- * src/model.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 model.ts 로 쓴다.
+ * Model — linked-file branches of the process view — grafts submodels from other files onto the tree.
+ * Split out of src/model.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via model.ts.
  */
 import { fill, tr } from '../i18n.js';
 import { type AasNode, type ConceptDescription, type Submodel, type TreeNode } from './types.js';
 import { buildTree } from './tree.js';
 
-/** key·depth를 옮겨 붙이고 전체를 보기 전용으로 표시한다 */
+/** Shifts key·depth over and marks everything read-only */
 function relocate(node: TreeNode, prefix: string, depthShift: number, packageId: string): TreeNode {
   return {
     ...node,
     key: `${prefix}${node.key}`,
-    pointer: `${prefix}${node.pointer}`, // 린터 finding과 절대 겹치지 않는 주소가 된다
+    pointer: `${prefix}${node.pointer}`, // becomes an address that can never collide with a linter finding
     depth: node.depth + depthShift,
     linkedPackageId: packageId,
     children: node.children.map((child) => relocate(child, prefix, depthShift, packageId)),
   };
 }
 
-/** 다른 파일에서 읽어 온 한 단계 — 재귀라 자식이 또 이것일 수 있다(회사→공정→장비) */
+/** One level read from another file — recursive, so a child can be one of these too (company → process → equipment) */
 export interface LinkedInfo {
   name: string;
   bulkCount: number;
-  /** 공정·라인(파일 없는 층) — 왼쪽 트리에서 ▦로 그린다 */
+  /** Process · line (level without a file) — drawn as ▦ in the left tree */
   group?: boolean;
-  /** 그 그룹이 라인 층인가(회사 → 라인 → 공정 → 설비) */
+  /** Whether that group is a line level (company → line → process → asset) */
   line?: boolean;
-  /** 그 파일이 열려 있으면 채워진다 */
+  /** Filled in when that file is open */
   packageId?: string;
-  /** 그 파일이 공정(묶음)이면 — 밑은 다른 파일들이다. 아니면 밑은 그 설비의 부품(BoM)이다 */
+  /** If that file is a process (bundle), below it are other files. Otherwise below it are that asset's parts (BoM) */
   composite?: boolean;
   submodels?: Submodel[];
-  /** 그 파일의 ConceptDescription — 지적(KOSMO-CD-*)이 가리킬 자리다 */
+  /** That file's ConceptDescriptions — where findings (KOSMO-CD-*) point */
   concepts?: ConceptDescription[];
   children: LinkedInfo[];
 }
 
-/** 계층 서브모델(JSON)에서 자식 목록을 읽는다 — 서버 hierarchy API와 같은 해석이다 */
+/** Reads the child list from a hierarchy submodel (JSON) — same interpretation as the server hierarchy API */
 export interface HierarchyChild {
   name: string;
-  /** 그룹(중간 마디)이면 빈 문자열 */
+  /** Empty string for a group (intermediate node) */
   globalAssetId: string;
   bulkCount: number;
   children: HierarchyChild[];
 }
 
-/** 계층 서브모델(JSON)에서 자식을 **중첩째** 읽는다 — 서버 hierarchy API와 같은 해석이다 */
+/** Reads children **with nesting** from a hierarchy submodel (JSON) — same interpretation as the server hierarchy API */
 export function childrenOfHierarchy(submodel: Submodel | undefined): HierarchyChild[] {
   const elements = (submodel?.submodelElements ?? []) as Record<string, unknown>[];
   const entry = elements.find((element) => element['modelType'] === 'Entity');
@@ -69,21 +69,21 @@ export function childrenOfHierarchy(submodel: Submodel | undefined): HierarchyCh
 }
 
 /**
- * 트리에 넣을 가지 — 「회사 → 공정 → 장비 → 장비별 서브모델」까지 재귀로.
+ * Branch to insert into the tree — recursively down to "company → process → equipment → per-equipment submodels".
  *
- * 🔴 파일에는 이 모양이 없다. 파일은 표준(IDTA-02011)대로 주소 참조뿐이고
- *    (포함형은 KOSMO-AAS-4 위반 — 실측 78건), **사람이 보는 트리에서만** 이어 붙인다.
- *    그래서 이 가지는 전부 linkedPackageId가 찍힌 보기 전용이다.
- *    자식이 또 계층 파일이면(⚙공정 안의 ⚙장비) 같은 방식으로 이어 붙는다.
+ * Important: this shape does not exist in the file. Per the standard (IDTA-02011) the file holds only address references
+ *    (embedding violates KOSMO-AAS-4 — 78 cases measured), and they are grafted **only in the tree people see**.
+ *    So every node in this branch is read-only and stamped with linkedPackageId.
+ *    If a child is itself a hierarchy file (⚙equipment inside ⚙process), it is grafted the same way.
  */
 export function buildLinkedAsset(
   info: LinkedInfo,
   keyPrefix = '/linked',
-  /** part: 이 가지가 설비의 부품(BoM)이다 — 설비 파일을 직접 열었을 때 맨 위 ⚙ 줄이 그 경우 */
+  /** part: this branch is the asset's parts (BoM) — the case of the top ⚙ row when an asset file is opened directly */
   opts: { part?: boolean } = {},
 ): TreeNode {
   const key = `${keyPrefix}/${info.name}`;
-  // 맨 앞 빈 조각('')과 'linked' 를 빼고 센다 — 예전에는 하나 더 세어 이 가지만 한 단계 더 들어가 있었다(2026-10-14)
+  // Count without the leading empty segment ('') and 'linked' — it used to count one more, putting only this branch one level deeper (2026-10-14)
   const depth = key.split('/').length - 2; // /linked/a → 1, /linked/a/b → 2
   const root: TreeNode = {
     key,
@@ -100,9 +100,9 @@ export function buildLinkedAsset(
     ...(opts.part ? { linkedPart: true } : {}),
   };
   /**
-   * 🔴 설비 파일(packageId 있음) 밑의 자식은 그 설비의 **부품**이다 — 「부품 (n)」 한 줄로 접어 둔다.
-   *    공정 안에 설비가 여러 대면 부품 줄이 대마다 반복돼 세로로 길어지고, 종류가 같은 LinkedAsset이라
-   *    설비로 헷갈렸다(사용자 2026-09-08). 공정(그룹)·예정 설비 밑의 자식은 설비 그대로다
+   * Important: children under an asset file (with packageId) are that asset's **parts** — folded into one "Parts (n)" row.
+   *    With several assets in a process the parts rows repeated per asset and grew tall, and being the same LinkedAsset kind
+   *    they were confused with assets (user, 2026-09-08). Children under a process (group) or planned asset stay as assets
    */
   const partsFolder = (): TreeNode[] => {
     if (!info.packageId || info.children.length === 0) return [];
@@ -110,7 +110,7 @@ export function buildLinkedAsset(
     return [
       {
         key: folderKey,
-        label: `BOM (${info.children.length})`, // 「부품」→「BOM」 — 사용자 지정(2026-09-09)
+        label: `BOM (${info.children.length})`, // "Parts" → "BOM" — user-specified (2026-09-09)
         modelType: 'LinkedAsset',
         pointer: folderKey,
         submodelId: '',
@@ -121,8 +121,8 @@ export function buildLinkedAsset(
       },
     ];
   };
-  // 자식 가지(⚙·▦)가 먼저, 그다음 자기 서브모델 — 최상위와 같은 읽는 순서다.
-  // 그룹(파일 없는 중간 마디)은 서브모델이 없지만 자식은 그린다 — 회사>공정>장비의 「공정」 자리다
+  // Child branches (⚙ · ▦) first, then own submodels — the same reading order as the top level.
+  // A group (intermediate node without a file) has no submodels but its children are drawn — the "process" slot in company > process > equipment
   root.children = [
     ...(info.packageId ? partsFolder() : info.children.map((child) => buildLinkedAsset(child, key, opts))),
     ...(info.submodels && info.packageId
@@ -131,8 +131,8 @@ export function buildLinkedAsset(
           submodels: info.submodels,
           conceptDescriptions: info.concepts ?? [],
         })
-          // 🔴 ConceptDescription 그룹도 싣는다. 빼면 그 파일의 CD를 가리키는 지적
-          //    (KOSMO-CD-5 등)을 눌러도 트리에 갈 곳이 없다 — "위치 표현이 안 된다"(실측)
+          // Important: include the ConceptDescription group too. Without it, findings pointing to that file's CDs
+          //    (KOSMO-CD-5 etc.) have nowhere to go in the tree when clicked — "location cannot be shown" (measured)
           .filter(
             (node) =>
               node.modelType === 'Submodel' || node.modelType === 'ConceptDescriptionGroup',

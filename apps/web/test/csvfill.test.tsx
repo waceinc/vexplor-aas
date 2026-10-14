@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * CSV 에서 채우기 화면 — 값 표의 「CSV에서 채우기…」로 여러 설비 파일의 명판 값을 한 번에 채운다.
+ * Fill-from-CSV screen: the value table's "Fill from CSV..." fills nameplate values across several equipment files at once.
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -13,9 +13,9 @@ import { useScreenHarness, wireFetch } from './harness.js';
 useScreenHarness();
 
 type Json = Record<string, unknown>;
-const bytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const bytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 
-/** 같은 설비 둘 — AAS idShort 를 RFM_A · RFM_B 로 */
+/** Two of the same equipment, with AAS idShort RFM_A and RFM_B */
 async function mount(): Promise<InMemoryStore> {
   const store = new InMemoryStore();
   await store.init();
@@ -34,8 +34,8 @@ async function nameplateValue(store: InMemoryStore, packageId: string, idShort: 
   return (sm['submodelElements'] as Json[]).find((e) => e['idShort'] === idShort)!['value'];
 }
 
-describe('CSV 에서 채우기', () => {
-  it('대장을 붙여 넣으면 열을 미리 고르고, 미리 보기대로 두 파일의 값이 바뀐다 — 빈 칸은 지우지 않는다', async () => {
+describe('fill from CSV', () => {
+  it('pasting a register preselects columns and both files change as previewed (empty cells do not clear)', async () => {
     const store = await mount();
     const serialBefore = await nameplateValue(store, 'pkg_2', 'SerialNumber');
     render(<App />);
@@ -47,7 +47,7 @@ describe('CSV 에서 채우기', () => {
     fireEvent.change(within(dialog).getByLabelText('CSV 내용'), {
       target: { value: 'Name,SerialNumber,Year Of Construction,Memo\nRFM_A,SN-A-001,2031,x\nRFM_B,,2032,y\nGhost,SN-9,2033,z\n' },
     });
-    // 이름이 같은 열은 미리 골라져 있고, 없는 이름(Memo)은 「넣지 않음」
+    // columns with matching names are preselected; a name with no match (Memo) is "do not import"
     expect((within(dialog).getByLabelText('SerialNumber 열을 넣을 항목') as HTMLSelectElement).value).toBe('SerialNumber');
     expect((within(dialog).getByLabelText('Year Of Construction 열을 넣을 항목') as HTMLSelectElement).value).toBe('YearOfConstruction');
     expect((within(dialog).getByLabelText('Memo 열을 넣을 항목') as HTMLSelectElement).value).toBe('');
@@ -60,7 +60,7 @@ describe('CSV 에서 채우기', () => {
     expect(await nameplateValue(store, 'pkg_1', 'SerialNumber')).toBe('SN-A-001');
     expect(await nameplateValue(store, 'pkg_1', 'YearOfConstruction')).toBe('2031');
     expect(await nameplateValue(store, 'pkg_2', 'YearOfConstruction')).toBe('2032');
-    expect(await nameplateValue(store, 'pkg_2', 'SerialNumber')).toBe(serialBefore); // 빈 칸은 그대로
+    expect(await nameplateValue(store, 'pkg_2', 'SerialNumber')).toBe(serialBefore); // empty cell leaves it unchanged
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'CSV에서 채우기' })).toBeNull());
   });
 });

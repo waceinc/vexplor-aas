@@ -1,15 +1,15 @@
 /**
- * 수집 주소 목록 뽑기 — AASX 안의 AID를 「현장에 넘길 표」 한 장으로 바꾼다.
+ * Extract the collection address list — turn the AID inside an AASX into one "sheet to hand to the site".
  *
- * 왜 필요한가: 시운전 때 실제로 오가는 종이는 **주소 목록**이다. OT팀에 "이 노드들
- * 읽기 권한을 열어 달라"고 넘기고, 오타·타입 불일치를 접속 전에 눈으로 잡고, 검수에 낸다.
- * 지금까지는 그 목록이 AID 서브모델 안에 중첩 구조로만 있어서 사람이 못 읽었다.
+ * Why: the paper that actually changes hands at commissioning is the **address list**. It goes to the OT team as "please open
+ * read access to these nodes", lets typos and type mismatches be caught by eye before connecting, and is submitted for acceptance.
+ * Until now that list existed only as a nested structure inside the AID submodel, which people could not read.
  *
- * 🔴 주소만 뽑지 않는다. **마지막에 무엇이 들어왔는지**(값·품질·시각)와
- *    **모델 요소와 이름이 맞는지**를 같은 줄에 붙인다. 주소만 있는 표는 "적어 둔 주소"일 뿐
- *    "되는 주소"인지는 말해 주지 않는다 — 점검표가 되려면 근거가 한 줄에 있어야 한다.
+ * Important: do not extract addresses alone. Put **what came in last** (value, quality, timestamp) and
+ *    **whether the name matches a model element** on the same row. A table of addresses only is "addresses written down";
+ *    it does not say whether they are "addresses that work" — to be a checklist, the evidence must be on one row.
  *
- * 화면이 없어도 성립하는 순수 로직이다(model.ts와 같은 자리).
+ * Pure logic that holds without a screen (same place as model.ts).
  */
 import type { AidInterfaceView, CollectedValueView, LiveMapping } from './api.js';
 import { localTime } from './model.js';
@@ -19,10 +19,10 @@ import { csvCell } from '@aas/linter';
 export interface AddressRow {
   interfaceName: string;
   protocol: string;
-  /** 접속 주소. OPC UA면 opc.tcp://… */
+  /** Endpoint address. For OPC UA: opc.tcp://… */
   endpoint: string;
   propertyName: string;
-  /** 읽을 주소. OPC UA면 NodeId */
+  /** Address to read. For OPC UA: NodeId */
   address: string;
   dataType: string;
   unit: string;
@@ -30,7 +30,7 @@ export interface AddressRow {
   latestValue: string;
   quality: string;
   observedAt: string;
-  /** 표준 API(?live=true)로 내보내지는지 — 이름이 모델 요소와 맞아야 한다 */
+  /** Whether it is exposed through the standard API (?live=true) — the name must match a model element */
   modelLink: string;
 }
 
@@ -58,11 +58,11 @@ function displayValue(value: CollectedValueView): string {
 
 
 /**
- * 모델 연결 상태를 사람 말로. 🔴 `unmatched`를 빈칸으로 두지 않는다 —
- * "값은 쌓이는데 밖에서는 안 보이는" 상태가 표에서 눈에 띄어야 한다.
+ * Model link status in plain words. Important: do not leave `unmatched` blank —
+ * the "values accumulate but are not visible outside" state must stand out in the table.
  */
 function modelLinkOf(propertyName: string, live: LiveMapping | undefined): string {
-  // 아직 한 번도 수집하지 않았으면 판정 자체가 없다 — 빈칸 대신 그 사실을 적는다
+  // Never collected yet means there is no verdict at all — state that fact instead of a blank
   if (!live) return tr('수집 전');
   const note = live.notes.find((item) => item.propertyName === propertyName);
   if (!note) return '';
@@ -76,12 +76,12 @@ export function addressRows(
   values: readonly CollectedValueView[] = [],
   live?: LiveMapping,
   /**
-   * 🔴 붙어서 물어봤지만 **아직 값이 없는** 태그 이름.
-   *    빈칸으로 두면 「아직 안 물어봤다」와 구별되지 않는다 — 시운전 점검표에서 그 둘은 전혀 다르다.
+   * Important: tag names that were requested after connecting but **have no value yet**.
+   *    Left blank, they cannot be told apart from "not requested yet" — on a commissioning checklist the two are entirely different.
    */
   pending: ReadonlySet<string> = new Set(),
 ): AddressRow[] {
-  /** property마다 가장 최근 값 하나 — 수집 화면과 같은 규칙으로 고른다 */
+  /** The single most recent value per property — chosen by the same rule as the collection screen */
   const latest = new Map<string, CollectedValueView>();
   for (const value of values) {
     const key = `${value.interfaceName}/${value.propertyName}`;
@@ -112,7 +112,7 @@ export function addressRows(
   return rows;
 }
 
-/** 엑셀에서 열 수 있게. 🔴 BOM을 붙인다 — 없으면 엑셀이 한글을 깨뜨린다 */
+/** So it opens in Excel. Important: add a BOM — without it Excel garbles Korean text */
 export function addressCsv(rows: readonly AddressRow[]): string {
   const escape = (value: string): string => csvCell(value, 'always');
   const lines = [ADDRESS_COLUMNS.map(escape).join(',')];

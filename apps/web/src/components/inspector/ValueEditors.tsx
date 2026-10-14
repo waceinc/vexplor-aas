@@ -1,8 +1,8 @@
 /**
- * 값 편집 — MultiLanguageProperty(언어별 글) · Range(최소·최대) · 그 밖의 값(글).
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
- * 입력 중인 값은 이 부품의 상태다. 다른 요소로 옮기거나 저장으로 내용이 바뀌면 Inspector 가 key 를 바꿔
- * 새로 그리므로 처음 값으로 돌아간다(예전 「지문이 바뀌면 초기화」 효과와 같은 결과).
+ * Value editing — MultiLanguageProperty (text per language) · Range (min · max) · other values (text).
+ * Split out of components/Inspector.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
+ * Values being typed are this part's state. When moving to another element or when a save changes the content, Inspector changes
+ * the key and redraws it, so it returns to the initial values (same result as the old "reset when the fingerprint changes").
  */
 import { useState } from 'react';
 import { fill, tr } from '../../i18n.js';
@@ -40,7 +40,7 @@ export function ValueEditor({ node, busy, onSave, t }: Props): React.JSX.Element
                 setLangs(langs.map((l, i) => (i === index ? { ...l, text: event.target.value } : l)))
               }
             />
-            {/* 언어를 뺄 길이 없어 빈 줄을 저장하던 사례 — 빈 text는 PKG-LANG 규칙에 걸린다 */}
+            {/* There was a case where a language could not be removed, so an empty row got saved — an empty text violates the PKG-LANG rule */}
             <button
               className="link"
               title={t('이 언어 줄을 뺍니다')}

@@ -1,16 +1,16 @@
 /**
- * API 클라이언트 — 모델 편집 — 값 · 요소 · 서브모델 · AAS · 용어 · 대표 사진 · 구성(계층)
- * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
+ * API client — model editing — values · elements · submodels · AAS · terms · thumbnail · composition (hierarchy)
+ * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
 import type { PackageDescription, HierarchyView } from './types.js';
 import { encodeIdentifier, withAuth, request } from './http.js';
 import type { ConceptDescription, Shell } from '../model.js';
 
 export const modelApi = {
-  /** AAS의 assetInformation 교체 — assetKind·globalAssetId가 여기 산다(KOSMO-AAS-5·6) */
+  /** Replace the AAS assetInformation — assetKind and globalAssetId live here (KOSMO-AAS-5·6) */
   /**
-   * 용어(CD) 정의 저장 — 규격의 PUT(통째 교체). 먼저 지금 판의 ETag를 읽어 If-Match로 보낸다.
-   * CD는 revisions 목록에 없어서 이 방법으로 남의 편집을 덮어쓰지 않는다.
+   * Save a term (CD) definition — the spec's PUT (whole replace). First reads the current ETag and sends it as If-Match.
+   * CDs are not in the revisions list, so this is how we avoid overwriting someone else's edit.
    */
   putConceptDescription: async (packageId: string, concept: Record<string, unknown>): Promise<void> => {
     const path = `/packages/${packageId}/api/v3.0/concept-descriptions/${encodeIdentifier(String(concept['id']))}`;
@@ -59,9 +59,9 @@ export const modelApi = {
       },
     ),
   /**
-   * 대표 사진(썸네일) 올리기 — KOSMO-AAS-1의 그 파일이다.
-   * 뼈대의 임시 그림을 실제 장비 사진으로 바꾸는 자리. 서버가 defaultThumbnail 경로와
-   * 이전 파트 정리까지 처리한다.
+   * Upload the thumbnail — the very file KOSMO-AAS-1 refers to.
+   * This is where the skeleton's placeholder picture is replaced with a real equipment photo. The server handles the defaultThumbnail path
+   * and cleanup of the previous part.
    */
   putThumbnail: (packageId: string, shellId: string, file: File, revision?: number): Promise<void> =>
     request(
@@ -76,13 +76,13 @@ export const modelApi = {
         body: file,
       },
     ),
-  /** 공정의 계층을 읽는다. 설비 파일도 부품 계층을 갖고 있어 같은 자리에서 읽힌다 */
+  /** Reads the process hierarchy. Asset files also have a parts hierarchy, so they are read the same way */
   hierarchy: (packageId: string): Promise<HierarchyView> =>
     request(`/packages/${packageId}/hierarchy`),
   /**
-   * 설비를 매단다.
-   * 🔴 `sourcePackageId`를 주면 이름과 Asset 주소를 **서버가 그 파일에서 읽는다** —
-   *    사람이 옮겨 적다 틀리면 두 파일을 잇는 끈이 조용히 끊긴다.
+   * Attaches an asset.
+   * Important: when `sourcePackageId` is given, **the server reads** the name and Asset address from that file —
+   *    if a person copies them by hand and makes a typo, the link between the two files silently breaks.
    */
   addHierarchyNode: (
     packageId: string,
@@ -91,11 +91,11 @@ export const modelApi = {
       name?: string;
       globalAssetId?: string;
       bulkCount?: number;
-      /** 파일 없는 중간 마디(공정·그룹)를 만들 때 */
+      /** When creating an intermediate node without a file (process · group) */
       group?: boolean;
-      /** 그 그룹이 라인 층인가 — 맨 위(회사 바로 밑)에만 */
+      /** Whether that group is a line level — only at the top (directly under the company) */
       line?: boolean;
-      /** 어느 마디 밑에 넣을지 — 진입점부터의 이름 경로 */
+      /** Which node to insert under — name path from the entry point */
       parentPath?: string[];
     },
   ): Promise<{ name: string; globalAssetId?: string }> =>
@@ -105,8 +105,8 @@ export const modelApi = {
       body: JSON.stringify(input),
     }),
   /**
-   * 파일 복제 — 호기별로 나누기의 실체. 서브모델·첨부까지 통째로 복사하고
-   * id는 새 이름으로 개명된 새 파일(packageId)을 돌려받는다.
+   * Duplicate a file — what "split per unit" actually does. Copies everything including submodels and attachments,
+   * and gets back a new file (packageId) whose ids are renamed.
    */
   clonePackage: (packageId: string, assetName: string): Promise<PackageDescription> =>
     request(`/packages/${packageId}/clone`, {
@@ -147,7 +147,7 @@ export const modelApi = {
     request(`/packages/${packageId}/api/v3.0/submodels/${encodeIdentifier(submodelId)}`, {
       method: 'DELETE',
     }),
-  /** parentPath가 없으면 서브모델 바로 아래에 붙인다 */
+  /** Without parentPath it is attached directly under the submodel */
   createElement: (
     packageId: string,
     submodelId: string,
@@ -171,7 +171,7 @@ export const modelApi = {
     ),
   conceptDescriptions: (packageId: string): Promise<{ result: ConceptDescription[] }> =>
     request(`/packages/${packageId}/api/v3.0/concept-descriptions?limit=2000`),
-  /** 요소 전체를 바꾼다 — semanticId처럼 $value로 못 고치는 것에 쓴다 */
+  /** Replace the whole element — for things $value cannot change, such as semanticId */
   putElement: (
     packageId: string,
     submodelId: string,
@@ -191,7 +191,7 @@ export const modelApi = {
         body: JSON.stringify(content),
       },
     ),
-  /** 요소를 형제 안에서 옮긴다(규격 밖 연산). `{offset}` -1=위·1=아래 한 칸, `{to}` n번째 자리로 */
+  /** Moves an element among its siblings (non-spec operation). `{offset}` -1=up · 1=down one step, `{to}` to the n-th position */
   moveElement: (
     packageId: string,
     submodelId: string,
@@ -211,7 +211,7 @@ export const modelApi = {
         body: JSON.stringify(move),
       },
     ),
-  /** 요소를 바로 아래에 복제한다(규격 밖). 이름은 서버가 `X_2`로 짓는다 */
+  /** Duplicates an element directly below it (non-spec). The server names it `X_2` */
   duplicateElement: (
     packageId: string,
     submodelId: string,
@@ -226,7 +226,7 @@ export const modelApi = {
         headers: revision === undefined ? {} : { 'if-match': String(revision) },
       },
     ),
-  /** 서브모델 부분 갱신 — 이름(idShort) 바꾸기에 쓴다 */
+  /** Partial submodel update — used for renaming (idShort) */
   patchSubmodel: (
     packageId: string,
     submodelId: string,

@@ -1,6 +1,6 @@
 /**
- * 수집 칸 — 공정 화면의 설비 줄 · 내려받기 · 값 표시 · 실패 사유 줄이기.
- * components/Collection.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석·판정은 옮기기 전 글자 그대로다.
+ * Collection panel — equipment rows of the process screen · download · value display · shortening failure reasons.
+ * Split out of components/Collection.tsx (2026-10-13 componentization) — markup, comments and checks were moved verbatim.
  */
 import type { CollectedValueView } from '../../api.js';
 import { tr } from '../../i18n.js';
@@ -8,16 +8,16 @@ import { tr } from '../../i18n.js';
 
 export interface EquipmentRow {
   name: string;
-  /** 공정 › 그룹 경로 */
+  /** Process › group path */
   group: string;
   bulkCount: number;
-  /** 파일이 열려 있지 않으면(예정) 없다 */
+  /** Absent when the file is not open (planned) */
   packageId?: string;
-  /** 수집 연결(AID)이 붙어 있는가 */
+  /** Whether a collection connection (AID) is attached */
   connected: boolean;
 }
 
-/** 브라우저에 파일 하나를 건넨다 (DocAssets와 같은 방식) */
+/** Hands one file to the browser (same approach as DocAssets) */
 export function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -35,12 +35,12 @@ export function displayValue(value: CollectedValueView): string {
 
 
 /**
- * 수집 보고 한 인터페이스분 — 「값 대기」 칸까지 본다.
+ * Collection report for one interface — including the "waiting for value" column.
  *
- * 🔴 서버(`CollectReport`)는 실패(`failures`)와 **아직 값이 안 들어온 것**(`pending`)을 가른다.
- *    빈 목록일 땐 `pending`을 아예 싣지 않으므로 없어도 0으로 읽힌다 — 예전 서버에 붙어도 어긋나지 않는다.
+ * Important: the server (`CollectReport`) separates failures (`failures`) from **values that have not arrived yet** (`pending`).
+ *    An empty list omits `pending` entirely, so absence reads as 0 — this does not break against an older server either.
  */
-/** 실패 사유를 한 토막으로 — `BadNodeIdUnknown (0x80340000)` → `BadNodeIdUnknown` */
+/** Shortens a failure reason to one token — `BadNodeIdUnknown (0x80340000)` → `BadNodeIdUnknown` */
 export function shortReason(reason: string): string {
   const head = reason.split(/[\s(:]/)[0] ?? reason;
   return head.length > 0 && head.length <= 40 ? head : reason.slice(0, 40);

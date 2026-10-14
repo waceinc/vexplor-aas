@@ -1,18 +1,18 @@
-# 제3자 소프트웨어 고지 (Third-Party Notices)
+# Third-Party Notices
 
-이 프로그램은 아래 오픈소스에 기대어 동작합니다. 각 소프트웨어의 저작권은 그 저작자에게 있고,
-적힌 라이선스에 따라 쓰입니다. 전문은 설치 뒤 `node_modules/<이름>/LICENSE`에서 볼 수 있습니다.
+This program relies on the open-source software listed below. Each package is copyrighted by its authors
+and used under the license shown. Full license texts are in `node_modules/<name>/LICENSE` after installation.
 
-> 이 파일은 `node scripts/make-third-party-notices.mjs`가 `package-lock.json`에서 만듭니다.
-> 손으로 고치지 마십시오 — 의존성을 바꾼 뒤 다시 만드십시오.
+> This file is generated from `package-lock.json` by `node scripts/make-third-party-notices.mjs`.
+> Do not edit it by hand — regenerate it after changing dependencies.
 
-## 요약
+## Summary
 
-- 실행에 딸려 가는 것(런타임): **248개**
-- 개발·시험에만 쓰는 것: 184개 (배포물에 들어가지 않습니다)
-- 런타임의 카피레프트(GPL·LGPL·AGPL): **0개**
+- Shipped for execution (runtime): **248**
+- Development and testing only: 184 (not included in releases)
+- Copyleft at runtime (GPL, LGPL, AGPL): **0**
 
-| 런타임 라이선스 | 개수 |
+| Runtime license | Count |
 |---|---|
 | MIT | 234 |
 | ISC | 4 |
@@ -23,9 +23,9 @@
 | OFL-1.1 | 1 |
 | Unlicense | 1 |
 
-## 런타임
+## Runtime
 
-| 이름 | 판 | 라이선스 |
+| Name | Version | License |
 |---|---|---|
 | @floating-ui/core | 1.8.0 | MIT |
 | @floating-ui/dom | 1.8.0 | MIT |
@@ -276,19 +276,19 @@
 | xtend | 4.0.2 | MIT |
 | yauzl | 3.4.0 | MIT |
 
-### 라이선스를 직접 확인한 것
+### Licenses verified by hand
 
-`package.json`에 라이선스가 적혀 있지 않아 꾸러미 안의 파일을 열어 확인했습니다.
+These packages do not state a license in `package.json`, so the files inside the package were opened and checked.
 
-| 이름 | 라이선스 | 근거 |
+| Name | License | Evidence |
 |---|---|---|
-| dequeue@1.0.5 | BSD-2-Clause | LICENSE 파일 — "This is the 2-Clause BSD license" |
-| humanize@0.0.9 | MIT | LICENSE 파일 — MIT 전문 (Copyright (c) 2012 Tai-Jin Lee) |
+| dequeue@1.0.5 | BSD-2-Clause | LICENSE file — "This is the 2-Clause BSD license" |
+| humanize@0.0.9 | MIT | LICENSE file — full MIT text (Copyright (c) 2012 Tai-Jin Lee) |
 | precond@0.2.3 | MIT | README.md §License — "free to use under the terms of the MIT license" |
 
-## 개발·시험용
+## Development and testing
 
-| 이름 | 판 | 라이선스 |
+| Name | Version | License |
 |---|---|---|
 | @asamuzakjp/css-color | 6.0.7 | MIT |
 | @asamuzakjp/dom-selector | 8.3.2 | MIT |
@@ -475,7 +475,7 @@
 | xml-name-validator | 5.0.0 | Apache-2.0 |
 | xmlchars | 2.2.0 | MIT |
 
-## 그 밖의 자료
+## Other material
 
 - `docs/spec/part2/*.yaml` — IDTA-01002-3-0 (Specification of the Asset Administration Shell,
-  Part 2: API). Industrial Digital Twin Association 발행, **CC BY 4.0**.
+  Part 2: API). Published by the Industrial Digital Twin Association, **CC BY 4.0**.

@@ -1,12 +1,12 @@
 /**
- * 따라 하기 안내 — 실제 화면 위에서 주황 상자로 한 곳씩 짚는다(2026-10-08).
+ * Guided tour — points at one place at a time with an orange box on the real screen (2026-10-08).
  *
- * 매뉴얼의 「주황 번호」를 화면 위에서 그대로 보여 주는 것이다. 처음 들어왔을 때 · 처음 파일을
- * 열었을 때 한 번씩 뜨고, 「? 도움말 → 화면 둘러보기」로 언제든 다시 본다.
+ * It shows the manual's "orange numbers" directly on screen. It appears once on first entry and once on first
+ * opening a file, and can be replayed any time via "? Help → Screen tour".
  *
- * 🔴 **가리킬 것이 없으면 그 걸음은 건너뛴다.** 화면이 바뀌어 단추가 사라져도 안내가 엉뚱한 곳을
- *    짚거나 멈추지 않게 — 시험(app.test)이 걸음 수를 세어 단추가 사라지면 알려 준다.
- * 🔴 키보드로도 된다 — → 다음 · ← 이전 · Esc 그만. 「동작 줄이기」 설정이면 움직임 없이 옮겨 간다.
+ * Important: **a step with nothing to point at is skipped.** So that the tour neither points at the wrong place nor
+ *    stalls when the screen changes and a button disappears — a test (app.test) counts the steps and reports a missing button.
+ * Important: works with the keyboard too — → next · ← previous · Esc stop. With "reduce motion" it moves without animation.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -15,18 +15,18 @@ import { fill, tr } from '../i18n.js';
 
 interface Props {
   steps: TourStep[];
-  /** 끝까지 봤든 건너뛰었든 — 다시 자동으로 띄우지 않는다 */
+  /** Whether finished or skipped — do not show automatically again */
   onClose: () => void;
   t: (text: string) => string;
 }
 
-/** 걸음이 가리키는 화면 요소 — 글자를 주면 그 글자가 든 것 중 첫째 */
+/** The screen element a step points at — given text, the first element containing that text */
 export function findTarget(step: TourStep): HTMLElement | null {
   const all = [...document.querySelectorAll<HTMLElement>(step.sel)];
   const hit = step.text ? all.find((el) => (el.textContent ?? '').includes(step.text!)) : all[0];
   if (!hit) return null;
   const box = hit.getBoundingClientRect();
-  // 숨겨진 것(크기 0)은 없는 것으로 본다 — jsdom에서는 모두 0이라 시험에서는 그대로 둔다
+  // Hidden elements (size 0) count as missing — in jsdom everything is 0, so tests leave them as is
   if (box.width === 0 && box.height === 0 && typeof navigator !== 'undefined' && !/jsdom/i.test(navigator.userAgent)) return null;
   return hit;
 }
@@ -39,7 +39,7 @@ interface Rect {
 }
 
 export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
-  // 시작할 때 화면에 있는 걸음만 — 없는 단추를 가리키지 않는다
+  // Only steps present on screen at start — do not point at buttons that are not there
   const [live] = useState(() => steps.filter((step) => findTarget(step) !== null));
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect>();
@@ -50,7 +50,7 @@ export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
     if (!step) return;
     const target = findTarget(step);
     if (!target) return;
-    // 🔴 세로로만 끌어온다 — scrollIntoView는 좁은 화면에서 가로로도 밀어 화면이 옆으로 비켜났다(390px 실측)
+    // Important: scroll vertically only — scrollIntoView also shifted horizontally on narrow screens and pushed the view sideways (measured at 390px)
     let box = target.getBoundingClientRect();
     if (box.top < 0 || box.bottom > window.innerHeight) {
       window.scrollBy({ top: box.top - window.innerHeight / 3 });
@@ -79,7 +79,7 @@ export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
-        // 화면 전체의 Esc(선택 내려놓기 등)보다 먼저, 그리고 그것을 막는다
+        // Before the screen-wide Esc (dropping the selection, etc.), and blocking it
         event.stopImmediatePropagation();
         onClose();
       } else if (event.key === 'ArrowRight') next();
@@ -89,25 +89,25 @@ export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [next, prev, onClose]);
 
-  // 가리킬 것이 하나도 없으면 아무것도 띄우지 않고 끝낸다
+  // If there is nothing to point at, show nothing and end
   useEffect(() => {
     if (live.length === 0) onClose();
   }, [live.length, onClose]);
   if (!step) return null;
 
-  // 설명 카드 자리 — 아래에 자리가 있으면 아래, 없으면 위. 옆으로는 화면 안에 붙든다
-  // 간격은 CSS 토큰(--spacing)의 배수로 — 숫자를 직접 적으면 화면 간격 체계와 따로 논다(2026-10-14)
+  // Placement of the explanation card — below if there is room, otherwise above. Horizontally it is kept inside the screen
+  // Spacing is a multiple of the CSS token (--spacing) — hard-coded numbers drift away from the screen spacing system (2026-10-14)
   const unit = spacingPx();
-  const pad = unit * 2; // 짚은 요소 둘레
-  const edge = unit * 3; // 화면 가장자리(--space-float 과 같다)
-  const gap = unit * 4; // 짚은 요소와 카드 사이
+  const pad = unit * 2; // around the highlighted element
+  const edge = unit * 3; // screen edge (same as --space-float)
+  const gap = unit * 4; // between the highlighted element and the card
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
   const cardW = Math.min(340, vw - edge * 2);
-  const cardH = 190; // 카드 높이 어림 — 간격이 아니라 크기다
+  const cardH = 190; // estimated card height — a size, not a spacing
   const r = rect ?? { top: vh / 2, left: vw / 2, width: 0, height: 0 };
   const below = r.top + r.height + gap + cardH < vh;
-  const big = r.height > vh * 0.6; // 칸 하나를 통째로 짚을 때 — 카드를 그 칸 안에 띄운다
+  const big = r.height > vh * 0.6; // when pointing at a whole pane — float the card inside that pane
   const cardTop = big ? Math.min(r.top + unit * 6, vh - cardH - unit * 8) : below ? r.top + r.height + gap : Math.max(edge, r.top - gap - cardH);
   const cardLeft = Math.min(Math.max(edge, r.left + r.width / 2 - cardW / 2), vw - cardW - edge);
 
@@ -146,7 +146,7 @@ export function Tour({ steps, onClose, t }: Props): React.JSX.Element | null {
   );
 }
 
-/** CSS 간격 한 단위(--spacing)의 픽셀 값. 읽지 못하면 4px(Tailwind 기본) */
+/** Pixel value of one CSS spacing unit (--spacing). 4px (Tailwind default) if it cannot be read */
 function spacingPx(): number {
   if (typeof document === 'undefined') return 4;
   const root = document.documentElement;

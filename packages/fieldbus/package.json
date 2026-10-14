@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "Modbus TCP · MQTT 수집(M8) — AID(IDTA-02017) 바인딩 해석과 읽기. 외부 의존성 없음(node:net)",
+  "description": "Modbus TCP and MQTT collection \u2014 AID (IDTA-02017) binding resolution and reading, no external dependencies (node:net)",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

@@ -1,15 +1,15 @@
 /**
- * L3 — KOSMO 사업 규칙 · Submodel #1 ~ #4.
+ * L3 — KOSMO project rules · Submodel #1 – #4.
  *
- * SM#3(semanticId 화이트리스트)은 KTL §4 주의1과 정면 충돌하는 지점이다(명세 §5 충돌 ①).
- * 정책 iriConflict에 따라 error / warning이 갈리며, 어느 쪽이든 policyNote로 사유를 남긴다.
+ * SM#3 (semanticId whitelist) is where it directly conflicts with KTL §4 caution 1 (spec §5 conflict ①).
+ * Depending on the iriConflict policy it becomes error or warning; either way the reason is recorded in policyNote.
  */
 import type { Submodel } from '@aas/core';
 import { fill, tr } from '@aas/core';
 import type { LintContext, Rule, Severity } from '../types.js';
 import { firstKeyValue, idVersionSuffix, isAllowedId, isIdtaIri, isValidIdShort } from '../util.js';
 
-// i18n-ignore — 근거 문서 파일 이름
+// i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2③';
 
 function eachSubmodel(
@@ -136,7 +136,7 @@ export const kosmoSm3SemanticId: Rule = {
       }
 
       if (isAllowedId(value, policy)) {
-        // 화이트리스트 통과. 다만 key type이 GlobalReference가 아니면 basyx가 서브모델을 드롭한다
+        // Passes the whitelist. But if the key type is not GlobalReference, basyx drops the submodel
         const keyType = sm.semanticId?.keys?.[0]?.type;
         if (sm.semanticId?.type === 'ExternalReference' && keyType !== 'GlobalReference') {
           report({
@@ -210,12 +210,12 @@ export const kosmoSm4TemplateKind: Rule = {
 };
 
 /**
- * 한 파일 안에 같은 idShort의 Submodel이 둘.
+ * Two Submodels with the same idShort in one file.
  *
- * 규격은 막지 않는다(Submodel은 Identifiable이라 id로 구별한다) — 그래서 KOSMO도 안 본다.
- * 그러나 「가져오기」로 판이 다른 DigitalNameplate가 둘 생긴 파일이 실제로 나왔고(2026-09-03),
- * 문서용 자료·Package Explorer·수집 매핑 모두 **이름으로** 서브모델을 찾는다. 어느 것이
- * 제출물인지 아무도 정해 주지 않으니 사람이 하나를 지워야 한다 — 경고로 알린다.
+ * The spec does not forbid it (Submodel is Identifiable, distinguished by id) — so KOSMO does not check it either.
+ * But a real file appeared where "Import" created two DigitalNameplates of different versions (2026-09-03),
+ * and documentation data, Package Explorer, and collection mapping all look up submodels **by name**. Nobody
+ * decides which one is the submission, so a person must delete one — reported as a warning.
  */
 export const smDuplicateIdShort: Rule = {
   id: 'SM-DUP-IDSHORT',

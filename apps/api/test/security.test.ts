@@ -1,8 +1,8 @@
 /**
- * 보안 머리글 · CSRF 원점 검사(계획 A8).
+ * Security headers and CSRF origin check (plan A8).
  *
- * 🔴 여기서 지키려는 것은 **로그인을 들이면서 새로 생긴 위험**이다. 토큰만 쓰던 때는
- *    브라우저가 자격을 자동으로 싣지 않았지만, 쿠키는 알아서 실린다.
+ * Important: what this guards is **the new risk introduced by adding login**. When only tokens
+ *    were used the browser never attached credentials automatically, but cookies are sent on their own.
  */
 import { InMemoryStore } from '@aas/store';
 import { describe, expect, it } from 'vitest';
@@ -20,8 +20,8 @@ function ask(init: Partial<ApiRequest> & { headers?: Record<string, string> } = 
   } as ApiRequest;
 }
 
-describe('보안 머리글', () => {
-  it('언제나 붙는 것 — 종류 추측 금지 · 끼워넣기 금지 · 주소 유출 금지', () => {
+describe('security headers', () => {
+  it('always present — no type sniffing, no framing, no referrer leak', () => {
     const headers = securityHeaders(false);
     expect(headers['x-content-type-options']).toBe('nosniff');
     expect(headers['x-frame-options']).toBe('DENY');
@@ -30,34 +30,34 @@ describe('보안 머리글', () => {
     expect(headers['content-security-policy']).toContain("object-src 'none'");
   });
 
-  it("🔴 script에는 'unsafe-inline'을 주지 않는다 — style에만 준다", () => {
+  it("Important: script never gets 'unsafe-inline' — only style does", () => {
     const csp = securityHeaders(false)['content-security-policy']!;
     expect(csp).toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).toContain("script-src 'self'");
     expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
   });
 
-  it('화면이 쓰는 blob: 그림을 막지 않는다 — 다이어그램을 PNG로 바꿀 때 쓴다', () => {
+  it('does not block blob: images the UI uses — needed to turn diagrams into PNG', () => {
     expect(securityHeaders(false)['content-security-policy']).toContain("img-src 'self' data: blob:");
   });
 
-  it('🔴 HSTS는 HTTPS일 때만 — 평문 서버가 말하면 그 주소가 영영 안 열린다', () => {
+  it('Important: HSTS only over HTTPS — if a plain-HTTP server sends it, that address never opens again', () => {
     expect(securityHeaders(false)['strict-transport-security']).toBeUndefined();
     expect(securityHeaders(true)['strict-transport-security']).toContain('max-age=');
   });
 
-  it('프록시 뒤에서도 HTTPS를 알아본다', () => {
+  it('recognizes HTTPS even behind a proxy', () => {
     expect(isHttps({}, true)).toBe(true);
     expect(isHttps({ 'x-forwarded-proto': 'https' }, false)).toBe(true);
-    // 프록시가 여럿이면 쉼표로 이어 붙는다 — 맨 앞이 원래 접속이다
+    // With several proxies the values are joined by commas — the first one is the original connection
     expect(isHttps({ 'x-forwarded-proto': 'https, http' }, false)).toBe(true);
     expect(isHttps({ 'x-forwarded-proto': 'http' }, false)).toBe(false);
     expect(isHttps({}, false)).toBe(false);
   });
 });
 
-describe('CSRF — 원점 검사', () => {
-  it('같은 출처면 통과한다', () => {
+describe('CSRF — origin check', () => {
+  it('passes for the same origin', () => {
     const blocked = crossSiteWrite(
       ask({ headers: { origin: 'http://192.168.0.10:8080', host: '192.168.0.10:8080' } }),
       [],
@@ -65,7 +65,7 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked).toBeUndefined();
   });
 
-  it('다른 사이트에서 온 쓰기는 거절한다', () => {
+  it('rejects writes coming from another site', () => {
     const blocked = crossSiteWrite(
       ask({ headers: { origin: 'https://evil.example', host: '192.168.0.10:8080' } }),
       [],
@@ -73,7 +73,7 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked?.status).toBe(403);
   });
 
-  it('읽기는 따지지 않는다 — 바꾸는 것이 없다', () => {
+  it('does not check reads — nothing changes', () => {
     const blocked = crossSiteWrite(
       ask({ method: 'GET', headers: { origin: 'https://evil.example', host: 'me:8080' } }),
       [],
@@ -81,20 +81,20 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked).toBeUndefined();
   });
 
-  it('Origin이 없으면 통과한다 — 브라우저가 아닌 것(curl·스크립트)이다', () => {
+  it('passes when Origin is missing — it is not a browser (curl, scripts)', () => {
     expect(crossSiteWrite(ask({ headers: { host: 'me:8080' } }), [])).toBeUndefined();
   });
 
-  it('허용한 교차 출처(CORS_ORIGIN)는 통과한다 — 막으면 허용의 뜻이 없다', () => {
+  it('passes an allowed cross origin (CORS_ORIGIN) — blocking it would defeat the allowance', () => {
     const request = ask({ headers: { origin: 'https://mes.example', host: 'me:8080' } });
     expect(crossSiteWrite(request, [])?.status).toBe(403);
     expect(crossSiteWrite(request, ['https://mes.example'])).toBeUndefined();
     expect(crossSiteWrite(request, ['*'])).toBeUndefined();
   });
 
-  it('🔴 프록시가 Host를 바꿔 써도 통과한다 — nginx 기본값이 그렇다', () => {
-    // nginx는 proxy_pass 기본값이 업스트림 주소라 Host가 127.0.0.1:8080으로 온다.
-    // 이것을 못 보면 로그인한 사람의 **모든 쓰기**가 403이 된다
+  it('Important: passes even when the proxy rewrites Host — that is the nginx default', () => {
+    // nginx's proxy_pass defaults to the upstream address, so Host arrives as 127.0.0.1:8080.
+    // Missing this would turn **every write** of a logged-in user into a 403
     const blocked = crossSiteWrite(
       ask({
         headers: {
@@ -108,9 +108,9 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked).toBeUndefined();
   });
 
-  it('한글 도메인도 같은 것으로 본다 — 브라우저가 양쪽 다 punycode로 보낸다', () => {
-    // 🔴 `new URL('https://가.example').host`는 `xn--...`로 바뀐다. 실제 요청은 Origin도
-    //    Host도 이미 punycode라 어긋나지 않는다 — 시험에서만 날것을 섞지 않으면 된다
+  it('treats a Korean (IDN) domain as the same — the browser sends both sides as punycode', () => {
+    // Important: `new URL('https://가.example').host` becomes `xn--...`. In a real request both Origin
+    //    and Host are already punycode, so they match — the test just must not mix in the raw form
     const punycode = new URL('https://가나.example').host;
     const blocked = crossSiteWrite(
       ask({ headers: { origin: 'https://가나.example', host: punycode } }),
@@ -119,7 +119,7 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked).toBeUndefined();
   });
 
-  it('프록시가 여럿이면 맨 앞(원래 접속)을 본다', () => {
+  it('with several proxies, looks at the first one (the original connection)', () => {
     const blocked = crossSiteWrite(
       ask({
         headers: {
@@ -133,7 +133,7 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked).toBeUndefined();
   });
 
-  it('X-Forwarded-Host가 있어도 남의 사이트는 여전히 막힌다', () => {
+  it('still blocks a foreign site even with X-Forwarded-Host', () => {
     const blocked = crossSiteWrite(
       ask({
         headers: {
@@ -147,7 +147,7 @@ describe('CSRF — 원점 검사', () => {
     expect(blocked?.status).toBe(403);
   });
 
-  it('스킴이 달라도 host가 같으면 통과한다 — 프록시가 바꾸는 값이다', () => {
+  it('passes when the scheme differs but the host matches — the proxy changes that value', () => {
     const blocked = crossSiteWrite(
       ask({ headers: { origin: 'https://aas.example', host: 'aas.example' } }),
       [],
@@ -156,7 +156,7 @@ describe('CSRF — 원점 검사', () => {
   });
 });
 
-describe('CSRF — 문 전체에서', () => {
+describe('CSRF — across the whole gate', () => {
   async function loggedIn(): Promise<{ api: ReturnType<typeof createApi>; cookie: string }> {
     const store = new InMemoryStore();
     await store.init();
@@ -171,7 +171,7 @@ describe('CSRF — 문 전체에서', () => {
     return { api, cookie: (made.headers?.['set-cookie'] ?? '').split(';')[0] ?? '' };
   }
 
-  it('로그인한 쿠키라도 남의 사이트에서 보내면 막힌다', async () => {
+  it('blocks even a logged-in cookie when sent from another site', async () => {
     const { api, cookie } = await loggedIn();
     const response = await api(
       ask({
@@ -183,7 +183,7 @@ describe('CSRF — 문 전체에서', () => {
     expect(response.status).toBe(403);
   });
 
-  it('같은 출처면 평소대로 된다', async () => {
+  it('works as usual for the same origin', async () => {
     const { api, cookie } = await loggedIn();
     const response = await api(
       ask({
@@ -195,7 +195,7 @@ describe('CSRF — 문 전체에서', () => {
     expect(response.status).toBe(201);
   });
 
-  it('🔴 API 키는 원점을 따지지 않는다 — 남의 사이트가 붙일 수 없는 헤더다', async () => {
+  it('Important: API keys skip the origin check — another site cannot attach that header', async () => {
     const { api } = await loggedIn();
     const response = await api(
       ask({
@@ -208,19 +208,19 @@ describe('CSRF — 문 전체에서', () => {
   });
 });
 
-describe('첫 관리자 선점 막기 — 설치 코드', () => {
-  it('이 컴퓨터에서만 열린 서버는 묻지 않는다 — 서버 앞에 앉은 사람이다', () => {
+describe('preventing first-admin takeover — setup code', () => {
+  it('does not ask on a server bound to this machine only — the person is sitting at the server', () => {
     expect(setupCodeRequired(true)).toBe(false);
     expect(setupCodeRequired(false)).toBe(true);
   });
 
-  it('코드는 프로세스 안에서 변하지 않고, 직접 정할 수도 있다', () => {
+  it('the code stays fixed within the process and can also be set explicitly', () => {
     expect(setupCode({})).toBe(setupCode({}));
     expect(setupCode({})).toMatch(/^[0-9a-f]{12}$/);
     expect(setupCode({ AAS_SETUP_CODE: '우리회사코드' })).toBe('우리회사코드');
   });
 
-  it('길이가 달라도 터지지 않고 틀렸다고만 한다', () => {
+  it('a different length does not throw, it just reports wrong', () => {
     expect(sameCode('abcdef', 'abcdef')).toBe(true);
     expect(sameCode('abcdef', 'abcde')).toBe(false);
     expect(sameCode('abcdef', '')).toBe(false);
@@ -241,24 +241,24 @@ describe('첫 관리자 선점 막기 — 설치 코드', () => {
       body: { login: 'admin', password: '열자가넘는비밀번호입니다', ...extra },
     });
 
-  it('🔴 코드 없이 부르면 막힌다 — 같은 망의 아무나 관리자가 되던 구멍', async () => {
+  it('Important: calling without the code is blocked — the hole where anyone on the same network became admin', async () => {
     const api = await openServer();
     const response = await api(setupBody());
     expect(response.status).toBe(403);
     expect(JSON.stringify(response.body)).toContain('설치 코드');
   });
 
-  it('틀린 코드도 막힌다', async () => {
+  it('a wrong code is blocked too', async () => {
     const api = await openServer();
     expect((await api(setupBody({ setupCode: '아무거나' }))).status).toBe(403);
   });
 
-  it('맞는 코드면 통과한다', async () => {
+  it('a correct code passes', async () => {
     const api = await openServer();
     expect((await api(setupBody({ setupCode: '설치코드1234' }))).status).toBe(201);
   });
 
-  it('전체 권한 API 키를 들고 있으면 코드를 묻지 않는다 — 이미 운영자의 비밀을 쥐었다', async () => {
+  it('does not ask for the code with a full-access API key — the caller already holds the operator secret', async () => {
     const api = await openServer({ auth: { tokens: ['기계키'], readOnlyTokens: [] } });
     const response = await api({
       ...setupBody(),
@@ -267,13 +267,13 @@ describe('첫 관리자 선점 막기 — 설치 코드', () => {
     expect(response.status).toBe(201);
   });
 
-  it('화면이 칸을 하나 더 보여야 하는지 알려 준다', async () => {
+  it('tells the UI whether it must show one more field', async () => {
     const api = await openServer();
     const me = await api(ask({ method: 'GET', path: '/auth/me' }));
     expect(me.body).toMatchObject({ setupNeeded: true, setupCodeRequired: true });
   });
 
-  it('코드를 쓰지 않는 서버(보호 모드)는 예전처럼 바로 만든다', async () => {
+  it('a server that does not use the code (protected mode) creates the admin right away as before', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store);
@@ -281,7 +281,7 @@ describe('첫 관리자 선점 막기 — 설치 코드', () => {
   });
 });
 
-describe('로그인 쿠키의 Secure', () => {
+describe('Secure flag on the login cookie', () => {
   async function loginOn(headers: Record<string, string>): Promise<string> {
     const store = new InMemoryStore();
     await store.init();
@@ -297,32 +297,32 @@ describe('로그인 쿠키의 Secure', () => {
     return made.headers?.['set-cookie'] ?? '';
   }
 
-  it('언제나 HttpOnly·SameSite=Strict다', async () => {
+  it('is always HttpOnly and SameSite=Strict', async () => {
     const cookie = await loginOn({});
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Strict');
   });
 
-  it('🔴 평문으로 들어오면 Secure를 붙이지 않는다 — 붙이면 쿠키가 버려져 로그인이 안 된다', async () => {
+  it('Important: no Secure over plain HTTP — with it the cookie is dropped and login fails', async () => {
     expect(await loginOn({})).not.toContain('Secure');
   });
 
-  it('프록시가 HTTPS라고 하면 Secure를 붙인다 — 기동 때 한 번 정하던 탓에 한 번도 안 붙었다', async () => {
+  it('sets Secure when the proxy says HTTPS — deciding once at startup meant it was never set', async () => {
     expect(await loginOn({ 'x-forwarded-proto': 'https' })).toContain('Secure');
   });
 });
 
-describe('키 없는 서버도 계정이 생기면 로그인부터 (2026-10-06 출시 전 검토)', () => {
-  // 🔴 예전에는 AAS_TOKEN이 없으면 계정이 있어도 「열린 서버」로 보고 통과시켰다.
-  //    로그인은 화면에만 걸려 있어, API를 직접 부르면 쿠키 없이 읽고 지울 수 있었다.
-  it('계정이 없을 때는 예전처럼 열려 있다 — 혼자 쓰기 · 첫 관리자 만들기 전', async () => {
+describe('a keyless server requires login once accounts exist (2026-10-06 pre-release review)', () => {
+  // Important: previously, without AAS_TOKEN the server was treated as "open" and let requests through even when accounts existed.
+  //    Login was enforced only in the UI, so calling the API directly could read and delete without a cookie.
+  it('stays open as before when there are no accounts — single user, before the first admin is created', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store);
     expect((await api(ask({ method: 'GET', path: '/packages' }))).status).toBe(200);
   });
 
-  it('첫 관리자를 만든 뒤에는 쿠키 없이 읽지도 지우지도 못한다', async () => {
+  it('after the first admin is created, cannot read or delete without a cookie', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store);
@@ -336,22 +336,22 @@ describe('키 없는 서버도 계정이 생기면 로그인부터 (2026-10-06 �
     expect((await api(ask({ method: 'GET', path: '/packages' }))).status).toBe(401);
     expect((await api(ask({ method: 'GET', path: `/packages/${id}` }))).status).toBe(401);
     expect((await api(ask({ method: 'DELETE', path: `/packages/${id}` }))).status).toBe(401);
-    // 로그인 상태 확인·로그인은 열려 있어야 한다 — 막으면 아무도 못 들어온다
+    // Login status and login itself must stay open — blocking them would lock everyone out
     expect((await api(ask({ method: 'GET', path: '/auth/me' }))).status).toBe(200);
-    // 로그인한 사람은 그대로 쓴다
+    // A logged-in user works as usual
     expect((await api(ask({ method: 'GET', path: '/packages', headers: { cookie } }))).status).toBe(200);
   });
 });
 
-describe('접속 주소 — 손님이 적어 보낸 X-Forwarded-For를 믿지 않는다 (2026-10-06)', () => {
-  it('프록시가 덧붙인 마지막 칸을 쓴다', () => {
+describe('client address — does not trust a client-supplied X-Forwarded-For (2026-10-06)', () => {
+  it('uses the last entry appended by the proxy', () => {
     const request = ask({ method: 'GET', path: '/', headers: { 'x-forwarded-for': '1.2.3.4, 203.0.113.9' } });
     expect(clientAddress(request)).toBe('203.0.113.9');
   });
 });
 
-describe('/health — 계정이 있으면 인증이 켜진 것이다', () => {
-  it('계정이 없으면 off, 생기면 on', async () => {
+describe('/health — accounts existing means auth is on', () => {
+  it('off without accounts, on once they exist', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store);
@@ -361,13 +361,13 @@ describe('/health — 계정이 있으면 인증이 켜진 것이다', () => {
   });
 });
 
-describe('🔴 체험판의 외부 접속 — 가상 PLC 말고는 막는다(SSRF, 2026-10-08)', () => {
-  it('가상 PLC 주소는 통한다', () => {
+describe('Important: outbound connections in the demo — everything but the virtual PLC is blocked (SSRF, 2026-10-08)', () => {
+  it('the virtual PLC address goes through', () => {
     expect(demoOutboundAllowed('opc.tcp://127.0.0.1:14850/UA/Simulator', 14850)).toBe(true);
     expect(demoOutboundAllowed('opc.tcp://localhost:14850', 14850)).toBe(true);
     expect(demoOutboundAllowed('opc.tcp://[::1]:14850/UA/Simulator', 14850)).toBe(true);
   });
-  it('내부망 · 다른 포트 · 이름 · 다른 프로토콜은 막힌다', () => {
+  it('internal network, other ports, hostnames, and other protocols are blocked', () => {
     for (const endpoint of [
       'opc.tcp://192.168.0.1:4840',
       'opc.tcp://10.0.0.5:14850',

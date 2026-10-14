@@ -1,16 +1,16 @@
 /**
- * PostgreSQL 구현 검증.
+ * PostgreSQL implementation tests.
  *
- * 이 PC에는 Docker도 Postgres도 없다. 그래서 **PGlite**(WASM으로 도는 진짜 PostgreSQL)로 돌린다 —
- * 모의 객체가 아니라 실제 엔진이므로 DDL·SQL 문법과 트랜잭션 의미가 그대로 검증된다.
- * 운영에서는 같은 SqlClient 자리에 `pg`의 Client/Pool을 꽂으면 된다(코드 변경 없음).
+ * This machine has neither Docker nor Postgres, so tests run on **PGlite** (real PostgreSQL compiled to WASM) —
+ * a real engine rather than a mock, so DDL/SQL syntax and transaction semantics are verified as is.
+ * In production, plug `pg`'s Client/Pool into the same SqlClient slot (no code changes).
  */
 import { PGlite } from '@electric-sql/pglite';
 import { describe, expect, it, vi } from 'vitest';
 
-// 🔴 PGlite는 테스트마다 WASM PostgreSQL을 새로 띄운다. 전체 테스트를 병렬로 돌리면 이 기동이
-//    기본 5초를 넘겨 「무손실 왕복」이 시간 초과로 떨어졌다(단독으로는 통과 — 2026-09-30에 세 번 관찰).
-//    로직이 아니라 기동 시간 문제라 이 파일에서만 넉넉히 준다
+// Important: PGlite boots a fresh WASM PostgreSQL per test. Running the full suite in parallel pushed this
+//    boot past the default 5s and the "lossless round trip" test timed out (passes alone — observed three times on 2026-09-30).
+//    It is boot time, not logic, so the timeout is raised generously for this file only
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 import {
   PostgresStore,
@@ -32,7 +32,7 @@ function clientOf(db: PGlite): SqlClient {
   };
 }
 
-/** PGlite 인스턴스를 하나씩 새로 띄운다 — 테스트끼리 상태가 섞이면 안 된다 */
+/** Boots a new PGlite instance each time — tests must not share state */
 async function freshStore(): Promise<PostgresStore> {
   return new PostgresStore(clientOf(new PGlite()));
 }
@@ -40,8 +40,8 @@ async function freshStore(): Promise<PostgresStore> {
 describeStore('PostgresStore (PGlite)', freshStore);
 describeStoreFilters('PostgresStore (PGlite)', freshStore);
 
-describe('스키마 판 번호 (schema_version)', () => {
-  it('빈 DB — 최신 판으로 만들고 번호를 적는다. 다시 떠도 같은 번호', async () => {
+describe('schema version number (schema_version)', () => {
+  it('empty DB — creates the latest version and records its number; same number on restart', async () => {
     const db = new PGlite();
     const first = new PostgresStore(clientOf(db));
     await first.init();
@@ -55,7 +55,7 @@ describe('스키마 판 번호 (schema_version)', () => {
     expect((await db.query('SELECT version FROM schema_version')).rows).toHaveLength(1);
   });
 
-  it('판 번호 도입 전의 DB — 표가 이미 있으면 1판으로 보고 자료를 지키며 번호만 적는다', async () => {
+  it('DB from before versioning — existing tables are treated as v1; data is kept and only the number is recorded', async () => {
     const db = new PGlite();
     for (const statement of SCHEMA_SQL.split(';')) if (statement.trim()) await db.query(statement);
     await db.query("INSERT INTO aas_package (id, name) VALUES ('p1', 'old.aasx')");
@@ -67,36 +67,36 @@ describe('스키마 판 번호 (schema_version)', () => {
   });
 
   /**
-   * 1판 표를 **되돌려 만든다** — 그 뒤 판에서 더한 것을 전부 뺀다.
+   * **Reconstructs** the v1 tables — strips everything added in later versions.
    *
-   * 🔴 빼는 것을 빠뜨리면 이 테스트가 조용히 쓸모없어진다. 「옛 DB」가 실은 최신 표라서
-   *    마이그레이션을 한 줄도 타지 않고 통과해 버린다 — 2026-10-02에 3판(app_user)이
-   *    실제로 그랬다. 판을 올릴 때는 **여기서도 빼야** 한다.
+   * Important: if a removal is missed, this test silently becomes useless. The "old DB" is really the latest schema,
+   *    so it passes without running a single migration line — this actually happened with v3 (app_user)
+   *    on 2026-10-02. When bumping the version, **strip it here too**.
    */
   const V1_SCHEMA = SCHEMA_SQL
-    // 2판 — 번들 첨부 역할
+    // v2 — bundle attachment role
     .replace(
       "CHECK (role IN ('thumbnail', 'supplementary', 'extra', 'bundle'))",
       "CHECK (role IN ('thumbnail', 'supplementary', 'extra'))",
     )
-    // 3판 — 사용자 표
+    // v3 — users table
     .replace(/CREATE TABLE IF NOT EXISTS app_user \([^;]*\);/, '')
-    // 6판 — 작업 공간(패키지의 주인)
-    .replace(/^ *-- *주인\(작업 공간 열쇠\).*$/m, '')
+    // v6 — workspaces (package owner)
+    .replace(/^ *-- *Owner \(workspace key\).*$/m, '')
     .replace(/^ *owner +text$/m, '')
     .replace(/^CREATE INDEX IF NOT EXISTS aas_package_owner_idx.*$/m, '')
-    // 5판 — 회원가입 연락처
-    .replace(/^ *-- *연락처\(선택\).*$/m, '')
-    .replace(/^ *-- *UNIQUE도 걸지 않는다.*$/m, '')
+    // v5 — sign-up contact info
+    .replace(/^ *-- *Contact address \(optional\).*$/m, '')
+    .replace(/^ *-- *No UNIQUE either.*$/m, '')
     .replace(/^ *email +text$/m, '')
-    // 8판 — 수집값의 수신 시각
+    // v8 — receivedAt of collected values
     .replace(/^ *received_at +timestamptz$/m, '')
-    // 4판 — 감사 기록의 「누가」. 주석까지 함께 지운다
+    // v4 — the audit trail's "who"; strip its comments too
     .replace(/^ *--.*app_user.*$/m, '')
-    .replace(/^ *--.*그때의 것을 베껴.*$/m, '')
+    .replace(/^ *--.*copied as it was at the time.*$/m, '')
     .replace(/^ *actor_id +text,$/m, '')
     .replace(/^ *actor_name +text$/m, '')
-    // 위에서 빈 줄과 꼬리 쉼표가 남는다 — `changed_at ...,` 다음을 원래대로 되돌린다
+    // The above leaves blank lines and a trailing comma — restore what follows `changed_at ...,`
     .replace(/,\s*\)\s*;/g, '\n);');
 
   const bundleFile = {
@@ -106,7 +106,7 @@ describe('스키마 판 번호 (schema_version)', () => {
     data: new Uint8Array([1]),
   };
 
-  it('1판 DB — 최신 판으로 올라가고 자료는 그대로다', async () => {
+  it('v1 DB — migrates to the latest version with data intact', async () => {
     expect(V1_SCHEMA).not.toBe(SCHEMA_SQL);
     const db = new PGlite();
     for (const statement of V1_SCHEMA.split(';')) if (statement.trim()) await db.query(statement);
@@ -116,18 +116,18 @@ describe('스키마 판 번호 (schema_version)', () => {
 
     const store = new PostgresStore(clientOf(db));
     await store.init();
-    // 🔴 판 번호를 박아 두지 않는다 — 판이 오를 때마다 이 테스트가 깨지면
-    //    "올랐다"는 사실만 알려 주고 정작 **올라갔는지**는 검사하지 못한다
+    // Important: do not hard-code the version number — if this test broke on every bump it would
+    //    only report that the version changed, never check that the migration **actually happened**
     expect(store.schemaVersion).toBe(SCHEMA_VERSION);
-    await store.putPackageFile('p1', bundleFile);     // 2판 — 번들 첨부
+    await store.putPackageFile('p1', bundleFile);     // v2 — bundle attachment
     expect((await store.packageFiles('p1')).map((f) => f.role)).toEqual(['bundle']);
-    // 3판 — 사용자 표. 옛 DB에도 생겨야 로그인이 선다
+    // v3 — users table; it must appear in old DBs too or login cannot work
     expect(await store.countUsers()).toBe(0);
     const made = await store.createUser({
       login: 'admin', displayName: '관리자', role: 'admin', passwordHash: 'h',
     });
     expect((await store.findUserByLogin('admin'))?.id).toBe(made.id);
-    // 4판 — 이력의 「누가」. 열이 없으면 INSERT가 통째로 터진다
+    // v4 — the history's "who"; without the columns the INSERT fails outright
     await store.createIdentifiable('p1', {
       modelType: 'Submodel',
       id: 'urn:x:sm',
@@ -142,19 +142,19 @@ describe('스키마 판 번호 (schema_version)', () => {
     });
     const history = await store.history('p1', 'Submodel', 'urn:x:sm');
     expect(history[0]?.actorName).toBe('관리자');
-    // 6판 — 작업 공간. 🔴 옛 패키지는 **공용으로 남는다** — 올린 뒤에도 모두가 본다
+    // v6 — workspaces. Important: old packages **stay shared** — everyone still sees them after migration
     expect((await store.getPackage('p1'))?.owner).toBeUndefined();
     const seen = await store.listPackages({}, { owner: 'user:아무나' });
     expect(seen.items.map((item) => item.id)).toContain('p1');
-    // 색인은 표 정의가 아니라 마이그레이션에 있다 — 옮기면서 빠뜨리지 않았는지 본다
+    // The index lives in the migration, not the table definition — check it was not lost in the move
     const index = await db.query("SELECT 1 FROM pg_indexes WHERE indexname = 'aas_package_owner_idx'");
     expect(index.rows).toHaveLength(1);
-    // 7판 — 회사명 · 동의 시각. 열이 없으면 가입이 통째로 터진다
+    // v7 — company name and consent time; without the columns sign-up fails outright
     const member = await store.createUser({
       login: 'kim', displayName: '김', role: 'editor', passwordHash: 'h', company: 'WACE', consentAt: '2026-10-06T07:00:00.000Z',
     });
     expect((await store.getUser(member.id))?.company).toBe('WACE');
-    // 8판 — 수집값의 수신 시각. 열이 없으면 수집이 통째로 터진다
+    // v8 — receivedAt of collected values; without the column collection fails outright
     await store.appendValues('p1', [
       {
         packageId: 'p1',
@@ -168,7 +168,7 @@ describe('스키마 판 번호 (schema_version)', () => {
     expect((await store.readValues('p1'))[0]?.receivedAt).toBe('2026-10-13T00:05:00.000Z');
   });
 
-  it('🔴 판 번호 도입 전의 1판 표도 제약까지 올라간다 — IF NOT EXISTS만으로는 안 고쳐진다', async () => {
+  it('v1 tables from before versioning get their constraints migrated too — IF NOT EXISTS alone does not fix them', async () => {
     const db = new PGlite();
     for (const statement of V1_SCHEMA.split(';')) if (statement.trim()) await db.query(statement);
     await db.query("INSERT INTO aas_package (id, name) VALUES ('p1', 'old.aasx')");
@@ -179,7 +179,7 @@ describe('스키마 판 번호 (schema_version)', () => {
     expect((await store.packageFiles('p1')).map((f) => f.role)).toEqual(['bundle']);
   });
 
-  it('DB가 프로그램보다 새로우면 기동을 거부한다 — 조용히 잃는 것보다 낫다', async () => {
+  it('refuses to start when the DB is newer than the program — better than silently losing data', async () => {
     const db = new PGlite();
     const store = new PostgresStore(clientOf(db));
     await store.init();

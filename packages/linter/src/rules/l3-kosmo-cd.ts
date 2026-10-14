@@ -1,8 +1,8 @@
 /**
- * L3 — KOSMO 사업 규칙 · ConceptDescription #1 ~ #5.
+ * L3 — KOSMO project rules · ConceptDescription #1 to #5.
  *
- * CD#3(definition)은 KTL §8과 충돌한다(명세 §5 충돌 ②) — 정책 cdDefinition으로 갈린다.
- * CD#4는 AASc-3a-004 열거보다 좁다. aas-core3.1은 FILE을 통과시키지만 KOSMO는 거부한다.
+ * CD#3 (definition) conflicts with KTL §8 (spec §5 conflict ②) — resolved by the cdDefinition policy.
+ * CD#4 is narrower than the AASc-3a-004 enumeration. aas-core3.1 accepts FILE, but KOSMO rejects it.
  */
 import type { ConceptDescription } from '@aas/core';
 import { fill, tr } from '@aas/core';
@@ -16,7 +16,7 @@ import {
   KOSMO_ALLOWED_DATA_TYPES,
 } from '../util.js';
 
-// i18n-ignore — 근거 문서 파일 이름
+// i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2⑥⑦';
 
 function eachCd(
@@ -239,20 +239,20 @@ export const kosmoCd5Duplicate: Rule = {
       if (indices.length < 2) continue;
 
       /*
-       * 🔴 **모두 외부 표준 사전(IRDI) 항목이면 이것은 결함이 아니다.**
+       * Important: **if all of them are external standard dictionary (IRDI) entries, this is not a defect.**
        *
-       * 실측(골든 파일): `ManufacturerName`이 IEC CDD(`0112/2///61987#ABA565#009`)와
-       * ECLASS(`0173-1#02-AAO677#004`) 두 벌로 있고, **둘 다 실제로 참조된다** —
-       * DigitalNameplate와 TechnicalData가 각각 다른 사전을 쓰기 때문이다.
-       * 서로 다른 사전이 같은 개념에 같은 이름을 붙인 것이지 우리가 잘못 만든 게 아니다.
+       * Measured (golden file): `ManufacturerName` exists twice, as IEC CDD (`0112/2///61987#ABA565#009`) and
+       * ECLASS (`0173-1#02-AAO677#004`), and **both are actually referenced** —
+       * because DigitalNameplate and TechnicalData each use a different dictionary.
+       * Two different dictionaries gave the same concept the same name; it is not something we built wrong.
        *
-       * 그리고 **고칠 수도 없다.** 합치면 한쪽 서브모델의 semanticId가 표준 사전을
-       * 안 가리키게 되고, 이름을 바꾸면 사전 원본과 어긋난다. IRDI는 남의 표준이라
-       * 우리가 손댈 것이 아니다(SME-5에서도 외부 CD는 교정 방향이 반대다).
+       * And **it cannot be fixed either.** Merging them would make one submodel's semanticId stop pointing to the
+       * standard dictionary, and renaming would diverge from the dictionary original. IRDIs are someone else's standard,
+       * not ours to touch (in SME-5 too, the fix direction for external CDs is reversed).
        *
-       * 🔴 그래서 **경고로 띄우지 않는다.** 사람이 할 수 있는 일이 없는데 경고가 떠 있으면
-       *    고치려 들다가 못 고치고 만다 — 그건 지적이 아니라 잡음이다(2026-09-01 사용자 지적).
-       *    사실은 남겨야 하므로 `info`로 낮추고, **고치지 말라고 분명히 적는다.**
+       * Important: so **it is not raised as a warning.** A warning about something no one can act on leads people to
+       *    try to fix it and fail — that is noise, not a finding (user feedback, 2026-09-01).
+       *    The fact must still be recorded, so it is lowered to `info` and **explicitly says not to fix it.**
        */
       const allExternal = indices.every((i) => {
         const id = cds[i]?.id;

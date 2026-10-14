@@ -1,4 +1,4 @@
-# GitHub Actions — 오픈소스 공개 뒤를 위해 같은 것을 둔다. 로컬: bash scripts/ci.sh
+# GitHub Actions — kept identical for after the open-source release. Locally: bash scripts/ci.sh
 name: CI
 on:
   push:
@@ -7,7 +7,7 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    # 24 = 현역 LTS(운영 이미지와 같은 판), 22 = 최소 지원판(package.json engines) — 둘 다 통과해야 한다
+    # 24 = active LTS (same version as the runtime image), 22 = minimum supported version (package.json engines) — both must pass
     strategy:
       matrix:
         node: [22, 24]

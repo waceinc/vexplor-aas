@@ -1,6 +1,6 @@
-/** 영어 사전 — bundle. 열쇠 = 한국어 원문 그대로, 값 = 영어. 자리 표시({0} · <b>)는 원문과 똑같이 */
+/** English dictionary — bundle. Key = the Korean source text verbatim, value = English. Placeholders ({0} · <b>) exactly as in the source */
 export const EN_BUNDLE: Record<string, string> = {
-  // ── routes/bundle.ts — 분류 이름(README에서만 옮긴다. manifest 값 · 폴더 이름은 한국어) ──
+  // ── routes/bundle.ts — category names (translated only in the README; manifest values and folder names stay Korean) ──
   '생산최적화/품질관리': 'Production optimization / quality management',
   '에너지효율/지속가능성': 'Energy efficiency / sustainability',
   '유연생산/자산관리': 'Flexible production / asset management',
@@ -9,7 +9,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '설비 예지보전(PdM)': 'Predictive maintenance (PdM)',
   '공급망 디지털 연결': 'Digital supply chain connectivity',
 
-  // ── routes/bundle.ts — 요청 오류 ──
+  // ── routes/bundle.ts — request errors ──
   '번들은 공정(묶음) 파일에서 만듭니다 — 이 파일은 설비 한 대 파일입니다.':
     'Bundles are made from a process (composite) file — this file describes a single machine.',
   'evidenceMinutes는 양수(분)입니다: {0}': 'evidenceMinutes must be a positive number (minutes): {0}',
@@ -17,7 +17,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '버전은 1.0.0 형식입니다(운영 가이드라인과 같은 3자리).': 'The version must look like 1.0.0 (three parts, as in the operating guideline).',
   '증빙 수준은 A·B·C·auto·none 중 하나입니다.': 'The evidence level must be one of A·B·C·auto·none.',
 
-  // ── routes/bundle.ts — 구성 트리 · 채울 자리 안내 ──
+  // ── routes/bundle.ts — structure tree · guidance for slots to fill ──
   '×{0}대': '×{0} units',
   '(파일 없음 — 예정)': '(no file — planned)',
   '> 이 파일은 **채울 자리 안내**입니다. 도구가 문서를 대신 쓰지 않습니다.':
@@ -54,7 +54,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '- 가상 PLC 데이터는 파일명과 본문에 **「시뮬레이션」** 을 표기합니다.':
     '- Mark virtual PLC data as **"simulation"** in the file name and the content.',
 
-  // ── routes/bundle.ts — manifest 메모 ──
+  // ── routes/bundle.ts — manifest notes ──
   '모델의 공식 검증(KOSMO Validator)은 장비별 AASX를 만들 때 받는 것이다. 여기 lint는 번들에 넣은 모델을 이 도구가 다시 확인한 참고 기록이다.':
     'The official model validation (KOSMO Validator) is obtained when each machine AASX is made. The lint here is a reference record of this tool re-checking the models put in the bundle.',
   '번들 자체의 확인은 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 한다.':
@@ -117,7 +117,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '> 번들 자체는 해시 대조 · 공정 구성(HIER) · 데이터 연계 · 실동작 증빙으로 확인합니다.':
     '> and the bundle itself is verified by hash comparison · process structure (HIER) · data linkage · operation evidence.',
 
-  // ── routes/bundle.ts — 번들 열기 · 첨부 ──
+  // ── routes/bundle.ts — opening bundles · attachments ──
   '{0}가 없습니다 — 이 도구로 만든 레퍼런스 번들이 아닙니다.': '{0} is missing — this is not a reference bundle made by this tool.',
   '{0}를 읽을 수 없습니다.': 'Cannot read {0}.',
   '지원하지 않는 번들 형식입니다: {0}': 'Unsupported bundle format: {0}',
@@ -134,7 +134,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '첨부는 {0} 폴더 안에만 둡니다.': 'Attachments go only inside the {0} folders.',
   '{0}은(는) 도구가 내보낼 때마다 새로 만드는 파일입니다.': '{0} is a file the tool regenerates on every export.',
 
-  // ── routes/evidence.ts — 증빙 수준 · 수집값 CSV · 수집 기록서 ──
+  // ── routes/evidence.ts — evidence level · collected-value CSV · collection record ──
   '현장 적용 — Pilot 기업 실제 설비의 수집값(비식별화)': 'Field application — values collected from the pilot company\'s real equipment (de-identified)',
   '실장비 기반 재현 — 실제 태그 구조, 값은 가공': 'Reproduction on real equipment — real tag structure, processed values',
   '시뮬레이션 — 가상 PLC 값': 'Simulation — virtual PLC values',

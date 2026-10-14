@@ -1,6 +1,6 @@
 /**
- * 레퍼런스 번들 — ③ 실동작 증빙 — 수집 기록(시연을 못 하는 제출 자리에서 시연을 대신한다).
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — (3) evidence of real operation — collection record (stands in for a demo where a submission cannot be demonstrated).
+ * Split out of components/BundlePanel.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 import type { BundleView } from '../../api.js';
 import { locale, tr } from '../../i18n.js';

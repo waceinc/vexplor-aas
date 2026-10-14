@@ -1,5 +1,5 @@
 export * from './version.js';
-/** @aas/core — AAS V3.0 메타모델 · JSON 직렬화 · 순회 */
+/** @aas/core — AAS V3.0 metamodel · JSON serialization · traversal */
 export * from './types/common.js';
 export * from './types/submodel.js';
 export * from './types/shell.js';

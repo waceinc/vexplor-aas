@@ -1,18 +1,18 @@
 /**
- * 🔴 **경로 규약 하나 맞추기** — 저작 UI(Part 2 idShortPath)와 OPC UA 노출(NodeId)이
- * 같은 요소를 같은 이름으로 불러야 한다.
+ * Important: **one path convention**: the authoring UI (Part 2 idShortPath) and the OPC UA exposure (NodeId)
+ * must call the same element by the same name.
  *
- * 왜 시험까지 두는가: 두 규약은 서로 다른 파일에 각각 적혀 있다(`model.ts`의 트리 구성과
- * `publish.ts`의 계획 세우기). 한쪽만 고치면 **아무 데서도 오류가 나지 않은 채**
- * REST로 짚은 요소와 OPC UA로 짚은 요소가 어긋난다 — 현장에서 대조가 안 되는 형태로.
- * 그 어긋남을 여기서 잡는다.
+ * Why a test: the two conventions are written in separate files (tree construction in `model.ts`
+ * and planning in `publish.ts`). Changing only one makes the element addressed via REST and
+ * the one addressed via OPC UA diverge **without an error anywhere**, in a way that cannot be cross-checked on site.
+ * This test catches that divergence.
  */
 import { describe, expect, it } from 'vitest';
 import type { Environment as CoreEnvironment } from '@aas/core';
 import { flattenVariables, planForPackage } from '@aas/opcua';
 import { buildTree, type Environment as WebEnvironment } from '../src/model.js';
 
-/** 두 쪽이 같은 파일을 보게 — 저작 UI 모양과 코어 모양 */
+/** Make both sides see the same file: the authoring UI shape and the core shape */
 const SUBMODEL = {
   modelType: 'Submodel',
   id: 'https://ktl/sm/tech',
@@ -43,7 +43,7 @@ const SUBMODEL = {
 };
 
 describe('idShortPath ↔ NodeId', () => {
-  it('저작 UI가 짚는 경로와 OPC UA NodeId가 정확히 같다', () => {
+  it('the path the authoring UI addresses equals the OPC UA NodeId exactly', () => {
     const web = buildTree({
       shells: [],
       submodels: [SUBMODEL],
@@ -54,7 +54,7 @@ describe('idShortPath ↔ NodeId', () => {
       packageId: 'pkg-1',
     });
 
-    /** 저작 UI 쪽 — 값이 든 잎의 idShortPath만 모은다 */
+    /** Authoring UI side: collect idShortPath of value-bearing leaves only */
     const uiPaths: string[] = [];
     const walk = (nodes: readonly { idShortPath?: string; children: unknown[] }[]): void => {
       for (const node of nodes) {
@@ -65,7 +65,7 @@ describe('idShortPath ↔ NodeId', () => {
     };
     walk(web as unknown as { idShortPath?: string; children: unknown[] }[]);
 
-    /** OPC UA 쪽 — 접두사를 떼면 idShortPath만 남아야 한다 */
+    /** OPC UA side: stripping the prefix must leave only the idShortPath */
     const prefix = 'pkg-1/https://ktl/sm/tech/';
     const uaPaths = flattenVariables(plan).map((node) => {
       expect(node.nodeId.startsWith(prefix)).toBe(true);
@@ -73,7 +73,7 @@ describe('idShortPath ↔ NodeId', () => {
     });
 
     expect(uaPaths).toEqual(uiPaths);
-    // 규약이 실제로 무엇인지 눈에 보이게 박아 둔다
+    // pin down what the convention actually is, so it is visible
     expect(uaPaths).toEqual([
       'ManufacturerName',
       'Motor.Speed',

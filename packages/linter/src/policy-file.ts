@@ -1,13 +1,13 @@
 /**
- * 정책 파일 — **규약이 바뀌면 코드를 고치지 않고 여기를 고친다.**
+ * Policy file — **when conventions change, edit this, not the code.**
  *
- * 규칙(로직)과 규약(값)은 성격이 다르다.
- *  - **규칙**은 로직이라 코드가 맞다(새 규칙이 생기면 함수를 짓는다)
- *  - **규약**은 값이다 — 회사 IRI 뿌리, 필수 서브모델 목록, 규정 충돌에서 무엇을 고를지.
- *    이런 것이 바뀔 때마다 코드를 고치고 다시 배포하면, 현장에서 못 바꾼다.
+ * Rules (logic) and conventions (values) are different in nature.
+ *  - **Rules** are logic, so code is the right place (a new rule means writing a function)
+ *  - **Conventions** are values — the company IRI root, the list of required submodels, which side to pick in a
+ *    regulation conflict. If every change to these means editing code and redeploying, the field cannot change them.
  *
- * 🔴 **모르는 키와 잘못된 값은 오류로 멈춘다.** 정책 파일의 오타가 조용히 무시되면
- *    "바꿨는데 안 바뀌었다"가 되고, 그 상태로 제출까지 간다. 그게 최악이다.
+ * Important: **unknown keys and invalid values stop with an error.** If a typo in the policy file were silently ignored,
+ *    it would become "I changed it but nothing changed", and it would go all the way to submission like that. That is the worst case.
  */
 import { DEFAULT_POLICY, type LinterPolicy } from './policy.js';
 import { fill, tr } from '@aas/core';
@@ -31,11 +31,11 @@ export class PolicyFileError extends Error {}
 
 export interface ParsedPolicy {
   policy: Partial<LinterPolicy>;
-  /** 기본값에서 실제로 달라진 항목 */
+  /** Items that actually differ from the defaults */
   changed: (keyof LinterPolicy)[];
 }
 
-/** 정책 파일(JSON)을 읽어 확인한다. 틀리면 사유를 말하고 멈춘다 */
+/** Reads and validates a policy file (JSON). If it is wrong, states the reason and stops */
 export function parsePolicy(text: string): ParsedPolicy {
   let raw: unknown;
   try {
@@ -51,7 +51,7 @@ export function parsePolicy(text: string): ParsedPolicy {
   const policy: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    // 주석 자리 — `_`로 시작하는 키는 그냥 넘어간다(JSON에는 주석이 없다)
+    // Comment slot — keys starting with `_` are simply skipped (JSON has no comments)
     if (key.startsWith('_')) continue;
     if (!known.has(key)) {
       throw new PolicyFileError(
@@ -111,13 +111,13 @@ export function parsePolicy(text: string): ParsedPolicy {
   return { policy: policy as Partial<LinterPolicy>, changed };
 }
 
-/** 지금 쓰이는 값이 어디서 왔는지 — 규칙 화면이 보여 준다 */
+/** Where each value in use came from — shown on the rules screen */
 export function policySources(
   policy: Partial<LinterPolicy>,
 ): { key: keyof LinterPolicy; from: 'default' | 'policy-file' }[] {
   return (Object.keys(DEFAULT_POLICY) as (keyof LinterPolicy)[]).map((key) => ({
     key,
-    // 언어와 상관없는 표지 — 화면(Rules.tsx)이 견주는 값이고 보여 주지 않는다(API 를 영어로 쓰는 쪽에 한국어가 새지 않게)
+    // Language-independent marker — a value the screen (Rules.tsx) compares against and never displays (so Korean does not leak to API consumers using English)
     from: key in policy && JSON.stringify(policy[key]) !== JSON.stringify(DEFAULT_POLICY[key]) ? 'policy-file' : 'default',
   }));
 }

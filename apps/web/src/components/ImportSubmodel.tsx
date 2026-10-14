@@ -1,10 +1,10 @@
 /**
- * 서브모델 가져오기 — 기획서 Phase 3 「IDTA 표준 템플릿 임포트」의 실질.
+ * Import submodel — the substance of spec Phase 3 "IDTA standard template import".
  *
- * IDTA 공식 템플릿 파일을 우리가 들고 있을 수는 없다. 대신 **이미 검증을 통과한 AASX**에서
- * 가져온다 — 설비를 여러 종 만들 때 실제로 쓰던 방식이고, 원본이 KOSMO Validator를 통과했다는
- * 점에서 표준 템플릿보다 오히려 확실하다.
- * id를 새 장비에 맞게 다시 짓는 것과 CD를 함께 가져오는 것은 서버가 한다(참조 무결성).
+ * We cannot ship the official IDTA template files ourselves. Instead we import from **an AASX that has already passed validation**
+ * — the way it was actually done when building many equipment types, and, since the source passed KOSMO Validator,
+ * even more reliable than a standard template.
+ * Re-minting ids for the new equipment and bringing the CDs along is done by the server (referential integrity).
  */
 import { useEffect, useState } from 'react';
 import { api, type PackageDescription } from '../api.js';
@@ -17,7 +17,7 @@ export type DuplicatePolicy = 'reject' | 'replace' | 'alongside';
 interface Props {
   packages: PackageDescription[];
   currentPackageId: string;
-  /** 지금 파일에 있는 서브모델 — 같은 이름이 있으면 어떻게 할지 묻기 위해 */
+  /** Submodels in the current file — to ask what to do when the same name exists */
   existing: readonly Submodel[];
   busy: boolean;
   onCancel: () => void;
@@ -94,7 +94,7 @@ export function ImportSubmodel({
       <p className="hint">
         {tr('id는 이 파일의 장비명에 맞게 다시 짓고, 쓰이는 ConceptDescription도 함께 가져옵니다.')}
       </p>
-      {/* 🔴 같은 이름이 둘이면 어느 것이 제출물인지 아무도 정해 주지 않는다 — 가져오기 전에 묻는다 */}
+      {/* Important: with two of the same name, nobody decides which is the submission — ask before importing */}
       {duplicate && (
         <fieldset className="choice">
           <legend><T k={'이 파일에 이미 「{0}」이(가) 있습니다'} v={[pickedName]} /></legend>

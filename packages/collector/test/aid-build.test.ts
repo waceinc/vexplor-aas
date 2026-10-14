@@ -1,8 +1,8 @@
 /**
- * AID 만들기.
+ * Building an AID.
  *
- * 🔴 핵심은 **왕복**이다 — 만든 것을 `parseAid()`가 도로 읽어 같은 내용이 나와야 한다.
- *    만들기와 읽기가 어긋나면 "만들었는데 수집이 안 된다"가 되고, 화면에서는 원인을 알 수 없다.
+ * Important: the key is the **round trip** — `parseAid()` must read back what was built and get the same content.
+ *    If building and reading disagree, you get "built it, but nothing is collected", and the UI cannot show why.
  */
 import { buildAidSubmodel, parseAid, AidBuildError, type AidBuildInput } from '@aas/collector';
 import type { Environment } from '@aas/core';
@@ -18,8 +18,8 @@ const input: AidBuildInput = {
   ],
 };
 
-describe('AID 만들기', () => {
-  it('🔴 만든 것을 parseAid가 도로 읽는다 — 왕복이 어긋나면 수집이 안 된다', () => {
+describe('AID building', () => {
+  it('parseAid reads back what was built — a broken round trip means no collection', () => {
     const submodel = buildAidSubmodel(input);
     const environment = { submodels: [submodel] } as unknown as Environment;
     const parsed = parseAid(environment);
@@ -38,7 +38,7 @@ describe('AID 만들기', () => {
     expect(motor.observable).toBe(true);
   });
 
-  it('id·semanticId가 KOSMO 규약을 따른다 (자체 IRI, 규정 충돌 ①)', () => {
+  it('id and semanticId follow KOSMO conventions (own IRI, rule conflict 1)', () => {
     const submodel = buildAidSubmodel(input) as { id: string; semanticId: { keys: { value: string }[] } };
     expect(submodel.id).toBe(
       'https://www.smart-factory.kr/ids/sm/RollFormingMachine/AssetInterfacesDescription/1/0',
@@ -46,14 +46,14 @@ describe('AID 만들기', () => {
     expect(submodel.semanticId.keys[0]!.value).toBe(submodel.id);
   });
 
-  it('요소마다 IDTA 표준 semanticId가 붙는다 — 빠지면 KOSMO-SME-3이 쏟아진다', () => {
+  it('every element gets an IDTA standard semanticId — missing ones flood KOSMO-SME-3', () => {
     const text = JSON.stringify(buildAidSubmodel(input));
     expect(text).toContain('https://www.w3.org/2019/wot/td#baseURI');
     expect(text).toContain('https://www.w3.org/2019/wot/hypermedia#hasTarget');
     expect(text).toContain('https://admin-shell.io/idta/AssetInterfaceDescription/1/0/PropertyDefinition');
   });
 
-  it('🔴 틀린 입력은 만들기 전에 멈춘다 — 틀린 AID를 만들면 원인을 찾을 수 없다', () => {
+  it('stops on invalid input before building — a wrong AID makes the cause untraceable', () => {
     expect(() => buildAidSubmodel({ ...input, endpoint: 'http://x' })).toThrow(/opc\.tcp/);
     expect(() => buildAidSubmodel({ ...input, tags: [] })).toThrow(/하나도 없습니다/);
     expect(() =>
@@ -71,7 +71,7 @@ describe('AID 만들기', () => {
     expect(() =>
       buildAidSubmodel({ ...input, tags: [{ name: 'A', href: '' }] }),
     ).toThrow(/비었습니다/);
-    // href가 아예 없는 호출(API 직접) — 예전엔 TypeError로 500이 났다
+    // A call with no href at all (direct API use) — previously caused a 500 via TypeError
     expect(() =>
       buildAidSubmodel({ ...input, tags: [{ name: 'A' } as never] }),
     ).toThrow(AidBuildError);
@@ -80,7 +80,7 @@ describe('AID 만들기', () => {
     ).toThrow(AidBuildError);
   });
 
-  it('key·unit이 없으면 그 요소를 만들지 않는다 — 빈 값을 넣지 않는다', () => {
+  it('skips the element when key or unit is missing — never writes empty values', () => {
     const submodel = buildAidSubmodel({
       ...input,
       tags: [{ name: 'State', href: 'ns=1;s=State' }],
@@ -91,10 +91,10 @@ describe('AID 만들기', () => {
   });
 });
 
-describe('AID 만들기 — Modbus TCP · MQTT (2026-10-14)', () => {
+describe('AID building — Modbus TCP / MQTT (2026-10-14)', () => {
   const base = { assetName: 'PressMachine', iriBase: 'https://www.smart-factory.kr/ids' };
 
-  it('Modbus — 인터페이스 이름 · 폼 항목(modv_*)이 들어가고 parseAid 가 도로 읽는다', () => {
+  it('Modbus — includes interface name and form fields (modv_*), and parseAid reads them back', () => {
     const submodel = buildAidSubmodel({
       ...base,
       endpoint: 'modbus+tcp://192.168.0.20:502/1',
@@ -109,21 +109,21 @@ describe('AID 만들기 — Modbus TCP · MQTT (2026-10-14)', () => {
     expect(descriptor!.properties[1]!.formFields).toEqual({ modv_function: 'readCoil' });
   });
 
-  it('MQTT — 토픽 주소와 mqv_* 가 들어간다', () => {
+  it('MQTT — includes the topic address and mqv_* fields', () => {
     const submodel = buildAidSubmodel({ ...base, endpoint: 'mqtt://broker.local:1883', tags: [{ name: 'Temp', href: 'plant/press/temp', form: { mqv_controlPacket: 'subscribe' } }] });
     const [descriptor] = parseAid({ submodels: [submodel] } as never);
     expect(descriptor).toMatchObject({ name: 'InterfaceTemplateForMQTT', protocol: 'MQTT' });
     expect(descriptor!.properties[0]).toMatchObject({ href: 'plant/press/temp', formFields: { mqv_controlPacket: 'subscribe' } });
   });
 
-  it('틀린 입력은 만들기 전에 멈춘다 — 다른 프로토콜의 폼 항목 · 값 · 주소 모양 · 와일드카드', () => {
+  it('stops on invalid input before building — other-protocol form fields, values, address shape, wildcards', () => {
     const modbus = (tag: AidBuildInput['tags'][number]) => () => buildAidSubmodel({ ...base, endpoint: 'modbus+tcp://h', tags: [tag] });
     expect(modbus({ name: 'A', href: '40', form: { mqv_qos: '0' } })).toThrow(AidBuildError);
     expect(modbus({ name: 'A', href: '40', form: { modv_entity: 'Register' } })).toThrow(/modv_entity/);
     expect(modbus({ name: 'A', href: 'ns=1;s=X' })).toThrow(/Modbus 주소/);
     expect(() => buildAidSubmodel({ ...base, endpoint: 'mqtt://h', tags: [{ name: 'A', href: 'plant/+/temp' }] })).toThrow(/와일드카드/);
     expect(() => buildAidSubmodel({ ...base, endpoint: 'http://h', tags: [{ name: 'A', href: 'x' }] })).toThrow(/modbus\+tcp/);
-    // OPC UA 에 Modbus 항목은 안 된다
+    // Modbus fields are not allowed on OPC UA
     expect(() => buildAidSubmodel({ ...base, endpoint: 'opc.tcp://h:4840', tags: [{ name: 'A', href: 'ns=1;s=X', form: { modv_type: 'xsd:int' } }] })).toThrow(AidBuildError);
   });
 });

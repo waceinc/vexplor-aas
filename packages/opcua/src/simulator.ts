@@ -1,18 +1,18 @@
 /**
- * 내장 가상 PLC — 도구 안에서 켜는 OPC UA 서버. 🔴 **시뮬레이션**이다.
+ * Built-in virtual PLC — an OPC UA server started inside the tool. Important: this is a **simulation**.
  *
- * 레퍼런스 번들 README의 「재현 방법」은 평가자가 따라 할 수 있어야 한다. 그런데 평가자에겐 설치판뿐이라
- * `node scripts/plc-simulator.mjs`를 돌릴 수 없었다(2026-09-30 검증 — 설치판에 scripts/가 없다).
- * 그래서 가상 PLC를 서버에 넣는다. 설비 파일마다 「가상 PLC로 연결」 한 번이면 태그가 서고 수집 연결까지 된다.
+ * The "How to reproduce" section of the reference bundle README must be followable by evaluators. But evaluators only have
+ * the installed build, so they could not run `node scripts/plc-simulator.mjs` (verified 2026-09-30 — the installed build has no scripts/).
+ * So the virtual PLC lives in the server. One "Connect to virtual PLC" per equipment file brings up the tags and sets up the collection connection.
  *
- * 태그는 simulationPlan(설비 AASX의 OperationalData 이름 그대로) — 스크립트판과 같은 규칙이다.
- * 한 서버에 설비마다 오브젝트 하나를 붙인다. 같은 설비를 두 번 붙이면 처음 것을 그대로 돌려준다.
+ * Tags come from simulationPlan (the equipment AASX's OperationalData names as-is) — the same rule as the script version.
+ * One object per equipment is attached to a single server. Attaching the same equipment twice returns the first one unchanged.
  */
 import { DataType, DataValue, OPCUAServer, StatusCodes, Variant } from 'node-opcua';
 import { simulationPlan, type SimDataType } from './simulate.js';
 
 export const SIMULATOR_RESOURCE_PATH = '/UA/Simulator';
-// i18n-ignore — AAS 파일에 적히는 수집 연결 이름(데이터) — 증빙이 이 값으로 시뮬레이션을 가린다
+// i18n-ignore — collection connection name written into the AAS file (data) — evidence uses this value to tell simulation apart
 export const SIMULATOR_TITLE = '가상 PLC (시뮬레이션)';
 
 const OPC_TYPE: Record<SimDataType, DataType> = {
@@ -22,19 +22,19 @@ const OPC_TYPE: Record<SimDataType, DataType> = {
   String: DataType.String,
 };
 
-/** AID 태그 타입(W3C WoT) — 수집 연결 만들기가 받는 꼴 */
+/** AID tag type (W3C WoT) — the shape accepted when creating a collection connection */
 const AID_TYPE: Record<SimDataType, string> = { Double: 'float', Int32: 'integer', Boolean: 'boolean', String: 'string' };
 
 export interface SimulatedMachine {
   machine: string;
   endpoint: string;
-  /** 수집 연결(AID)에 그대로 넣을 태그 — 이름이 겹치면 첫 자리만(AID 이름은 고유해야 한다) */
+  /** Tags to put into the collection connection (AID) as-is — on duplicate names only the first is kept (AID names must be unique) */
   tags: { name: string; href: string; type: string }[];
 }
 
 export interface SimulatorOptions {
   port?: number;
-  /** 접속 주소에 쓸 호스트. 기본 127.0.0.1 — 자기 PC에서 재현하는 용도다 */
+  /** Host used in the endpoint URL. Default 127.0.0.1 — meant for reproducing on your own PC */
   host?: string;
 }
 
@@ -65,7 +65,7 @@ export class SimulatorServer {
       const server = new OPCUAServer({
         port: this.port,
         resourcePath: SIMULATOR_RESOURCE_PATH,
-        // 노출용 서버(instanceUri)와 다른 신원 — 「자기 자신 훑기」 방지와 섞이지 않게
+        // Identity distinct from the exposure server (instanceUri) — so it does not get mixed up with the "browsing itself" guard
         serverInfo: { applicationUri: 'urn:wace:aas-studio:simulator' },
         buildInfo: { productName: SIMULATOR_TITLE, buildNumber: '1', buildDate: new Date(0) },
       });
@@ -77,12 +77,12 @@ export class SimulatorServer {
     try {
       return await this.starting;
     } catch (error) {
-      this.starting = undefined; // 포트가 막혔던 경우 다음 시도에서 다시
+      this.starting = undefined; // If the port was blocked, retry on the next attempt
       throw error;
     }
   }
 
-  /** 설비 하나를 붙인다 — 이미 붙어 있으면 그대로 돌려준다 */
+  /** Attaches one piece of equipment — returns it unchanged if already attached */
   async attach(environment: Parameters<typeof simulationPlan>[0]): Promise<SimulatedMachine> {
     const plan = simulationPlan(environment);
     const already = this.attached.get(plan.name);
@@ -104,7 +104,7 @@ export class SimulatorServer {
         dataType: tag.dataType,
         minimumSamplingInterval: 500,
         value: {
-          // 🔴 값의 시각을 읽을 때마다 지금으로 — 안 그러면 안 바뀌는 값이 처음 시각을 달고 나간다
+          // Important: stamp the value with the current time on every read — otherwise unchanging values go out carrying their first timestamp
           timestamped_get: () =>
             new DataValue({
               value: new Variant({ dataType: OPC_TYPE[tag.dataType], value: tag.valueAt(seconds()) }),

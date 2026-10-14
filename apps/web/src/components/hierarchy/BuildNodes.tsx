@@ -1,6 +1,6 @@
 /**
- * 구성 트리 — 줄 목록(재귀) — ▦ 층 · ⚙ 설비, 줄마다 「＋ 설비」·「✕」, 열린 입력 줄.
- * components/HierarchyTree.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Composition tree — row list (recursive) — ▦ level · ⚙ equipment, "+ Equipment" · "✕" per row, the open input row.
+ * Split out of components/HierarchyTree.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 import type { ReactNode } from 'react';
 import { fill, tr } from '../../i18n.js';

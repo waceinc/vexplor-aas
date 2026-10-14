@@ -1,6 +1,6 @@
 /**
- * 레퍼런스 번들 — ⑤ 확인할 점 — semanticId 재사용 등. 줄에 마우스를 올리면 매트릭스의 그 줄이 강조된다.
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — ⑤ points to check — semanticId reuse, etc. Hovering a row highlights that row in the matrix.
+ * Extracted from components/BundlePanel.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
  */
 import type { BundleView } from '../../api.js';
 import { tr } from '../../i18n.js';

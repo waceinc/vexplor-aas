@@ -1,4 +1,4 @@
-/** @aas/api — IDTA Part 2 정합 REST API (기획서 M1) */
+/** @aas/api — IDTA Part 2 conformant REST API (plan M1) */
 export * from './http.js';
 export * from './base64url.js';
 export * from './router.js';

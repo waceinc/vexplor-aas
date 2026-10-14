@@ -1,7 +1,7 @@
 /**
- * 왼쪽 칸 — 찾기와 AAS 나무 목록. 줄 메뉴(⋯ · 우클릭)와 고르기 동작을 여기서 정한다.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업 · 클래스 이름 · 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름의 props 로 받는다.
+ * Left pane — search and the AAS tree. Row menus (⋯ · right-click) and selection behavior are defined here.
+ * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
+ * and the state and actions it uses arrive as props with the same names.
  */
 import { CONTAINER_TYPES } from '../components/AddElement.js';
 import { fill, tr } from '../i18n.js';
@@ -50,13 +50,13 @@ export function TreePane(props: Pick<Screen, 'adding' | 'busy' | 'expanded' | 'f
         else next.add(key);
         setExpanded(next);
       }}
-      // 순서·복제·삭제는 트리 행에서 바로 — 끌어서 놓기, 우클릭·「⋯」 메뉴, Alt+↑↓.
-      // (가운데 칸 아래의 「↑ 위로」「↓ 아래로」 버튼은 무엇인지 알 수 없다는 지적, 2026-09-04)
+      // Reorder, duplicate and delete directly on tree rows — drag and drop, right-click / "⋯" menu, Alt+↑↓.
+      // (feedback that the "↑ Up" / "↓ Down" buttons under the middle pane were unclear, 2026-09-04)
       onReorder={(node, to) => void onMove(node, { to })}
       menuFor={(node) => {
         if (busy) return [];
-        // ── 구성 줄(▦ 공정 · ⚙ 설비 · 이름만 설비) — 등록 편의 동작. 회사 파일에서는 줄의 대부분이 이것인데
-        //    메뉴가 없어 "중간에 많이 누락"으로 보였다(사용자 2026-09-09). 부품(·)과 「BOM (n)」 서랍은 동작이 없다
+        // ── Composition rows (▦ process · ⚙ equipment · name-only equipment) — registration shortcuts. In a company file most rows are these,
+        //    and without a menu they looked like "a lot missing in the middle" (user, 2026-09-09). Parts (·) and the "BOM (n)" drawer have no actions
         if (node.modelType === 'LinkedAsset' && node.key.startsWith('/linked/')) {
           if (node.linkedPart || node.linkedPartGroup) return [];
           const path = node.key.replace(/^\/linked\//, '').split('/');
@@ -89,9 +89,9 @@ export function TreePane(props: Pick<Screen, 'adding' | 'busy' | 'expanded' | 'f
               remove,
             ];
           }
-          return [remove]; // 이름만 · 파일 안 열림
+          return [remove]; // name only · file not open
         }
-        // ── 맨 위 AAS 줄 — 「이 파일에 넣기」와 같은 것
+        // ── Top AAS row — same as "Add to this file"
         if (node.modelType === 'AssetAdministrationShell') {
           return fileUnit === 'composite'
             ? [
@@ -107,8 +107,8 @@ export function TreePane(props: Pick<Screen, 'adding' | 'busy' | 'expanded' | 'f
         const editable = node.modelType === 'Submodel' || node.idShortPath !== undefined;
         if (!editable) return [];
         const element = node.idShortPath !== undefined;
-        // ── 다른 파일에서 이어 붙인 요소 — 저장은 그 파일로 간다(속성 칸과 같은 범위: 요소 추가·삭제).
-        //    순서·사본은 그 파일을 열어서
+        // ── Elements linked in from another file — saves go to that file (same scope as the property pane: add/delete elements).
+        //    Reorder and duplicate by opening that file
         if (node.linkedPackageId !== undefined) {
           return [
             ...(CONTAINER_TYPES.has(node.modelType) ? [{ label: t('요소 추가'), title: tr('이 안에 새 요소를 만듭니다'), onClick: () => setAdding(node) }] : []),
@@ -120,8 +120,8 @@ export function TreePane(props: Pick<Screen, 'adding' | 'busy' | 'expanded' | 'f
           ...(CONTAINER_TYPES.has(node.modelType)
             ? [{ label: t('요소 추가'), title: tr('이 안에 새 요소를 만듭니다'), onClick: () => setAdding(node) }]
             : []),
-          // 🔴 사본은 담는 요소에만 — 두 번째 인증 마크·문서·연락처처럼 **구조째** 하나 더 필요할 때 쓰는 것이다.
-          //    낱개 Property를 복제해 봐야 같은 값의 X_2가 생길 뿐이라 "이게 왜 있나"가 됐다(사용자 2026-09-09)
+          // Important: duplicate only container elements — it is for when you need **the whole structure** once more, like a second certification mark, document or contact.
+          //    Duplicating a single Property just produced X_2 with the same value, prompting "why is this here?" (user, 2026-09-09)
           ...(element && CONTAINER_TYPES.has(node.modelType)
             ? [{ label: t('사본 만들기 (복제)'), title: tr('안의 요소와 값까지 그대로 하나 더 (이름 끝에 _2)'), onClick: () => void onDuplicate(node) }]
             : []),
@@ -135,41 +135,41 @@ export function TreePane(props: Pick<Screen, 'adding' | 'busy' | 'expanded' | 'f
         ];
       }}
       onSelect={(node) => {
-        // 🔴 가운데에 입력 폼(새로 만들기·서브모델 추가 등)이 열려 있으면 먼저 비켜 준다.
-        //    전에는 폼 **아래에** 편집기가 붙어 화면 밖에 있었다 — 사람 눈에는 "클릭이
-        //    안 먹는다"로 보였다(2026-09-07 실측). 트리를 골랐다는 것은 그쪽을 보겠다는 뜻이다
+        // Important: if an input form (new file, add submodel, etc.) is open in the middle pane, get it out of the way first.
+        //    Previously the editor was attached **below** the form, off-screen — to the user it looked like "the click
+        //    does nothing" (observed 2026-09-07). Selecting in the tree means wanting to look at that
         if (adding) setAdding(undefined);
-        // 🔴 다른 파일에서 읽어 온 가지(설비)는 여기서 고칠 대상이 아니다 —
-        //    원본은 그 설비 파일 한 군데다. 펼치기만 하고, 안내를 남긴다
-        // 🔴 초보자 원칙(2026-08-26): 고른 것에 맞는 화면이 그 자리에 나온다.
-        //    최상위(AAS)를 고르면 구성(공정·설비 추가) 화면, ▦그룹을 고르면 그 그룹이
-        //    넣을 자리가 되고, ⚙설비를 고르면 그 설비의 동작(서브모델 추가 등)이 나온다
+        // Important: branches (equipment) read from another file are not edited here —
+        //    the source of truth is that one equipment file. Only expand it and leave a hint
+        // Important: beginner principle (2026-08-26): the screen matching what you selected appears in place.
+        //    Selecting the top level (AAS) shows the composition screen (add process/equipment); selecting a ▦ group makes that group
+        //    the insertion target; selecting ⚙ equipment shows that equipment's actions (add submodel, etc.)
         if (node.modelType === 'AssetAdministrationShell') {
           setSelectedKey(undefined);
           setHierAdder(undefined);
           setExpanded(new Set([...expanded, node.key]));
-          return; // 무선택 화면 = 요약 + 무엇으로 이루어졌나(최상위에 넣기)
+          return; // No-selection screen = summary + what it is made of (add at top level)
         }
         if (node.modelType === 'LinkedAsset') {
           const next = new Set(expanded);
           if (node.linkedPart || node.linkedPartGroup) {
-            // 부품(BoM)·「부품 (n)」 접힘 — 파일도 동작도 없다. 펼치고 접기만 한다
+            // Parts (BoM) and the collapsed "Parts (n)" — no file, no actions. Only expand and collapse
             if (next.has(node.key)) next.delete(node.key);
             else next.add(node.key);
             setExpanded(next);
             setSelectedKey(undefined);
             return;
           }
-          next.add(node.key); // 고르면 펼쳐도 준다 — 두 번 누를 일을 줄인다
+          next.add(node.key); // Selecting also expands — saves a second click
           setExpanded(next);
           if (node.linkedPackageId === undefined) {
-            // ▦ 공정(파일 없는 층) — 가운데 구성 트리의 그 줄 밑에 「＋ 설비」 입력 줄을 연다
+            // ▦ Process (level without a file) — open a "＋ Equipment" input row under that row in the middle composition tree
             const path = node.key.replace(/^\/linked\//, '').split('/');
             setHierAdder({ path, kind: 'asset' });
             setSelectedKey(undefined);
             return;
           }
-          // ⚙ 설비 — 설비 컨텍스트 화면(아래 middle에서 그린다)
+          // ⚙ Equipment — equipment context screen (rendered in middle below)
           setSelectedKey(node.key);
           setReveal(undefined);
           return;

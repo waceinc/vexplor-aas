@@ -1,14 +1,14 @@
 /**
- * Quick Fix — 린터가 fixable로 표시한 지적을 한 건 단위로 교정한다.
+ * Quick Fix — corrects findings the linter marked fixable, one finding at a time.
  *
- * 여러 파일 일괄 교정 파이프라인이 아니다(2026-08-21 결정). 저작 UI가 지적 하나를 집어
- * applyFixes에 넘기는 것을 기본 사용법으로 보고 설계했다. 그래서
- *  - 입력 Environment는 절대 바꾸지 않는다 (cloneEnvironment 후 수정)
- *  - id를 바꾸는 교정은 참조를 함께 갱신한다 (replaceIdEverywhere)
- *  - 원래 IRI는 이관 대장(ledger)에 남겨 되돌릴 수 있게 한다
- *  - 고칠 수 없으면 조용히 넘어가지 않고 이유를 남긴다 (skipped)
+ * This is not a multi-file batch-fix pipeline (decided 2026-08-21). It is designed around the authoring UI picking
+ * one finding and passing it to applyFixes. Therefore
+ *  - the input Environment is never mutated (cloneEnvironment, then modify)
+ *  - fixes that change an id also update the references to it (replaceIdEverywhere)
+ *  - the original IRI is kept in the migration ledger so the change can be reverted
+ *  - when something cannot be fixed, it is not silently passed over; the reason is recorded (skipped)
  *
- * 리스트 계열 제약은 한 건을 고치면 다음 건이 드러나므로 lint → fix를 수렴할 때까지 반복한다.
+ * For list-type constraints, fixing one finding reveals the next, so lint → fix repeats until it converges.
  */
 import { firstKeyValue, iec61360Of, XS_TO_DATA_TYPE } from '../util.js';
 import { lint, type LintOptions } from '../engine.js';
@@ -68,15 +68,15 @@ const applied = (description: string, before?: unknown, after?: unknown): FixOut
 const skipped = (reason: string): FixOutcome => ({ status: 'skipped', reason });
 
 /**
- * 이관 대장 기록. 이미 기록된 새 IRI는 덮어쓰지 않는다 —
- * 한 요소가 두 번 옮겨져도 **최초 원본**이 남아야 되돌릴 수 있다.
+ * Record in the migration ledger. A new IRI that is already recorded is not overwritten —
+ * even if an element is moved twice, the **very first original** must remain so it can be reverted.
  */
 function record(ledger: RelocationLedger, newIri: string, oldIri: string): void {
   if (newIri === oldIri) return;
   if (ledger[newIri] === undefined) ledger[newIri] = oldIri;
 }
 
-// ── KOSMO-AAS-1 · 썸네일 ─────────────────────────────────────────────────────
+// ── KOSMO-AAS-1 · thumbnail ──────────────────────────────────────────────────
 
 const fixThumbnail: Fixer = ({ environment, finding, package: pkg }) => {
   const shell = shellAt(environment, finding.pointer);
@@ -100,12 +100,12 @@ const fixThumbnail: Fixer = ({ environment, finding, package: pkg }) => {
   return applied(fill(tr('defaultThumbnail을 패키지 파트 {0}로 지정했습니다.'), { 0: part }), before, after);
 };
 
-// ── KOSMO-AAS-3 / KOSMO-SM-2 · administration과 id 접미 일치 ─────────────────
+// ── KOSMO-AAS-3 / KOSMO-SM-2 · administration matches the id suffix ──────────
 
 /**
- * 두 방향이 있고 방향 선택이 곧 위험도다.
- *  - administration이 없을 때 : id에서 뽑아 administration을 만든다 (참조 무영향, 안전)
- *  - 접미가 어긋날 때        : id를 고치고 Environment 전체의 참조를 함께 갱신한다
+ * There are two directions, and the choice of direction is the risk level.
+ *  - administration missing   : derive administration from the id (no effect on references, safe)
+ *  - suffix mismatch          : fix the id and update every reference in the Environment along with it
  */
 const fixVersionConsistency: Fixer = ({ environment, finding, ledger }) => {
   const item =
@@ -185,9 +185,9 @@ const fixModellingKind: Fixer = ({ environment, finding }) => {
 // ── KOSMO-SM-3 · Submodel semanticId ─────────────────────────────────────────
 
 /**
- * semanticId를 자신의 Submodel id로 돌린다(골든 파일 방식).
- * 원본 IRI는 반드시 대장에 남긴다 — IDTA 공식 IRI를 KOSMO 화이트리스트로 옮기는 교정이라
- * 규정 해석이 뒤집히면 여기서부터 되돌려야 한다.
+ * Points semanticId back to the Submodel's own id (golden-file approach).
+ * The original IRI must always be kept in the ledger — this fix moves official IDTA IRIs onto the KOSMO whitelist,
+ * so if the interpretation of the regulation is overturned, this is where reverting starts.
  */
 const fixSubmodelSemanticId: Fixer = ({ environment, finding, ledger }) => {
   const sm = submodelAt(environment, finding.pointer);
@@ -290,9 +290,9 @@ const fixConceptDataType: Fixer = ({ environment, finding }) => {
   );
 };
 
-// ── KOSMO-SME-3 · semanticId와 CD 매핑 ───────────────────────────────────────
+// ── KOSMO-SME-3 · semanticId to CD mapping ───────────────────────────────────
 
-/** 리스트 이름의 단수형 — 골든 파일의 명명(Markings → Marking · Documents → Document)과 같다 */
+/** Singular form of a list name — same naming as the golden file (Markings → Marking · Documents → Document) */
 function singularOf(name: string): string {
   if (/ies$/.test(name)) return name.replace(/ies$/, 'y');
   if (/s$/.test(name) && name.length > 3) return name.slice(0, -1);
@@ -307,13 +307,13 @@ const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
   const existing = firstKeyValue(node.semanticId);
   let targetId = existing;
   let assigned = false;
-  /** CD를 새로 만들 때 쓸 이름 — 리스트 자식은 idShort가 없어 부모 리스트에서 빌린다 */
+  /** Name to use when creating a new CD — list children have no idShort, so borrow it from the parent list */
   let cdName = node.idShort;
   let borrowed = false;
-  // 🔴 리스트 자식은 idShort가 없다(AASd-120 교정 뒤가 보통). 전에는 "idShort가 없어 못 만든다"로 건너뛰어
-  //    단추는 「N건」인데 들어가면 "사람이 판단"이 됐다(사용자 2026-09-11). 부모 리스트에서 빌린다:
-  //    이름은 부모 이름의 단수형(Markings → Marking — 골든 파일의 명명), semanticId가 아예 없으면
-  //    부모의 semanticIdListElement(자식 전체의 semanticId)부터 본다
+  // Important: list children have no idShort (typically after the AASd-120 fix). Previously skipped as "no idShort, cannot create",
+  //    so the button said "N items" but opening it showed "needs human judgment" (user, 2026-09-11). Borrow from the parent list:
+  //    the name is the singular of the parent name (Markings → Marking — golden-file naming); if there is no semanticId at all,
+  //    look first at the parent's semanticIdListElement (the semanticId for all children)
   const list = cdName
     ? undefined
     : (asElement(resolvePointer(environment, parentPointer(parentPointer(nodePointer)))?.value) as
@@ -329,8 +329,8 @@ const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
     if (declared !== undefined) targetId = declared;
     else {
       if (!cdName) return skipped(tr('idShort가 없고 부모 리스트에서도 이름을 빌릴 수 없어 CD id를 만들 수 없습니다.'));
-      // 빌린 이름이면 같은 이름의 CD가 이미 있을 때(골든 파일의 Marking — 표준 사전 IRDI) 그것을 가리킨다.
-      // 제 이름이 있는 요소는 예전대로 규약 IRI로 새로 짓는다 — 이름만 같은 사전 항목에 멋대로 붙이지 않는다
+      // With a borrowed name, if a CD with the same name already exists (golden file's Marking — standard dictionary IRDI), point to it.
+      // Elements with their own name still get a fresh convention IRI as before — never attach arbitrarily to a dictionary entry that merely shares the name
       const known = borrowed ? (environment.conceptDescriptions ?? []).find((cd) => cd.idShort === cdName) : undefined;
       targetId = known ? known.id : `${policy.iriBase}/cd/${cdName}/1/0`;
     }
@@ -352,7 +352,7 @@ const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
 
   if (!assigned && already) return skipped(tr('이미 대응하는 ConceptDescription이 있습니다.'));
 
-  // 문장을 토막으로 잇지 않는다 — 영어는 어순이 달라 통문장으로 옮긴다
+  // Do not stitch sentence fragments together — English word order differs, so translate whole sentences
   const sentence = !already
     ? assigned
       ? tr('semanticId를 지정하고 ConceptDescription을 생성했습니다: {0}. 정의는 idShort를 그대로 둔 자리표시자이므로 개발계획서 원문으로 대체하십시오.')
@@ -365,9 +365,9 @@ const fixConceptMapping: Fixer = ({ environment, finding, policy }) => {
   );
 };
 
-// ── AASc-3a-009 · MEASURE인데 단위가 없다 ────────────────────────────────────
+// ── AASc-3a-009 · MEASURE without a unit ─────────────────────────────────────
 
-/** MEASURE 계열 → 단위가 필요 없는 COUNT 계열 */
+/** MEASURE family → COUNT family, which needs no unit */
 const MEASURE_TO_COUNT = {
   REAL_MEASURE: 'REAL_COUNT',
   INTEGER_MEASURE: 'INTEGER_COUNT',
@@ -375,15 +375,15 @@ const MEASURE_TO_COUNT = {
 } as const satisfies Record<string, NonNullable<ReturnType<typeof iec61360Of>>['dataType']>;
 
 /**
- * 🔴 **단위를 지어내지 않는다.** 「12.5」가 kW인지 A인지 우리는 모르고,
- *    틀린 단위가 붙은 값은 안 붙은 값보다 위험하다.
+ * Important: **never invent a unit.** We do not know whether "12.5" is kW or A,
+ *    and a value with the wrong unit is more dangerous than one with none.
  *
- * 규격이 주는 길은 둘이고 우리가 고를 수 있는 것은 하나다.
- *   ① 단위를 적는다 — 사람만 할 수 있다
- *   ② dataType을 단위가 필요 없는 COUNT 계열로 낮춘다 ← 이쪽
+ * The spec offers two paths, and only one is ours to take.
+ *   ① Write the unit — only a human can do this
+ *   ② Downgrade dataType to the COUNT family, which needs no unit ← this one
  *
- * 그래서 낮추되 **실측값이면 되돌리라고 분명히 말한다**(KOSMO-SME-3의 자리표시자와 같은 태도).
- * CURRENCY는 손대지 않는다 — 통화는 단위가 본질이라 낮출 자리가 없다.
+ * So we downgrade, but **state clearly that it must be reverted if it is a measured value** (same stance as the
+ * KOSMO-SME-3 placeholder). CURRENCY is left alone — a unit is intrinsic to currency, so there is nothing to downgrade to.
  */
 const fixMeasureUnit: Fixer = ({ environment, finding }) => {
   const cd = conceptDescriptionAt(environment, finding.pointer);
@@ -412,12 +412,12 @@ const fixMeasureUnit: Fixer = ({ environment, finding }) => {
   );
 };
 
-// ── KOSMO-SME-5 · valueType과 dataType 정합 ──────────────────────────────────
+// ── KOSMO-SME-5 · valueType and dataType consistency ─────────────────────────
 
 /**
- * 교정 방향이 CD의 출처에 따라 **반대**다.
- *  - 외부 표준 사전(IRDI) CD : 원본을 존중하고 우리 쪽 Property.valueType을 맞춘다
- *  - 자체 CD                : CD의 dataType을 Property에 맞춘다
+ * The fix direction is **opposite** depending on where the CD comes from.
+ *  - external standard dictionary (IRDI) CD : respect the original and align our Property.valueType
+ *  - our own CD                             : align the CD's dataType to the Property
  */
 const fixValueTypeMatch: Fixer = ({ environment, finding, policy }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
@@ -463,14 +463,14 @@ const fixValueTypeMatch: Fixer = ({ environment, finding, policy }) => {
   return applied(fill(tr('자체 CD이므로 CD의 dataType을 {0}로 맞췄습니다.'), { 0: dataType }), before, dataType);
 };
 
-// ── AASd-120 · SML 자식 idShort ──────────────────────────────────────────────
+// ── AASd-120 · idShort of SML children ───────────────────────────────────────
 
 /**
- * SubmodelElementList 직계 자식의 idShort를 지운다.
+ * Removes the idShort of direct children of a SubmodelElementList.
  *
- * 정보를 지우는 교정이라 조심스럽지만, **지우는 쪽이 옳다**는 근거가 분명하다.
- * 규격이 금지하고(AASd-120), 표준 도구가 거부하며(aas-test-engines·basyx),
- * KOSMO 규칙에는 영향이 없다(검사하지 않는다). 지운 값은 applied.before에 남는다.
+ * This fix deletes information, so it needs care, but the case that **deleting is right** is clear:
+ * the spec forbids it (AASd-120), standard tools reject it (aas-test-engines · basyx),
+ * and KOSMO rules are unaffected (they do not check it). The removed value is kept in applied.before.
  */
 const fixSmlChildIdShort: Fixer = ({ environment, finding }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
@@ -487,10 +487,10 @@ const fixSmlChildIdShort: Fixer = ({ environment, finding }) => {
 };
 
 /**
- * 허용값이 아닌 category를 지운다.
+ * Removes a category that is not an allowed value.
  *
- * 다른 값으로 **바꾸지 않는다.** CONSTANT·PARAMETER·VARIABLE 중 무엇인지는 의미 판단이고,
- * 규격상 비워 두는 것은 아무 문제가 없다. 지운 값은 applied.before에 남는다.
+ * It is **not replaced** with another value. Whether it is CONSTANT, PARAMETER or VARIABLE is a semantic judgment,
+ * and leaving it empty is perfectly fine under the spec. The removed value is kept in applied.before.
  */
 const fixDataElementCategory: Fixer = ({ environment, finding }) => {
   const node = asElement(resolvePointer(environment, parentPointer(finding.pointer))?.value);
@@ -523,8 +523,8 @@ const fixFileUri: Fixer = ({ environment, finding }) => {
 };
 
 /**
- * 빈 배열은 **키째로 지운다.**
- * 다른 해석이 없다 — 공식 스키마가 빈 배열을 허용하지 않고, 지워도 의미가 바뀌지 않는다.
+ * Empty arrays are **removed together with their key.**
+ * There is no other reading — the official schema does not allow empty arrays, and removing them does not change meaning.
  */
 const fixEmptyArray: Fixer = ({ environment, finding }) => {
   const target = resolvePointer(environment, finding.pointer);
@@ -533,7 +533,7 @@ const fixEmptyArray: Fixer = ({ environment, finding }) => {
   if (target.value.length > 0) return skipped(tr('이미 항목이 들어 있습니다.'));
 
   if (Array.isArray(target.container)) {
-    // 배열 안의 배열은 자리를 지우면 뒤가 밀린다 — 그런 구조는 메타모델에 없다
+    // Removing an entry from an array nested in an array would shift the rest — no such structure exists in the metamodel
     return skipped(tr('배열 안의 빈 배열은 손대지 않습니다.'));
   }
   delete (target.container as Record<string, unknown>)[target.key];
@@ -561,27 +561,27 @@ const fixDuplicateLanguage: Fixer = ({ environment, finding }) => {
   list.length = 0;
   list.push(...kept);
   return applied(
-    // 텍스트는 손대지 않는다. 언어 태그 오타의 근거가 없는 상태에서 번역을 창작하면
-    // KTL §7(템플릿 원본 유지)을 정면으로 어기게 된다.
+    // Text is left untouched. Inventing a translation without evidence of what the language-tag typo should be
+    // would directly violate KTL §7 (keep the template original).
     fill(tr('중복 언어 태그 {0}건을 제거했습니다(먼저 나온 항목을 남깁니다).'), { 0: dropped.length }),
     dropped,
     kept,
   );
 };
 
-// ── 등록부 ───────────────────────────────────────────────────────────────────
+// ── Registry ─────────────────────────────────────────────────────────────────
 
 /**
- * 규칙 ID → 교정 함수.
- * 실측 결함 8종을 커버하는 범위로 한정한다. 여기 없는 규칙은 사람이 판단할 몫이며,
- * applyFixes가 그 사실을 skipped에 남긴다.
+ * Rule ID → fix function.
+ * Limited to covering the 8 measured defect types. Rules not listed here are for a human to judge,
+ * and applyFixes records that in skipped.
  */
-// ── AASd-109 · Property/Range 리스트의 valueTypeListElement ──────────────────
+// ── AASd-109 · valueTypeListElement of Property/Range lists ──────────────────
 
 /**
- * 자식들의 valueType이 하나로 모이면 그것을 리스트에 적는다. 안 모이면 사람 몫.
- * 🔴 규칙이 fixable로 광고하는데 교정기가 없어 "이 규칙에는 자동 교정기가 없습니다"로 건너뛰던 자리(2026-09-11).
- *    같은 규칙 id의 다른 지적(타입 불일치·semanticId 불일치)은 판단이 필요해 손대지 않는다
+ * If the children's valueType converges on one value, write it on the list. If not, it is for a human.
+ * Important: the rule advertised itself as fixable but had no fixer, so it was skipped with "this rule has no automatic fixer" (2026-09-11).
+ *    Other findings under the same rule id (type mismatch · semanticId mismatch) need judgment and are left untouched
  */
 const fixListValueType: Fixer = ({ environment, finding }) => {
   if (!finding.pointer.endsWith('/valueTypeListElement')) {
@@ -602,7 +602,7 @@ const fixListValueType: Fixer = ({ environment, finding }) => {
 export const FIXERS: Readonly<Record<string, Fixer>> = {
   'AASd-107/108/109/114': fixListValueType,
   'KOSMO-AAS-1': fixThumbnail,
-  // 같은 처치 — 파트가 있으면 가리키고, 파트·관계·Content_Types는 writeAasx가 만든다
+  // Same treatment — point to the part if it exists; writeAasx creates the part, relationships and Content_Types
   'PKG-THUMB-PART': fixThumbnail,
   'KOSMO-AAS-3': fixVersionConsistency,
   'KOSMO-AAS-5': fixGlobalAssetId,
@@ -623,24 +623,24 @@ export const FIXERS: Readonly<Record<string, Fixer>> = {
 };
 
 export interface ApplyFixOptions {
-  /** 수렴 확인에 쓸 규칙 목록. 기본 ALL_RULES */
+  /** Rules used to check convergence. Default ALL_RULES */
   rules?: readonly Rule[];
   policy?: Partial<LinterPolicy>;
-  /** L1 패키지 검사·썸네일 교정에 필요하다 */
+  /** Needed for L1 package checks and the thumbnail fix */
   package?: PackageContext;
-  /** lint → fix 최대 반복 횟수. 기본 5 */
+  /** Maximum number of lint → fix rounds. Default 5 */
   maxRounds?: number;
-  /** warning·info 등급 지적도 교정한다. 기본 false (error만) */
+  /** Also fix warning- and info-level findings. Default false (errors only) */
   includeWarnings?: boolean;
-  /** 규칙 ID 접두로 교정 대상을 제한한다 */
+  /** Restrict fix targets by rule ID prefix */
   only?: string[];
   exclude?: string[];
-  /** 교정 함수 교체·확장 (저작 UI에서 규칙별 사용자 정의 교정을 끼울 자리) */
+  /** Replace or extend fix functions (the hook where the authoring UI plugs in custom per-rule fixes) */
   fixers?: Readonly<Record<string, Fixer>>;
   /**
-   * 이 목록에 있는 (규칙, 위치)만 교정한다 — 미리보기에서 체크한 것만 반영(사용자 2026-09-11).
-   * 🔴 여러 바퀴를 돌아도 같은 열쇠로 거른다: 1바퀴에서 고쳐야 드러나는 2바퀴 항목도 미리보기가
-   *    같은 열쇠(규칙+위치)로 냈으므로 그대로 맞는다
+   * Fix only the (rule, location) pairs in this list — apply only what was checked in the preview (user, 2026-09-11).
+   * Important: the same key filters across multiple rounds: round-2 items that only appear after round-1 fixes were also
+   *    produced by the preview with the same key (rule + location), so they still match
    */
   select?: readonly FixSelector[];
 }
@@ -655,10 +655,10 @@ function selectable(finding: Finding, options: ApplyFixOptions): boolean {
 }
 
 /**
- * 지적 목록을 교정한다.
+ * Fixes a list of findings.
  *
- * 입력 Environment는 변경하지 않는다. 한 번 고치면 가려져 있던 다음 위반이 드러나므로
- * 변화가 없을 때까지(또는 maxRounds까지) lint → fix를 반복한다.
+ * The input Environment is not mutated. Each fix can reveal a violation that was hidden behind it, so
+ * lint → fix repeats until nothing changes (or until maxRounds).
  */
 export function applyFixes(
   environment: Environment,
@@ -716,7 +716,7 @@ export function applyFixes(
       try {
         outcome = fixer(input);
       } catch (error) {
-        // 교정 하나가 터져도 나머지는 진행한다 — 저작 UI에서 편집 세션이 통째로 죽으면 안 된다
+        // If one fix throws, the rest continue — the authoring UI's editing session must not die as a whole
         outcome = skipped(fill(tr('교정 중 오류: {0}'), { 0: error instanceof Error ? error.message : String(error) }));
       }
 
@@ -744,13 +744,13 @@ export function applyFixes(
 }
 
 export interface LintAndFixResult extends FixResult {
-  /** 교정 전 린트 결과 */
+  /** Lint result before fixing */
   before: LintResult;
-  /** 교정 후 린트 결과 — 수렴했는지 여기서 확인한다 */
+  /** Lint result after fixing — check here whether it converged */
   after: LintResult;
 }
 
-/** 린트 → 교정 → 재린트를 한 번에. 저작 UI의 "이 파일 고쳐줘" 진입점 */
+/** Lint → fix → re-lint in one call. Entry point for the authoring UI's "fix this file" */
 export function lintAndFix(
   environment: Environment,
   options: ApplyFixOptions = {},
@@ -769,16 +769,16 @@ export function lintAndFix(
 }
 
 
-// ── 이관 대장 되돌리기 ────────────────────────────────────────────────────────
+// ── Reverting via the migration ledger ───────────────────────────────────────
 
 /**
- * 이관 대장의 원본 IRI로 되돌린다 — 규정 해석이 뒤집혔을 때(KOSMO가 IDTA IRI를 받기 시작하면) 쓰는 길.
- * 입력 Environment는 변경하지 않는다.
+ * Reverts to the original IRIs in the migration ledger — the path to use when the regulation's interpretation is overturned
+ * (if KOSMO starts accepting IDTA IRIs). The input Environment is not mutated.
  *
- * 대장의 뜻은 교정기마다 다르다(04 명세 §5 ①):
- *  - KOSMO-SM-3: 서브모델 semanticId를 **자기 id**로 돌렸다 → 대장 키 = 서브모델 id. 되돌리기는 semanticId만 원본으로
- *  - KOSMO-CD-2: CD id 자체를 옮겼다 → 대장 키 = 새 CD id. 되돌리기는 id와 모든 참조를 원본으로
- * 🔴 둘을 구별하지 않고 id를 바꾸면 서브모델 id가 IDTA IRI로 바뀌어 버린다 — 그래서 먼저 서브모델 쪽을 본다
+ * What the ledger means differs per fixer (04 spec §5 ①):
+ *  - KOSMO-SM-3: the submodel's semanticId was pointed at **its own id** → ledger key = submodel id. Reverting restores only semanticId
+ *  - KOSMO-CD-2: the CD id itself was moved → ledger key = new CD id. Reverting restores the id and every reference
+ * Important: changing the id without distinguishing the two would turn the submodel id into the IDTA IRI — so the submodel side is checked first
  */
 export function revertRelocations(
   environment: Environment,
@@ -798,7 +798,7 @@ export function revertRelocations(
       reverted.push({ iri, original, how: 'semanticId' });
     } else {
       const refs = replaceIdEverywhere(env, iri, original);
-      if (refs === 0 && !(env.conceptDescriptions ?? []).some((cd) => cd.id === original)) continue; // 이미 없는 것
+      if (refs === 0 && !(env.conceptDescriptions ?? []).some((cd) => cd.id === original)) continue; // already gone
       reverted.push({ iri, original, how: 'id' });
     }
     delete remaining[iri];

@@ -1,7 +1,7 @@
-/** 영어 사전 — linter-text. 열쇠 = 한국어 원문 그대로, 값 = 영어. 자리 표시({0} · <b>)는 원문과 똑같이 */
+/** English dictionary — linter-text. Key = the Korean source text verbatim, value = English. Placeholders ({0} · <b>) exactly as in the source */
 export const EN_LINTER_TEXT: Record<string, string> = {
-  // ── 공용 짧은 글자 — 다른 사전에 넣지 않는다(두 파일에 같은 열쇠가 있으면 검사가 멈춘다).
-  //    '없음'은 packages.ts, '계층 구조에 진입점(EntryNode)이 없습니다.'는 linter-rules.ts 에 있다 ──
+  // ── Shared short strings — do not put these in other dictionaries (the check stops if two files have the same key).
+  //    '없음' is in packages.ts, '계층 구조에 진입점(EntryNode)이 없습니다.' is in linter-rules.ts ──
   위반: 'Error',
   경고: 'Warning',
   참고: 'Info',
@@ -10,7 +10,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   경로: 'Path',
   '{0}건': '{0}',
 
-  // ── fix/index.ts — 자동 고치기 결과 · 건너뛴 사유 ─────────────────────────
+  // ── fix/index.ts — auto-fix results · reasons for skipping ─────────────────
   '대상 AssetAdministrationShell을 찾을 수 없습니다.': 'The target AssetAdministrationShell could not be found.',
   '패키지 정보가 없어 썸네일 파트를 찾을 수 없습니다. AASX를 읽을 때의 opc 정보를 함께 넘기십시오.':
     'The thumbnail part cannot be located because no package information was provided. Pass the OPC information obtained when reading the AASX.',
@@ -122,7 +122,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
     'This rule has no automatic fix. It needs a human decision.',
   '교정 중 오류: {0}': 'Error while fixing: {0}',
 
-  // ── catalog.ts — 규칙 화면의 계층 · 규정 충돌 · 규약 · 판정 주체 ───────────
+  // ── catalog.ts — rule screen layers · regulation conflicts · conventions · judging party ──
   'L1 — 패키지·직렬화': 'L1 — Package and serialization',
   'AASX 파일 자체가 규격대로 만들어졌는가 (공식 JSON 스키마·OPC 패키징)':
     'Whether the AASX file itself is built to the specification (official JSON schema, OPC packaging)',
@@ -186,7 +186,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '뷰어 전용. V2 스키마 오탐이 있어 검증에 쓰지 않는다': 'Viewer only. Not used for validation because of false positives against the V2 schema',
   '적재·상호운용 시연 도구. 검증 도구가 아니다': 'A loading and interoperability demonstration tool, not a validation tool',
 
-  // ── report/html.ts · report/text.ts — 검증 결과서 ─────────────────────────
+  // ── report/html.ts · report/text.ts — validation report ───────────────────
   '자동 교정 가능': 'Auto-fixable',
   '사람 판단': 'Manual review',
   'IRI 이관 대장 ({0}건)': 'IRI relocation ledger ({0})',
@@ -244,7 +244,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '외 {0}건': 'and {0} more',
   '위반 {0}건 · 경고 {1}건': '{0} errors · {1} warnings',
 
-  // ── docs/table.ts · docs/uml.ts — 문서용 자료(표 · UML) ───────────────────
+  // ── docs/table.ts · docs/uml.ts — documentation material (tables · UML) ───
   '장비 특화 요소 {0}개를 담고 있습니다(자체 IRI semanticId).':
     'Contains {0} equipment-specific element(s) (semanticId with an in-house IRI).',
   '장비 특화 요소가 없는 IDTA 표준 템플릿입니다 — 규정 §13 주의사항 5에 따라 표는 생략합니다.':
@@ -266,7 +266,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '표 {0} {1} - {2}': 'Table {0} {1} - {2}',
   '… 그 밖 {0}개': '… {0} more',
 
-  // ── bundle.ts — 데이터 연계 정의표 · 연계 지적 ───────────────────────────
+  // ── bundle.ts — data linkage definition table · linkage findings ──────────
   'semanticId 하나를 서로 다른 이름 {0}개가 씁니다: {1}. 같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.':
     'One semanticId is used by {0} different names: {1}. Check that they are the same concept — record the path in the linkage mapping instead of relying on the semanticId alone.',
   '「{0}」 — 이름은 같은데 semanticId가 {1}종입니다. KPI를 모을 때 하나로 볼지 매핑표에서 정하십시오.':
@@ -277,7 +277,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '정의 이름': 'Defined name',
   '보유 설비 수': 'Equipment count',
 
-  // ── clone.ts · scaffold.ts · hierarchy.ts — 새로 만들기 · 복제 · 계층 편집 ──
+  // ── clone.ts · scaffold.ts · hierarchy.ts — create new · clone · hierarchy editing ──
   '복제할 파일에 AAS가 없습니다.': 'The file to clone contains no AAS.',
   '복제할 파일의 AAS에 idShort가 없습니다.': 'The AAS in the file to clone has no idShort.',
   '장비명은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: {0}':
@@ -291,7 +291,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '자리를 찾지 못했습니다: {0}': 'Could not find the location: {0}',
   '없는 이름입니다: {0}': 'No such name: {0}',
 
-  // ── policy-file.ts — 정책 파일 오류 ──────────────────────────────────────
+  // ── policy-file.ts — policy file errors ──────────────────────────────────
   '정책 파일이 JSON이 아닙니다: {0}': 'The policy file is not valid JSON: {0}',
   '정책 파일은 객체 하나여야 합니다.': 'The policy file must contain a single object.',
   '모르는 정책 항목입니다: {0} — 쓸 수 있는 것: {1}': 'Unknown policy key: {0} — allowed keys: {1}',
@@ -301,7 +301,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   'submodelCountRange는 정수 두 개여야 합니다. 예: [6, 8]': 'submodelCountRange must be two integers, e.g. [6, 8]',
   'submodelCountRange의 최솟값이 최댓값보다 큽니다.': 'The minimum of submodelCountRange is greater than its maximum.',
   '아직 정책 파일로 바꿀 수 없는 항목입니다: {0}': 'This key cannot be changed through a policy file yet: {0}',
-  // 규칙 근거 문서 이름(catalog.ts sourceText) — 사내 문서라 영어 화면에서는 뜻으로 적는다
+  // Rule source document names (catalog.ts sourceText) — internal documents, so the English UI describes what they are
   '02_Validator_대응규칙.md': 'Validator response rules (doc 02)',
   '04_린터_규칙_명세.md': 'Linter rule specification (doc 04)',
   'AAS 참조모델 제약조건 spec_260812.pdf': 'AAS reference model constraints (spec 2026-08-12)',

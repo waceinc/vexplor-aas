@@ -1,19 +1,21 @@
 /**
- * 레퍼런스 번들 시연 꾸러미 — 롤포밍기 하나로 「제출형 번들」과 「현장 시연」을 함께 보여 준다.
+ * Reference-bundle demo kit — uses one roll-forming machine to show both the "submission bundle" and the "on-site demo".
  *
- *   node scripts/make-bundle-demo.mjs                       → out/시연/레퍼런스번들/
- *   node scripts/make-bundle-demo.mjs --source <롤포밍기.aasx>  사업 제출본(v0.0.1)으로 만들 때.
- *     기본은 저장소의 골든 파일(tests/fixtures) — 옛 판이라 AASd-120 경고가 10건 뜬다
+ *   node scripts/make-bundle-demo.mjs                       -> out/demo/reference-bundle/
+ *   node scripts/make-bundle-demo.mjs --source <roll-forming.aasx>  to build from the project submission copy (v0.0.1).
+ *     The default is the repository's golden file (tests/fixtures) — an old version, so 10 AASd-120 warnings appear
  *
- * 만드는 것 (둘 다 「번들 열기」로 연다)
- *   ①_제출형_…zip   번들 본체. 참조모델(Type) · 대수는 ×2 · **수집 연결 없음** — 제출·공개되는 모양
- *   ②_시연용_…zip   Pilot 현장 흉내. 호기별 파일 2개(RollFormingMachine_1·_2) · 각자 가상 PLC에 연결
- *   가상PLC/        ②의 호기 파일 — 가상 PLC가 이 파일의 운전 데이터 이름대로 태그를 낸다
+ * Outputs (both opened with "Open bundle")
+ *   ①_제출형_…zip   the bundle itself. Reference model (Type), quantity x2, **no collection connection** — the shape that is submitted/published
+ *   ②_시연용_…zip   imitates a pilot site. Two per-unit files (RollFormingMachine_1, _2), each connected to the virtual PLC
+ *   가상PLC/        unit files of (2) — the virtual PLC exposes tags named after these files' operational data
  *   가상PLC_시작.bat · 시연순서.md
  *
- * 🔴 왜 둘로 나누나 — 번들은 Type(형식)이라 접속 주소가 없는 것이 정상이고, 값이 흐르는 것은
- *    실제 설비 한 대 한 대(Instance)다. 한 파일에서 둘을 섞으면 제출본에 시연용 주소가 묻어 나간다.
- * 🔴 ②의 값은 전부 **시뮬레이션**이다. 인터페이스 이름에 그렇게 박는다.
+ * Important: why split in two — a bundle is a Type, so having no endpoint address is correct; values flow from
+ *    each individual physical machine (Instance). Mixing both in one file would leak the demo address into the submission.
+ * Important: every value in (2) is **simulated**. The interface name says so explicitly.
+ * Important: the kit itself (file names, the virtual PLC title, the presenter script) stays Korean on purpose — it is
+ *    run in front of Korean customers and quotes the Korean UI labels; 02_참조모델 is a folder name fixed by the bundle format.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -23,8 +25,8 @@ import { simulationPlan } from '@aas/opcua';
 import { InMemoryStore } from '@aas/store';
 
 const sourceAt = process.argv.indexOf('--source');
-const GOLDEN = sourceAt > 0 ? process.argv[sourceAt + 1] : 'tests/fixtures/01-롤포밍기-공34.aasx';
-const OUT = resolve('out/시연/레퍼런스번들');
+const GOLDEN = sourceAt > 0 ? process.argv[sourceAt + 1] : 'tests/fixtures/01-roll-forming-machine.aasx';
+const OUT = resolve('out/demo/reference-bundle');
 const SIM_PORT = 14850;
 const ENDPOINT = `opc.tcp://127.0.0.1:${SIM_PORT}/UA/Simulator`;
 
@@ -44,7 +46,7 @@ async function session() {
     if (response.status >= 400) throw new Error(`${method} ${path} → ${response.status} ${JSON.stringify(response.body)}`);
     return response;
   };
-  const machine = (await store.importPackage({ name: '01-롤포밍기-공34.aasx', package: readAasx(new Uint8Array(readFileSync(GOLDEN))) })).id;
+  const machine = (await store.importPackage({ name: '01-roll-forming-machine.aasx', package: readAasx(new Uint8Array(readFileSync(GOLDEN))) })).id;
   return { store, call, machine };
 }
 
@@ -53,7 +55,7 @@ const filenameOf = (response) => decodeURIComponent(response.headers['content-di
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/가상PLC`, { recursive: true });
 
-// ── ① 제출형 번들 ───────────────────────────────────────────────────────────
+// ── (1) Submission bundle ───────────────────────────────────────────────────────────
 {
   const { call, machine } = await session();
   const proc = (await call('POST', '/packages/new', { assetName: 'RB01_OptimizationQuality', unit: 'composite' })).body.packageId;
@@ -63,13 +65,13 @@ mkdirSync(`${OUT}/가상PLC`, { recursive: true });
   writeFileSync(`${OUT}/①_제출형_${filenameOf(zip)}`, zip.body);
 }
 
-// ── ② 시연용 — 호기별 + 가상 PLC 연결 ─────────────────────────────────────────
+// ── (2) Demo — per unit + virtual PLC connection ─────────────────────────────────────────
 {
   const { store, call, machine } = await session();
   const units = [];
   for (const name of ['RollFormingMachine_1', 'RollFormingMachine_2']) {
     const id = (await call('POST', `/packages/${machine}/clone`, { assetName: name })).body.packageId;
-    // 태그 = 가상 PLC가 이 파일에서 만들 태그 그대로. 이름이 겹치면 첫 자리만(AID는 이름이 고유해야 한다)
+    // Tags = exactly the tags the virtual PLC will create from this file. On duplicate names keep the first (AID names must be unique)
     const plan = simulationPlan((await store.exportPackage(id)).environment);
     const seen = new Set();
     const tags = plan.tags
@@ -82,7 +84,7 @@ mkdirSync(`${OUT}/가상PLC`, { recursive: true });
     await call('POST', `/packages/${id}/aid`, { endpoint: ENDPOINT, title: '가상 PLC (시뮬레이션)', tags });
     units.push({ id, name, tags: tags.length });
   }
-  // 원본(Type) 파일은 이 시연에 필요 없다 — 호기 파일만 남긴다
+  // The original (Type) file is not needed for this demo — keep only the unit files
   await call('DELETE', `/packages/${machine}`);
 
   const proc = (await call('POST', '/packages/new', { assetName: 'PilotDemo_FormingLine', unit: 'composite' })).body.packageId;
@@ -93,11 +95,11 @@ mkdirSync(`${OUT}/가상PLC`, { recursive: true });
   const zip = await call('GET', `/packages/${proc}/bundle`, undefined, { code: 'RB01', title: 'Pilot시연_롤포밍라인', version: '1.0.0' });
   writeFileSync(`${OUT}/②_시연용_${filenameOf(zip)}`, zip.body);
 
-  // 가상 PLC가 읽을 호기 파일 — 번들 안의 것을 그대로 꺼낸다(같은 파일이어야 태그가 맞는다)
+  // Unit files for the virtual PLC — extracted unchanged from the bundle (must be the same file for tags to match)
   for (const [path, data] of Object.entries(unzipArchive(zip.body))) {
     if (path.includes('/02_참조모델/')) writeFileSync(`${OUT}/가상PLC/${path.split('/').pop()}`, data);
   }
-  console.log(`호기 ${units.map((u) => `${u.name}(태그 ${u.tags})`).join(' · ')}`);
+  console.log(`Units ${units.map((u) => `${u.name} (${u.tags} tags)`).join(' · ')}`);
 }
 
 const repo = resolve('.');
@@ -118,7 +120,7 @@ writeFileSync(
   `${OUT}/시연순서.md`,
   `# 레퍼런스 번들 시연 — 롤포밍기 (약 5분)
 
-> 🔴 ② 의 값은 **시뮬레이션**입니다. 화면·캡처에 그렇게 말하고 적으십시오.
+> [주의] ② 의 값은 **시뮬레이션**입니다. 화면·캡처에 그렇게 말하고 적으십시오.
 
 ## 준비
 1. 저작 도구를 띄웁니다(개발판이면 http://localhost:5173).
@@ -156,4 +158,4 @@ writeFileSync(
 `,
 );
 
-console.log(`만들었습니다: ${OUT}`);
+console.log(`Created: ${OUT}`);

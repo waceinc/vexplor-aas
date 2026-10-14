@@ -1,6 +1,6 @@
 /**
- * 변경 이력 카드 — 서브모델 하나의 지난 판들과 「이 판으로 되돌리기」.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화).
+ * Change history card — past versions of one submodel and "Restore this version".
+ * Split out of App.tsx (componentization, 2026-10-13).
  */
 import type { HistoryEntry } from '../api.js';
 import { fill } from '../i18n.js';
@@ -32,8 +32,8 @@ export function HistoryPanel({ t, label, entries, busy, onRestore, onClose }: Pr
                   ? t('지워지기 전')
                   : fill(t('고치기 전 (요소 {n}개)'), { n: entry.elementCount })}
               </span>
-              {/* 「누가」 — 로그인을 쓰지 않는 서버와 옛 기록에는 없다. 없으면 아예 안 보인다:
-                  「기록 없음」이라고 적으면 빈 칸이 줄마다 늘어서 눈이 피로하다 */}
+              {/* "Who" — absent on servers without login and in old records. When absent it is not shown at all:
+                  writing "no record" would line every row with filler and tire the eyes */}
               {entry.actorName && (
                 <span className="who" title={entry.actorName}>
                   {entry.actorName}

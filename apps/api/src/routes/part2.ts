@@ -1,21 +1,21 @@
 /**
- * IDTA Part 2 (IDTA-01002-3-0) 정합 REST API.
+ * REST API conforming to IDTA Part 2 (IDTA-01002-3-0).
  *
- * 기저 경로는 `/packages/{packageId}/api/v3.0` 이다.
- * 규격은 저장소 하나를 전제하지만 우리는 AASX 파일 단위로 작업하므로, 패키지를 앞에 두고
- * **그 아래를 규격 그대로** 뒀다. Part 2 클라이언트(BaSyx 등)는 기저 URL만 이 주소로 잡으면 된다.
+ * The base path is `/packages/{packageId}/api/v3.0`.
+ * The spec assumes a single repository, but we work per AASX file, so the package is placed in front and
+ * **everything below it follows the spec as-is**. Part 2 clients (BaSyx etc.) only need to point their base URL at this address.
  *
- * 구현 범위 (MVP)
- *  ✅ /shells · /submodels · /concept-descriptions CRUD + 페이지네이션(limit·cursor)
- *  ✅ /submodels/{id}/submodel-elements/{idShortPath} CRUD, $value 조회·수정
- *  ✅ 식별자 base64url 인코딩, Result/Message 오류 본문
- *  ⬜ $metadata · level · extent 수식자, /lookup(자산 검색), 디스크립터(Part 2 Registry)
- *     — 저작 UI(M3)에 필요해지는 시점에 붙인다
+ * Implementation scope (MVP)
+ *  [done] /shells, /submodels, /concept-descriptions CRUD + pagination (limit, cursor)
+ *  [done] /submodels/{id}/submodel-elements/{idShortPath} CRUD, $value read and update
+ *  [done] base64url identifier encoding, Result/Message error bodies
+ *  [not yet] $metadata, level, extent modifiers, /lookup (asset search), descriptors (Part 2 Registry)
+ *     — to be added when the authoring UI (M3) needs them
  *
- * 상태 코드는 규격을 따른다 — POST는 201 + 본문, PUT·PATCH·DELETE는 204(본문 없음).
- * 저작 UI가 낙관적 잠금을 이어가려면 새 리비전을 알아야 하므로 **204에도 ETag를 붙인다**.
- * 🔴 IDTA-01002-3-0 원문을 아직 손에 넣지 못했다(docs/PROGRESS.md §7). 원문을 받으면
- * 상태 코드와 오류 본문을 한 번 대조할 것.
+ * Status codes follow the spec — POST is 201 + body, PUT/PATCH/DELETE are 204 (no body).
+ * The authoring UI needs the new revision to continue optimistic locking, so **ETag is attached even to 204**.
+ * Important: we have not yet obtained the IDTA-01002-3-0 original text (docs/PROGRESS.md §7). Once it arrives,
+ * cross-check status codes and error bodies once.
  */
 import { writeAasx } from '@aas/aasx';
 import { overlaySubmodel } from '@aas/collector';
@@ -48,9 +48,9 @@ import { fill, tr } from '@aas/core';
 const BASE = '/packages/:packageId/api/v3.0';
 
 /**
- * 규격의 질의 인자를 읽는다 — limit · cursor · idShort · semanticId · assetKind.
- * semanticId는 규격상 base64url로 인코딩돼 온다.
- * (level · extent · assetIds · assetType은 아직 지원하지 않는다 — PROGRESS §4에 남겼다)
+ * Reads the spec's query parameters — limit, cursor, idShort, semanticId, assetKind.
+ * Per the spec, semanticId arrives base64url-encoded.
+ * (level, extent, assetIds and assetType are not supported yet — noted in PROGRESS §4)
  */
 function pageOf(request: ApiRequest): ListQuery {
   const page: ListQuery = {};
@@ -78,9 +78,9 @@ function pageOf(request: ApiRequest): ListQuery {
 }
 
 /**
- * If-Match 헤더를 낙관적 잠금에 쓴다.
- * Part 2가 정한 것은 아니지만 HTTP 관례를 그대로 따르는 편이 클라이언트에 자연스럽다.
- * 값은 리비전 숫자다(응답의 ETag와 짝).
+ * Uses the If-Match header for optimistic locking.
+ * Part 2 doesn't define it, but following HTTP convention as-is feels natural to clients.
+ * The value is the revision number (paired with the response's ETag).
  */
 function writeOptionsOf(request: ApiRequest): WriteOptions {
   const ifMatch = request.headers['if-match'];
@@ -105,11 +105,11 @@ function withEtag(response: ApiResponse, revision: number): ApiResponse {
 }
 
 /**
- * Identifiable 3종에 공통인 CRUD 묶음.
+ * CRUD set common to the three Identifiables.
  *
- * 🔴 PATCH는 **Submodel에만** 있다. 규격은 `/shells/{id}`·`/concept-descriptions/{id}`에
- * PATCH를 정의하지 않는다 — 공유 코드라고 다 열어 주면 표준 경로에 비표준 메서드가 생긴다.
- * (실제로 한 번 그렇게 열렸다가 대조 스크립트가 잡아냈다)
+ * Important: PATCH exists **only for Submodel**. The spec does not define PATCH on `/shells/{id}` or
+ * `/concept-descriptions/{id}` — opening everything just because the code is shared would put non-standard methods on standard paths.
+ * (It was actually opened that way once and the cross-check script caught it)
  */
 function identifiableRoutes(
   store: AasStore,
@@ -180,8 +180,8 @@ function identifiableRoutes(
     ...(patchable
       ? [{
       /**
-       * PATCH — 부분 갱신. 본문에 온 필드만 덮어쓴다.
-       * PUT은 통째 교체라 값까지 날아간다. 한 속성만 고칠 때 쓰는 길이 따로 있어야 한다.
+       * PATCH — partial update. Overwrites only the fields present in the body.
+       * PUT replaces wholesale, wiping values too. A separate path is needed for changing just one property.
        */
       method: 'PATCH',
       pattern: item,
@@ -221,12 +221,12 @@ function identifiableRoutes(
 }
 
 /**
- * 경로에서 대상 Submodel의 id를 정한다.
+ * Determines the target Submodel's id from the path.
  *
- * 규격에는 같은 서브모델을 두 갈래로 가리킨다 —
- *   평면: `/submodels/{smId}`            (Submodel Repository)
- *   중첩: `/shells/{aasId}/submodels/{smId}` (AAS Repository)
- * 뒤엣것은 **그 AAS가 실제로 참조하는 서브모델인지** 확인해야 한다. 아니면 남의 것을 열어 준다.
+ * The spec points to the same submodel in two ways —
+ *   flat:   `/submodels/{smId}`            (Submodel Repository)
+ *   nested: `/shells/{aasId}/submodels/{smId}` (AAS Repository)
+ * The latter must check **whether that AAS actually references the submodel**. Otherwise it would expose someone else's.
  */
 export type SubmodelLocator = (store: AasStore, ctx: RouteContext) => Promise<string>;
 
@@ -250,7 +250,7 @@ const nestedLocator: SubmodelLocator = async (store, ctx) => {
   return submodelId;
 };
 
-/** 경로가 가리키는 AAS를 꺼낸다. 없으면 404 */
+/** Fetch the AAS the path points to. 404 if absent */
 async function requireShell(store: AasStore, ctx: RouteContext) {
   const record = await store.getIdentifiable(
     ctx.params['packageId']!,
@@ -261,7 +261,7 @@ async function requireShell(store: AasStore, ctx: RouteContext) {
   return record;
 }
 
-/** 모델이 가리키는 썸네일 파트를 패키지에서 찾는다 */
+/** Find the thumbnail part the model points to in the package */
 async function findThumbnail(
   store: AasStore,
   packageId: string,
@@ -276,7 +276,7 @@ async function findThumbnail(
   return file ? { data: file.data, contentType: file.contentType } : undefined;
 }
 
-/** File·Blob 요소가 가리키는 패키지 파트 이름 (`file:///x` → `/x`) */
+/** Package part name a File/Blob element points to (`file:///x` -> `/x`) */
 function attachmentPartOf(node: SubmodelElement): string | undefined {
   const raw = (node as unknown as Record<string, unknown>)['value'];
   const value = typeof raw === 'string' ? raw : undefined;
@@ -285,7 +285,7 @@ function attachmentPartOf(node: SubmodelElement): string | undefined {
   return withoutScheme.startsWith('/') ? withoutScheme : `/${withoutScheme}`;
 }
 
-/** multipart(fileName·file) 또는 원본 바이트 업로드를 읽는다 */
+/** Reads a multipart (fileName, file) or raw-bytes upload */
 function uploadedFile(request: ApiRequest): { name: string; contentType: string; data: Uint8Array } {
   const contentType = request.headers['content-type'] ?? '';
   const body = request.body;
@@ -325,7 +325,7 @@ function guessImageType(name: string): string {
   return known[extension] ?? 'application/octet-stream';
 }
 
-/** Submodel 하나를 꺼내 편집하고 되쓰는 공통 흐름 */
+/** Common flow for fetching one Submodel, editing it, and writing it back */
 async function editSubmodel(
   store: AasStore,
   ctx: RouteContext,
@@ -354,13 +354,13 @@ async function editSubmodel(
 }
 
 /**
- * 읽기용 서브모델.
+ * Submodel for reading.
  *
- * 🔴 `?live=true`면 **최신 수집값을 응답에만 얹는다**(BaSyx DataBridge와 같은 겉모습).
- *    파일은 건드리지 않는다 — 값 동기화 A안 그대로다. 기본은 꺼져 있어,
- *    아무 표시 없이 파일 값과 현장 값이 섞이는 일은 없다.
- * 🔴 **쓰기 경로(editSubmodel)에는 절대 쓰지 않는다.** 저장은 언제나 파일 값을 바탕으로 한다 —
- *    덧씌운 값을 저장하면 그 순간 A안이 깨진다.
+ * Important: with `?live=true`, **the latest collected values are overlaid on the response only** (same appearance as BaSyx DataBridge).
+ *    The file is not touched — exactly value sync option A. It is off by default,
+ *    so file values and field values never get mixed without any indication.
+ * Important: **never used on the write path (editSubmodel).** Saving is always based on file values —
+ *    saving overlaid values would break option A at that moment.
  */
 async function readSubmodel(
   store: AasStore,
@@ -383,12 +383,12 @@ async function readSubmodel(
 }
 
 /**
- * 이름(idShort)을 바꿀 때 지켜야 하는 두 가지. **저장 시점에** 막는다.
+ * Two things that must hold when renaming (idShort). Blocked **at save time**.
  *
- * ① 형제끼리 같은 이름이면 안 된다(AASd-022). 린터도 잡지만 그때는 이미 늦다 —
- *    같은 이름이 둘이면 `idShortPath`가 가리키는 곳이 애매해져서 **엉뚱한 요소가 조용히 고쳐진다.**
- * ② SubmodelElementList의 직계 자식은 idShort를 가지면 안 된다(AASd-120).
- *    리스트 자식은 순서로 가리키기 때문이다. 이름을 붙이면 basyx가 그 가지를 통째로 잃는다.
+ * 1. Siblings must not share a name (AASd-022). The linter catches it too, but by then it's too late —
+ *    with two identical names, what `idShortPath` points to becomes ambiguous and **the wrong element gets silently modified.**
+ * 2. Direct children of a SubmodelElementList must not have an idShort (AASd-120).
+ *    List children are addressed by position. If named, basyx loses that whole branch.
  */
 function guardIdShort(
   path: string,
@@ -397,9 +397,9 @@ function guardIdShort(
 ): void {
   const nextName = (next as unknown as Record<string, unknown>)['idShort'];
   const currentName = (found.node as unknown as Record<string, unknown>)['idShort'];
-  if (nextName === currentName) return; // 이름을 안 바꾼다면 볼 것 없다
+  if (nextName === currentName) return; // Nothing to check if the name isn't changing
 
-  // 마지막 마디가 `[n]`으로 끝나면 리스트 자식이다 — 순서로 가리키는 자리다
+  // If the last segment ends with `[n]`, it is a list child — addressed by position
   const lastSegment = path.split('.').at(-1) ?? '';
   if (/\]$/.test(lastSegment)) {
     if (typeof nextName === 'string' && nextName !== '') {
@@ -434,14 +434,14 @@ function locate(submodel: Submodel, path: string): ReturnType<typeof resolveIdSh
 }
 
 /**
- * 직렬화 수식자 — `$value` · `$metadata` · `$reference` · `$path`.
+ * Serialization modifiers — `$value`, `$metadata`, `$reference`, `$path`.
  *
- * 표준 클라이언트(BaSyx 등)가 실제로 쓰는 경로다. 통짜 JSON을 주고받으면 값만 필요할 때도
- * 서브모델 전체가 오간다 — 설비 하나에 요소 175개다.
- *  $value    값만 (ValueOnly)
- *  $metadata 값을 뺀 나머지 — 구조·의미만 볼 때
- *  $reference 그 자원을 가리키는 ModelReference
- *  $path     idShortPath 목록 — 트리를 받지 않고 위치만 훑을 때
+ * These are paths standard clients (BaSyx etc.) actually use. Exchanging whole JSON means the entire submodel
+ * travels even when only values are needed — one piece of equipment has 175 elements.
+ *  $value    values only (ValueOnly)
+ *  $metadata everything except values — for viewing structure and semantics only
+ *  $reference a ModelReference pointing to that resource
+ *  $path     list of idShortPaths — for scanning positions without fetching the tree
  */
 function submodelModifierRoutes(
   store: AasStore,
@@ -464,7 +464,7 @@ function submodelModifierRoutes(
       async handle(ctx) {
         const body = bodyObject(ctx.request);
         return editSubmodel(store, ctx, resolveSubmodel, (submodel) => {
-          // 자식 idShort를 키로 받아 값만 갈아 끼운다. 없는 이름은 무시하지 않고 알린다
+          // Takes child idShorts as keys and swaps only values. Unknown names are reported, not ignored
           for (const [idShort, value] of Object.entries(body)) {
             const found = resolveIdShortPath(submodel, idShort);
             if (!found) throw new ApiError(404, 'NotFound', fill(tr('요소를 찾을 수 없습니다: {0}'), { 0: idShort }));
@@ -613,7 +613,7 @@ function submodelElementRoutes(
       success: [200],
       async handle(ctx) {
         const submodel = await readSubmodel(store, ctx, resolveSubmodel);
-        locate(submodel, ctx.params['path']!); // 없으면 404
+        locate(submodel, ctx.params['path']!); // 404 if absent
         return json(200, pathsUnder(submodel, ctx.params['path']!));
       },
     },
@@ -701,7 +701,7 @@ function submodelElementRoutes(
       },
     },
     {
-      /** PATCH 요소 — 부분 갱신(PUT은 통째 교체) */
+      /** PATCH element — partial update (PUT replaces wholesale) */
       method: 'PATCH',
       pattern: `${elements}/:path`,
       success: [204],
@@ -721,12 +721,12 @@ function submodelElementRoutes(
     },
     {
       /**
-       * POST 요소 옮기기(규격 밖) — 형제 안에서 한 칸 위/아래.
-       * Part 2에는 순서를 바꾸는 연산이 없다(PUT은 통째 교체뿐). 그런데 AAS의 요소 순서는
-       * **문서 순서**다 — 가이던스 표·Package Explorer 화면이 그 순서로 나온다. 잘못 만든 순서를
-       * 지우고 다시 만들게 하지 않으려면 이 한 연산이 필요하다(2026-09-04 전문가 검토).
-       * body `{ offset: -1 | 1 }`(한 칸) 또는 `{ to: n }`(형제 중 n번째 자리로 — 트리에서 끌어다 놓기).
-       * 끝에서 더 가거나 범위 밖이면 400.
+       * POST move element (non-spec) — one position up/down among siblings.
+       * Part 2 has no operation to reorder (PUT only replaces wholesale). But AAS element order is
+       * **document order** — guidance tables and the Package Explorer UI show things in that order. To avoid making people delete
+       * and recreate a wrongly ordered element, this one operation is needed (2026-09-04 expert review).
+       * body `{ offset: -1 | 1 }` (one position) or `{ to: n }` (to the n-th position among siblings — drag and drop in the tree).
+       * 400 if moving past the end or out of range.
        */
       method: 'POST',
       pattern: `${elements}/:path/move`,
@@ -756,10 +756,10 @@ function submodelElementRoutes(
     },
     {
       /**
-       * POST 요소 복제(규격 밖) — 같은 자리 바로 아래에 사본. 이름은 `X_2`(빈 번호부터).
-       * HandoverDocumentation의 문서 항목·Markings처럼 **같은 구조를 여러 벌** 채울 때
-       * 처음부터 다시 만드는 일을 없앤다. 리스트 자식(`[n]`)은 idShort가 없으니 그대로 복제.
-       * 응답 201에 만든 요소 — 화면이 그 idShort로 자리를 잡는다.
+       * POST duplicate element (non-spec) — a copy placed right below. Named `X_2` (from the first free number).
+       * Removes rebuilding from scratch when filling **multiple copies of the same structure**, like HandoverDocumentation
+       * document entries or Markings. List children (`[n]`) have no idShort, so they are duplicated as-is.
+       * Response 201 with the created element — the UI positions itself by that idShort.
        */
       method: 'POST',
       pattern: `${elements}/:path/duplicate`,
@@ -792,8 +792,8 @@ function submodelElementRoutes(
     },
     {
       /**
-       * GET 첨부 — File 요소가 가리키는 **실제 파일**.
-       * HandoverDocumentation의 매뉴얼 PDF가 여기로 오간다(기획서 Ⅷ 대용량 파일).
+       * GET attachment — the **actual file** a File element points to.
+       * HandoverDocumentation manual PDFs travel through here (spec VIII large files).
        */
       method: 'GET',
       pattern: `${elements}/:path/attachment`,
@@ -811,7 +811,7 @@ function submodelElementRoutes(
       },
     },
     {
-      /** PUT 첨부 — 파일과 모델(File.value)을 함께 갱신한다 */
+      /** PUT attachment — updates the file and the model (File.value) together */
       method: 'PUT',
       pattern: `${elements}/:path/attachment`,
       success: [204],
@@ -834,14 +834,14 @@ function submodelElementRoutes(
             throw new ApiError(400, 'BadRequest', tr('첨부는 File·Blob 요소에만 붙습니다.'));
           }
           const target = found.node as unknown as Record<string, unknown>;
-          // File.value는 URI여야 한다(PKG-FILE-URI). 상대경로로 두면 스키마 위반이다
+          // File.value must be a URI (PKG-FILE-URI). Leaving it as a relative path violates the schema
           target['value'] = `file://${part}`;
           target['contentType'] = upload.contentType;
         });
       },
     },
     {
-      /** DELETE 첨부 — 규격상 200 */
+      /** DELETE attachment — 200 per the spec */
       method: 'DELETE',
       pattern: `${elements}/:path/attachment`,
       success: [200],
@@ -881,7 +881,7 @@ function submodelElementRoutes(
       success: [204],
       async handle(ctx) {
         const path = ctx.params['path']!;
-        // 스칼라 본문도 받고 {"value": ...} 봉투도 받는다 — 클라이언트마다 관례가 갈린다
+        // Accepts both a scalar body and a {"value": ...} envelope — conventions differ between clients
         const raw = ctx.request.body;
         const value =
           typeof raw === 'object' && raw !== null && !Array.isArray(raw) && 'value' in raw
@@ -896,10 +896,10 @@ function submodelElementRoutes(
 }
 
 /**
- * `/shells/{aasId}/submodels/{smId}/...` — AAS를 거쳐 서브모델에 닿는 길.
+ * `/shells/{aasId}/submodels/{smId}/...` — the path reaching a submodel via an AAS.
  *
- * 평면 경로와 **같은 핸들러**를 쓰되 위치 결정자만 바꾼다. 규격이 두 갈래를 정의했다고
- * 구현을 두 벌 두면 언젠가 갈린다.
+ * Uses **the same handlers** as the flat path, swapping only the locator. Keeping two implementations
+ * just because the spec defines two paths means they will diverge someday.
  */
 function nestedSubmodelRoutes(store: AasStore): Route[] {
   const prefix = `${BASE}/shells/:identifier/submodels/:submodelIdentifier`;
@@ -972,10 +972,10 @@ export function part2Routes(store: AasStore): Route[] {
     ...identifiableRoutes(store, 'shells', 'AssetAdministrationShell'),
     ...identifiableRoutes(store, 'submodels', 'Submodel'),
     ...identifiableRoutes(store, 'concept-descriptions', 'ConceptDescription'),
-    // 평면 경로 — Submodel Repository
+    // Flat path — Submodel Repository
     ...submodelModifierRoutes(store, `${BASE}/submodels/:identifier`, flatLocator),
     ...submodelElementRoutes(store, `${BASE}/submodels/:identifier`, flatLocator),
-    // 중첩 경로 — AAS Repository. 같은 서브모델을 AAS를 거쳐 가리킨다(규격 SSP-001)
+    // Nested path — AAS Repository. Points to the same submodel via the AAS (spec SSP-001)
     ...nestedSubmodelRoutes(store),
     {
       /** GET /shells/{id}/$reference */
@@ -988,7 +988,7 @@ export function part2Routes(store: AasStore): Route[] {
       },
     },
     {
-      /** GET /shells/$reference — 목록을 참조만으로 */
+      /** GET /shells/$reference — list as references only */
       method: 'GET',
       pattern: `${BASE}/shells/$reference`,
       success: [200],
@@ -1057,7 +1057,7 @@ export function part2Routes(store: AasStore): Route[] {
       },
     },
     {
-      /** GET /shells/{aasId}/asset-information — assetKind·globalAssetId·썸네일 경로 */
+      /** GET /shells/{aasId}/asset-information — assetKind, globalAssetId, thumbnail path */
       method: 'GET',
       pattern: `${BASE}/shells/:identifier/asset-information`,
       success: [200],
@@ -1070,8 +1070,8 @@ export function part2Routes(store: AasStore): Route[] {
     {
       /**
        * PUT /shells/{aasId}/asset-information.
-       * KOSMO-AAS-5·6(globalAssetId·assetKind=Type)이 이 자리를 가리킨다 —
-       * 「고치기」 말고 사람이 직접 고칠 길도 있어야 한다.
+       * KOSMO-AAS-5/6 (globalAssetId, assetKind=Type) point to this place —
+       * besides the "Fix" action, there must also be a way for people to edit it directly.
        */
       method: 'PUT',
       pattern: `${BASE}/shells/:identifier/asset-information`,
@@ -1092,7 +1092,7 @@ export function part2Routes(store: AasStore): Route[] {
       },
     },
     {
-      /** GET .../thumbnail — 패키지 안의 실제 파트를 준다(모델이 아니라 파일이다) */
+      /** GET .../thumbnail — returns the actual part in the package (it is a file, not the model) */
       method: 'GET',
       pattern: `${BASE}/shells/:identifier/asset-information/thumbnail`,
       success: [200],
@@ -1107,8 +1107,8 @@ export function part2Routes(store: AasStore): Route[] {
     {
       /**
        * PUT .../thumbnail — multipart(fileName·file).
-       * 파일과 모델을 **함께** 갱신한다. 하나만 바꾸면 PKG-THUMB-PART가 걸린다
-       * (파트·관계·Content_Types 세 곳이 맞아야 한다 — M2 writeAasx가 나머지를 맞춰 준다).
+       * Updates the file and the model **together**. Changing only one triggers PKG-THUMB-PART
+       * (the part, relationship and Content_Types must all match — M2 writeAasx aligns the rest).
        */
       method: 'PUT',
       pattern: `${BASE}/shells/:identifier/asset-information/thumbnail`,
@@ -1130,7 +1130,7 @@ export function part2Routes(store: AasStore): Route[] {
           assetInformation?: Record<string, unknown>;
         };
         const info = (content.assetInformation ??= {});
-        // 이전 썸네일 파트가 다른 이름이었다면 지운다 — 남겨 두면 패키지에 고아 파트가 생긴다
+        // If the previous thumbnail part had a different name, delete it — leaving it creates an orphan part in the package
         const previous = (info['defaultThumbnail'] as { path?: string } | undefined)?.path;
         if (previous && previous !== part) {
           await store.deletePackageFile(packageId, previous).catch(() => undefined);
@@ -1148,7 +1148,7 @@ export function part2Routes(store: AasStore): Route[] {
       },
     },
     {
-      /** DELETE .../thumbnail — 규격상 200이다(204가 아니다) */
+      /** DELETE .../thumbnail — 200 per the spec (not 204) */
       method: 'DELETE',
       pattern: `${BASE}/shells/:identifier/asset-information/thumbnail`,
       success: [200],
@@ -1249,11 +1249,11 @@ export function part2Routes(store: AasStore): Route[] {
 }
 
 /**
- * 우리가 **온전히 만족한다고 주장하는** 프로필.
+ * Profiles we **claim to fully satisfy**.
  *
- * 규격은 `/description`에 최소 하나의 프로필을 싣도록 정한다. 다 만들지 않은 프로필을 여기 적으면
- * 클라이언트가 있는 줄 알고 부르다 깨진다 — 그래서 `scripts/part2-coverage.mjs`가
- * 여기 적힌 프로필의 모든 연산이 실제로 열려 있는지 매번 확인한다.
+ * The spec requires `/description` to list at least one profile. Listing an unfinished profile here would make
+ * clients assume it exists and break when calling it — so `scripts/part2-coverage.mjs`
+ * checks every time that all operations of the profiles listed here are actually open.
  */
 export const PART2_PROFILES = [
   'https://admin-shell.io/aas/API/3/0/ConceptDescriptionServiceSpecification/SSP-001',
@@ -1263,7 +1263,7 @@ export const AASX_FILE_SERVER_PROFILES = [
   'https://admin-shell.io/aas/API/3/0/AasxFileServerServiceSpecification/SSP-001',
 ] as const;
 
-/** GET /description — 서버가 무엇을 구현했는지 클라이언트에게 알린다 */
+/** GET /description — tells clients what the server implements */
 export function descriptionRoute(pattern: string, profiles: readonly string[]): Route {
   return {
     method: 'GET',
@@ -1274,8 +1274,8 @@ export function descriptionRoute(pattern: string, profiles: readonly string[]): 
 }
 
 /**
- * GET /serialization — 고른 것만 담아 내보낸다.
- * Accept에 따라 AASX(패키지)와 Environment JSON을 가른다.
+ * GET /serialization — exports only what was selected.
+ * Chooses between AASX (package) and Environment JSON based on Accept.
  */
 export function serializationRoute(store: AasStore): Route {
   return {

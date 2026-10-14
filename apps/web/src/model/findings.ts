@@ -1,13 +1,13 @@
 /**
- * 모델 — 지적을 트리 노드에 붙이고 건수 · 가장 나쁜 등급을 모은다.
- * src/model.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 model.ts 로 쓴다.
+ * Model — attaches findings to tree nodes and aggregates counts · worst severity.
+ * Split out of src/model.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via model.ts.
  */
 import { type Finding, type TreeNode } from './types.js';
 
 /**
- * 지적을 노드에 귀속시킨다.
- * finding.pointer는 노드보다 깊을 수 있다(`.../semanticId`, `.../value`) —
- * 그래서 **가장 길게 겹치는 노드**에 붙인다.
+ * Assigns findings to nodes.
+ * finding.pointer can be deeper than a node (`.../semanticId`, `.../value`) —
+ * so it is attached to the **node with the longest overlap**.
  */
 export function attachFindings(
   roots: readonly TreeNode[],
@@ -21,7 +21,7 @@ export function attachFindings(
     }
   };
   walk(roots);
-  keys.sort((a, b) => b.length - a.length); // 긴 것부터 본다
+  keys.sort((a, b) => b.length - a.length); // longest first
 
   const byNode = new Map<string, Finding[]>();
   for (const finding of findings) {
@@ -33,20 +33,20 @@ export function attachFindings(
 }
 
 export interface FindingTally {
-  /** 이 노드에 직접 붙은 지적 */
+  /** Findings attached directly to this node */
   own: number;
-  /** 자손까지 합친 수 */
+  /** Count including descendants */
   total: number;
-  /** 자손까지 통틀어 가장 무거운 등급 */
+  /** Most severe level across all descendants */
   worst: Finding['severity'];
 }
 
 /**
- * 노드별 지적 집계.
+ * Per-node finding aggregation.
  *
- * 접힌 노드에 자손의 지적이 보이지 않으면 **어디를 펼쳐야 할지 알 수 없다.**
- * 골든 파일의 CD 경고 2건이 접힌 그룹 안에 숨어 있던 것이 그 예다(2026-08-24, 화면에서 발견).
- * 참고(info)는 세지 않는다 — 고칠 것이 없는 사실은 배지가 아니라 지적 팝업의 「참고」 접힘에 있다.
+ * If a collapsed node does not show its descendants' findings, **you cannot tell what to expand.**
+ * Example: the golden file's 2 CD warnings were hidden inside a collapsed group (2026-08-24, found on screen).
+ * Info is not counted — facts with nothing to fix live in the finding popup's collapsed "Info" section, not in badges.
  */
 export function tallyFindings(
   roots: readonly TreeNode[],
@@ -55,8 +55,8 @@ export function tallyFindings(
   const out = new Map<string, FindingTally>();
 
   const visit = (node: TreeNode): FindingTally => {
-    // 🔴 참고(info)는 배지에 세지 않는다 — 고칠 것이 없는 사실 전달인데 회색 숫자가 트리에 남아
-    //    "경고 숫자가 남아 있다"고 읽혔다(2026-09-07). 배지는 위반·경고 수다(사용법 §3)
+    // Important: info is not counted in badges — it conveys facts with nothing to fix, yet a grey number stayed in the tree
+    //    and read as "warning count still there" (2026-09-07). Badges count violations and warnings (usage guide §3)
     const own = (byNode.get(node.pointer) ?? []).filter((finding) => finding.severity !== 'info');
     let total = own.length;
     let worst: Finding['severity'] = 'info';

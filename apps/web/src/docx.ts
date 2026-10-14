@@ -1,15 +1,15 @@
 /**
- * 진짜 .docx 만들기 — 라이브러리 없이.
+ * A real .docx — without a library.
  *
- * 왜 HTML 기반 `.doc`를 버렸나: **워드가 용지 설정을 적용하지 않는다.**
- * 실측(Microsoft Word AppleScript) — 그림 폭은 482pt(17cm)로 제대로 들어갔는데
- * `page setup`이 비어 있었다. 용지가 Letter로 열리면 본문 폭이 468pt라 그림이 넘친다.
- * 게다가 한글(HWP)은 HTML .doc를 더 제멋대로 연다.
+ * Why the HTML-based `.doc` was dropped: **Word does not apply its page setup.**
+ * Measured (Microsoft Word AppleScript) — the image width came in correctly at 482pt (17cm), but
+ * `page setup` was empty. When the page opens as Letter the body width is 468pt, so the image overflows.
+ * On top of that, Hangul (HWP) opens an HTML .doc even more unpredictably.
  *
- * .docx는 **OPC 패키지(zip + XML)** 다 — 이 저장소가 AASX로 이미 하고 있는 것과 같은 구조라
- * 새 의존성 없이 만들 수 있다. 크기를 EMU로 못박으므로 워드·한글이 똑같이 연다.
+ * A .docx is an **OPC package (zip + XML)** — the same structure this repository already produces for AASX, so
+ * it can be built with no new dependency. Sizes are pinned in EMU, so Word and Hangul open it identically.
  *
- * 🔴 여기서 만드는 것은 **붙여넣기용 자료**다. 가이던스 문장은 사람이 쓴다.
+ * Important: what this builds is **material for pasting**. Guidance prose is written by people.
  */
 import { zipSync, strToU8 } from 'fflate';
 
@@ -20,11 +20,11 @@ const TWIP_PER_CM = 567;
 
 export interface DocxImage {
   kind: 'image';
-  /** PNG 바이트 */
+  /** PNG bytes */
   data: Uint8Array;
   widthCm: number;
   heightCm: number;
-  /** 왼쪽 정렬(로고). 기본은 가운데 */
+  /** Left-aligned (logo). Centered by default */
   left?: boolean;
 }
 
@@ -49,19 +49,19 @@ export interface DocxListItem {
 }
 
 export interface DocxCell {
-  /** 줄바꿈은 배열로 준다 */
+  /** Line breaks are given as an array */
   lines: string[];
   bold?: boolean;
-  /** 머리 칸 음영 (문서와 같은 색) */
+  /** Header cell shading (same color as the document) */
   shaded?: boolean;
-  /** 가로로 몇 칸을 합칠지 */
+  /** How many columns to merge horizontally */
   span?: number;
 }
 
 export interface DocxTable {
   kind: 'table';
   rows: DocxCell[][];
-  /** 열 너비(cm). 합이 본문 폭을 넘지 않아야 한다 */
+  /** Column widths (cm). The sum must not exceed the body width */
   columns: number[];
 }
 
@@ -69,7 +69,7 @@ export type DocxBlock = DocxImage | DocxHeading | DocxParagraph | DocxListItem |
 
 export interface DocxOptions {
   title: string;
-  /** A4 세로 기준 본문 폭(cm). 기본 17 (210 - 20 - 20mm) */
+  /** Body width (cm) for A4 portrait. Default 17 (210 - 20 - 20mm) */
   contentWidthCm?: number;
 }
 
@@ -81,11 +81,11 @@ function escapeXml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** 여러 줄을 한 문단 안의 줄바꿈으로 */
+/** Multiple lines as line breaks inside one paragraph */
 function runsOf(lines: string[], bold?: boolean, size?: number): string {
   const properties =
     `<w:rPr>${bold ? '<w:b/>' : ''}${size ? `<w:sz w:val="${size}"/>` : ''}` +
-    // i18n-ignore — 화면 글자가 아니라 Word 문서에 박는 **글꼴 이름**이다. 옮기면 문서가 깨진다
+    // i18n-ignore — not screen text but the **font name** written into the Word document. Translating it breaks the document
     `<w:rFonts w:ascii="맑은 고딕" w:eastAsia="맑은 고딕" w:hAnsi="맑은 고딕"/></w:rPr>`;
   return lines
     .map(
@@ -173,7 +173,7 @@ function imageXml(block: DocxImage, id: number): string {
   );
 }
 
-/** 블록 목록을 .docx 바이트로 */
+/** Block list to .docx bytes */
 export function buildDocx(blocks: readonly DocxBlock[], options: DocxOptions): Uint8Array {
   const media: Record<string, Uint8Array> = {};
   const relationships: string[] = [];
@@ -194,7 +194,7 @@ export function buildDocx(blocks: readonly DocxBlock[], options: DocxOptions): U
     })
     .join('\n');
 
-  // 🔴 용지·여백을 문서에 못박는다. HTML .doc가 못 하던 바로 그 부분이다
+  // Important: pin the page size and margins in the document. This is exactly what HTML .doc could not do
   const width = options.contentWidthCm ?? 17;
   const sideMarginCm = (21 - width) / 2;
   const sectionProperties =

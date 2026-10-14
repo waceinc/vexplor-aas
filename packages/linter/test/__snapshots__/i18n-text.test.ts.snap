@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`서버 글의 영어 — 린터 본체 · 결과서 · 고치기 > 한국어(기본)는 바뀌지 않는다 1`] = `
+exports[`English server text — linter core · report · fixes > Korean (the default) does not change 1`] = `
 {
   "bundle": "﻿연계 키(사람이 채움),KPI 용도(사람이 채움),대표 이름,semanticId,정의 이름,단위,보유 설비 수,설비,경로,valueType
 ,,InstantPower,https://www.smart-factory.kr/ids/cd/InstantPower/1/0,InstantPower,kW,2,A,OperationalData/EnergyMonitoring/PowerMeasurement/InstantPower,xs:double
@@ -243,7 +243,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>AAS 검증 결과서 — 01-롤포밍기-공34.aasx</title>
+<title>AAS 검증 결과서 — 01-roll-forming-machine.aasx</title>
 <style>
   :root { color-scheme: light; }
   body { font: 12px/1.6 -apple-system, 'Malgun Gothic', sans-serif; color: #16191d; margin: 32px; }
@@ -277,7 +277,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 <div class="brand"><img src="(logo)" alt="VEXPLOR"/></div>
 <h1>AAS 검증 결과서</h1>
 <p class="sub">
-  01-롤포밍기-공34.aasx · 2026-08-21T00:00:00.000Z ·
+  01-roll-forming-machine.aasx · 2026-08-21T00:00:00.000Z ·
   <span class="verdict fail">FAIL</span>
 </p>
 
@@ -526,7 +526,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>AAS 검증 결과서 — 01-롤포밍기-공34.aasx</title>
+<title>AAS 검증 결과서 — 01-roll-forming-machine.aasx</title>
 <style>
   :root { color-scheme: light; }
   body { font: 12px/1.6 -apple-system, 'Malgun Gothic', sans-serif; color: #16191d; margin: 32px; }
@@ -560,7 +560,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 <div class="brand"><img src="(logo)" alt="VEXPLOR"/></div>
 <h1>AAS 검증 결과서</h1>
 <p class="sub">
-  01-롤포밍기-공34.aasx · 2026-08-21T00:00:00.000Z ·
+  01-roll-forming-machine.aasx · 2026-08-21T00:00:00.000Z ·
   <span class="verdict pass">PASS</span>
 </p>
 
@@ -913,7 +913,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 <tr><td>[Prop]OverallLength</td><td>[IRI] https://www.smart-factory.kr/ids/cd/OverallLength/1/0<br/>Overall Length<br/>치수 사양 - OverallLength</td><td>[double]12000.0</td><td>0..1</td></tr>
 <tr><td>[Prop]FloorSpace</td><td>[IRI] https://www.smart-factory.kr/ids/cd/FloorSpace/1/0<br/>Floor Space<br/>치수 사양 - FloorSpace</td><td>[double]18.0</td><td>0..1</td></tr>
 </table>",
-  "summary": "FAIL 01-롤포밍기-공34.aasx 위반 4건 · 경고 10건",
+  "summary": "FAIL 01-roll-forming-machine.aasx 위반 4건 · 경고 10건",
   "table": "장비 특화 요소 20개를 담고 있습니다(자체 IRI semanticId).
 장비 특화 요소가 없는 IDTA 표준 템플릿입니다 — 규정 §13 주의사항 5에 따라 표는 생략합니다.
 <table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:10pt">
@@ -987,7 +987,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 "        └ ","OverallLength","Property","double","mm","12000.0","https://www.smart-factory.kr/ids/cd/OverallLength/1/0","치수 사양 - OverallLength"
 "        └ ","FloorSpace","Property","double","m2","18.0","https://www.smart-factory.kr/ids/cd/FloorSpace/1/0","치수 사양 - FloorSpace"
 {"idShort":"DigitalNameplate","externalTemplate":"","dictionaries":["IEC CDD (IRDI)"],"templateLink":"","elementCount":13,"toWrite":["용어사전 버전 (주의사항 1 — 파일에는 IRDI만 있고 사전 버전은 없습니다)","템플릿 원본 링크 (주의사항 2 — IDTA Content Hub에서 최신 버전 확인)","서브모델 및 주요 구성요소 특징","서브모델 활용방안","활용 시나리오 (주의사항 4)"]}",
-  "text": "# 01-롤포밍기-공34.aasx
+  "text": "# 01-roll-forming-machine.aasx
 
 검사 규칙 43종 · 위반 4건 · 경고 10건 · 참고 2건  → FAIL
 계층별: L1 패키지 0건 · L2 제약조건 10건 · L3 KOSMO 6건

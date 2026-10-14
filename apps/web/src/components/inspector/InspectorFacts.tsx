@@ -1,6 +1,6 @@
 /**
- * 편집 칸 머리 — 닫기 · 이력 · 다른 파일 표시 · 길 · 제목 · 속성 목록(종류 · valueType · semanticId · 위치 …).
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Edit pane header — close · history · other-file marker · path · title · property list (kind · valueType · semanticId · location …).
+ * Extracted from components/Inspector.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
  */
 import { Fragment } from 'react';
 import { tr } from '../../i18n.js';
@@ -22,8 +22,8 @@ interface Props {
 export function InspectorFacts({ node, busy, trail, linkedFileName, onClose, onShowHistory, onChangeValueType, t }: Props): React.JSX.Element {
   const raw = node.node;
   /**
-   * 종류마다 볼 것이 다르다. AAS·AssetInformation·ConceptDescription은 값 편집 대상이 아니지만,
-   * **화면에서 확인은 되어야 한다** — 지적이 이 자리를 가리키기 때문이다(KOSMO-AAS-*, KOSMO-CD-*).
+   * What to show differs by kind. AAS · AssetInformation · ConceptDescription are not value-edit targets,
+   * but **they must be checkable on screen** — findings point here (KOSMO-AAS-*, KOSMO-CD-*).
    */
   const extra: [string, string][] = [];
   if (node.modelType === 'AssetAdministrationShell') {
@@ -51,7 +51,7 @@ export function InspectorFacts({ node, busy, trail, linkedFileName, onClose, onS
   if (node.modelType === 'Submodel') {
     extra.push(['id', String(raw['id'] ?? '')]);
     extra.push(['kind', String(raw['kind'] ?? tr('없음'))]);
-    // 표준 템플릿을 따르는 서브모델은 여기 IRI로 어느 템플릿·몇 판인지가 드러난다
+    // For submodels following a standard template, this IRI reveals which template and which version
     const admin = raw['administration'] as { version?: string; revision?: string } | undefined;
     extra.push(['administration', admin ? `${admin.version ?? '?'} / ${admin.revision ?? '?'}` : tr('없음')]);
   }
@@ -94,8 +94,8 @@ export function InspectorFacts({ node, busy, trail, linkedFileName, onClose, onS
             <dt>valueType</dt>
             <dd>
               {onChangeValueType && node.idShortPath !== undefined ? (
-                // 🔴 추가할 때 안 정하면 xs:string으로 박히는데 바꿀 길이 없었다(실사용 검증).
-                //    바꾸면 요소를 통째로 교체한다 — $value 경로로는 타입을 못 바꾼다
+                // Important: if not chosen on add, it was locked to xs:string with no way to change it (real-use validation).
+                //    Changing it replaces the whole element — the type cannot be changed through the $value path
                 <select
                   aria-label="valueType"
                   value={String(raw['valueType'])}

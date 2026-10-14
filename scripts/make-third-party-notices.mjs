@@ -1,34 +1,34 @@
 /**
- * 의존성의 라이선스를 모아 THIRD-PARTY-NOTICES.md를 만든다.
+ * Collects dependency licenses and generates THIRD-PARTY-NOTICES.md.
  *
- *     node scripts/make-third-party-notices.mjs          # 파일을 쓴다
- *     node scripts/make-third-party-notices.mjs --check  # 쓰지 않고 판정만 (CI용)
+ *     node scripts/make-third-party-notices.mjs          # write the file
+ *     node scripts/make-third-party-notices.mjs --check  # verdict only, no write (for CI)
  *
- * 🔴 **실행에 딸려 가는 것**(런타임)에 카피레프트(GPL·LGPL·AGPL)가 있으면 종료코드 1.
- *    Apache-2.0으로 내놓은 프로그램에 그런 것이 섞이면 받는 사람이 조건을 지킬 수 없다.
- *    OPC UA를 Python(asyncua, LGPL-3.0)이 아니라 node-opcua(MIT)로 고른 이유가 이것이고,
- *    의존성은 언제든 바뀌므로 **사람의 기억이 아니라 검사로** 지킨다.
+ * Important: exit code 1 if anything **shipped for execution** (runtime) is copyleft (GPL, LGPL, AGPL).
+ *    If such code is mixed into a program released under Apache-2.0, recipients cannot meet its terms.
+ *    This is why OPC UA uses node-opcua (MIT) rather than Python (asyncua, LGPL-3.0), and since dependencies
+ *    can change at any time, this is enforced **by a check, not by people's memory**.
  *
- * 근거는 package-lock.json이다 — 실제로 깔리는 판과 라이선스가 거기 적혀 있다.
- * 개발용(시험·빌드 도구)은 배포물에 들어가지 않으므로 목록만 싣고 판정하지 않는다.
+ * The source of truth is package-lock.json — it records the versions actually installed and their licenses.
+ * Development-only packages (test and build tools) do not ship, so they are listed but not judged.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
 const checkOnly = process.argv.includes('--check');
 
-/** 받는 사람에게 소스 공개 의무를 지우는 것들 */
+/** Licenses that impose source-disclosure obligations on recipients */
 const COPYLEFT = /\b(A?GPL|LGPL|SSPL|EUPL|CC-BY-SA|CC-BY-NC)\b/i;
 
 /**
- * package.json에 라이선스를 **적지 않은** 꾸러미 — 사람이 직접 열어 확인한 결과다.
+ * Packages whose package.json **does not state** a license — the result of a person opening and checking them.
  *
- * 🔴 「아마 MIT겠지」로 채우지 않는다. 꾸러미 안의 파일을 읽고 근거를 함께 적는다.
- *    판이 바뀌면 다시 확인해야 하므로 **판 번호까지** 맞을 때만 쓴다.
+ * Important: never fill in "probably MIT". Read the files inside the package and record the evidence.
+ *    A new version must be re-checked, so an entry applies only when **the version number** matches too.
  */
 const VERIFIED = {
-  'dequeue@1.0.5': { license: 'BSD-2-Clause', evidence: 'LICENSE 파일 — "This is the 2-Clause BSD license"' },
-  'humanize@0.0.9': { license: 'MIT', evidence: 'LICENSE 파일 — MIT 전문 (Copyright (c) 2012 Tai-Jin Lee)' },
+  'dequeue@1.0.5': { license: 'BSD-2-Clause', evidence: 'LICENSE file — "This is the 2-Clause BSD license"' },
+  'humanize@0.0.9': { license: 'MIT', evidence: 'LICENSE file — full MIT text (Copyright (c) 2012 Tai-Jin Lee)' },
   'precond@0.2.3': { license: 'MIT', evidence: 'README.md §License — "free to use under the terms of the MIT license"' },
 };
 
@@ -37,7 +37,7 @@ const development = new Map();
 const unknown = [];
 
 for (const [path, entry] of Object.entries(lock.packages ?? {})) {
-  // 뿌리와 우리 워크스페이스(packages/*, apps/*)는 제3자가 아니다
+  // The root and our workspaces (packages/*, apps/*) are not third-party
   if (!path.includes('node_modules/')) continue;
   if (entry.link) continue;
   const name = path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length);
@@ -46,7 +46,7 @@ for (const [path, entry] of Object.entries(lock.packages ?? {})) {
   const license = typeof entry.license === 'string' ? entry.license : VERIFIED[key]?.license;
   if (!license) unknown.push({ key, dev: entry.dev === true });
   const target = entry.dev === true ? development : runtime;
-  target.set(key, { name, version: entry.version, license: license ?? '(적혀 있지 않음)' });
+  target.set(key, { name, version: entry.version, license: license ?? '(not stated)' });
 }
 
 const sorted = (map) => [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -60,65 +60,80 @@ const blocked = sorted(runtime).filter((item) => COPYLEFT.test(item.license));
 const runtimeUnknown = unknown.filter((item) => !item.dev);
 
 const lines = [
-  '# 제3자 소프트웨어 고지 (Third-Party Notices)',
+  '# Third-Party Notices',
   '',
-  '이 프로그램은 아래 오픈소스에 기대어 동작합니다. 각 소프트웨어의 저작권은 그 저작자에게 있고,',
-  '적힌 라이선스에 따라 쓰입니다. 전문은 설치 뒤 `node_modules/<이름>/LICENSE`에서 볼 수 있습니다.',
+  'This program relies on the open-source software listed below. Each package is copyrighted by its authors',
+  'and used under the license shown. Full license texts are in `node_modules/<name>/LICENSE` after installation.',
   '',
-  '> 이 파일은 `node scripts/make-third-party-notices.mjs`가 `package-lock.json`에서 만듭니다.',
-  '> 손으로 고치지 마십시오 — 의존성을 바꾼 뒤 다시 만드십시오.',
+  '> This file is generated from `package-lock.json` by `node scripts/make-third-party-notices.mjs`.',
+  '> Do not edit it by hand — regenerate it after changing dependencies.',
   '',
-  '## 요약',
+  '## Summary',
   '',
-  `- 실행에 딸려 가는 것(런타임): **${runtime.size}개**`,
-  `- 개발·시험에만 쓰는 것: ${development.size}개 (배포물에 들어가지 않습니다)`,
-  `- 런타임의 카피레프트(GPL·LGPL·AGPL): **${blocked.length}개**`,
+  `- Shipped for execution (runtime): **${runtime.size}**`,
+  `- Development and testing only: ${development.size} (not included in releases)`,
+  `- Copyleft at runtime (GPL, LGPL, AGPL): **${blocked.length}**`,
   '',
-  '| 런타임 라이선스 | 개수 |',
+  '| Runtime license | Count |',
   '|---|---|',
   ...tally(runtime).map(([license, count]) => `| ${license} | ${count} |`),
   '',
-  '## 런타임',
+  '## Runtime',
   '',
-  '| 이름 | 판 | 라이선스 |',
+  '| Name | Version | License |',
   '|---|---|---|',
   ...sorted(runtime).map((item) => `| ${item.name} | ${item.version} | ${item.license} |`),
   '',
-  '### 라이선스를 직접 확인한 것',
+  '### Licenses verified by hand',
   '',
-  '`package.json`에 라이선스가 적혀 있지 않아 꾸러미 안의 파일을 열어 확인했습니다.',
+  'These packages do not state a license in `package.json`, so the files inside the package were opened and checked.',
   '',
-  '| 이름 | 라이선스 | 근거 |',
+  '| Name | License | Evidence |',
   '|---|---|---|',
   ...Object.entries(VERIFIED).map(([key, item]) => `| ${key} | ${item.license} | ${item.evidence} |`),
   '',
-  '## 개발·시험용',
+  '## Development and testing',
   '',
-  '| 이름 | 판 | 라이선스 |',
+  '| Name | Version | License |',
   '|---|---|---|',
   ...sorted(development).map((item) => `| ${item.name} | ${item.version} | ${item.license} |`),
   '',
-  '## 그 밖의 자료',
+  '## Other material',
   '',
   '- `docs/spec/part2/*.yaml` — IDTA-01002-3-0 (Specification of the Asset Administration Shell,',
-  '  Part 2: API). Industrial Digital Twin Association 발행, **CC BY 4.0**.',
+  '  Part 2: API). Published by the Industrial Digital Twin Association, **CC BY 4.0**.',
   '',
 ];
 
-console.log(`런타임 ${runtime.size}개 · 개발용 ${development.size}개`);
+console.log(`Runtime ${runtime.size} · development ${development.size}`);
 for (const [license, count] of tally(runtime)) console.log(`  ${String(count).padStart(4)}  ${license}`);
 
 if (runtimeUnknown.length > 0) {
-  console.log(`\n⚠️  런타임인데 라이선스가 적혀 있지 않은 것 ${runtimeUnknown.length}개 — 직접 확인이 필요합니다:`);
+  console.log(`\n[WARN] ${runtimeUnknown.length} runtime packages state no license — check them by hand:`);
   for (const item of runtimeUnknown) console.log(`   ${item.key}`);
 }
 if (blocked.length > 0) {
-  console.log(`\n🔴 런타임에 카피레프트가 있습니다 — Apache-2.0으로 내놓을 수 없습니다:`);
+  console.log(`\n[FAIL] Copyleft at runtime — cannot be released under Apache-2.0:`);
   for (const item of blocked) console.log(`   ${item.name}@${item.version}  ${item.license}`);
 }
 
+// Important: in --check mode also compare with the committed file — CONTRIBUTING promises that CI catches a
+// notices file that no longer matches the installed dependencies
+let stale = false;
+if (checkOnly) {
+  let current = '';
+  try {
+    current = readFileSync('THIRD-PARTY-NOTICES.md', 'utf8').replace(/\r\n/g, '\n');
+  } catch {
+    /* missing counts as stale */
+  }
+  if (current !== lines.join('\n')) {
+    stale = true;
+    console.error('[FAIL] THIRD-PARTY-NOTICES.md does not match the installed dependencies — run node scripts/make-third-party-notices.mjs');
+  }
+}
 if (!checkOnly) {
   writeFileSync('THIRD-PARTY-NOTICES.md', `${lines.join('\n')}`);
-  console.log('\nTHIRD-PARTY-NOTICES.md를 썼습니다.');
+  console.log('\nWrote THIRD-PARTY-NOTICES.md.');
 }
-process.exit(blocked.length > 0 ? 1 : 0);
+process.exit(blocked.length > 0 || stale ? 1 : 0);

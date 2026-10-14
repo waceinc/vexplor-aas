@@ -1,6 +1,6 @@
 /*
- * 화면 밖(포털)에 그리는 겹침 창 — 본문과 같은 80%. 로직스튜디오 `styles/shad.css` 의 같은 규칙을 옮겼다
- * (대표 2026-10-09 「모든 모달창 … 화면 본문과 같게」). 대화상자·메뉴는 body 에 붙어 본문 범위를 못 받는다.
+ * Overlay windows drawn outside the screen tree (portals) — same 80% as content. Ported from the same rule in Logic Studio `styles/shad.css`
+ * (product owner, 2026-10-09: "all modals … same as the screen content"). Dialogs and menus attach to body and do not inherit the content scope.
  */
 body:has([data-scale="content"]) :is(
   [data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"], [data-slot="popover-content"],

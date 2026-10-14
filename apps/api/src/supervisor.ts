@@ -1,15 +1,15 @@
 /**
- * 수집 감독 — 서버가 떠 있는 동안 주기적으로 알아서 수집한다.
+ * Collection supervisor — collects automatically at intervals while the server is up.
  *
- * 왜 필요한가: 수집 엔진(CollectionRunner)은 있었지만 **서버가 그것을 켜는 자리가 없었다.**
- * 화면에서 「지금 수집」을 누를 때만 돌았다 — 운영이라면 사람이 없어도 돌아야 한다.
+ * Why it is needed: the collection engine (CollectionRunner) existed, but **the server had no place that started it.**
+ * It ran only when "Collect now" was pressed in the UI — in operation it must run even with nobody around.
  *
- * 설계: 파일마다 러너를 상시로 쥐고 있지 않고, **주기마다 전체를 훑는다**(sweep).
- *  - 파일이 올라오거나 지워져도 다음 주기에 자연히 반영된다 — 러너 수명 관리가 없다
- *  - 한 주기가 밀려도 다음 주기와 **겹쳐 돌지 않는다** (진행 중이면 건너뛴다)
- *  - 장비 하나가 죽어도 나머지 파일 수집은 계속된다 (파일별 격리)
+ * Design: instead of holding a runner per file permanently, **sweep everything each cycle**.
+ *  - Uploaded or deleted files are picked up naturally on the next cycle — no runner lifecycle management
+ *  - If a cycle runs late, it **does not overlap** with the next one (skipped while one is in progress)
+ *  - If one device dies, collection for the remaining files continues (per-file isolation)
  *
- * 🔴 마지막 주기의 결과를 들고 있는다 — "돌고는 있는 건가"에 답할 수 있어야 한다.
+ * Important: keep the result of the last cycle — we must be able to answer "is it actually running?".
  */
 import type { AidInterface, ProtocolReader } from '@aas/collector';
 import { CollectionRunner, parseAid } from '@aas/collector';
@@ -18,23 +18,23 @@ import type { AasStore } from '@aas/store';
 export interface SupervisorOptions {
   store: AasStore;
   openReader: (descriptor: AidInterface) => Promise<ProtocolReader>;
-  /** 주기(ms) */
+  /** Interval (ms) */
   intervalMs: number;
 }
 
 export interface SweepPackageResult {
   packageId: string;
   name?: string;
-  /** 이 주기에 쌓은 표본 수 */
+  /** Number of samples stored in this cycle */
   collected: number;
-  /** 인터페이스별 오류 (접속 실패 등) */
+  /** Errors per interface (connection failures, etc.) */
   errors: string[];
 }
 
 export interface SweepReport {
   startedAt: string;
   finishedAt: string;
-  /** AID가 있는 파일 수 */
+  /** Number of files with an AID */
   packages: number;
   collected: number;
   results: SweepPackageResult[];
@@ -43,9 +43,9 @@ export interface SweepReport {
 export interface SupervisorStatus {
   running: boolean;
   intervalMs: number;
-  /** 아직 한 번도 안 돌았으면 없다 */
+  /** Absent if it has never run */
   lastSweep?: SweepReport;
-  /** 지금 주기가 도는 중인가 */
+  /** Whether a cycle is currently running */
   sweeping: boolean;
 }
 
@@ -83,9 +83,9 @@ export class CollectSupervisor {
     }, this.options.intervalMs);
   }
 
-  /** 한 바퀴 — 전체 파일을 훑어 AID가 있는 것만 수집한다 */
+  /** One sweep — scan all files and collect only those with an AID */
   async sweep(): Promise<SweepReport | undefined> {
-    // 🔴 겹침 방지 — 앞 주기가 길어지면 이번 주기는 건너뛴다. 겹쳐 돌면 장비에 이중 접속한다
+    // Important: overlap guard — if the previous cycle runs long, skip this one. Overlapping would connect to devices twice
     if (this.sweeping) return undefined;
     this.sweeping = true;
     const startedAt = new Date().toISOString();
@@ -124,7 +124,7 @@ export class CollectSupervisor {
               await runner.stop();
             }
           } catch (error) {
-            // 🔴 파일 하나가 깨져도 나머지는 계속한다 — 사유는 남긴다
+            // Important: keep going even if one file is broken — record the reason
             results.push({
               packageId: record.id,
               ...(record.name === undefined ? {} : { name: record.name }),

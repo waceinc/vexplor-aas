@@ -1,10 +1,10 @@
 /**
- * 수집 화면 — 기획서 M8.
+ * Collection screen — spec M8.
  *
- * 두 가지를 한 자리에서 보여 준다: **무엇을 수집할 수 있는지**(AID)와 **마지막에 무엇이 들어왔는지**.
+ * Shows two things in one place: **what can be collected** (AID) and **what came in last**.
  *
- * 🔴 여기 보이는 값은 **모델이 아니다.** 값 동기화 A안에서 수집값은 시계열에만 쌓이고
- * 파일로 돌아가지 않는다 — 화면에서도 그 경계가 보이도록 트리·속성 칸과 섞지 않았다.
+ * Important: the values shown here are **not the model.** Under value-sync option A, collected values only accumulate
+ * in the time series and never go back to the file — so the screen keeps them apart from the tree and property panes to make that boundary visible.
  */
 import { useEffect, useState } from 'react';
 import type { AidInterfaceView, CollectedValueView, CycleReportView, LiveMapping } from '../api.js';
@@ -23,7 +23,7 @@ import { freshWindowMs } from './collection/freshness.js';
 
 export type { EquipmentRow } from './collection/helpers.js';
 
-/** 수집값이 바뀌었는지 — 개수와 가장 늦은 수신 시각, 자동 수집의 마지막 회차. 하루 상태 막대가 이것으로 다시 읽는다 */
+/** Whether collected values changed — the count, the latest receive time, and the last automatic collection round. The daily status bar re-reads on this */
 function valuesVersion(values: readonly CollectedValueView[], sweep?: string): string {
   const latest = values.reduce((max, value) => {
     const at = value.receivedAt ?? value.observedAt;
@@ -35,34 +35,34 @@ function valuesVersion(values: readonly CollectedValueView[], sweep?: string): s
 interface Props {
   interfaces: AidInterfaceView[];
   values: CollectedValueView[];
-  /** 수집값이 모델의 어느 요소에 얹히는지 */
+  /** Which model element each collected value attaches to */
   live?: LiveMapping;
-  /** 자동 수집 상태 (COLLECT_INTERVAL 켠 배포) */
+  /** Automatic collection status (deployments with COLLECT_INTERVAL on) */
   auto?: { running: boolean; intervalMs?: number; lastSweep?: { startedAt: string; collected: number } };
   busy: boolean;
   onCollect: () => void;
-  /** 수집 연결(AID) 만들기 화면 열기 */
+  /** Open the create-collection-connection (AID) screen */
   onCreateAid: () => void;
-  /** 수집 연결 지우기 — 연결을 잘못 만들었거나 더 안 쓸 때 */
+  /** Delete the collection connection — when it was made wrong or is no longer used */
   onDeleteAid: () => void;
-  /** 마지막 수동 수집 결과 — 연결 상태의 근거 */
+  /** Last manual collection result — the basis for the connection status */
   cycle?: CycleReportView;
   packageId?: string;
-  /** 공정(묶음) 파일이면 수집 대상이 아니다 — 권하지 않고 안내한다 */
+  /** A process (bundle) file is not a collection target — guide the user instead of suggesting it */
   unit?: 'equipment' | 'composite';
-  /** 내장 가상 PLC로 연결(시뮬레이션). 없으면 버튼을 안 보인다(수집이 꺼진 서버) */
+  /** Connect to the built-in virtual PLC (simulation). When absent the button is hidden (server with collection off) */
   onSimulate?: () => void;
   /**
-   * 공정 파일일 때 — 공정에 매달린 설비와 수집 연결 상태. 여기서 바로 연결·수집한다
-   * (사용자 2026-10-01: 「설비 고르기 → 파일 열기 → PLC 연결」은 경로가 길다)
+   * For a process file — the equipment attached to the process and its collection connection status. Connect and collect right here
+   * (user, 2026-10-01: "pick equipment → open file → connect PLC" is too long a path)
    */
   equipment?: EquipmentRow[];
   onOpenEquipment?: (packageId: string) => void;
-  /** 그 설비 파일을 열고 「수집 연결 만들기」 창을 바로 띄운다 — 현장 PLC 주소를 넣는 길 */
+  /** Open that equipment file and pop up the "create collection connection" dialog right away — the way to enter a field PLC address */
   onConnectEquipment?: (packageId: string) => void;
   onSimulateEquipment?: (packageId: string) => void;
   onCollectEquipment?: (packageId: string) => void;
-  /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
+  /** Translator — falls back to the Korean as-is when missing from the dictionary (i18n.ts) */
   t: (text: string) => string;
 }
 
@@ -86,16 +86,16 @@ export function Collection({
   onCollectEquipment,
   t,
 }: Props): React.JSX.Element {
-  // 지금 시각 — 15초마다 다시 그려 「N분 전」과 끊김 판정이 저절로 따라가게 한다(값이 안 들어와도)
+  // Current time — redraw every 15 s so "N min ago" and the stale-connection check keep up on their own (even when no values arrive)
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 15_000);
     return () => window.clearInterval(timer);
   }, []);
-  // 🔴 공정(묶음) 파일 — 공정 자체에는 읽어 올 값이 없다. 대신 **매달린 설비 목록**을 보여 주고
-  //    여기서 바로 연결·수집한다. 예전엔 안내문뿐이라 설비를 골라 파일을 열고 나서야 연결할 수 있었다
+  // Important: a process (bundle) file — the process itself has no values to read. Instead show the **list of attached equipment**
+  //    and connect/collect right here. It used to be a notice only, so you could connect only after picking equipment and opening its file
   if (unit === 'composite' && interfaces.length === 0) {
-    // 하루 상태 — 수집 연결이 붙은 설비마다 한 줄(공정 전체의 하루가 한눈에)
+    // Daily status — one row per equipment with a collection connection (the whole process's day at a glance)
     const stateRows = (equipment ?? []).flatMap((row) => (row.packageId && row.connected ? [{ packageId: row.packageId, name: row.name }] : []));
     return (
       <>
@@ -108,7 +108,7 @@ export function Collection({
           {...(onCollectEquipment ? { onCollectEquipment } : {})}
           t={t}
         />
-        {/* 위 설비 목록과 같은 좌우 여백 — 칸 밖에 두면 하루 상태만 테두리에 붙는다(2026-10-14 실측 0px) */}
+        {/* Same left/right padding as the equipment list above — outside the pane only the daily status sticks to the border (measured 0px on 2026-10-14) */}
         <div className="collection">
           <DailyStates rows={stateRows} holdMs={freshWindowMs(auto?.intervalMs)} version={auto?.lastSweep?.startedAt ?? ''} t={t} />
         </div>
@@ -123,11 +123,11 @@ export function Collection({
   const { waitingTags, failedTags } = tagOutcomes(cycle);
 
   /**
-   * 주소 목록 내려받기 — 지금 화면에 있는 것을 그대로 표로 낸다.
-   * 🔴 서버를 다시 부르지 않는다: 화면과 표가 어긋나면 어느 쪽이 맞는지 알 수 없다.
+   * Download the address list — exports exactly what is on screen as a table.
+   * Important: does not call the server again: if the screen and the table disagree, there is no way to tell which is right.
    */
   const exportAddresses = (): void => {
-    // 마지막 수집에서 「값 대기」였던 태그 — 빈칸과 구별해 적는다
+    // Tags that were "awaiting value" in the last collection — written distinctly from an empty cell
     const pending = new Set(
       (cycle?.interfaces ?? []).flatMap((entry) =>
         (entry.report?.pending ?? []).map((item) => item.propertyName),
@@ -140,11 +140,11 @@ export function Collection({
   return (
     <div className="collection">
       <div className="collection-head">
-        {/* 🔴 방향을 제목에 박는다. 「OPC UA」만 쓰면 내주기와 구별되지 않는다 */}
+        {/* Important: put the direction in the title. "OPC UA" alone cannot be told apart from publishing */}
         <h3 title={tr('설비(PLC) → 이 도구')}>{t('← 수집 — 설비에서 받아 오기')}</h3>
-        {/* 동작 단추는 오른쪽 끝으로 — 제목과 붙어 있으면 답답하다 */}
+        {/* Action buttons go to the far right — cramped when stuck to the title */}
         <span className="spacer" />
-        {/* 단추 넷은 한 묶음 — 칸이 좁으면 묶음째 다음 줄로(하나만 떨어지지 않게) */}
+        {/* The four buttons are one group — when the pane is narrow the whole group wraps to the next line (no single button dropping alone) */}
         <div className="row-buttons">
           <button
             className="primary"
@@ -169,7 +169,7 @@ export function Collection({
         </div>
       </div>
 
-      {/* 자동 수집이 돌고 있으면 그 사실을 — 사람이 안 눌러도 쌓이고 있다는 것 */}
+      {/* If automatic collection is running, say so — values are accumulating even without anyone pressing a button */}
       {auto?.running && (
         <p className="auto-note"><T k={'자동 수집 켜짐 — {0}초마다{1}'} v={[Math.round((auto.intervalMs ?? 0) / 1000), auto.lastSweep && (
             <>
@@ -192,8 +192,8 @@ export function Collection({
       ))}
 
       {/*
-        🔴 표준 API로 현재값을 내보내려면 **AID 이름과 요소 idShort가 맞아야** 한다.
-           안 맞으면 값은 쌓이는데 밖에서는 안 보인다 — 그 사실을 여기서 알려 준다.
+        Important: to publish current values through the standard API, **the AID name and the element idShort must match**.
+           If they do not, values accumulate but are invisible from outside — this tells the user so here.
       */}
       {live && live.collected > 0 && <LiveMap live={live} />}
 

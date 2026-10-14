@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * 형식 → 호기 반영 화면 — 파일 요약의 「형식 파일」 카드와 「형식 변경 확인」 창.
- * app.test.tsx 와 같이 fetch 를 진짜 API 핸들러(@aas/api + 인메모리 저장소)에 물려 돌린다.
+ * Type -> unit propagation screen: the "type file" card in the file summary and the "confirm type changes" dialog.
+ * Like app.test.tsx, runs with fetch wired to the real API handler (@aas/api + in-memory store).
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -11,10 +11,10 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../src/App.js';
 import { useScreenHarness, wireFetch } from './harness.js';
 
-const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 type Json = Record<string, unknown>;
 
-/** 호기(pkg_1) · 형식(pkg_2) 두 파일. linked 면 호기를 형식에 연결해 둔다 */
+/** Two files: unit (pkg_1) and type (pkg_2). When linked, the unit is linked to the type */
 async function mount(linked: boolean) {
   const store = new InMemoryStore();
   await store.init();
@@ -45,10 +45,10 @@ const card = async (): Promise<HTMLElement> => {
 
 useScreenHarness();
 
-describe('형식 → 호기 반영 화면', () => {
-  it('형식이 바뀌면 카드가 알리고, 창에서 고른 줄만 반영한다 — 현장에서 고친 줄은 고를 수 없다', async () => {
+describe('type -> unit propagation screen', () => {
+  it('the card notices a type change and the dialog applies only the chosen rows (rows edited on site cannot be chosen)', async () => {
     const store = await mount(true);
-    await setValue(store, 'pkg_1', 'SerialNumber', 'SN-0001'); // 현장 수정
+    await setValue(store, 'pkg_1', 'SerialNumber', 'SN-0001'); // on-site edit
     await setValue(store, 'pkg_2', 'SerialNumber', 'SN-TYPE');
     await setValue(store, 'pkg_2', 'YearOfConstruction', '2027');
     render(<App />);
@@ -64,7 +64,7 @@ describe('형식 → 호기 반영 화면', () => {
     const year = within(dialog).getByText('YearOfConstruction').closest('tr') as HTMLElement;
     expect(within(year).getByText('2027')).toBeTruthy();
 
-    // 고른 것을 모두 풀면 반영 단추가 잠긴다
+    // unchecking everything locks the apply button
     fireEvent.click(within(year).getByRole('checkbox'));
     expect((within(dialog).getByRole('button', { name: '고른 0줄 반영' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(within(year).getByRole('checkbox'));
@@ -76,14 +76,14 @@ describe('형식 → 호기 반영 화면', () => {
     expect(await valueOf(store, 'pkg_1', 'SerialNumber')).toBe('SN-0001');
     await waitFor(async () => expect((await card()).textContent).toMatch(/반영할 형식 변경이 없습니다/));
 
-    // 머리글 「되돌리기」로 되돌리면 값도 돌아오고 카드도 다시 「확인 (1)」을 보인다(2026-10-14 화면에서 잡은 결함)
+    // reverting via the header "Revert" restores the value and the card again shows "Confirm (1)" (defect caught on screen, 2026-10-14)
     const header = document.querySelector('header') as HTMLElement;
     fireEvent.click(within(header).getByRole('button', { name: /되돌리기/ }));
     await waitFor(async () => expect(await valueOf(store, 'pkg_1', 'YearOfConstruction')).not.toBe('2027'));
     expect(await within(await card()).findByRole('button', { name: '형식 변경 확인 (1)' })).toBeTruthy();
   });
 
-  it('연결 안 된 호기는 형식 파일을 골라 연결하고, 끊을 때는 한 번 더 묻는다', async () => {
+  it('an unlinked unit picks a type file to link, and unlinking asks once more', async () => {
     await mount(false);
     render(<App />);
     fireEvent.click(await within(await card()).findByRole('button', { name: '형식 파일에 연결…' }));
@@ -100,7 +100,7 @@ describe('형식 → 호기 반영 화면', () => {
     expect(await within(await card()).findByRole('button', { name: '형식 파일에 연결…' })).toBeTruthy();
   });
 
-  it('형식 파일이 지워지면 반영 단추 대신 그 사실을 말한다', async () => {
+  it('when the type file is deleted, says so instead of showing the apply button', async () => {
     const store = await mount(true);
     await store.deletePackage('pkg_2');
     render(<App />);

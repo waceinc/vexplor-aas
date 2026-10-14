@@ -1,43 +1,43 @@
 /**
- * Environment 순회기.
+ * Environment traverser.
  *
- * 린터(M5)와 리포트가 공통으로 쓴다. KOSMO Validator의 에러 로그가
+ * Shared by the linter (M5) and reports. The KOSMO Validator's error log has the form
  *   @ /submodels/3(OperationalData)/submodelElements/0/value/0
- * 형태이므로(린터 명세 §7), 동일한 JSON Pointer 경로를 그대로 만들어 낸다.
+ * (linter spec §7), so we produce the same JSON Pointer paths verbatim.
  */
 import type { ConceptDescription } from './types/concept.js';
 import type { Environment } from './types/environment.js';
 import type { AssetAdministrationShell } from './types/shell.js';
 import type { Submodel, SubmodelElement } from './types/submodel.js';
 
-/** semanticId를 가질 수 있는 모든 요소 — KOSMO-SME-3의 검사 대상 범위 */
+/** Every element that can have a semanticId — the scope checked by KOSMO-SME-3 */
 export type SemanticNode = Submodel | SubmodelElement;
 
 export interface VisitedNode {
-  /** 방문한 노드 */
+  /** Visited node */
   node: SubmodelElement;
-  /** RFC 6901 JSON Pointer (Environment 루트 기준) */
+  /** RFC 6901 JSON Pointer (relative to the Environment root) */
   pointer: string;
-  /** KOSMO 리포트용 경로 — 인덱스 뒤에 idShort를 괄호로 붙인다 */
+  /** Path for KOSMO reports — idShort appended in parentheses after the index */
   kosmoPath: string;
-  /** 루트 Submodel */
+  /** Root Submodel */
   submodel: Submodel;
-  /** 직계 부모. 최상위 SubmodelElement면 undefined */
+  /** Direct parent. undefined for a top-level SubmodelElement */
   parent?: SubmodelElement;
-  /** idShort를 '.'으로 이은 경로. SML 자식처럼 idShort가 없으면 인덱스를 쓴다 */
+  /** Path of idShorts joined by '.'. Uses the index when there is no idShort, as with SML children */
   idShortPath: string;
-  /** 루트로부터의 깊이(최상위 SubmodelElement = 0) */
+  /** Depth from the root (top-level SubmodelElement = 0) */
   depth: number;
 }
 
-/** JSON Pointer 세그먼트 이스케이프 (RFC 6901) */
+/** Escape a JSON Pointer segment (RFC 6901) */
 export function escapePointer(segment: string): string {
   return segment.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
 /**
- * 요소가 자식을 담는 필드명을 돌려준다.
- * SMC/SML은 value, Entity는 statements, AnnotatedRelationshipElement는 annotations.
+ * Returns the name of the field in which an element holds its children.
+ * value for SMC/SML, statements for Entity, annotations for AnnotatedRelationshipElement.
  */
 function childrenOf(node: SubmodelElement): { field: string; items: SubmodelElement[] } | undefined {
   switch (node.modelType) {
@@ -53,7 +53,7 @@ function childrenOf(node: SubmodelElement): { field: string; items: SubmodelElem
   }
 }
 
-/** 하나의 Submodel 아래 모든 SubmodelElement를 깊이 우선으로 방문한다 */
+/** Visit every SubmodelElement under one Submodel, depth-first */
 export function walkSubmodel(
   submodel: Submodel,
   submodelIndex: number,
@@ -87,12 +87,12 @@ export function walkSubmodel(
   recurse(submodel.submodelElements ?? [], rootPointer, rootKosmo, '', undefined, 0);
 }
 
-/** Environment 전체의 SubmodelElement를 방문한다 */
+/** Visit every SubmodelElement in the whole Environment */
 export function walkEnvironment(env: Environment, visit: (v: VisitedNode) => void): void {
   (env.submodels ?? []).forEach((sm, i) => walkSubmodel(sm, i, visit));
 }
 
-/** 순회 결과를 배열로 모은다 (린터는 전수 수집 후 일괄 보고 — 명세 §6-4) */
+/** Collect traversal results into an array (the linter collects everything, then reports in one batch — spec §6-4) */
 export function collectElements(env: Environment): VisitedNode[] {
   const out: VisitedNode[] = [];
   walkEnvironment(env, (v) => out.push(v));
@@ -105,7 +105,7 @@ export interface IdentifiableIndex {
   conceptDescriptions: Map<string, ConceptDescription>;
 }
 
-/** id → 객체 색인. KOSMO-SME-3(CD 매핑 존재 여부) 검사에 쓴다 */
+/** id → object index. Used by the KOSMO-SME-3 check (whether a CD mapping exists) */
 export function indexIdentifiables(env: Environment): IdentifiableIndex {
   return {
     shells: new Map((env.assetAdministrationShells ?? []).map((s) => [s.id, s])),

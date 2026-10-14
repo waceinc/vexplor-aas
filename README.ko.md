@@ -123,7 +123,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 - 사람이 로그인하기 시작하면 **HTTPS를 앞에 두십시오** — [`Caddyfile.example`](Caddyfile.example)
 - **영어 화면에서 그대로 남는 것**은 내 파일에서 온 이름 · 값과, 제출 구조가 정한 레퍼런스 번들의 폴더 이름뿐입니다
 - 서버 기동 로그는 기본이 한국어이고, `AAS_LANG=en`이면 영어입니다
-- 보안 문제는 공개 이슈가 아니라 [SECURITY.md](SECURITY.md)의 길로 알려 주십시오
+- 보안 문제는 공개 이슈가 아니라 [SECURITY.ko.md](SECURITY.ko.md)의 길로 알려 주십시오
 
 ## 개발에 참여하기
 
@@ -131,7 +131,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 bash scripts/ci.sh      # 빌드 → 타입 → 시험 → 규격 대조 → 생성 문서 → 라이선스 → 번역. 올리기 전에 한 번
 ```
 
-CI는 Node.js 22와 24에서 돕니다. [CONTRIBUTING.md](CONTRIBUTING.md)에 약속 몇 가지가 있습니다.
+CI는 Node.js 22와 24에서 돕니다. [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md)에 약속 몇 가지가 있습니다.
 
 ## 라이선스
 

@@ -1,28 +1,29 @@
 ---
-name: 결함 신고 (Bug report)
-about: 기대와 다르게 동작합니다
+name: Bug report
+about: Something does not work as expected (한국어로 적어도 됩니다)
 labels: bug
 ---
 
-<!-- 🔴 보안 문제라면 여기 적지 말고 SECURITY.md의 길로 알려 주십시오. -->
+<!-- Security problem? Do not post it here — report it through SECURITY.md. -->
 
-## 무슨 일이 일어났나
+## What happened
 
-## 무엇을 기대했나
+## What you expected
 
-## 다시 일으키는 순서
+## Steps to reproduce
 
 1.
 2.
 3.
 
-## 환경
+## Environment
 
-- 판: <!-- 화면 헤더의 판 번호 또는 커밋 -->
-- 띄운 방법: <!-- Docker / 소스 -->
-- 브라우저:
+- Version: <!-- the version number in the app header, or the commit -->
+- How it was started: <!-- Docker / from source -->
+- Browser:
+- UI language: <!-- English / 한국어 -->
 
-## 붙임
+## Attachments
 
-<!-- 화면 갈무리, 서버 로그(docker compose logs app).
-     🔴 실제 설비 자료가 든 AASX는 붙이지 마십시오 — 꾸민 이름으로 바꾼 작은 파일이면 충분합니다. -->
+<!-- Screenshots, server log (docker compose logs app).
+     Do not attach AASX files with real equipment data — a small file with invented names is enough. -->

@@ -1,10 +1,10 @@
 /**
- * 수집 실행 검증 — 장비 없이.
+ * Collection run tests — without equipment.
  *
- * 프로토콜 어댑터를 포트로 뺀 덕에 가짜 리더로 전 과정을 돌릴 수 있다.
- * 실제 OPC UA 서버를 상대로 하는 시험은 어댑터 쪽(apps)에서 따로 한다.
+ * Because protocol adapters sit behind a port, the whole flow can run with a fake reader.
+ * Tests against a real OPC UA server live separately on the adapter side (apps).
  */
-import { collectOnce, toSample, type AidInterface, type ProtocolReader, type ValueSample } from '@aas/collector';
+import { collectOnce, toSample, type AidInterface, type ProtocolReader, type ValueSample, type ReadResult } from '@aas/collector';
 import { describe, expect, it } from 'vitest';
 
 const descriptor: AidInterface = {
@@ -24,7 +24,7 @@ function reader(results: { source: string; value?: unknown; error?: string; qual
     async read(sources) {
       return sources.map((source) => {
         const found = results.find((r) => r.source === source);
-        return found ? { ...found, source } : { source, error: '응답 없음' };
+        return (found ? { ...found, source } : { source, error: '응답 없음' }) as ReadResult;
       });
     },
     async close() {},
@@ -41,8 +41,8 @@ const sink = (): { samples: ValueSample[]; append: (s: readonly ValueSample[]) =
   };
 };
 
-describe('수집 실행', () => {
-  it('AID가 말한 주소만 읽어 표본으로 쌓는다', async () => {
+describe('Collection run', () => {
+  it('reads only the addresses the AID declares and stores them as samples', async () => {
     const target = sink();
     const report = await collectOnce(
       descriptor,
@@ -55,7 +55,7 @@ describe('수집 실행', () => {
     );
 
     expect(report.collected).toBe(2);
-    expect(report.skipped).toEqual(['주소없음']); // 주소가 없으면 읽을 곳이 없다
+    expect(report.skipped).toEqual(['주소없음']); // no address means nothing to read
     expect(report.failures).toEqual([]);
 
     expect(target.samples[0]).toEqual({
@@ -70,7 +70,7 @@ describe('수집 실행', () => {
     });
   });
 
-  it('장비가 준 시각이 있으면 그것을 쓴다 — 수집기 시계가 아니라', async () => {
+  it('uses the device timestamp when provided — not the collector clock', async () => {
     const target = sink();
     await collectOnce(
       descriptor,
@@ -79,11 +79,11 @@ describe('수집 실행', () => {
       { packageId: 'pkg_1', now: () => '2026-08-24T00:00:00.000Z' },
     );
     expect(target.samples[0]!.observedAt).toBe('2026-01-01T00:00:00.000Z');
-    // 🔴 수신 시각은 이 도구의 시계다 — 장비 시각이 멈춰 있어도 「방금 읽었다」를 남긴다(신선도 판정)
+    // Important: receive time comes from this tool's clock — records "just read" even if the device clock is stuck (freshness check)
     expect(target.samples[0]!.receivedAt).toBe('2026-08-24T00:00:00.000Z');
   });
 
-  it('읽지 못한 것은 숨기지 않고 사유와 함께 남긴다', async () => {
+  it('reports unreadable items with a reason instead of hiding them', async () => {
     const target = sink();
     const report = await collectOnce(descriptor, reader([{ source: 'ns=2;s=Speed', value: 10 }]), target, {
       packageId: 'pkg_1',
@@ -95,7 +95,7 @@ describe('수집 실행', () => {
     ]);
   });
 
-  it('읽을 것이 하나도 없으면 저장소를 건드리지 않는다', async () => {
+  it('does not touch the store when there is nothing to read', async () => {
     const target = sink();
     const empty: AidInterface = { name: 'X', protocol: 'OPCUA', properties: [] };
     const report = await collectOnce(empty, reader([]), target, { packageId: 'pkg_1' });
@@ -104,7 +104,7 @@ describe('수집 실행', () => {
   });
 });
 
-describe('값 담기', () => {
+describe('Value storage', () => {
   const base = {
     packageId: 'p',
     interfaceName: 'i',
@@ -112,25 +112,25 @@ describe('값 담기', () => {
     observedAt: '2026-08-24T00:00:00.000Z',
   };
 
-  it('숫자는 숫자 칸에 — 시계열 질의가 갈린다', () => {
+  it('numbers go in the numeric column — time-series queries depend on it', () => {
     expect(toSample(base, 12.5).valueNumber).toBe(12.5);
     expect(toSample(base, '42').valueNumber).toBe(42);
     expect(toSample(base, '42').valueText).toBe('42');
   });
 
-  it('참·거짓은 숫자와 글자 양쪽에 담는다 — 집계도 표시도 되게', () => {
+  it('booleans go in both numeric and text columns — for aggregation and display', () => {
     const sample = toSample(base, true);
     expect(sample.valueNumber).toBe(1);
     expect(sample.valueText).toBe('true');
   });
 
-  it('숫자가 아닌 것은 글자로', () => {
+  it('non-numbers go in the text column', () => {
     expect(toSample(base, 'RUNNING')).toMatchObject({ valueText: 'RUNNING' });
     expect(toSample(base, { a: 1 }).valueText).toBe('{"a":1}');
     expect(toSample(base, null).valueText).toBe('');
   });
 
-  it('NaN·Infinity는 숫자로 담지 않는다 — 시계열이 오염된다', () => {
+  it('does not store NaN or Infinity as numbers — they pollute the time series', () => {
     expect(toSample(base, Number.NaN).valueNumber).toBeUndefined();
     expect(toSample(base, Number.POSITIVE_INFINITY).valueNumber).toBeUndefined();
   });

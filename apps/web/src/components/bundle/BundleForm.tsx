@@ -1,6 +1,6 @@
 /**
- * 레퍼런스 번들 — 내보내기 양식(번들 · 제목 · 버전 · 증빙 수준 · 증빙 기간)과 내보내기 단추.
- * components/BundlePanel.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Reference bundle — export form (bundle · title · version · evidence level · evidence period) and the export button.
+ * Extracted from components/BundlePanel.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
  */
 import type { BundleView } from '../../api.js';
 import { fill, tr, trServerValue } from '../../i18n.js';
@@ -41,7 +41,7 @@ export function BundleForm({ view, busy, readyCount, code, setCode, title, setTi
         {tr('제목')}
         <input
           value={title}
-          // 비워 두면 분류 이름(한국어 — 사업이 정한 이름)이 제목이 된다. 영어 화면에서는 뜻을 곁들인다
+          // If left empty, the category name (Korean — the name set by the program) becomes the title. On the English screen the meaning is added
           placeholder={trServerValue(category) === category ? category : `${category} — ${trServerValue(category)}`}
           onChange={(event) => setTitle(event.target.value)}
         />
@@ -53,7 +53,7 @@ export function BundleForm({ view, busy, readyCount, code, setCode, title, setTi
       <label title={tr('수집 기록이 어디서 왔는지 — 기록서·README·manifest에 찍힙니다')}>
         {tr('증빙 수준')}
         <select value={evidenceLevel} onChange={(event) => setEvidenceLevel(event.target.value)}>
-          {/* <option> 안에는 글자만 둔다 — 화면 요소를 넣으면 브라우저가 글자로 읽지 못한다 */}
+          {/* Only text inside <option> — if screen elements are put in, the browser cannot read them as text */}
           <option value="auto">
             {fill(tr('자동 ({0})'), {
               0: evidence?.suggested ?? (evidence?.sources.length ? null : evidence?.carried?.level) ?? tr('미지정'),

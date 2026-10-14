@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 잠시 내릴 때 — 두 번 클릭하십시오. 저장된 자료는 그대로 남습니다.
+# For stopping temporarily — double-click this. Saved data stays as it is.
 set -uo pipefail
 cd "$(dirname "$0")"
 

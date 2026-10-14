@@ -1,9 +1,9 @@
 /**
- * 수집 경로 검증 (M8) — 가짜 어댑터로.
+ * Collection path checks (M8) — with a fake adapter.
  *
- * 실제 OPC UA 왕복은 packages/opcua의 내장 서버 시험이 맡는다.
- * 여기서 볼 것은 **API의 계약**이다: 인터페이스 노출 · 수집 실행 · 시계열 조회 ·
- * 어댑터가 없는 배포에서의 응답.
+ * Real OPC UA round trips are covered by the built-in server tests in packages/opcua.
+ * What matters here is **the API contract**: interface exposure, running collection, time-series queries,
+ * and the response on deployments without an adapter.
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -13,7 +13,7 @@ import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 
 const smc = (idShort: string, value: unknown[]): unknown => ({
   modelType: 'SubmodelElementCollection',
@@ -27,7 +27,7 @@ const prop = (idShort: string, value: string): unknown => ({
   value,
 });
 
-/** AID 서브모델을 얹은 패키지를 만든다 */
+/** Builds a package carrying an AID submodel */
 async function seeded(options: { withAid?: boolean; reader?: boolean } = {}) {
   const store = new InMemoryStore();
   await store.init();
@@ -93,8 +93,8 @@ async function seeded(options: { withAid?: boolean; reader?: boolean } = {}) {
   return { store, packageId: record.id, call };
 }
 
-describe('수집 경로 (M8)', () => {
-  it('AID가 기술한 인터페이스를 알려 준다 — 출처는 파일 안의 AID다', async () => {
+describe('collection path (M8)', () => {
+  it('reports the interfaces described by the AID — the source is the AID inside the file', async () => {
     const { packageId, call } = await seeded();
     const result = await call('GET', `/packages/${packageId}/interfaces`);
 
@@ -113,7 +113,7 @@ describe('수집 경로 (M8)', () => {
     });
   });
 
-  it('수집하면 시계열에 쌓이고 모델은 그대로다 (A안)', async () => {
+  it('collected values go into the time series and the model stays unchanged (option A)', async () => {
     const { store, packageId, call } = await seeded();
     const before = canonicalJson(await store.getEnvironment(packageId));
 
@@ -132,11 +132,11 @@ describe('수집 경로 (M8)', () => {
       quality: 'Good',
     });
 
-    // 🔴 수집은 편집이 아니다
+    // Important: collecting is not editing
     expect(canonicalJson(await store.getEnvironment(packageId))).toBe(before);
   });
 
-  it('조회를 좁힐 수 있다 — 이름·기간·개수', async () => {
+  it('queries can be narrowed — by name, time range, and count', async () => {
     const { packageId, call } = await seeded();
     await call('POST', `/packages/${packageId}/collect`);
 
@@ -156,14 +156,14 @@ describe('수집 경로 (M8)', () => {
     expect(bad.status).toBe(400);
   });
 
-  it('AID가 없으면 수집할 주소를 알 수 없다고 답한다', async () => {
+  it('without an AID, answers that the address to collect is unknown', async () => {
     const { packageId, call } = await seeded({ withAid: false });
     const result = await call('POST', `/packages/${packageId}/collect`);
     expect(result.status).toBe(404);
     expect(result.body.messages[0].text).toContain('AssetInterfacesDescription');
   });
 
-  it('수집 어댑터가 없는 배포에서는 501 — 저작만 하는 서버도 있다', async () => {
+  it('501 on a deployment without a collection adapter — some servers only author', async () => {
     const { packageId, call } = await seeded({ reader: false });
     const result = await call('POST', `/packages/${packageId}/collect`);
     expect(result.status).toBe(501);
@@ -171,11 +171,11 @@ describe('수집 경로 (M8)', () => {
   });
 });
 
-describe('🔴 수집값 읽기 전용 덧씌우기 (BaSyx DataBridge 동등)', () => {
+describe('Important: read-only overlay of collected values (equivalent to BaSyx DataBridge)', () => {
   /**
-   * BaSyx는 DataBridge가 값을 Submodel에 반영해 다른 시스템이 표준 API로 현재값을 본다.
-   * 우리는 A안(파일이 원본)이라 시계열에만 쌓는다 —
-   * `live=true`일 때만 **응답에** 얹어 같은 겉모습을 만든다. 파일은 그대로다.
+   * In BaSyx, DataBridge writes values into the Submodel so other systems see current values through the standard API.
+   * We use option A (the file is the source), so values only go into the time series —
+   * only when `live=true` are they overlaid **on the response** to give the same appearance. The file stays unchanged.
    */
   const seedValue = async (store: Awaited<ReturnType<typeof seeded>>['store'], packageId: string) => {
     await store.appendValues(packageId, [
@@ -194,7 +194,7 @@ describe('🔴 수집값 읽기 전용 덧씌우기 (BaSyx DataBridge 동등)', 
     'https://www.smart-factory.kr/ids/sm/RollFormingMachine/DigitalNameplate/3/1';
   const encoded = Buffer.from(nameplateId).toString('base64url');
 
-  it('기본은 파일 값 그대로다 — 아무 표시 없이 섞이면 안 된다', async () => {
+  it('file values by default — they must not be mixed in without any indication', async () => {
     const { store, packageId, call } = await seeded();
     await seedValue(store, packageId);
 
@@ -206,7 +206,7 @@ describe('🔴 수집값 읽기 전용 덧씌우기 (BaSyx DataBridge 동등)', 
     expect(result.body.value).toBe('EXM-RFL-2026-00127');
   });
 
-  it('live=true면 현장 값이 보인다', async () => {
+  it('with live=true the field values are visible', async () => {
     const { store, packageId, call } = await seeded();
     await seedValue(store, packageId);
 
@@ -218,7 +218,7 @@ describe('🔴 수집값 읽기 전용 덧씌우기 (BaSyx DataBridge 동등)', 
     expect(result.body.value).toBe('현장에서-읽은-값');
   });
 
-  it('$value에도 얹힌다 — 외부 시스템이 실제로 읽는 자리다', async () => {
+  it('also overlaid on $value — that is where external systems actually read', async () => {
     const { store, packageId, call } = await seeded();
     await seedValue(store, packageId);
 
@@ -230,7 +230,7 @@ describe('🔴 수집값 읽기 전용 덧씌우기 (BaSyx DataBridge 동등)', 
     expect(JSON.stringify(result.body)).toContain('현장에서-읽은-값');
   });
 
-  it('🔴 파일은 그대로다 — 덧씌워도 저장된 내용이 바뀌지 않는다', async () => {
+  it('Important: the file stays unchanged — overlaying does not change stored content', async () => {
     const { store, packageId, call } = await seeded();
     await seedValue(store, packageId);
     const before = canonicalJson(await store.getEnvironment(packageId));
@@ -242,11 +242,11 @@ describe('🔴 수집값 읽기 전용 덧씌우기 (BaSyx DataBridge 동등)', 
     expect(canonicalJson(await store.getEnvironment(packageId))).toBe(before);
   });
 
-  it('🔴 덧씌운 값을 저장하지 않는다 — 편집은 언제나 파일 값을 바탕으로 한다', async () => {
+  it('Important: overlaid values are not saved — edits are always based on file values', async () => {
     const { store, packageId, call } = await seeded();
     await seedValue(store, packageId);
 
-    // live로 읽은 뒤 다른 요소를 고쳐도 SerialNumber는 파일 값이어야 한다
+    // After reading with live, editing another element must leave SerialNumber at the file value
     await call('GET', `/packages/${packageId}/api/v3.0/submodels/${encoded}`, {
       query: { live: 'true' },
     });

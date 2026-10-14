@@ -1,6 +1,6 @@
 /**
- * AASX 규칙 린터 CLI.
- * 사용: node scripts/lint.mjs <파일 또는 디렉터리> [--only KOSMO] [--limit 20]
+ * AASX rule linter CLI.
+ * Usage: node scripts/lint.mjs <file or directory> [--only KOSMO] [--limit 20]
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,10 +40,10 @@ for (const file of files) {
   } else {
     console.log(formatSummary(result, file));
     for (const [ruleId, count] of Object.entries(result.countByRule)) {
-      console.log(`     ${ruleId.padEnd(22)} ${count}건`);
+      console.log(`     ${ruleId.padEnd(22)} ${count}`);
     }
   }
 }
 
-console.log(`\n총 위반 ${totalErrors}건`);
+console.log(`\nTotal violations: ${totalErrors}`);
 process.exit(totalErrors > 0 ? 1 : 0);

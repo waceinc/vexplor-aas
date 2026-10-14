@@ -1,7 +1,7 @@
 /**
- * 가운데 칸 — 파일 목록 · 이력 · 입력 양식 · 요약과 구성 · 설비 정보 · 속성 편집.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업 · 클래스 이름 · 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름의 props 로 받는다.
+ * Middle pane — file list · history · input forms · summary and composition · equipment info · property editing.
+ * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
+ * and the state and actions it uses arrive as props with the same names.
  */
 import { api, type HierarchyNode } from '../api.js';
 import { AddAid } from '../components/AddAid.js';
@@ -26,15 +26,15 @@ import type { Screen } from './context.js';
 export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy' | 'conceptIds' | 'concepts' | 'deletePackages' | 'fileUnit' | 'filesOpen' | 'hierAdder' | 'hierarchy' | 'historyEntries' | 'historyFor' | 'leafNames' | 'ledger' | 'linked' | 'linkedConceptIds' | 'loadPackage' | 'onAddHierarchyGroup' | 'onAddHierarchyManual' | 'onAddHierarchyNode' | 'onAddHierarchySplit' | 'onBulkSaveValues' | 'onChangeValueType' | 'onCreateElement' | 'onCreatePackage' | 'onCreateSubmodel' | 'onDelete' | 'onDeleteAttachment' | 'onDownloadAttachment' | 'onDuplicate' | 'onImport' | 'onImportForTree' | 'onRemoveHierarchyNode' | 'onRename' | 'onRestore' | 'onRevertLedger' | 'onSave' | 'onSaveAssetInformation' | 'onSaveConcept' | 'onSaveSemanticId' | 'onShowHistory' | 'onUploadAttachment' | 'onUploadThumbnail' | 'opcua' | 'packageId' | 'packages' | 'pickedFiles' | 'policy' | 'selected' | 'selectedTrail' | 'setAdding' | 'setFilesOpen' | 'setHierAdder' | 'setHistoryFor' | 'setNotice' | 'setPickedFiles' | 'setSelectedKey' | 'setSubmodelTarget' | 'shell' | 'shells' | 'submodelTarget' | 'submodels' | 't' | 'requirements' | 'interfaces' | 'run' | 'revisions'>): React.JSX.Element {
   const { adding, allFindings, busy, conceptIds, concepts, deletePackages, fileUnit, filesOpen, hierAdder, hierarchy, historyEntries, historyFor, leafNames, ledger, linked, linkedConceptIds, loadPackage, onAddHierarchyGroup, onAddHierarchyManual, onAddHierarchyNode, onAddHierarchySplit, onBulkSaveValues, onChangeValueType, onCreateElement, onCreatePackage, onCreateSubmodel, onDelete, onDeleteAttachment, onDownloadAttachment, onDuplicate, onImport, onImportForTree, onRemoveHierarchyNode, onRename, onRestore, onRevertLedger, onSave, onSaveAssetInformation, onSaveConcept, onSaveSemanticId, onShowHistory, onUploadAttachment, onUploadThumbnail, opcua, packageId, packages, pickedFiles, policy, selected, selectedTrail, setAdding, setFilesOpen, setHierAdder, setHistoryFor, setNotice, setPickedFiles, setSelectedKey, setSubmodelTarget, shell, shells, submodelTarget, submodels, t, requirements, interfaces, run, revisions } = props;
   /**
-   * 구성 패널 — 공정 파일에서는 **요약 머리 바로 밑**에 온다(사용자 2026-09-08: "공정 만들고 하위에 설비
-   * 등록하려면 안 되는데" — 폼이 타일·판정 아래 화면 밖에 있어 보이지 않았다). 공정 파일의 정체는 구성이다.
-   * 설비 파일에서는 부품 구성이 부차적이라 예전처럼 요약 뒤에 둔다.
+   * Composition panel — in a process file it comes **right below the summary header** (user, 2026-09-08: "I made a process but can't
+   * register equipment under it" — the form sat below the tiles and verdict, off-screen). A process file is defined by its composition.
+   * In an equipment file the part composition is secondary, so it stays after the summary as before.
    */
   const hierarchyPanel =
     hierarchy?.entryNode && packageId ? (
             <Hierarchy
               t={t}
-              key={packageId} // 파일을 바꾸면 열려 있던 넣기 폼도 접힌다(실측: 이전 파일의 폼이 따라왔다)
+              key={packageId} // Switching files also collapses an open add form (observed: the previous file's form carried over)
               view={hierarchy}
               unit={fileUnit}
               {...(hierAdder ? { adder: hierAdder } : {})}
@@ -52,7 +52,7 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
               }
               onAddGroup={(name, parent, line) => void onAddHierarchyGroup(name, parent, line)}
               onRemove={(name, parent) => void onRemoveHierarchyNode(name, parent)}
-              // ㉯ 자식 설비의 서브모델을 그 자리에서 읽어 온다 — 파일 구조는 그대로다
+              // (b) Read the child equipment's submodels in place — the file structure is unchanged
               fetchSubmodels={async (id) => (await api.submodels(id)).result}
               onOpen={(id) => void loadPackage(id)}
             />
@@ -179,8 +179,8 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
           concepts={concepts}
           findings={allFindings}
           {...(policy &&
-          // 🔴 조직 단위(공정·회사 — assetType=…/type/*)에는 설비 필수 4종 안내를 하지
-          //    않는다 — 계층만으로 시작하는 것이 맞다(2026-08-26 확정)
+          // Important: organizational units (process, company — assetType=…/type/*) do not get the four-required-equipment-submodels
+          //    hint — starting with the hierarchy alone is correct (confirmed 2026-08-26)
           !String(shells[0]?.assetInformation?.['assetType'] ?? '').includes('/type/')
             ? { requiredSubmodels: policy.requiredSubmodels }
             : {})}
@@ -189,14 +189,14 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
         </Summary>
       )}
       {!selected && !adding && packageId && fileUnit === 'equipment' && hierarchyPanel}
-      {/* ⚙ 설비 컨텍스트 — 고른 장비에 맞는 동작이 그 자리에 나온다(초보자 원칙) */}
+      {/* Equipment context — actions matching the selected equipment appear in place (beginner principle) */}
       {selected && selected.modelType === 'LinkedAsset' && selected.linkedPackageId && (
         <AssetContext
           label={selected.label}
           fileName={packages.find((item) => item.packageId === selected.linkedPackageId)?.name ?? selected.linkedPackageId}
           busy={busy}
           onAddSubmodel={() => {
-            // 이 설비 파일에 만들어진다 — onCreateSubmodel이 대상을 보고 라우팅한다
+            // Created in this equipment file — onCreateSubmodel routes by target
             setSubmodelTarget({ pid: selected.linkedPackageId!, assetName: selected.node.idShort ?? selected.label });
             setAdding('submodel');
             setSelectedKey(undefined);
@@ -216,7 +216,7 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
                 selected.linkedPackageId,
             }
           : {})}
-        // 값 표의 「구분」 — 이 파일의 서브모델일 때만(이어 붙인 설비 파일의 템플릿·수집 연결은 그 파일을 열어 본다)
+        // The "Category" column of the value table — only for this file's own submodels (for a linked equipment file's template and collection links, open that file)
         {...(selected && selected.linkedPackageId === undefined && requirements[selected.submodelId]
           ? { requirement: requirements[selected.submodelId]! }
           : {})}

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 컴퓨터를 껐다 켠 뒤 다시 시작할 때 — 두 번 클릭하십시오.
+# For starting again after the computer was turned off and on — double-click this.
 set -uo pipefail
 cd "$(dirname "$0")"
 
-# 🔴 두 번 클릭하면 PATH가 최소한만 온다 — 설치.command와 같은 이유다
+# Important: on double-click PATH is minimal — same reason as in 설치.command
 for _dir in /usr/local/bin /opt/homebrew/bin "$HOME/.docker/bin" \
             /Applications/Docker.app/Contents/Resources/bin; do
   [ -d "$_dir" ] && case ":$PATH:" in *":$_dir:"*) ;; *) PATH="$PATH:$_dir" ;; esac

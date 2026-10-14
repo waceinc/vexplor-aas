@@ -1,15 +1,15 @@
 /**
- * 레퍼런스 번들의 **실동작 증빙** — 시연을 못 하는 제출 자리에서 시연을 대신하는 기록.
+ * **Operational evidence** for reference bundles — a record that stands in for a live demo at submissions where a demo is not possible.
  *
- * 번들은 형식(Type) 모델이라 값이 없다. 값은 그 형식을 실제 라인에 붙인 **호기(Instance)** 에 쌓인다.
- * 둘을 잇는 끈은 AAS 표준 필드 `derivedFrom`(호기 → 원본 형식)이다 — 「호기별로 나누기」가 단다.
- * 그래서 번들을 내보낼 때 설비마다 **자기 자신 + 거기서 파생된 호기**의 수집값을 모아 넣는다.
+ * A bundle is a type model, so it has no values. Values accumulate on the **instance (unit)** where that type is attached to a real line.
+ * The link between them is the AAS standard field `derivedFrom` (unit → source type) — set by "split per unit".
+ * So when exporting a bundle, for each equipment we gather the collected values of **itself + the units derived from it**.
  *
- * 🔴 값 동기화 A안은 그대로다. 수집값을 모델에 되쓰지 않는다 — 번들의 별도 파일(CSV·기록서)로만 나간다.
- * 🔴 번들은 GitHub에 공개된다. **현장 PLC 주소는 가린다**(자기 PC 주소만 그대로 — 시뮬레이션 재현용).
- * 🔴 증빙 수준(A 현장 / B 재현 / C 시뮬레이션)은 사람이 고른다. 도구가 아는 것은 그 수집 연결이 도구 안의
- *    가상 PLC인지뿐이라(접속 경로 /UA/Simulator, 또는 AAS 파일에 적힌 연결 이름의 「시뮬레이션」 표지), 그때만 C를 제안한다.
- *    🔴 화면 언어로 옮긴 글자와 견주지 않는다 — 데이터(경로 · 파일에 적힌 이름)로 가린다.
+ * Important: value sync option A is unchanged. Collected values are not written back to the model — they go out only as separate bundle files (CSV, record).
+ * Important: bundles are published on GitHub. **Field PLC addresses are masked** (only local PC addresses stay as-is — for simulation reproduction).
+ * Important: the evidence level (A field / B reproduction / C simulation) is chosen by a person. All the tool knows is whether the collection connection is
+ *    the built-in virtual PLC (endpoint path /UA/Simulator, or a "simulation" marker in the connection name written in the AAS file), and only then does it suggest C.
+ *    Important: do not compare against text translated into the UI language — decide by data (the path, the name written in the file).
  */
 import { parseAid } from '@aas/collector';
 import { csvCell } from '@aas/linter';
@@ -17,50 +17,50 @@ import { currentLang, fill, tr, type Environment } from '@aas/core';
 import type { AasStore, CollectedValue, PackageRecord } from '@aas/store';
 import { localTimestamp } from './packages.js';
 
-/** 한 번들에 싣는 수집값 상한(호기당). 넘으면 최근 것만 싣고 그 사실을 적는다 */
+/** Cap on collected values per bundle (per unit). Beyond it, only the latest are included and that fact is noted */
 export const EVIDENCE_LIMIT = 200_000;
 
 export type EvidenceLevel = 'A' | 'B' | 'C';
-/** 증빙 수준 설명 — 한국어 원문(사전의 열쇠). 사람이 읽는 자리에서는 `tr()`을 거친다 */
+/** Evidence level descriptions — Korean source text (dictionary keys). Goes through `tr()` wherever people read it */
 export const EVIDENCE_LEVELS: Record<EvidenceLevel, string> = {
-  A: '현장 적용 — Pilot 기업 실제 설비의 수집값(비식별화)', // i18n-ignore — 사전의 열쇠(쓸 때 tr()로 옮긴다)
+  A: '현장 적용 — Pilot 기업 실제 설비의 수집값(비식별화)', // i18n-ignore — dictionary key (translated via tr() when used)
   B: '실장비 기반 재현 — 실제 태그 구조, 값은 가공',
-  C: '시뮬레이션 — 가상 PLC 값', // i18n-ignore — 사전의 열쇠(쓸 때 tr()로 옮긴다)
+  C: '시뮬레이션 — 가상 PLC 값', // i18n-ignore — dictionary key (translated via tr() when used)
 };
 
-/** 지금 언어로 옮긴 증빙 수준 설명 — 화면 응답용 */
+/** Evidence level description in the current language — for UI responses */
 export const evidenceLevelNames = (): Record<EvidenceLevel, string> => ({
   A: tr(EVIDENCE_LEVELS.A),
   B: tr(EVIDENCE_LEVELS.B),
   C: tr(EVIDENCE_LEVELS.C),
 });
 
-/** 도구 안 가상 PLC의 접속 경로 — @aas/opcua SIMULATOR_RESOURCE_PATH와 같은 값(opcua는 늦게 불러 여기서 못 가져온다) */
+/** Endpoint path of the built-in virtual PLC — same value as @aas/opcua SIMULATOR_RESOURCE_PATH (opcua is loaded lazily, so it cannot be imported here) */
 const SIMULATOR_PATH = '/UA/Simulator';
-// i18n-ignore — 제출 묶음 폴더·파일 이름(규격 구조)
+// i18n-ignore — submission bundle folder/file name (spec structure)
 const SAMPLES_CSV = '05_샘플데이터/수집값_*.csv';
-// i18n-ignore — AAS 파일에 적힌 연결 이름과 견주는 표지(데이터). 옮기면 한국어로 만든 파일을 못 알아본다
+// i18n-ignore — marker compared against connection names written in AAS files (data). Translating it would fail to recognize files made in Korean
 const SIMULATION_MARKS = ['시뮬레이션', 'simulation'];
 
-/** 시뮬레이션 수집 연결인가 — 접속 경로나 파일에 적힌 이름으로 가린다(화면 언어와 무관) */
+/** Is this a simulation collection connection — decided by endpoint path or the name written in the file (independent of UI language) */
 export function isSimulatedInterface(title: string, base: string | undefined): boolean {
   try {
     if (base && new URL(base.replace(/^[a-z.+-]+:/i, 'http:')).pathname === SIMULATOR_PATH) return true;
   } catch {
-    // 주소 모양이 이상하면 이름으로만 본다
+    // If the address looks malformed, judge by name only
   }
   const lower = title.toLowerCase();
   return SIMULATION_MARKS.some((mark) => lower.includes(mark));
 }
 
 export interface EvidenceSource {
-  /** 번들 안 설비(형식) 이름 */
+  /** Name of the equipment (type) in the bundle */
   model: string;
   modelFile: string;
-  /** 값을 모은 파일 — 형식 자신이거나 거기서 파생된 호기 */
+  /** The file whose values were gathered — the type itself or a unit derived from it */
   instance: string;
   instanceFile: string;
-  /** 형식 자신에 직접 붙여 모았는가(파생 호기가 아니라) */
+  /** Whether values were gathered by attaching directly to the type itself (rather than a derived unit) */
   direct: boolean;
   interfaces: { title: string; endpoint: string; simulated: boolean }[];
   values: CollectedValue[];
@@ -69,7 +69,7 @@ export interface EvidenceSource {
 
 const LOOPBACK = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?)$/i;
 
-/** 공개 번들용 주소 — 자기 PC가 아니면 호스트를 가린다 */
+/** Address for a public bundle — mask the host unless it is the local PC */
 export function maskEndpoint(endpoint: string | undefined): string {
   if (!endpoint) return tr('(주소 없음)');
   const match = /^([a-z.+-]+:\/\/)([^/:]+|\[[^\]]+\])(.*)$/i.exec(endpoint);
@@ -104,13 +104,13 @@ async function shellLinks(store: AasStore): Promise<ShellLink[]> {
 }
 
 /**
- * 번들 설비들의 증빙을 모은다. 같은 설비가 두 공정에 있어도 한 번만.
- * @param models 번들 안 설비 파일(형식)
+ * Gather evidence for the bundle's equipment. Only once even if the same equipment appears in two processes.
+ * @param models equipment files (types) in the bundle
  */
 export async function gatherEvidence(
   store: AasStore,
   models: { name: string; record: PackageRecord }[],
-  /** 이 시각(ISO) 이후 것만 — 시험하며 쌓인 잡음을 빼고 싶을 때 */
+  /** Only entries after this time (ISO) — when you want to drop noise accumulated during testing */
   window: { from?: string } = {},
 ): Promise<EvidenceSource[]> {
   const links = await shellLinks(store);
@@ -141,7 +141,7 @@ export async function gatherEvidence(
         instanceFile: candidate.record.name,
         direct: candidate === self,
         interfaces,
-        // 저장소는 최근 것을 앞에 준다 — 기록은 시간 순으로 읽혀야 한다
+        // The store returns newest first — the record must read in chronological order
         values: [...values].reverse(),
         truncated: values.length >= EVIDENCE_LIMIT,
       });
@@ -150,7 +150,7 @@ export async function gatherEvidence(
   return sources;
 }
 
-/** 시뮬레이션 수집 연결뿐이면 C를 제안한다. 그 밖엔 사람이 고른다 */
+/** Suggest C if all collection connections are simulations. Otherwise a person chooses */
 export function suggestedLevel(sources: EvidenceSource[]): EvidenceLevel | null {
   const interfaces = sources.flatMap((source) => source.interfaces);
   return interfaces.length > 0 && interfaces.every((iface) => iface.simulated) ? 'C' : null;
@@ -161,9 +161,9 @@ const valueOf = (value: CollectedValue): string =>
 
 const cell = (text: string): string => csvCell(text);
 
-/** 호기 하나의 수집값 CSV — 엑셀로 KPI를 계산하는 재료 */
+/** Collected-values CSV for one unit — raw material for computing KPIs in Excel */
 export function evidenceCsv(source: EvidenceSource): string {
-  // 머리글은 사람이 엑셀로 보는 글자다 — 도구가 다시 읽지 않는다(번들을 열 때도 이 CSV는 첨부로만 보관)
+  // The header is text people read in Excel — the tool never reads it back (when opening a bundle, this CSV is kept only as an attachment)
   const rows = [[tr('시각'), tr('설비(형식)'), tr('호기'), tr('인터페이스'), tr('항목'), tr('읽은 주소'), tr('값'), tr('품질')].join(',')];
   for (const value of source.values) {
     rows.push(
@@ -190,7 +190,7 @@ export interface PropertyStat {
   good: number;
   latest: string;
   numeric?: { min: number; max: number; avg: number; series: number[] };
-  /** 글자 값 분포 — 가동상태면 곧 가동률의 재료다 */
+  /** Distribution of text values — for an operating-status item, this is raw material for the availability rate */
   distribution?: { value: string; share: number }[];
 }
 
@@ -199,7 +199,7 @@ const isGood = (quality: string | undefined): boolean => quality === undefined |
 export function propertyStats(values: CollectedValue[]): PropertyStat[] {
   const byName = new Map<string, CollectedValue[]>();
   for (const value of values) byName.set(value.propertyName, [...(byName.get(value.propertyName) ?? []), value]);
-  // 이름순 — 호기끼리 나란히 놓고 비교할 수 있게
+  // Sort by name — so units can be placed side by side and compared
   return [...byName.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, list]) => {
     const good = list.filter((v) => isGood(v.quality));
     const numbers = good.map((v) => v.valueNumber).filter((n): n is number => typeof n === 'number');
@@ -228,7 +228,7 @@ const escapeHtml = (text: string): string =>
 
 const fmt = (n: number): string => (Math.abs(n) >= 100 ? n.toFixed(1) : n.toFixed(2)).replace(/\.?0+$/, '');
 
-/** 작은 추이선 — 종이에 인쇄해도 보이게 검은 선 하나 */
+/** Small trend line — a single black line so it stays visible when printed on paper */
 function sparkline(series: number[]): string {
   if (series.length < 2) return '';
   const min = Math.min(...series);
@@ -246,10 +246,10 @@ const period = (values: CollectedValue[]): { from: string; to: string; minutes: 
   return { from, to, minutes };
 };
 
-/** 기록서에 찍는 시각 — 결과서와 같이 서버 지역 시각(분까지). CSV는 기계가 읽으므로 ISO 원문 */
+/** Time printed in the record — server local time (to the minute), same as the report. CSV is read by machines, so ISO as-is */
 const local = (iso: string): string => (iso ? localTimestamp(new Date(iso)) : '');
 
-/** 수집 기록서 — 번들 06_검증결과. 인쇄하면 그대로 PDF가 된다 */
+/** Collection record — goes in the bundle's 06 verification-results folder. Printing it yields a PDF directly */
 export function evidenceHtml(options: {
   title: string;
   level: EvidenceLevel | null;

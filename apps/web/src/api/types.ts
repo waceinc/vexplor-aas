@@ -1,6 +1,6 @@
 /**
- * API 클라이언트 — 서버가 주고받는 모양(타입).
- * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
+ * API client — shapes (types) the server exchanges.
+ * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
 import type { Finding } from '../model.js';
 
@@ -8,20 +8,20 @@ export interface PackageDescription {
   packageId: string;
   aasIds: string[];
   name?: string;
-  /** AAS의 idShort — 파일명만으로는 무슨 설비인지 모른다 */
+  /** The AAS idShort — the filename alone does not tell which asset it is */
   assetName?: string;
   globalAssetId?: string;
-  /** 공정(묶음) 파일이면 …/type/* */
+  /** …/type/* for a process (bundle) file */
   assetType?: string;
   revision?: number;
   updatedAt?: string;
   warnings?: string[];
 }
 
-/** 공정의 계층 — 무엇으로 이루어졌는가 */
-/** 변경 이력 한 줄 — 그때의 내용 전체를 들고 있다 */
+/** Process hierarchy — what it is made of */
+/** One line of change history — carries the full content as of that time */
 export interface UndoStatus {
-  /** 되돌릴 수 있는 변경들 — 최근 것이 앞 */
+  /** Undoable changes — most recent first */
   undo: string[];
   redo: string[];
 }
@@ -30,26 +30,26 @@ export interface HistoryEntry {
   changedAt: string;
   operation: 'update' | 'delete';
   revision: number;
-  /** 사람이 훑을 요약 — 그때의 요소 수 */
+  /** Summary for people to skim — element count at that time */
   elementCount: number;
   /**
-   * 누가 바꿨나. **없을 수 있다** — 로그인을 쓰지 않는 서버이거나
-   * 감사 기록을 들이기 전(2026-10-02)에 쌓인 이력이다.
+   * Who changed it. **May be absent** — the server does not use login, or
+   * the history predates the audit log (2026-10-02).
    */
   actorName?: string;
 }
 
-/** 계층 한 마디 — 중첩. 그룹(중간 마디)은 globalAssetId가 비어 있다 */
+/** One hierarchy node — nested. Groups (intermediate nodes) have an empty globalAssetId */
 export interface HierarchyNode {
   name: string;
   globalAssetId: string;
   bulkCount: number;
-  /** 라인 층(회사 → 라인 → 공정 → 설비). 옛 서버는 보내지 않는다 */
+  /** Line level (company → line → process → asset). Older servers do not send it */
   line?: boolean;
   children: HierarchyNode[];
 }
 
-/** 계층 — 회사>공정>장비를 한 파일 안에 담을 수 있다 */
+/** Hierarchy — company > process > equipment can live in a single file */
 export interface HierarchyView {
   entryNode: { name: string; globalAssetId: string } | null;
   children: HierarchyNode[];
@@ -63,7 +63,7 @@ export interface LintReport {
   findings: Finding[];
 }
 
-/** AID가 기술한 인터페이스 (M8) */
+/** Interface described by AID (M8) */
 export interface AidInterfaceView {
   name: string;
   title?: string;
@@ -84,7 +84,7 @@ export interface CollectedValueView {
   propertyName: string;
   source?: string;
   observedAt: string;
-  /** 이 도구가 실제로 읽어 온 시각 — 신선도(받는 중 · 끊김)의 근거. 옛 기록에는 없다(그때는 observedAt) */
+  /** When this tool actually read it — the basis for freshness (receiving · disconnected). Absent in old records (they used observedAt) */
   receivedAt?: string;
   valueNumber?: number;
   valueText?: string;
@@ -106,9 +106,9 @@ export interface CycleReportView {
     report?: {
       failures: { propertyName: string; reason: string }[];
       /**
-       * 🔴 **아직 값이 안 들어온 것** — 실패와 다르다. 산출물이 형식(Type)이라 빈 값이 정상이고,
-       *    설비도 초기화 전에는 값을 안 준다. 이걸 실패로 세면 「나쁜 태그 60」이 떠서
-       *    설비가 고장 난 줄 안다. 비면 서버가 아예 안 실어 보낸다(옛 서버와도 어긋나지 않는다).
+       * Important: **no value has arrived yet** — distinct from failure. The output is a Type, so empty values are normal,
+       *    and devices give no values before initialization. Counting this as failure shows "60 bad tags" and
+       *    people think the device is broken. When empty the server omits it entirely (still compatible with old servers).
        */
       pending?: { propertyName: string; reason: string }[];
     };
@@ -118,50 +118,50 @@ export interface CycleReportView {
 export interface FixReport {
   applied: { ruleId: string; pointer: string; key?: string; elementType?: string; description: string; before?: unknown; after?: unknown }[];
   skipped: { ruleId: string; pointer: string; reason: string }[];
-  /** 이번 교정에서 옮긴 IRI(새 → 원본) */
+  /** IRIs moved in this correction (new → original) */
   relocations: Record<string, string>;
-  /** 파일에 쌓인 이관 대장 전체 — 반영(POST)에만 온다 */
+  /** The whole migration ledger stored in the file — only returned on apply (POST) */
   ledger?: Record<string, string>;
   rounds: number;
   before: LintReport;
   after: LintReport;
 }
 
-/** 린터 정책 — 새 id를 만들 때 쓴다. 규약은 서버(린터)에만 둔다 */
+/** Linter policy — used when generating new ids. Conventions live only on the server (linter) */
 export interface Policy {
   iriBase: string;
   irdiPrefixes: string[];
   requiredSubmodels: string[];
 }
 
-/** 로그인 상태 — 화면이 가장 먼저 묻는 것 */
+/** Login state — the first thing the UI asks */
 export interface AuthState {
   authenticated: boolean;
-  /** 계정이 하나도 없다 — 첫 관리자를 만들어야 한다 */
+  /** No accounts at all — the first admin must be created */
   setupNeeded: boolean;
-  /** 이 서버가 로그인(또는 API 키)을 요구하나. 꺼져 있으면 로그인 화면을 띄우지 않는다 */
+  /** Does this server require login (or an API key)? When off, the login screen is not shown */
   authRequired: boolean;
   /**
-   * 첫 관리자를 만들 때 **설치 코드**를 물어야 하나 — 밖으로 열린 서버에서만 참이다.
-   * 아무나 먼저 관리자가 되는 것을 막는 장치다(서버의 기동 로그에 적혀 있다).
+   * Whether creating the first admin must ask for the **setup code** — true only on servers exposed to the outside.
+   * Prevents whoever comes first from becoming admin (the code is written in the server startup log).
    */
   setupCodeRequired?: boolean;
-  /** 스스로 가입할 수 있는 서버인가 — 로그인 화면이 「회원가입」을 보일지 정한다 */
+  /** Whether users can self-register — decides if the login screen shows "Sign up" */
   signupAllowed?: boolean;
   /**
-   * 개인정보처리방침 주소. **없으면 서버가 연락처를 받지 않는다** —
-   * 화면도 연락처 칸을 보이지 않는다(어떻게 쓰는지 못 밝히면 받지 않는다).
+   * Privacy policy URL. **When absent the server does not accept contact details** —
+   * and the UI hides the contact field too (if we cannot state how it is used, we do not collect it).
    */
   privacyUrl?: string;
   /**
-   * 체험판인가. 참이면 화면이 띠를 띄우고 **내려받기 단추를 감춘다** —
-   * 눌러서 403을 보여 주는 것보다 처음부터 「가입하면 됩니다」라고 말하는 쪽이 낫다.
+   * Trial mode? When true the UI shows a banner and **hides the download buttons** —
+   * saying "sign up and you can" up front beats letting people click and see a 403.
    */
   demo?: { login: string; password: string };
   user?: { id: string; login: string; displayName: string; role: 'admin' | 'editor' | 'viewer'; level: 'full' | 'read-only'; email?: string; company?: string };
 }
 
-/** 계정 관리 화면의 한 줄 */
+/** One row in the account management screen */
 export interface UserView {
   id: string;
   login: string;
@@ -170,17 +170,17 @@ export interface UserView {
   disabled: boolean;
   createdAt: string;
   lastLoginAt?: string;
-  /** 가입 때 받은 것 — 관리자에게만 온다 */
+  /** What was collected at sign-up — sent only to admins */
   email?: string;
   company?: string;
   consentAt?: string;
-  /** 체험 계정(공개 서버) — 지우거나 잠그지 못한다 */
+  /** Trial account (public server) — cannot be deleted or locked */
   demo?: boolean;
 }
 
 /**
- * 템플릿 요구 수준 — 서브모델 하나의 요소마다 「필수 · 선택」(2026-10-13).
- * 열쇠는 요소 경로(리스트 자식은 `[]`). 템플릿이 없는 서브모델은 아예 오지 않는다 — 화면은 「모름」으로 둔다.
+ * Template requirement level — "required · optional" for each element of one submodel (2026-10-13).
+ * Keys are element paths (list children as `[]`). Submodels without a template are omitted entirely — the UI shows them as "unknown".
  */
 export interface SubmodelRequirement {
   submodelId: string;
@@ -192,7 +192,7 @@ export interface SubmodelRequirement {
 
 export * from './bundleDocTypes.js';
 
-/** 형식 → 호기 반영 — 형식 파일이 바뀐 곳 한 줄(서버 packages/linter/src/derivation.ts 와 같은 모양) */
+/** Type → unit derivation — one row for a place the type file changed (same shape as server packages/linter/src/derivation.ts) */
 export interface DerivationChange {
   key: string;
   submodel: string;

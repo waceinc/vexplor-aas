@@ -1,9 +1,9 @@
 /**
- * 체험판 · 회원가입.
+ * Demo edition and sign-up.
  *
- * 🔴 여기서 지키는 둘.
- *   ① 체험 계정은 **파일을 가지고 나가지 못한다.** 가입한 계정은 나간다 — 그것이 가입할 이유다
- *   ② 가입은 **기본으로 닫혀 있다.** 사내망 서버에서 아무나 계정을 만들면 안 된다
+ * Important: two things guarded here.
+ *   1. A demo account **cannot take files out.** A signed-up account can — that is the reason to sign up
+ *   2. Sign-up is **closed by default.** On an intranet server, anyone must not be able to create accounts
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -16,7 +16,7 @@ import { hashPassword, verifyPassword } from '../src/password.js';
 import type { ApiRequest } from '../src/http.js';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const GOLDEN = '01-롤포밍기-공34.aasx';
+const GOLDEN = '01-roll-forming-machine.aasx';
 const goldenBytes = new Uint8Array(readFileSync(root + GOLDEN));
 const submodelId = readAasx(goldenBytes).environment.submodels![0]!.id;
 const encoded = Buffer.from(submodelId, 'utf8').toString('base64url');
@@ -57,13 +57,13 @@ async function demoServer(): Promise<{ api: Api; demoCookie: string; packageId: 
   return { api, demoCookie, packageId: made.body.packageId };
 }
 
-describe('설정 읽기', () => {
-  it('기본은 꺼져 있다 — 내려받아 직접 돌리는 사람에게는 제한이 없다', () => {
+describe('reading configuration', () => {
+  it('off by default — no restrictions for people who download and run it themselves', () => {
     expect(demoFromEnv({})).toBeUndefined();
     expect(demoFromEnv({ DEMO_MODE: 'off' })).toBeUndefined();
   });
 
-  it('켜면 demo/0629 · 데모 계정 · 60분마다 정리가 기본이다', () => {
+  it('when on, defaults are demo/0629, a demo account, and cleanup every 60 minutes', () => {
     expect(demoFromEnv({ DEMO_MODE: 'on' })).toMatchObject({
       login: 'demo',
       password: '0629',
@@ -72,7 +72,7 @@ describe('설정 읽기', () => {
     });
   });
 
-  it('🔴 이미 있는 데모 계정도 설정의 비밀번호 · 이름으로 맞춘다 — 바꾼 설정이 운영 서버에 먹는다', async () => {
+  it('Important: an existing demo account is also aligned to the configured password and name — changed settings take effect on the production server', async () => {
     const store = new InMemoryStore();
     await seedDemoUser(store, { ...DEMO, password: '1234', displayName: '체험 계정' }, hashPassword, verifyPassword);
     expect(await seedDemoUser(store, { ...DEMO, password: '0629', displayName: '데모 계정' }, hashPassword, verifyPassword)).toBe('updated');
@@ -83,37 +83,37 @@ describe('설정 읽기', () => {
     expect(await seedDemoUser(store, { ...DEMO, password: '0629', displayName: '데모 계정' }, hashPassword, verifyPassword)).toBe('exists');
   });
 
-  it('운영자가 바꿀 수 있다', () => {
+  it('the operator can change it', () => {
     const demo = demoFromEnv({
       DEMO_MODE: 'on',
       AAS_DEMO_LOGIN: 'TryMe',
       AAS_DEMO_PASSWORD: '구경하세요',
       AAS_DEMO_RESET_MINUTES: '15',
     });
-    // 로그인 이름은 소문자로 맞춘다 — 저장소가 그렇게 찾는다
+    // Login names are lowercased — that is how the store looks them up
     expect(demo).toMatchObject({ login: 'tryme', password: '구경하세요', resetMinutes: 15 });
   });
 
-  it('🔴 막는 기준은 경로가 아니라 **나가는 응답**이다 — 경로가 늘어도 빠뜨릴 자리가 없다', () => {
+  it('Important: the block is based on **the outgoing response**, not the path — new paths leave no gap', () => {
     expect(isFileDownload({ status: 200, headers: { 'content-disposition': 'attachment; filename="a.aasx"' } })).toBe(true);
-    // 검증 결과서는 화면으로 본다 — 도구가 무엇을 해 주는지는 보여 줘야 체험이 성립한다
+    // The validation report is viewed on screen — the demo only works if it shows what the tool does
     expect(isFileDownload({ status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } })).toBe(false);
     expect(isFileDownload({ status: 200, headers: {} })).toBe(false);
   });
 });
 
-describe('체험 계정은 파일을 가지고 나가지 못한다', () => {
-  it('🔴 AASX 내려받기가 막힌다', async () => {
+describe('a demo account cannot take files out', () => {
+  it('Important: AASX download is blocked', async () => {
     const { api, demoCookie, packageId } = await demoServer();
     const got = await api(ask('GET', `/packages/${packageId}`, { cookie: demoCookie }));
     expect(got.status).toBe(403);
     expect(JSON.stringify(got.body)).toContain('회원가입');
   });
 
-  it('고치고 보는 것은 다 된다 — 그래야 체험이 성립한다', async () => {
+  it('editing and viewing all work — otherwise the demo does not work', async () => {
     const { api, demoCookie, packageId } = await demoServer();
     expect((await api(ask('GET', `/packages/${packageId}/lint`, { cookie: demoCookie }))).status).toBe(200);
-    // 검증 결과서는 화면으로 열린다(첨부가 아니다)
+    // The validation report opens on screen (not as an attachment)
     expect((await api(ask('GET', `/packages/${packageId}/report`, { cookie: demoCookie }))).status).toBe(200);
     const current = await api(ask('GET', `/packages/${packageId}/api/v3.0/submodels/${encoded}`, { cookie: demoCookie }));
     const saved = await api(
@@ -125,7 +125,7 @@ describe('체험 계정은 파일을 가지고 나가지 못한다', () => {
     expect(saved.status).toBe(204);
   });
 
-  it('🔴 가입한 계정은 **자기 것을** 내려받는다 — 가입할 이유가 바로 이것이다', async () => {
+  it('Important: a signed-up account downloads **its own** files — that is exactly the reason to sign up', async () => {
     const { api } = await demoServer();
     const joined = await api(
       ask('POST', '/auth/signup', {
@@ -140,29 +140,29 @@ describe('체험 계정은 파일을 가지고 나가지 못한다', () => {
     expect(got.body).toBeInstanceOf(Uint8Array);
   });
 
-  it('남이 올린 것은 가입해도 못 받는다 — 보이지도 않는다(작업 공간이 따로다)', async () => {
-    const { api, packageId } = await demoServer(); // 체험 방문자가 올린 것
+  it('cannot get files uploaded by others even after signing up — they are not even visible (separate workspaces)', async () => {
+    const { api, packageId } = await demoServer(); // uploaded by a demo visitor
     const joined = await api(ask('POST', '/auth/signup', {
       body: { login: 'hong', password: '열자가넘는비밀번호입니다' },
     }));
     expect((await api(ask('GET', `/packages/${packageId}`, { cookie: cookieFrom(joined) }))).status).toBe(404);
   });
 
-  it('로그인하지 않은 사람은 아무것도 못 한다 — 체험 계정의 내려받기 막기를 돌아가는 길이 없다', async () => {
+  it('an anonymous user can do nothing — there is no way around the demo account download block', async () => {
     const store = new InMemoryStore();
     await store.init();
     await seedDemoUser(store, DEMO, hashPassword);
-    // 서버가 올린 템플릿 — 주인이 없어 누구에게나 보인다
+    // A template uploaded by the server — it has no owner, so it is visible to everyone
     const template = await store.importPackage({ name: '템플릿.aasx', package: readAasx(goldenBytes) });
     const api = createApi(store, { demo: DEMO, signup: { role: 'editor' } }) as Api;
-    // 🔴 예전에는 로그인 없이 부르면 「키 없는 서버」로 보고 열어 주었다(2026-10-06 출시 전 검토).
-    //    계정이 있는 서버에서는 로그인부터다
+    // Important: previously an unauthenticated call was treated as a "keyless server" and let through (2026-10-06 pre-release review).
+    //    On a server with accounts, login comes first
     expect((await api(ask('GET', `/packages/${template.id}/lint`))).status).toBe(401);
     expect((await api(ask('GET', `/packages/${template.id}`))).status).toBe(401);
     expect((await api(ask('POST', '/packages/new', { body: { assetName: 'Sneaky' } }))).status).toBe(401);
   });
 
-  it('화면이 무엇을 보일지 알 수 있다 — 체험 계정일 때만 체험이라고 말한다', async () => {
+  it('the UI can tell what to show — it says demo only for the demo account', async () => {
     const { api, demoCookie } = await demoServer();
     const asDemo = await api(ask('GET', '/auth/me', { cookie: demoCookie }));
     expect(asDemo.body).toMatchObject({ demo: { login: 'admin', password: '1234' }, signupAllowed: true });
@@ -177,7 +177,7 @@ describe('체험 계정은 파일을 가지고 나가지 못한다', () => {
   });
 });
 
-describe('회원가입', () => {
+describe('sign-up', () => {
   async function server(signup?: { role: 'admin' | 'editor' | 'viewer' }): Promise<Api> {
     const store = new InMemoryStore();
     await store.init();
@@ -190,14 +190,14 @@ describe('회원가입', () => {
   const join = (extra: Record<string, unknown> = {}): ApiRequest =>
     ask('POST', '/auth/signup', { body: { login: 'hong', password: '열자가넘는비밀번호입니다', ...extra } });
 
-  it('🔴 기본은 닫혀 있다 — 사내망 서버에서 아무나 계정을 만들면 안 된다', async () => {
+  it('Important: closed by default — on an intranet server, anyone must not be able to create accounts', async () => {
     const api = await server();
     const denied = await api(join());
     expect(denied.status).toBe(403);
     expect((await api(ask('GET', '/auth/me'))).body.signupAllowed).toBeUndefined();
   });
 
-  it('열면 가입되고 바로 로그인된다', async () => {
+  it('when opened, signs up and logs in right away', async () => {
     const api = await server({ role: 'editor' });
     const joined = await api(join({ displayName: '홍길동' }));
     expect(joined.status).toBe(201);
@@ -206,35 +206,35 @@ describe('회원가입', () => {
     expect(me.body).toMatchObject({ authenticated: true, user: { login: 'hong' } });
   });
 
-  it('🔴 가입한다고 관리자가 되지 않는다 — 역할은 운영자가 정한다', async () => {
+  it('Important: signing up does not make you an admin — the operator decides roles', async () => {
     const api = await server({ role: 'viewer' });
     const joined = await api(join());
     expect(joined.body.user.role).toBe('viewer');
-    // 역할을 본문으로 밀어 넣어도 무시한다
+    // A role pushed into the body is ignored
     const sneaky = await api(ask('POST', '/auth/signup', {
       body: { login: 'kim', password: '열자가넘는비밀번호입니다', role: 'admin' },
     }));
     expect(sneaky.body.user.role).toBe('viewer');
   });
 
-  it('비밀번호 규칙은 그대로 받는다 — 체험 계정의 1234는 서버가 직접 심은 예외다', async () => {
+  it('password rules still apply — the demo account 1234 is an exception the server plants itself', async () => {
     const api = await server({ role: 'editor' });
     expect((await api(join({ password: '1234' }))).status).toBe(400);
   });
 
-  it('이미 쓰는 이름이면 그렇다고 알려 준다 — 숨기면 가입을 못 한다', async () => {
+  it('says so when the name is already taken — hiding it would make sign-up impossible', async () => {
     const api = await server({ role: 'editor' });
     expect((await api(ask('POST', '/auth/signup', {
       body: { login: 'owner', password: '열자가넘는비밀번호입니다' },
     }))).status).toBe(409);
   });
 
-  it('연락처는 선택이다 — 비워도 가입된다', async () => {
+  it('contact info is optional — sign-up works when it is empty', async () => {
     const api = await server({ role: 'editor' });
     expect((await api(join({ email: '' }))).status).toBe(201);
   });
 
-  it('적으면 모양만 본다 — 확인 메일은 보내지 않는다(처리방침을 올려 둔 서버)', async () => {
+  it('when given, only its format is checked — no confirmation mail is sent (server with a published privacy policy)', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store, {
@@ -247,7 +247,7 @@ describe('회원가입', () => {
       body: { login: 'lee', password: '열자가넘는비밀번호입니다', displayName: '이', company: 'X', agreed: true, email: 'lee@example.com' },
     }));
     expect(ok.status).toBe(201);
-    // 🔴 응답에 연락처를 싣지 않는다 — 화면이 쓸 일이 없다
+    // Important: the response does not include contact info — the UI has no use for it
     expect(JSON.stringify(ok.body)).not.toContain('lee@example.com');
   });
 });

@@ -1,9 +1,9 @@
 /**
- * 레퍼런스 번들 · 저장소 오류의 영어 — 영어 화면에서 내보낸 번들은 사람이 읽는 글이 영어로 나간다.
+ * English for the reference bundle and store errors — a bundle exported from the English UI ships human-readable text in English.
  *
- * 한국어로 남아도 되는 것은 둘뿐이다: **제출 묶음의 폴더·파일 이름**(규격 구조)과
- *    **AAS 파일 자체에서 온 값**(올린 파일 이름 · 연결 이름 · idShort). 그 밖의 한국어가 보이면 실패다.
- * 언어를 고르지 않은 요청(기본 한국어)은 예전과 같은 한국어가 나와야 한다.
+ * Only two things may remain Korean: **folder and file names in the submission package** (the spec structure) and
+ *    **values that come from the AAS file itself** (uploaded file name, connection name, idShort). Any other Korean is a failure.
+ * A request with no language chosen (Korean by default) must produce the same Korean as before.
  */
 import { readAasx, unzipArchive } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -41,17 +41,17 @@ function harness(store = new InMemoryStore()) {
 }
 
 /**
- * 한국어가 남아도 되는 자리를 지운다 — 남은 한국어가 있으면 그것이 안 옮긴 글이다.
- * @param fromFile AAS 파일에서 온 값(올린 파일 이름 · 연결 이름 등). 시험이 넣은 값 그대로 적는다
+ * Removes the places where Korean is allowed to remain — any Korean left over is untranslated text.
+ * @param fromFile Values from the AAS file (uploaded file name, connection name, etc.). Write them exactly as the test inserted them
  */
 function stripAllowed(text: string, fromFile: string[]): string {
   let out = text;
   for (const value of fromFile) out = out.split(value).join('');
   return (
     out
-      // 제출 묶음 폴더 · 그 안 파일 경로 — 00_공정구성/… · 05_샘플데이터/수집값_*.csv
+      // Submission package folders and file paths inside them — 00_공정구성/… · 05_샘플데이터/수집값_*.csv
       .replace(/0[0-6]_[^\s`|<>()]*/g, '')
-      // 가이던스 파일 이름 — {설비 파일}_AAS활용가이던스
+      // Guidance file name — {equipment file}_AAS활용가이던스
       .replace(/_AAS활용가이던스/g, '')
   );
 }
@@ -61,15 +61,15 @@ const leftovers = (text: string, fromFile: string[]): string[] =>
     .split('\n')
     .filter((line) => HANGUL.test(line));
 
-describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 영어다', () => {
+describe('reference bundle — an English request gives human-readable text in English', () => {
   let h: ReturnType<typeof harness>;
   let processId: string;
 
   beforeEach(async () => {
     h = harness();
     await h.store.init();
-    const machine = (await h.store.importPackage({ name: '01-롤포밍기-공34.aasx', package: fixture('01-롤포밍기-공34.aasx') })).id;
-    const spr = (await h.store.importPackage({ name: '03-SPR장비-뿌80.aasx', package: fixture('03-SPR장비-뿌80.aasx') })).id;
+    const machine = (await h.store.importPackage({ name: '01-roll-forming-machine.aasx', package: fixture('01-roll-forming-machine.aasx') })).id;
+    const spr = (await h.store.importPackage({ name: '03-spr-riveting-machine.aasx', package: fixture('03-spr-riveting-machine.aasx') })).id;
     processId = (await h.call('POST', '/packages/new', { assetName: 'BodyJoiningLine', unit: 'composite' })).body.packageId;
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { group: true, name: 'JoiningProcess' });
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machine, parentPath: ['JoiningProcess'], bulkCount: 2 });
@@ -78,7 +78,7 @@ describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 �
       name: 'FuturePress',
       globalAssetId: 'https://www.smart-factory.kr/ids/asset/FuturePress/1/0',
     });
-    // 실동작 증빙까지 실리게 — 호기를 복제해 가상 PLC 연결과 값을 쌓는다
+    // So that live-operation evidence is included too — clone a unit and accumulate a virtual PLC connection and values
     const unit = (await h.call('POST', `/packages/${machine}/clone`, { assetName: 'RollFormingMachine_1' })).body.packageId;
     await h.call('POST', `/packages/${unit}/aid`, {
       endpoint: 'opc.tcp://127.0.0.1:14850/UA/Simulator',
@@ -113,8 +113,8 @@ describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 �
   };
 
   /**
-   * 사람이 읽는 파일 — 이 영역(번들 · 증빙)이 쓰는 것. 사전 점검 결과서(린터 결과서)와
-   * 연계 항목 CSV(린터가 만든다)는 린터 쪽 시험이 본다
+   * Human-readable files — the ones this area (bundle, evidence) writes. The pre-check report (linter report) and
+   * the linkage item CSV (made by the linter) are covered by the linter-side tests
    */
   const HUMAN_FILES = [
     'README.md',
@@ -125,14 +125,14 @@ describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 �
     '06_검증결과/수집기록.html',
     '05_샘플데이터/수집값_RollFormingMachine_1.csv',
   ];
-  /** AAS 파일에서 온 값 — 올린 파일 이름과 수집 연결 이름 */
-  const FROM_FILE = ['01-롤포밍기-공34.aasx', '03-SPR장비-뿌80.aasx', '01-롤포밍기-공34', '03-SPR장비-뿌80', '가상 PLC (시뮬레이션)'];
+  /** Values from the AAS file — the uploaded file name and the collection connection name */
+  const FROM_FILE = ['01-roll-forming-machine.aasx', '03-spr-riveting-machine.aasx', '01-roll-forming-machine', '03-spr-riveting-machine', '가상 PLC (시뮬레이션)'];
 
-  it('영어 번들 — 폴더·파일 이름과 파일에서 온 값 말고는 한국어가 없다', async () => {
+  it('English bundle — no Korean except folder/file names and values from the file', async () => {
     const { text } = await unpack('en');
     for (const file of HUMAN_FILES) {
       let body = text(file);
-      // 연계 확인사항의 지적 줄은 린터(bundleLinkage)가 쓴 문장이다 — 이 영역 밖이라 뺀다
+      // Finding lines in the linkage checklist are sentences written by the linter (bundleLinkage) — outside this area, so excluded
       if (file.endsWith('연계_확인사항.md')) body = body.split('\n').filter((line) => !/^- [⚠ℹ] /.test(line)).join('\n');
       expect({ file, leftovers: leftovers(body, FROM_FILE) }).toEqual({ file, leftovers: [] });
     }
@@ -142,20 +142,20 @@ describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 �
     expect(readme).toContain('## Operation evidence');
     expect(text('06_검증결과/수집기록.html')).toContain('<html lang="en">');
     expect(text('05_샘플데이터/수집값_RollFormingMachine_1.csv').startsWith('Time,Machine (type),Unit,')).toBe(true);
-    // manifest의 사람용 메모도 영어
+    // The human-facing notes in the manifest are English too
     const manifest = JSON.parse(text('bundle-manifest.json'));
     for (const note of manifest.notes as string[]) expect(HANGUL.test(note)).toBe(false);
-    // 규격이 정한 값은 언어와 상관없이 그대로 — 분류 이름 · 증빙 수준 판정(시뮬레이션 → C)
+    // Values defined by the spec stay as is regardless of language — category names, evidence level verdict (simulation -> C)
     expect(manifest.bundle.category).toBe('생산최적화/품질관리');
     expect(manifest.bundle.evidenceLevel).toBe('C');
   });
 
-  it('언어를 고르지 않으면 예전 한국어 그대로 — ko 요청과 같은 바이트', async () => {
+  it('with no language chosen, the same Korean as before — byte-identical to a ko request', async () => {
     const plain = await unpack();
     const ko = await unpack('ko-KR,ko;q=0.9,en;q=0.8');
     const en = await unpack('en');
     for (const file of HUMAN_FILES) {
-      // 만든 시각(초 단위)만 다를 수 있다 — 날짜·시각 숫자를 지우고 견준다
+      // Only the creation time (in seconds) may differ — strip date/time digits before comparing
       const clean = (s: string) => s.replace(/\d{4}-\d{2}-\d{2}[T ][\d:.]+Z?/g, '<t>');
       expect(clean(ko.text(file))).toBe(clean(plain.text(file)));
       expect(clean(en.text(file))).not.toBe(clean(plain.text(file)));
@@ -168,7 +168,7 @@ describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 �
     expect(plain.text('05_샘플데이터/수집값_RollFormingMachine_1.csv').startsWith('시각,설비(형식),호기,')).toBe(true);
   });
 
-  it('화면용 분석의 증빙 수준 설명도 요청 언어로', async () => {
+  it('the evidence level description in the UI analysis is in the request language too', async () => {
     const en = await h.call('GET', `/packages/${processId}/bundle/linkage`, undefined, 'en');
     expect(en.body.evidence.levels.C).toBe('Simulation — virtual PLC values');
     expect(en.body.evidence.suggested).toBe('C');
@@ -176,15 +176,15 @@ describe('레퍼런스 번들 — 영어 요청이면 사람이 읽는 글이 �
     expect(ko.body.evidence.levels.C).toBe('시뮬레이션 — 가상 PLC 값');
   });
 
-  it('번들 요청 오류도 영어로', async () => {
+  it('bundle request errors are in English too', async () => {
     const bad = await h.call('GET', `/packages/${processId}/bundle?code=XX`, undefined, 'en');
     expect(bad.status).toBe(400);
     expect(bad.body.messages[0].text).toBe('The bundle code must look like RB01.');
   });
 });
 
-describe('저장소 오류 — 영어 요청이면 영어로', () => {
-  it('없는 패키지(NotFoundError)가 영어로 돌아온다', async () => {
+describe('store errors — in English for an English request', () => {
+  it('an unknown package (NotFoundError) comes back in English', async () => {
     const h = harness();
     await h.store.init();
     const en = await h.call('DELETE', '/packages/pkg_missing', undefined, 'en');

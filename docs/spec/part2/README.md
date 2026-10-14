@@ -1,32 +1,31 @@
-# IDTA Part 2 (API) 규격 원문 — 사본
+# IDTA Part 2 (API) specification — copy
 
-`AAS_OPC UA.md` §7-3에서 "Part 2 원문 미확보"로 남아 있던 항목을 해소한 자료다.
-우리 API가 규격에서 벗어나지 않는지 **자동으로 대조**하기 위해 저장소 안에 둔다
-(네트워크가 없는 폐쇄망·CI에서도 대조가 돌아야 한다 — 기획서 Ⅷ).
+This folder keeps the original Part 2 API specification inside the repository so that our API can be
+**checked against the specification automatically** — also in air-gapped networks and CI without internet access.
 
-| 파일 | 내용 |
+| File | Content |
 |---|---|
-| `part2-v3.0.4.yaml` | 공통 스키마·질의 인자 (Message · Result · PagedResult · PackageDescription · Limit/Cursor/IdShort/SemanticId …) |
+| `part2-v3.0.4.yaml` | Shared schemas and query parameters (Message · Result · PagedResult · PackageDescription · Limit/Cursor/IdShort/SemanticId …) |
 | `AssetAdministrationShellRepositoryServiceSpecification_V3.0_SSP-001.yaml` | `/shells` |
 | `SubmodelRepositoryServiceSpecification_V3.0_SSP-001.yaml` | `/submodels` |
 | `ConceptDescriptionServiceSpecification_V3.0_SSP-001.yaml` | `/concept-descriptions` |
-| `AasxFileServer_V3.0_SSP-001.yaml` | `/packages` — **AASX 파일 서버 인터페이스** |
-| `AssetAdministrationShellRegistryServiceSpecification_V3.0_SSP-001.yaml` | `/shell-descriptors` — **레지스트리** |
+| `AasxFileServer_V3.0_SSP-001.yaml` | `/packages` — **AASX file server interface** |
+| `AssetAdministrationShellRegistryServiceSpecification_V3.0_SSP-001.yaml` | `/shell-descriptors` — **registry** |
 | `SubmodelRegistryServiceSpecification_V3.0_SSP-001.yaml` | `/submodel-descriptors` |
-| `DiscoveryServiceSpecification_V3.0_SSP-001.yaml` | `/lookup/shells` — **자산 번호로 AAS 찾기** |
+| `DiscoveryServiceSpecification_V3.0_SSP-001.yaml` | `/lookup/shells` — **find an AAS by asset ID** |
 
-- 출처: <https://github.com/admin-shell-io/aas-specs-api> 태그 `v3.0.4`
-  (IDTA-01002-3-0 계열의 최신 버그픽스. 우리 메타모델이 V3.0이므로 3.1이 아니라 3.0 계열을 쓴다)
-- 발행: Industrial Digital Twin Association (IDTA)
-- 라이선스: **CC BY 4.0** — 원문 그대로 두고 출처를 밝힌다. 수정하지 말 것
+- Source: <https://github.com/admin-shell-io/aas-specs-api> tag `v3.0.4`
+  (the latest bug-fix release of the IDTA-01002-3-0 line; our metamodel is V3.0, so we use the 3.0 line, not 3.1)
+- Publisher: Industrial Digital Twin Association (IDTA)
+- License: **CC BY 4.0** — kept unmodified with attribution. Do not edit these files.
 
-## 대조하는 법
+## How to check
 
 ```bash
-node scripts/part2-coverage.mjs            # 구현/미구현 요약
-node scripts/part2-coverage.mjs --all      # 미구현까지 전부 나열
+node scripts/part2-coverage.mjs            # implemented / not implemented summary
+node scripts/part2-coverage.mjs --all      # list everything not implemented
 ```
 
-우리 라우트 표(`@aas/api`)를 규격의 경로·메서드·성공 상태코드와 맞대어 본다.
-**규격에 없는 경로를 우리가 열어 두었는지도 함께 본다** — 표준 경로를 우리 뜻대로 다르게 쓰면
-Part 2 클라이언트가 조용히 오작동하기 때문이다.
+The script compares our route table (`@aas/api`) with the paths, methods and success status codes of the specification.
+**It also reports paths we serve that the specification does not define** — using a standard path with a different
+meaning makes Part 2 clients misbehave silently.

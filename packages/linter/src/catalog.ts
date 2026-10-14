@@ -1,11 +1,11 @@
 /**
- * 규칙·규약 카탈로그 — **"무슨 근거로 통과라고 하는가"에 답하는 자료.**
+ * Rule and convention catalog — **data that answers "on what basis do we call this a pass".**
  *
- * 왜 필요한가: 검수자·발주처가 판정 근거를 묻는다. 문서에만 적혀 있으면
- * 실제로 도는 규칙과 어긋날 수 있다 — **도는 코드에서 직접 뽑아** 보여 준다.
+ * Why it is needed: reviewers and clients ask for the basis of judgments. If it is only written in documents,
+ * it can drift from the rules that actually run — so it is **extracted directly from the running code** and shown.
  *
- * 🔴 판정 주체를 흐리지 않는다. 우리 린터는 **제출 전에 걸러 주는 것**이고,
- *    합격 판정은 KOSMO Validator와 `aas-test-engines`가 한다. 그 사실을 함께 싣는다.
+ * Important: do not blur who makes the judgment. Our linter **filters before submission**;
+ *    the pass/fail judgment is made by the KOSMO Validator and `aas-test-engines`. That fact is included too.
  */
 import { FIXERS } from './fix/index.js';
 import { DEFAULT_POLICY, type LinterPolicy } from './policy.js';
@@ -18,9 +18,9 @@ export interface RuleInfo {
   id: string;
   layer: Layer;
   title: string;
-  /** 근거 문서 */
+  /** Source document */
   source: string;
-  /** 「고치기」가 자동으로 처리할 수 있는가 */
+  /** Whether "Fix" can handle it automatically */
   fixable: boolean;
 }
 
@@ -31,11 +31,11 @@ export interface LayerInfo {
   count: number;
 }
 
-/** 규정 충돌 — 한쪽을 조용히 고르지 않고 정책으로 드러낸다 */
+/** Regulation conflict — surfaced as a policy instead of silently picking one side */
 export interface ConflictInfo {
   key: keyof LinterPolicy;
   title: string;
-  /** 무엇과 무엇이 부딪히는가 */
+  /** What conflicts with what */
   conflict: string;
   choices: { value: string; meaning: string }[];
   current: string;
@@ -43,17 +43,17 @@ export interface ConflictInfo {
 
 export interface RuleCatalog {
   rules: RuleInfo[];
-  /** 각 규약 값이 기본값인지 정책 파일에서 온 것인지 */
+  /** Whether each convention value is a default or comes from the policy file */
   sources: { key: string; from: string }[];
   layers: LayerInfo[];
   conflicts: ConflictInfo[];
-  /** id를 지을 때 쓰는 규약 */
+  /** Conventions used when naming ids */
   conventions: { key: string; title: string; value: string; source: string }[];
-  /** 합격 판정을 누가 하는지 */
+  /** Who makes the pass/fail judgment */
   verdict: { who: string; role: string }[];
 }
 
-/** 계층 설명 — 언어가 요청마다 다르므로 부를 때 만든다(모듈을 읽을 때 굳히지 않는다) */
+/** Layer descriptions — language differs per request, so built at call time (not fixed when the module loads) */
 const layerMeaning = (): Record<Layer, { title: string; meaning: string }> => ({
   L1: {
     title: tr('L1 — 패키지·직렬화'),
@@ -70,13 +70,14 @@ const layerMeaning = (): Record<Layer, { title: string; meaning: string }> => ({
 });
 
 /**
- * 규칙 근거에 든 사내 문서 이름 — 규칙 쪽은 파일 이름 그대로 들고 있고(i18n-ignore), **보여 줄 때만** 옮긴다.
- * 파일 이름을 바꾸면 근거를 찾아가는 길이 끊기므로 원래 값은 건드리지 않는다.
+ * Internal document names cited as rule sources — the rules keep the file names as-is (i18n-ignore) and translate
+ * them **only when displayed**. Renaming the files would break the path to the source, so the original values
+ * are left untouched.
  */
 const SOURCE_DOCUMENTS = [
-  '02_Validator_대응규칙.md', // i18n-ignore — 근거 문서 파일 이름(아래에서 tr로 옮긴다)
-  '04_린터_규칙_명세.md', // i18n-ignore — 근거 문서 파일 이름(아래에서 tr로 옮긴다)
-  'AAS 참조모델 제약조건 spec_260812.pdf', // i18n-ignore — 근거 문서 파일 이름(아래에서 tr로 옮긴다)
+  '02_Validator_대응규칙.md', // i18n-ignore — source document file name (translated with tr below)
+  '04_린터_규칙_명세.md', // i18n-ignore — source document file name (translated with tr below)
+  'AAS 참조모델 제약조건 spec_260812.pdf', // i18n-ignore — source document file name (translated with tr below)
 ] as const;
 
 function sourceText(source: string): string {
@@ -181,7 +182,7 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
       key: 'submodelCountRange',
       title: tr('서브모델 개수'),
       value: fill(tr('{0}종 이상 {1}종 이하'), { 0: merged.submodelCountRange[0], 1: merged.submodelCountRange[1] }),
-      source: 'KOSMO-AAS-4', // 개수 범위도 AAS-4 한 규칙 안에 있다 — AAS-7은 존재하지 않는 번호였다(2026-09-04 정정)
+      source: 'KOSMO-AAS-4', // The count range is also within the single rule AAS-4 — AAS-7 was a nonexistent number (corrected 2026-09-04)
     },
     {
       key: 'aasId',

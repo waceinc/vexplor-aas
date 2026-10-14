@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "AAS 저작 웹 UI — 기획서 M3 (MVP 완성점)",
+  "description": "AAS authoring web UI",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

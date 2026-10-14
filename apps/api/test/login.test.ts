@@ -1,10 +1,10 @@
 /**
- * 로그인 — 문 전체를 요청 단위로 본다.
+ * Login — looks at the whole gate per request.
  *
- * 🔴 여기서 지키는 것 셋.
- *   ① 기존 토큰(API 키) 경로가 그대로 산다 — 사람만 로그인으로 옮긴다
- *   ② 로그인 실패가 **계정의 존재를 알려 주지 않는다**
- *   ③ 보기 전용 계정은 읽기만 — 역할이 실제로 막는다
+ * Important: three things guarded here.
+ *   1. The existing token (API key) path still works — only people move to login
+ *   2. A failed login **does not reveal whether the account exists**
+ *   3. A view-only account can only read — the role actually blocks
  */
 import { InMemoryStore } from '@aas/store';
 import { describe, expect, it } from 'vitest';
@@ -29,7 +29,7 @@ function ask(
   } as ApiRequest;
 }
 
-/** Set-Cookie에서 세션 열쇠만 꺼낸다 */
+/** Extracts only the session key from Set-Cookie */
 function cookieFrom(response: { headers?: Record<string, string> }): string {
   const raw = response.headers?.['set-cookie'] ?? '';
   return raw.split(';')[0] ?? '';
@@ -41,15 +41,15 @@ async function fresh(): Promise<ReturnType<typeof createApi>> {
   return createApi(store);
 }
 
-describe('첫 관리자 만들기', () => {
-  it('계정이 없으면 setupNeeded로 알린다', async () => {
+describe('creating the first admin', () => {
+  it('reports setupNeeded when there are no accounts', async () => {
     const api = await fresh();
     const me = await api(ask('/auth/me'));
     expect(me.status).toBe(200);
     expect(me.body).toMatchObject({ authenticated: false, setupNeeded: true });
   });
 
-  it('만들면 바로 로그인된 상태가 된다', async () => {
+  it('is logged in right after creation', async () => {
     const api = await fresh();
     const made = await api(
       ask('/auth/setup', {
@@ -65,7 +65,7 @@ describe('첫 관리자 만들기', () => {
     expect(me.body).toMatchObject({ authenticated: true, user: { login: 'admin' } });
   });
 
-  it('🔴 계정이 생긴 뒤에는 닫힌다 — 누구나 관리자를 더 만들면 안 된다', async () => {
+  it('Important: closes once an account exists — nobody else may create more admins', async () => {
     const api = await fresh();
     await api(ask('/auth/setup', { method: 'POST', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }));
     const again = await api(
@@ -74,7 +74,7 @@ describe('첫 관리자 만들기', () => {
     expect(again.status).toBe(409);
   });
 
-  it('로그인 이름·비밀번호 규칙을 지킨다', async () => {
+  it('enforces login name and password rules', async () => {
     const api = await fresh();
     const badLogin = await api(
       ask('/auth/setup', { method: 'POST', body: { login: '한글이름', password: '열자가넘는비밀번호입니다' } }),
@@ -86,7 +86,7 @@ describe('첫 관리자 만들기', () => {
     expect(badPassword.status).toBe(400);
   });
 
-  it('🔴 응답에 passwordHash가 실리지 않는다', async () => {
+  it('Important: the response does not include passwordHash', async () => {
     const api = await fresh();
     const made = await api(
       ask('/auth/setup', { method: 'POST', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }),
@@ -96,7 +96,7 @@ describe('첫 관리자 만들기', () => {
   });
 });
 
-describe('로그인·로그아웃', () => {
+describe('login and logout', () => {
   async function withAdmin(): Promise<{ api: ReturnType<typeof createApi>; cookie: string }> {
     const api = await fresh();
     const made = await api(
@@ -105,7 +105,7 @@ describe('로그인·로그아웃', () => {
     return { api, cookie: cookieFrom(made) };
   }
 
-  it('맞는 비밀번호로 로그인된다', async () => {
+  it('logs in with the right password', async () => {
     const { api } = await withAdmin();
     const login = await api(
       ask('/auth/login', { method: 'POST', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }),
@@ -115,7 +115,7 @@ describe('로그인·로그아웃', () => {
     expect(me.body).toMatchObject({ authenticated: true });
   });
 
-  it('대소문자를 가리지 않는다', async () => {
+  it('is case-insensitive', async () => {
     const { api } = await withAdmin();
     const login = await api(
       ask('/auth/login', { method: 'POST', body: { login: 'ADMIN', password: '열자가넘는비밀번호입니다' } }),
@@ -123,7 +123,7 @@ describe('로그인·로그아웃', () => {
     expect(login.status).toBe(200);
   });
 
-  it('🔴 없는 계정과 틀린 비밀번호가 같은 응답이다 — 계정의 존재가 새면 안 된다', async () => {
+  it('Important: unknown account and wrong password give the same response — account existence must not leak', async () => {
     const { api } = await withAdmin();
     const noSuchUser = await api(
       ask('/auth/login', { method: 'POST', body: { login: '없는사람', password: '열자가넘는비밀번호입니다' } }),
@@ -132,13 +132,13 @@ describe('로그인·로그아웃', () => {
       ask('/auth/login', { method: 'POST', body: { login: 'admin', password: '아주틀린비밀번호입니다' } }),
     );
     expect(noSuchUser.status).toBe(wrongPassword.status);
-    // 시각만 다르다 — 그것을 빼면 글자 하나까지 같아야 한다
+    // Only the timestamp differs — apart from that they must match character for character
     const strip = (body: unknown): string =>
       JSON.stringify(body).replace(/"timestamp":"[^"]*"/g, '"timestamp":"-"');
     expect(strip(noSuchUser.body)).toBe(strip(wrongPassword.body));
   });
 
-  it('로그아웃하면 세션이 끊기고 쿠키가 지워진다', async () => {
+  it('logout ends the session and clears the cookie', async () => {
     const { api, cookie } = await withAdmin();
     const out = await api(ask('/auth/logout', { method: 'POST', cookie }));
     expect(out.status).toBe(204);
@@ -147,7 +147,7 @@ describe('로그인·로그아웃', () => {
     expect(me.body).toMatchObject({ authenticated: false });
   });
 
-  it('다섯 번 틀리면 잠시 막힌다', async () => {
+  it('blocks for a while after five failures', async () => {
     const { api } = await withAdmin();
     for (let i = 0; i < 5; i += 1) {
       await api(ask('/auth/login', { method: 'POST', body: { login: 'admin', password: '아주틀린비밀번호입니다' } }));
@@ -156,10 +156,10 @@ describe('로그인·로그아웃', () => {
       ask('/auth/login', { method: 'POST', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }),
     );
     expect(blocked.status).toBe(429);
-    // scrypt를 일곱 번 돈다(일부러 느린 해시다). 시험을 한꺼번에 돌리면 5초를 넘길 때가 있다
+    // Runs scrypt seven times (a deliberately slow hash). Running the tests all at once can exceed 5 seconds
   }, 30_000);
 
-  it('🔴 쿠키는 HttpOnly·SameSite=Strict다 — 스크립트가 못 읽고 남의 사이트에서 안 실린다', async () => {
+  it('Important: the cookie is HttpOnly and SameSite=Strict — scripts cannot read it and other sites do not send it', async () => {
     const { api } = await withAdmin();
     const login = await api(
       ask('/auth/login', { method: 'POST', body: { login: 'admin', password: '열자가넘는비밀번호입니다' } }),
@@ -167,19 +167,19 @@ describe('로그인·로그아웃', () => {
     const raw = login.headers?.['set-cookie'] ?? '';
     expect(raw).toContain('HttpOnly');
     expect(raw).toContain('SameSite=Strict');
-    // 평문 HTTP에서는 Secure를 붙이지 않는다 — 붙이면 브라우저가 쿠키를 버린다
+    // No Secure over plain HTTP — with it the browser drops the cookie
     expect(raw).not.toContain('Secure');
   });
 });
 
-describe('🔴 기존 토큰(API 키) 경로는 그대로 산다', () => {
-  it('토큰이 없으면 예전처럼 열려 있다 — 기존 테스트·설치판이 안 깨진다', async () => {
+describe('Important: the existing token (API key) path still works', () => {
+  it('stays open as before without a token — existing tests and installs do not break', async () => {
     const api = await fresh();
     const list = await api(ask('/packages'));
     expect(list.status).toBe(200);
   });
 
-  it('토큰을 설정하면 토큰으로 들어간다(사람 로그인과 별개)', async () => {
+  it('with a token configured, the token gets in (separate from human login)', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store, { auth: { tokens: ['secret-key'], readOnlyTokens: [] } });
@@ -187,7 +187,7 @@ describe('🔴 기존 토큰(API 키) 경로는 그대로 산다', () => {
     expect((await api(ask('/packages', { token: 'secret-key' }))).status).toBe(200);
   });
 
-  it('로그인한 사람은 토큰 없이도 들어간다', async () => {
+  it('a logged-in person gets in without a token', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store, { auth: { tokens: ['secret-key'], readOnlyTokens: [] } });
@@ -199,8 +199,8 @@ describe('🔴 기존 토큰(API 키) 경로는 그대로 산다', () => {
   });
 });
 
-describe('역할', () => {
-  it('🔴 보기 전용(viewer)은 읽기만 — 고치려 하면 403', async () => {
+describe('roles', () => {
+  it('Important: a viewer can only read — trying to edit gives 403', async () => {
     const store = new InMemoryStore();
     await store.init();
     await store.createUser({
@@ -221,7 +221,7 @@ describe('역할', () => {
     expect(write.status).toBe(403);
   });
 
-  it('편집자(editor)는 고칠 수 있다', async () => {
+  it('an editor can edit', async () => {
     const store = new InMemoryStore();
     await store.init();
     await store.createUser({
@@ -235,12 +235,12 @@ describe('역할', () => {
       ask('/auth/login', { method: 'POST', body: { login: 'editor', password: '열자가넘는비밀번호입니다' } }),
     );
     expect(login.body).toMatchObject({ user: { level: 'full' } });
-    // 없는 패키지라 404지만 **403은 아니다** — 권한은 통과했다는 뜻
+    // 404 because the package does not exist, but **not 403** — meaning the permission check passed
     const write = await api(ask('/packages/pkg_없음', { method: 'DELETE', cookie: cookieFrom(login) }));
     expect(write.status).not.toBe(403);
   });
 
-  it('잠근 계정은 로그인도 안 되고, 이미 있던 세션도 끊긴다', async () => {
+  it('a locked account cannot log in, and its existing sessions are ended', async () => {
     const store = new InMemoryStore();
     await store.init();
     const user = await store.createUser({
@@ -266,8 +266,8 @@ describe('역할', () => {
 });
 
 
-describe('계정 관리 (관리자)', () => {
-  /** 관리자로 로그인된 api와 쿠키를 돌려준다 */
+describe('account management (admin)', () => {
+  /** Returns an api logged in as admin and its cookie */
   async function asAdmin(): Promise<{
     api: ReturnType<typeof createApi>;
     store: InMemoryStore;
@@ -282,7 +282,7 @@ describe('계정 관리 (관리자)', () => {
     return { api, store, cookie: cookieFrom(made) };
   }
 
-  it('계정을 만들고 목록에 나온다', async () => {
+  it('creates an account and it appears in the list', async () => {
     const { api, cookie } = await asAdmin();
     const made = await api(
       ask('/auth/users', {
@@ -296,7 +296,7 @@ describe('계정 관리 (관리자)', () => {
     expect((list.body as { result: { login: string }[] }).result.map((u) => u.login)).toEqual(['admin', 'kim']);
   });
 
-  it('🔴 편집자는 계정을 다룰 수 없다', async () => {
+  it('Important: an editor cannot manage accounts', async () => {
     const { api, cookie } = await asAdmin();
     await api(
       ask('/auth/users', {
@@ -316,7 +316,7 @@ describe('계정 관리 (관리자)', () => {
     ).toBe(403);
   });
 
-  it('같은 로그인 이름은 거절한다', async () => {
+  it('rejects a duplicate login name', async () => {
     const { api, cookie } = await asAdmin();
     const again = await api(
       ask('/auth/users', { method: 'POST', cookie, body: { login: 'Admin', password: '열자가넘는비밀번호입니다' } }),
@@ -324,7 +324,7 @@ describe('계정 관리 (관리자)', () => {
     expect(again.status).toBe(409);
   });
 
-  it('🔴 역할을 바꾸면 그 사람의 세션이 끊긴다 — 열려 있던 창이 계속 편집하면 안 된다', async () => {
+  it('Important: changing the role ends that person sessions — an open window must not keep editing', async () => {
     const { api, store, cookie } = await asAdmin();
     await api(
       ask('/auth/users', {
@@ -346,7 +346,7 @@ describe('계정 관리 (관리자)', () => {
     expect((await api(ask('/auth/me', { cookie: kim }))).body).toMatchObject({ authenticated: false });
   });
 
-  it('🔴 마지막 관리자는 강등·잠금할 수 없다 — 아무도 계정을 다룰 수 없게 된다', async () => {
+  it('Important: the last admin cannot be demoted or locked — nobody could manage accounts anymore', async () => {
     const { api, store, cookie } = await asAdmin();
     const me = await store.findUserByLogin('admin');
     const demote = await api(
@@ -359,7 +359,7 @@ describe('계정 관리 (관리자)', () => {
     expect(lock.status).toBe(409);
   });
 
-  it('관리자가 둘이면 한 명은 강등할 수 있다', async () => {
+  it('with two admins, one can be demoted', async () => {
     const { api, store, cookie } = await asAdmin();
     await api(
       ask('/auth/users', {
@@ -374,7 +374,7 @@ describe('계정 관리 (관리자)', () => {
     expect(demote.status).toBe(200);
   });
 
-  it('비밀번호를 초기화하면 새 것으로 로그인된다', async () => {
+  it('after a password reset, the new password logs in', async () => {
     const { api, store, cookie } = await asAdmin();
     await api(
       ask('/auth/users', {
@@ -396,14 +396,14 @@ describe('계정 관리 (관리자)', () => {
     ).toBe(200);
   });
 
-  it('없는 계정을 고치면 404', async () => {
+  it('editing an unknown account gives 404', async () => {
     const { api, cookie } = await asAdmin();
     expect((await api(ask('/auth/users/user_없음', { method: 'PATCH', cookie, body: { role: 'viewer' } }))).status).toBe(404);
   });
 });
 
-describe('내 비밀번호 바꾸기', () => {
-  it('지금 비밀번호가 맞아야 바뀐다', async () => {
+describe('changing my own password', () => {
+  it('changes only when the current password is correct', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store);
@@ -424,14 +424,14 @@ describe('내 비밀번호 바꾸기', () => {
       }),
     );
     expect(ok.status).toBe(200);
-    // 🔴 바꾼 창은 이어서 쓸 수 있어야 한다 — 새 쿠키를 준다
+    // Important: the window that changed it must keep working — it gets a new cookie
     const fresh2 = cookieFrom(ok);
     expect((await api(ask('/auth/me', { cookie: fresh2 }))).body).toMatchObject({ authenticated: true });
-    // 옛 세션은 끊긴다
+    // Old sessions are ended
     expect((await api(ask('/auth/me', { cookie }))).body).toMatchObject({ authenticated: false });
   });
 
-  it('로그인하지 않았으면 401', async () => {
+  it('401 when not logged in', async () => {
     const api = await fresh();
     const out = await api(
       ask('/auth/password', { method: 'POST', body: { current: 'a', next: '새로운비밀번호입니다요' } }),

@@ -1,4 +1,4 @@
-/** @aas/store — AAS 모델 저장소 (기획서 M1) */
+/** @aas/store — AAS model store (spec M1) */
 export * from './types.js';
 export * from './actor.js';
 export * from './scoped.js';

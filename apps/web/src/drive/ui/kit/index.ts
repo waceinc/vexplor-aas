@@ -1,5 +1,5 @@
-// shadcn/ui 원본 — `npx shadcn@latest add` 가 쓴 파일 그대로다. 손으로 고치지 않는다.
-// 새 컴포넌트가 필요하면 CLI 로 더하고 이 배럴에 한 줄을 붙인다.
+// shadcn/ui originals — files exactly as written by `npx shadcn@latest add`. Do not edit by hand.
+// When a new component is needed, add it with the CLI and append one line to this barrel.
 export { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogMedia, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, AlertDialogTrigger } from "./alert-dialog";
 export { Alert, AlertDescription, AlertTitle } from "./alert";
 export { Avatar, AvatarBadge, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "./avatar";

@@ -1,10 +1,10 @@
 /**
- * OPC UA 어댑터 검증 — 내장 서버를 상대로 실제 프로토콜 왕복.
+ * OPC UA adapter checks — real protocol round-trips against the built-in server.
  *
- * 여기서 확인하는 것은 셋이다.
- *  ① NodeId로 값을 읽어 오는가
- *  ② 장비가 준 시각·품질을 그대로 싣는가
- *  ③ 나쁜 태그 하나가 나머지 수집을 멈추지 않는가
+ * Three things are checked here.
+ *  (1) values are read by NodeId
+ *  (2) the timestamp and quality supplied by the device are carried as is
+ *  (3) one bad tag does not stop collection of the rest
  */
 import { OpcUaReader, toReadResult } from '@aas/opcua';
 import { DataType, DataValue, StatusCodes, Variant } from 'node-opcua';
@@ -15,7 +15,7 @@ let server: TestServer;
 let reader: OpcUaReader;
 
 beforeAll(async () => {
-  // 포트가 겹치면 다른 포트로 한 번 더 시도한다(다른 시험이 동시에 돌 수 있다)
+  // If the port is taken, try once more on another port (other tests may run concurrently)
   try {
     server = await startTestServer(14840);
   } catch {
@@ -29,8 +29,8 @@ afterAll(async () => {
   await server?.stop();
 });
 
-describe('OPC UA 읽기', () => {
-  it('NodeId로 값을 읽는다', async () => {
+describe('OPC UA read', () => {
+  it('reads values by NodeId', async () => {
     const results = await reader.read(['ns=1;s=Machine.MotorSpeed', 'ns=1;s=Machine.AlarmActive']);
     expect(results).toHaveLength(2);
 
@@ -38,62 +38,62 @@ describe('OPC UA 읽기', () => {
     expect(speed.value).toBe(1200.5);
     expect(speed.error).toBeUndefined();
     expect(speed.quality).toBe('Good');
-    // 장비가 준 시각을 싣는다 — 수집기 시계가 아니다
+    // Carries the device-supplied timestamp — not the collector clock
     expect(speed.observedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
 
     expect(results[1]!.value).toBe(false);
   });
 
-  it('값이 바뀌면 다음 읽기에 따라온다', async () => {
+  it('follows value changes on the next read', async () => {
     server.setSpeed(1555.25);
     const [result] = await reader.read(['ns=1;s=Machine.MotorSpeed']);
     expect(result!.value).toBe(1555.25);
   });
 
-  it('나쁜 태그는 사유와 함께 표시하고 나머지는 계속 읽는다', async () => {
+  it('marks a bad tag with a reason and keeps reading the rest', async () => {
     const results = await reader.read([
       'ns=1;s=Machine.BrokenSensor',
       'ns=1;s=Machine.MotorSpeed',
     ]);
     expect(results[0]!.error).toContain('BadDeviceFailure');
     expect(results[0]!.quality).toBe('BadDeviceFailure');
-    // 하나가 나빠도 나머지는 정상이다 — 수집이 통째로 멈추면 안 된다
+    // One bad tag leaves the rest healthy — collection must not stop entirely
     expect(results[1]!.error).toBeUndefined();
     expect(results[1]!.value).toBe(1555.25);
   });
 
-  it('🔴 아직 값이 없는 태그를 고장 난 태그와 섞지 않는다', async () => {
-    // 이 둘은 이름이 모두 Bad로 시작해 얼핏 같아 보인다. 그러나 하나는 정상 대기,
-    // 하나는 진짜 고장이다 — 섞으면 멀쩡한 설비가 「나쁜 태그 N」으로 보인다
+  it('Important: does not mix tags with no value yet into broken tags', async () => {
+    // Both names start with Bad and look alike at a glance. But one is a normal wait,
+    // the other a real failure — mixing them makes a healthy machine show "N bad tags"
     const [waiting, broken] = await reader.read([
       'ns=1;s=Machine.NotYetReady',
       'ns=1;s=Machine.BrokenSensor',
     ]);
 
     expect(waiting!.pending).toBe(true);
-    expect(waiting!.error).toBeUndefined(); // 실패가 아니다
-    expect(waiting!.quality).toBe('BadWaitingForInitialData'); // 근거는 숨기지 않는다
-    expect(waiting!.value).toBeNull(); // 🔴 성공으로 위장하지도 않는다
+    expect(waiting!.error).toBeUndefined(); // not a failure
+    expect(waiting!.quality).toBe('BadWaitingForInitialData'); // the evidence is not hidden
+    expect(waiting!.value).toBeNull(); // Important: nor disguised as a success
 
     expect(broken!.pending).toBeUndefined();
     expect(broken!.error).toContain('BadDeviceFailure');
   });
 
-  it('없는 NodeId도 예외가 아니라 결과로 돌려준다', async () => {
+  it('returns an unknown NodeId as a result, not an exception', async () => {
     const [result] = await reader.read(['ns=1;s=없는태그']);
     expect(result!.error).toBeDefined();
     expect(result!.quality).toContain('Bad');
   });
 
-  it('빈 목록은 그냥 빈 결과', async () => {
+  it('an empty list yields an empty result', async () => {
     expect(await reader.read([])).toEqual([]);
   });
 });
 
-describe('접속 제한시간', () => {
-  it('응답 없는 주소에서 오래 매달리지 않는다', async () => {
-    // node-opcua 기본 동작은 60초를 매단다(실측). 장비 하나가 꺼져 있다고
-    // 수집 주기가 통째로 밀리면 안 된다
+describe('connect timeout', () => {
+  it('does not hang long on an unresponsive address', async () => {
+    // node-opcua by default hangs for 60 s (measured). One device being off
+    // must not push back the whole collection cycle
     const started = Date.now();
     await expect(
       OpcUaReader.connect({ endpoint: 'opc.tcp://127.0.0.1:14999/없음', connectTimeoutMs: 1500 }),
@@ -103,12 +103,12 @@ describe('접속 제한시간', () => {
 });
 
 /**
- * 상태 코드 분류 — 시험용 서버로는 한 가지 상태밖에 못 만들어서 여기서 나머지를 붙든다.
+ * Status code classification — the test server can produce only one status, so the rest are pinned here.
  *
- * 🔴 경계가 어디인지를 시험이 문서로 들고 있어야 한다. 나중에 "이것도 대기 아닌가?" 하고
- *    코드를 늘릴 때, 뺀 것들이 왜 실패인지가 여기 적혀 있어야 판단이 선다.
+ * Important: the test must document where the boundary is. When someone later asks "isn't this a wait too?" and
+ *    extends the code, the reasons the excluded codes are failures must be written here to decide.
  */
-describe('toReadResult — 「값 대기」와 「읽기 실패」의 경계', () => {
+describe('toReadResult — boundary between "waiting for value" and "read failure"', () => {
   const of = (status: (typeof StatusCodes)['Good'], value: unknown = 0): ReturnType<typeof toReadResult> =>
     toReadResult(
       'ns=1;s=X',
@@ -118,7 +118,7 @@ describe('toReadResult — 「값 대기」와 「읽기 실패」의 경계', (
       }),
     );
 
-  it('값 없음 계열은 대기로 본다', () => {
+  it('treats no-value statuses as waiting', () => {
     for (const status of [
       StatusCodes.BadWaitingForInitialData,
       StatusCodes.BadNoValue,
@@ -132,21 +132,21 @@ describe('toReadResult — 「값 대기」와 「읽기 실패」의 경계', (
     }
   });
 
-  it('🔴 자리채움 값이 붙어 와도 값으로 흘리지 않는다', () => {
-    // UncertainInitialValue는 초기값을 함께 준다. 그대로 두면 시계열에 0이 쌓이고
-    // "설비가 0을 보냈다"는 가짜 이력이 남는다
+  it('Important: does not pass a placeholder value through as a value', () => {
+    // UncertainInitialValue comes with an initial value. Left as is, 0s pile up in the time series
+    // leaving a fake history saying "the machine sent 0"
     const result = of(StatusCodes.UncertainInitialValue, 0);
     expect(result.pending).toBe(true);
     expect(result.value).toBeNull();
   });
 
-  it('🔴 진짜 문제는 그대로 실패다 — 대기로 덮어 숨기지 않는다', () => {
+  it('Important: real problems stay failures — not hidden under waiting', () => {
     for (const status of [
-      StatusCodes.BadDeviceFailure, // 센서가 죽었다
-      StatusCodes.BadNoCommunication, // 통신이 안 선다
-      StatusCodes.BadOutOfService, // 데이터원이 동작하지 않는다
-      StatusCodes.BadNodeIdUnknown, // 주소가 틀렸다
-      StatusCodes.UncertainNoCommunicationLastUsableValue, // 값은 있으나 통신이 끊겼다
+      StatusCodes.BadDeviceFailure, // sensor is dead
+      StatusCodes.BadNoCommunication, // no communication established
+      StatusCodes.BadOutOfService, // data source is not running
+      StatusCodes.BadNodeIdUnknown, // wrong address
+      StatusCodes.UncertainNoCommunicationLastUsableValue, // a value exists but communication is lost
     ]) {
       const result = of(status);
       expect(result.pending, status.name).toBeUndefined();
@@ -154,7 +154,7 @@ describe('toReadResult — 「값 대기」와 「읽기 실패」의 경계', (
     }
   });
 
-  it('정상 값은 둘 다 아니다', () => {
+  it('a healthy value is neither', () => {
     const result = of(StatusCodes.Good, 12.5);
     expect(result.pending).toBeUndefined();
     expect(result.error).toBeUndefined();

@@ -1,30 +1,30 @@
 /**
- * 운영용 PostgreSQL 연결.
+ * PostgreSQL connection for production.
  *
- * `@aas/store`는 드라이버를 의존하지 않고 `SqlClient` 포트만 받는다(라이선스 검토를 늘리지 않기 위해서다).
- * 그 포트를 `pg`(MIT)로 채우는 자리가 여기다. **동적 import**를 쓰는 이유는
- * `DATABASE_URL` 없이 띄우는 배포(시연·개발)에서 드라이버를 아예 읽지 않게 하기 위해서다.
+ * `@aas/store` does not depend on a driver and only takes a `SqlClient` port (to avoid adding license reviews).
+ * This is where that port is filled in with `pg` (MIT). **Dynamic import** is used so that
+ * deployments started without `DATABASE_URL` (demo/dev) never load the driver at all.
  *
- * 🔴 `pg.Pool`은 질의마다 연결이 달라진다 — `BEGIN`이 다른 연결로 가면 트랜잭션이 성립하지 않는다.
- *    그래서 `transaction`을 반드시 준다(포트가 이것을 요구하는 이유다).
+ * Important: `pg.Pool` uses a different connection per query — if `BEGIN` goes to another connection, the transaction does not hold.
+ *    So `transaction` must always be provided (this is why the port requires it).
  */
 import { HYPERTABLE_SQL, PostgresStore, type SqlClient } from '@aas/store';
 import { fill, tr } from '@aas/core';
 
 export interface PostgresOptions {
   connectionString: string;
-  /** 스키마를 나눠 쓸 때. 🔴 `public`을 빼면 TimescaleDB의 create_hypertable이 안 보인다 */
+  /** When using a separate schema. Important: leaving out `public` hides TimescaleDB's create_hypertable */
   schema?: string;
   /**
-   * 수집값 표를 TimescaleDB 하이퍼테이블로 둘지. 기본은 **해 보고, 안 되면 그냥 간다**.
-   * 일반 PostgreSQL에서도 동작해야 하기 때문이다(설치처를 가리지 않는 편이 낫다).
+   * Whether to make the collected-values table a TimescaleDB hypertable. The default is **try it, and move on if it fails**.
+   * Because it must also work on plain PostgreSQL (better not to be picky about the install target).
    */
   timescale?: boolean;
 }
 
 /**
- * 있으면 쓰고 없으면 넘어간다.
- * 🔴 확장 설치에는 superuser가 필요하다 — 공용 DB에 얹는 배포라면 관리자가 미리 켜 두면 된다.
+ * Use it if present, skip it if not.
+ * Important: installing the extension requires superuser — for deployments on a shared DB, an admin can enable it in advance.
  */
 async function tryTimescale(client: SqlClient): Promise<string> {
   try {
@@ -36,7 +36,7 @@ async function tryTimescale(client: SqlClient): Promise<string> {
     await client.query(HYPERTABLE_SQL);
     return tr('TimescaleDB 하이퍼테이블');
   } catch (error) {
-    // 이미 자료가 든 표를 뒤늦게 바꾸려 할 때 등. 동작에는 지장이 없다
+    // e.g. when trying to convert a table that already holds data. Does not affect operation
     return fill(tr('일반 표로 둔다 ({0})'), { 0: error instanceof Error ? error.message : String(error) });
   }
 }
@@ -50,7 +50,7 @@ export async function connectPostgres(
   if (options.schema) {
     const path = `"${options.schema}", public`;
     await pool.query(`CREATE SCHEMA IF NOT EXISTS "${options.schema}"`);
-    // 풀의 모든 연결이 같은 스키마를 보게 한다
+    // Make every connection in the pool see the same schema
     pool.on('connect', (client) => void client.query(`SET search_path TO ${path}`));
     await pool.query(`SET search_path TO ${path}`);
   }
@@ -82,7 +82,7 @@ export async function connectPostgres(
   };
 
   const store = new PostgresStore(client);
-  // 🔴 스키마 판이 프로그램보다 새로우면 여기서 SchemaVersionError로 멈춘다 — 기동 로그에 그대로 찍힌다
+  // Important: if the schema version is newer than the program, it stops here with SchemaVersionError — printed as-is in the startup log
   await store.init();
   const timescale = options.timescale === false ? tr('끔') : await tryTimescale(client);
   return { store, timescale: fill(tr('{0} · 스키마 {1}판'), { 0: timescale, 1: store.schemaVersion }) };

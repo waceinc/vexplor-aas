@@ -1,16 +1,16 @@
 /**
- * 무엇으로 이루어졌나 — 만든 뒤의 구성 편집. `HierarchyTree`의 **즉시 저장 모드**다.
+ * What is it made of — editing the composition after creation. This is the **immediate-save mode** of `HierarchyTree`.
  *
- * 🔴 이 화면이 있는 이유: 공정 파일은 **자기 안에 설비 상세를 담지 않는다.**
- * `globalAssetId`라는 끈 하나로 설비 파일을 가리킬 뿐이라, 그 끈을 손으로 옮겨 적게 하면
- * 거기서 오타가 난다. 그래서 **올려 둔 설비 파일을 고르기만 하면** 이름과 주소를 서버가 그 파일에서 읽는다.
+ * Important: why this screen exists: a process file **does not hold equipment details inside itself.**
+ * It only points to the equipment file through one string, `globalAssetId`; having people copy that string by hand
+ * is where typos come from. So **just picking an uploaded equipment file** lets the server read the name and address from that file.
  *
- * 계층은 IDTA 02011(HierarchicalStructures)이고, 설비 파일도 같은 문법으로 자기 부품을
- * 적고 있다(롤포밍기 → Uncoiler · RollStandUnit · CutOffPress). 그래서 공정이든 설비든 계층이 있는 파일이면 똑같이 쓴다.
+ * The hierarchy is IDTA 02011 (HierarchicalStructures), and equipment files describe their own parts with the same grammar
+ * (roll forming machine → Uncoiler · RollStandUnit · CutOffPress). So any file with a hierarchy, process or equipment, is handled the same way.
  *
- * 🔴 만들 때(NewPackage)와 **같은 트리 편집기**를 쓴다 — 예전엔 만든 뒤 화면이 「넣을 자리·여기에 넣기·
- *    직접 적기·그룹 만들기」라는 다른 모양이어서 초보자가 두 번 배웠다(2026-09-08, 전문가 검토로 통일).
- *    여기서는 줄마다 API를 바로 부르고, 서버가 검증(중복·순환·이름)을 맡는다.
+ * Important: it uses **the same tree editor** as creation (NewPackage) — the after-creation screen used to have a different shape
+ *    ("Slot to add · Add here · Type directly · Make group"), so beginners learned it twice (2026-09-08, unified after expert review).
+ *    Here each row calls the API immediately, and the server does the validation (duplicates, cycles, names).
  */
 import { useState } from 'react';
 import type { HierarchyNode, HierarchyView, PackageDescription } from '../api.js';
@@ -21,28 +21,28 @@ import { T } from './T.js';
 
 interface Props {
   view: HierarchyView;
-  /** 설비 한 대(부품 구성)인가 공정·회사(설비 배치)인가 — 제목·설명이 갈린다 */
+  /** Is this one machine (part composition) or a process / company (equipment layout) — titles and descriptions differ */
   unit: 'equipment' | 'composite';
-  /** 열려 있는 입력 줄 — 트리의 ▦ 클릭·요약의 「＋ …」로도 열리므로 밖(App)이 들고 있다 */
+  /** The open input row — also opened by the tree's ▦ click and the summary's "+ …", so the outside (App) holds it */
   adder?: Adder;
   onAdderChange: (adder?: Adder) => void;
-  /** 넣을 수 있는 후보 — 지금 열려 있는 파일을 뺀 나머지 */
+  /** Candidates that can be added — everything except the currently open file */
   candidates: PackageDescription[];
-  /** PC 폴더에서 .aasx를 올려 그 자리에서 넣는다 — 만들 때(NewPackage)와 같은 손놀림이어야 한다 */
+  /** Upload a .aasx from a PC folder and add it in place — must be the same gesture as at creation (NewPackage) */
   onImportFile?: (file: File) => Promise<string | undefined>;
   busy: boolean;
-  /** 자체 IRI 뿌리 — 이름만 적은 설비의 Asset 주소를 짓는 데 쓴다 */
+  /** Own IRI root — used to build the Asset address of equipment entered by name only */
   iriBase?: string;
   onAdd: (sourcePackageId: string, bulkCount: number, parentPath: string[]) => void;
-  /** 호기별로 나눠 넣기 — ×n 대신 이름_1…이름_n 파일을 각각 */
+  /** Add split per unit — separate files name_1…name_n instead of ×n */
   onAddSplit: (sourcePackageId: string, count: number, parentPath: string[]) => void;
   onAddManual: (name: string, globalAssetId: string, bulkCount: number, parentPath: string[]) => void;
   onAddGroup: (name: string, parentPath: string[], line?: boolean) => void;
   onRemove: (name: string, parentPath: string[]) => void;
-  /** ㉯ 자식 설비의 서브모델을 그 자리에서 펼쳐 본다 — 파일 구조는 참조형 그대로, 화면에서만 이어 붙인다 */
+  /** ㉯ Expand a child equipment's submodels in place — the file structure stays reference-based; they are joined only on screen */
   fetchSubmodels: (packageId: string) => Promise<Submodel[]>;
   onOpen: (packageId: string) => void;
-  /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
+  /** Translator — returns the Korean as is when the dictionary has no entry (i18n.ts) */
   t: (text: string) => string;
 }
 
@@ -64,7 +64,7 @@ export function Hierarchy({
   onOpen,
   t,
 }: Props): React.JSX.Element {
-  /** 펼쳐 둔 설비(경로 키) → 읽어 온 서브모델 목록 (undefined = 읽는 중). 같은 이름이 두 공정에 있을 수 있어 경로로 키를 잡는다 */
+  /** Expanded equipment (path key) → loaded submodel list (undefined = loading). The same name can appear under two processes, so the key is the path */
   const [opened, setOpened] = useState<Record<string, Submodel[] | undefined>>({});
 
   if (!view.entryNode) {
@@ -79,7 +79,7 @@ export function Hierarchy({
   const packageOf = (globalAssetId: string): PackageDescription | undefined =>
     candidates.find((item) => item.globalAssetId === globalAssetId);
 
-  /** 서버 계층 → 트리 편집기 노드. 그룹은 주소가 빈 문자열로 내려온다(전송 표현) */
+  /** Server hierarchy → tree-editor node. Groups come down with an empty-string address (transport representation) */
   const toDraft = (list: HierarchyNode[]): DraftNode[] =>
     list.map((node) => {
       if (node.globalAssetId === '') {
@@ -119,7 +119,7 @@ export function Hierarchy({
   return (
     <div className="hierarchy">
       <h3>{unit === 'equipment' ? t('부품 구성 (BoM)') : t('공정·설비 구성')}</h3>
-      {/* "이게 뭔지, 파일에 들어 있는 건지" 물어 왔다(2026-09-08) — 출처를 첫 줄에 적는다 */}
+      {/* People asked "what is this, and is it in the file?" (2026-09-08) — the source is stated on the first line */}
       <p className="hint">
         {unit === 'equipment'
           ? t('이 설비를 이루는 부품입니다 — 이 파일의 HierarchicalStructures 서브모델(IDTA 02011)에 저장됩니다.')

@@ -1,8 +1,8 @@
 /**
- * 레퍼런스 번들 — 공정 파일 하나를 제출 꾸러미로 내보내고 다시 연다.
+ * Reference bundle — export one process file as a submission package and open it again.
  *
- * 🔴 이 시험의 요점: **번들에 든 모델이 지금 열린 모델과 같은 내용인가를 해시가 말해 주는가.**
- * 「모델은 바뀌었는데 번들에는 옛 판이 남는」 사고를 막는 유일한 장치다.
+ * Important: the point of this test: **does the hash tell us whether the model in the bundle has the same content as the model currently open?**
+ * It is the only safeguard against the "model changed but the bundle still holds the old revision" incident.
  */
 import { readAasx, unzipArchive, zipArchive } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -17,7 +17,7 @@ const sha = (data: Uint8Array) => createHash('sha256').update(data).digest('hex'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function harness(store = new InMemoryStore()) {
   const handle = createApi(store);
-  /** 로그인한 채로 부르고 싶을 때 — 감사 기록(누가 내보냈나)을 보는 시험이 쓴다 */
+  /** For calling while logged in — used by tests that check the audit record (who exported it) */
   let cookie: string | undefined;
   const call = async (
     method: string,
@@ -52,7 +52,7 @@ function harness(store = new InMemoryStore()) {
   return { store, call, loginAs };
 }
 
-describe('레퍼런스 번들', () => {
+describe('reference bundle', () => {
   let h: ReturnType<typeof harness>;
   let processId: string;
   let machineId: string;
@@ -60,8 +60,8 @@ describe('레퍼런스 번들', () => {
   beforeEach(async () => {
     h = harness();
     await h.store.init();
-    machineId = (await h.store.importPackage({ name: '01-롤포밍기-공34.aasx', package: fixture('01-롤포밍기-공34.aasx') })).id;
-    const spr = (await h.store.importPackage({ name: '03-SPR장비-뿌80.aasx', package: fixture('03-SPR장비-뿌80.aasx') })).id;
+    machineId = (await h.store.importPackage({ name: '01-roll-forming-machine.aasx', package: fixture('01-roll-forming-machine.aasx') })).id;
+    const spr = (await h.store.importPackage({ name: '03-spr-riveting-machine.aasx', package: fixture('03-spr-riveting-machine.aasx') })).id;
     processId = (await h.call('POST', '/packages/new', { assetName: 'BodyJoiningLine', unit: 'composite' })).body.packageId;
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { group: true, name: 'JoiningProcess' });
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machineId, parentPath: ['JoiningProcess'], bulkCount: 2 });
@@ -72,7 +72,7 @@ describe('레퍼런스 번들', () => {
     });
   });
 
-  it('🔴 누가 내보냈는지 남는다 — 제출 꾸러미라 물어볼 사람이 적혀 있어야 한다', async () => {
+  it('Important: records who exported it — a submission package must name the person to ask', async () => {
     await h.loginAs('품질팀 홍길동');
     const zip = (await h.call('GET', `/packages/${processId}/bundle?code=RB01`)).body as Uint8Array;
     const entries = unzipArchive(zip);
@@ -82,7 +82,7 @@ describe('레퍼런스 번들', () => {
     expect(text('README.md')).toContain('내보낸 사람: 품질팀 홍길동');
   });
 
-  it('로그인을 쓰지 않는 서버는 비워 둔다 — 모르는 것을 아는 척하지 않는다', async () => {
+  it('a server without login leaves it empty — it does not pretend to know what it does not know', async () => {
     const zip = (await h.call('GET', `/packages/${processId}/bundle?code=RB01`)).body as Uint8Array;
     const entries = unzipArchive(zip);
     const text = (suffix: string) =>
@@ -91,7 +91,7 @@ describe('레퍼런스 번들', () => {
     expect(text('README.md')).not.toContain('내보낸 사람');
   });
 
-  it('연계 분석 — 설비 준비 상태와 공통 항목을 준다', async () => {
+  it('linkage analysis — gives equipment readiness and common items', async () => {
     const res = await h.call('GET', `/packages/${processId}/bundle/linkage`);
     expect(res.status).toBe(200);
     const names = res.body.members.map((m: any) => m.name);
@@ -103,11 +103,11 @@ describe('레퍼런스 번들', () => {
     const planned = res.body.members.find((m: any) => m.name === 'FuturePress');
     expect(planned.packageId).toBeUndefined();
     expect(res.body.linkage.missing).toEqual(['FuturePress']);
-    // 두 설비가 함께 가진 운전 데이터 항목이 있어야 번들이 성립한다
+    // The bundle only holds together if the two pieces of equipment share an operational data item
     expect(res.body.linkage.items.some((i: any) => i.coverage === 2)).toBe(true);
   });
 
-  it('🔴 수집 연결(AID)을 붙인 설비는 시연본으로 드러난다 — 제출본과 섞이지 않게', async () => {
+  it('Important: equipment with a collection connection (AID) is flagged as a demo copy — so it is not mixed with the submission copy', async () => {
     const before = await h.call('GET', `/packages/${processId}/bundle/linkage`);
     expect(before.body.members.some((m: any) => m.demo)).toBe(false);
 
@@ -131,8 +131,8 @@ describe('레퍼런스 번들', () => {
     expect(text('README.md')).toContain('시연본 포함');
   });
 
-  describe('실동작 증빙 — 시연을 대신하는 수집 기록', () => {
-    /** 형식(롤포밍기)에서 호기를 복제하고, 그 호기에 수집 연결과 값을 쌓는다 */
+  describe('runtime evidence — collection records in place of a live demo', () => {
+    /** Clone a unit from the type (roll forming machine), then accumulate a collection connection and values on that unit */
     const collectOnUnit = async (endpoint: string, title: string) => {
       const unit = (await h.call('POST', `/packages/${machineId}/clone`, { assetName: 'RollFormingMachine_1' })).body.packageId;
       await h.call('POST', `/packages/${unit}/aid`, {
@@ -163,26 +163,26 @@ describe('레퍼런스 번들', () => {
       return { entries, find, text, manifest: JSON.parse(text('bundle-manifest.json')) };
     };
 
-    it('형식 파일만 든 번들에 파생 호기(derivedFrom)의 수집값이 실린다 — 형식 모델은 그대로', async () => {
+    it('a bundle holding only the type file carries the collected values of derived units (derivedFrom) — the type model stays as is', async () => {
       await collectOnUnit('opc.tcp://127.0.0.1:14850/UA/Simulator', '가상 PLC (시뮬레이션)');
       const { find, text, manifest } = await unpack('');
       expect(manifest.evidence).toHaveLength(1);
       expect(manifest.evidence[0]).toMatchObject({ model: 'RollFormingMachine', instance: 'RollFormingMachine_1', direct: false, samples: 10 });
-      // 시뮬레이션뿐이면 C를 제안한다
+      // Simulation only means it proposes C
       expect(manifest.bundle.evidenceLevel).toBe('C');
       const csv = text('05_샘플데이터/수집값_RollFormingMachine_1.csv');
-      expect(csv.split('\r\n').filter(Boolean)).toHaveLength(11); // 머리 + 10건
+      expect(csv.split('\r\n').filter(Boolean)).toHaveLength(11); // header + 10 rows
       expect(csv.indexOf('ALARM')).toBeGreaterThan(0);
       const html = text('06_검증결과/수집기록.html');
       expect(html).toContain('증빙 수준 C');
       expect(html).toContain('RUNNING 90%');
-      // 🔴 번들의 형식 모델에는 수집 연결이 없다 — 시연본 표시도 없다
+      // Important: the type model in the bundle has no collection connection — and no demo-copy flag either
       const machine = manifest.models.find((m: any) => m.assetName === 'RollFormingMachine');
       expect(machine.demo).toBeUndefined();
-      expect(find('02_참조모델/01-롤포밍기-공34.aasx')).toBeDefined();
+      expect(find('02_참조모델/01-roll-forming-machine.aasx')).toBeDefined();
     });
 
-    it('🔴 현장 PLC 주소는 공개 번들에서 가린다 — 자기 PC 주소만 그대로', async () => {
+    it('Important: field PLC addresses are masked in a public bundle — only the local PC address stays as is', async () => {
       await collectOnUnit('opc.tcp://192.168.10.25:4840/PLC', 'A사 1라인 PLC');
       const { text, manifest } = await unpack('&evidence=A');
       expect(manifest.bundle.evidenceLevel).toBe('A');
@@ -191,21 +191,21 @@ describe('레퍼런스 번들', () => {
       expect(text('README.md')).not.toContain('192.168.10.25');
     });
 
-    it('시뮬레이션이 아니면 수준을 추측하지 않는다 · none이면 비운다', async () => {
+    it('does not guess the level unless it is a simulation · leaves it empty when none', async () => {
       await collectOnUnit('opc.tcp://192.168.10.25:4840/PLC', 'A사 1라인 PLC');
       expect((await unpack('')).manifest.bundle.evidenceLevel).toBeNull();
       expect((await unpack('&evidence=none')).manifest.bundle.evidenceLevel).toBeNull();
       expect((await h.call('GET', `/packages/${processId}/bundle?evidence=Z`)).status).toBe(400);
     });
 
-    it('수집이 없으면 증빙 파일을 만들지 않고 README가 방법을 알려 준다', async () => {
+    it('with no collection, does not create an evidence file and the README explains how', async () => {
       const { find, text, manifest } = await unpack('');
       expect(manifest.evidence).toEqual([]);
       expect(find('06_검증결과/수집기록.html')).toBeUndefined();
       expect(text('README.md')).toContain('수집 기록이 없습니다');
     });
 
-    it('화면용 분석에도 증빙 요약이 나온다', async () => {
+    it('the on-screen analysis also shows an evidence summary', async () => {
       await collectOnUnit('opc.tcp://127.0.0.1:14850/UA/Simulator', '가상 PLC (시뮬레이션)');
       const res = await h.call('GET', `/packages/${processId}/bundle/linkage`);
       expect(res.body.evidence.suggested).toBe('C');
@@ -213,14 +213,14 @@ describe('레퍼런스 번들', () => {
     });
   });
 
-  describe('🔴 왕복 보존 — 번들을 열었다 다시 내보내도 사람이 넣은 것이 남는다', () => {
+  describe('Important: round-trip preservation — what people added survives opening a bundle and exporting it again', () => {
     const put = (path: string, data: Uint8Array) =>
       h.call('PUT', `/packages/${processId}/bundle/files?path=${encodeURIComponent(path)}`, data);
     const exportZip = async (harnessed = h, id = processId, query = '') =>
       unzipArchive((await harnessed.call('GET', `/packages/${id}/bundle?code=RB01${query}`)).body as Uint8Array);
     const paths = (entries: Record<string, Uint8Array>) => Object.keys(entries).map((p) => p.split('/').slice(1).join('/'));
 
-    it('화면에서 올린 첨부가 번들에 들어가고, 열었다 다시 내보내도 그대로다', async () => {
+    it('an attachment uploaded from the UI goes into the bundle and stays as is after opening and re-exporting', async () => {
       expect((await put('01_UseCase문서/RB01_UseCase.docx', new Uint8Array([1, 2, 3]))).status).toBe(204);
       expect((await put('06_검증결과/KOSMO_Validator_결과.html', new Uint8Array([4]))).status).toBe(204);
       const first = await exportZip();
@@ -228,7 +228,7 @@ describe('레퍼런스 번들', () => {
       const manifest = JSON.parse(new TextDecoder().decode(Object.entries(first).find(([p]) => p.endsWith('bundle-manifest.json'))![1]));
       expect(manifest.attachments.map((a: any) => a.path)).toEqual(['01_UseCase문서/RB01_UseCase.docx', '06_검증결과/KOSMO_Validator_결과.html']);
 
-      // 다른 사람이 받아 새 저장소에서 열고 → 다시 내보낸다
+      // Someone else receives it, opens it in a new store → exports it again
       const fresh = harness();
       await fresh.store.init();
       const opened = (await fresh.call('POST', '/bundles', zipArchive(first))).body;
@@ -239,28 +239,28 @@ describe('레퍼런스 번들', () => {
       expect(paths(again)).toContain('06_검증결과/KOSMO_Validator_결과.html');
     });
 
-    it('첨부를 보관해도 공정 파일 해시는 그대로다 — AASX에 섞이지 않는다', async () => {
+    it('storing attachments does not change the process file hash — they are not mixed into the AASX', async () => {
       const before = JSON.parse(new TextDecoder().decode(Object.entries(await exportZip()).find(([p]) => p.endsWith('bundle-manifest.json'))![1]));
       await put('03_가이던스/guide.docx', new Uint8Array([7]));
       const after = JSON.parse(new TextDecoder().decode(Object.entries(await exportZip()).find(([p]) => p.endsWith('bundle-manifest.json'))![1]));
       expect(after.process[0].sha256).toBe(before.process[0].sha256);
     });
 
-    it('도구가 만드는 파일·폴더 밖·경로 탈출은 첨부로 받지 않는다', async () => {
+    it('does not accept tool-generated files, files outside the folder, or path traversal as attachments', async () => {
       for (const bad of ['README.md', '02_참조모델/x.aasx', '06_검증결과/사전점검_x.html', '../escape.txt', '01_UseCase문서/../../x', 'misc/x.txt', '']) {
         expect((await put(bad, new Uint8Array([1]))).status).toBe(400);
       }
     });
 
-    it('지우면 다음 번들에서 빠진다', async () => {
+    it('once deleted, it is left out of the next bundle', async () => {
       await put('04_데이터연계정의/KPI.xlsx', new Uint8Array([1]));
       expect((await h.call('DELETE', `/packages/${processId}/bundle/files?path=${encodeURIComponent('04_데이터연계정의/KPI.xlsx')}`)).status).toBe(204);
       expect(paths(await exportZip())).not.toContain('04_데이터연계정의/KPI.xlsx');
       expect((await h.call('DELETE', `/packages/${processId}/bundle/files?path=${encodeURIComponent('04_데이터연계정의/KPI.xlsx')}`)).status).toBe(404);
     });
 
-    it('수집 기록도 이어받는다 — 새로 모은 값이 없으면 이전 번들의 증빙이 그대로 실린다', async () => {
-      // 수집한 번들을 만든다
+    it('collection records carry over too — with no newly collected values, the previous bundle evidence is carried as is', async () => {
+      // Build a bundle with collected data
       const unit = (await h.call('POST', `/packages/${machineId}/clone`, { assetName: 'RollFormingMachine_1' })).body.packageId;
       await h.call('POST', `/packages/${unit}/aid`, {
         endpoint: 'opc.tcp://127.0.0.1:14850/UA/Simulator',
@@ -272,7 +272,7 @@ describe('레퍼런스 번들', () => {
       ]);
       const withEvidence = await exportZip();
 
-      // 형식 파일만 있는 곳(호기 없음)에서 연다 → 새 수집 없음 → 이어받는다
+      // Open it where there is only the type file (no units) → no new collection → carries over
       const fresh = harness();
       await fresh.store.init();
       const opened = (await fresh.call('POST', '/bundles', zipArchive(withEvidence))).body;
@@ -287,7 +287,7 @@ describe('레퍼런스 번들', () => {
       expect(paths(again)).toEqual(expect.arrayContaining(['05_샘플데이터/수집값_RollFormingMachine_1.csv', '06_검증결과/수집기록.html']));
     });
 
-    it('증빙 기간 — 최근 N분만 싣는다', async () => {
+    it('evidence window — carries only the last N minutes', async () => {
       const unit = (await h.call('POST', `/packages/${machineId}/clone`, { assetName: 'RollFormingMachine_1' })).body.packageId;
       await h.call('POST', `/packages/${unit}/aid`, {
         endpoint: 'opc.tcp://127.0.0.1:14850/UA/Simulator',
@@ -307,28 +307,28 @@ describe('레퍼런스 번들', () => {
       expect((await h.call('GET', `/packages/${processId}/bundle?evidenceMinutes=-5`)).status).toBe(400);
     });
 
-    it('설비 카드에 표준(AASd-120) 건수가 따로 나온다 — KOSMO는 안 보지만 표준 검증기는 오류로 본다', async () => {
+    it('the equipment card shows the standard (AASd-120) count separately — KOSMO ignores it but standard validators treat it as an error', async () => {
       const view = (await h.call('GET', `/packages/${processId}/bundle/linkage`)).body;
       const machine = view.members.find((m: any) => m.name === 'RollFormingMachine');
       expect(typeof machine.lint.aasd120).toBe('number');
     });
   });
 
-  describe('🔴 원본 그대로 — 번들의 참조모델 해시가 운영기관 제출본과 같아야 한다', () => {
-    const raw = () => new Uint8Array(readFileSync('tests/fixtures/03-SPR장비-뿌80.aasx'));
+  describe('Important: original as is — the reference model hash in the bundle must match the copy submitted to the operating agency', () => {
+    const raw = () => new Uint8Array(readFileSync('tests/fixtures/03-spr-riveting-machine.aasx'));
     const manifestOf = (entries: Record<string, Uint8Array>) =>
       JSON.parse(new TextDecoder().decode(Object.entries(entries).find(([p]) => p.endsWith('bundle-manifest.json'))![1]));
 
-    /** API로 올린 설비(원본 보관)로 공정을 새로 짠다 */
+    /** Build a new process from equipment uploaded via the API (original retained) */
     const setup = async () => {
-      const uploaded = await h.call('POST', `/packages?name=${encodeURIComponent('03-SPR장비-뿌80.aasx')}`, raw());
+      const uploaded = await h.call('POST', `/packages?name=${encodeURIComponent('03-spr-riveting-machine.aasx')}`, raw());
       const id = uploaded.body.packageId;
       const proc = (await h.call('POST', '/packages/new', { assetName: 'SprLine', unit: 'composite' })).body.packageId;
       await h.call('POST', `/packages/${proc}/hierarchy/nodes`, { sourcePackageId: id });
       return { id, proc };
     };
 
-    it('고치지 않았으면 올린 파일 바이트 그대로 들어간다', async () => {
+    it('if unmodified, the uploaded file bytes go in as is', async () => {
       const { proc } = await setup();
       const entries = unzipArchive((await h.call('GET', `/packages/${proc}/bundle?code=RB01`)).body);
       const model = manifestOf(entries).models[0];
@@ -337,7 +337,7 @@ describe('레퍼런스 번들', () => {
       expect([...entries[Object.keys(entries).find((p) => p.endsWith(model.file))!]!]).toEqual([...raw()]);
     });
 
-    it('도구에서 고치면 다시 포장하고 그렇다고 밝힌다', async () => {
+    it('if modified in the tool, it is repackaged and says so', async () => {
       const { id, proc } = await setup();
       const sm = (await h.store.listIdentifiables(id, 'Submodel')).items.find((s) => s.idShort === 'TechnicalData')!;
       await h.store.updateIdentifiable(id, 'Submodel', sm.id, { ...sm.content, description: [{ language: 'ko', text: '고침' }] });
@@ -348,7 +348,7 @@ describe('레퍼런스 번들', () => {
       expect(new TextDecoder().decode(Object.entries(entries).find(([p]) => p.endsWith('README.md'))![1])).toContain('다시 포장');
     });
 
-    it('번들을 열었다 다시 내보내도 원본 해시가 이어진다', async () => {
+    it('the original hash carries through opening and re-exporting a bundle', async () => {
       const { proc } = await setup();
       const first = (await h.call('GET', `/packages/${proc}/bundle?code=RB01`)).body as Uint8Array;
       const fresh = harness();
@@ -361,12 +361,12 @@ describe('레퍼런스 번들', () => {
     });
   });
 
-  it('설비 파일에서는 번들을 만들지 않는다 — 400', async () => {
+  it('does not build a bundle from an equipment file — 400', async () => {
     const res = await h.call('GET', `/packages/${machineId}/bundle`);
     expect(res.status).toBe(400);
   });
 
-  it('번들 ZIP — 폴더 골격 · manifest 해시가 실제 파일과 맞는다', async () => {
+  it('bundle ZIP — folder skeleton · manifest hashes match the actual files', async () => {
     const res = await h.call('GET', `/packages/${processId}/bundle?code=RB01&version=1.0.0`);
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toBe('application/zip');
@@ -385,17 +385,17 @@ describe('레퍼런스 번들', () => {
     for (const entry of [...manifest.process, ...manifest.models]) {
       expect(sha(entries[`${root}/${entry.file}`]!)).toBe(entry.sha256);
     }
-    // 🔴 번들의 설비 파일은 원본과 같은 모델이다(복사하면서 바뀌지 않는다)
+    // Important: the equipment file in the bundle is the same model as the original (copying does not change it)
     const machine = manifest.models.find((m: any) => m.assetName === 'RollFormingMachine');
     const inBundle = readAasx(entries[`${root}/${machine.file}`]!);
     const original = await h.store.exportPackage(machineId);
     expect(inBundle.environment).toEqual(original.environment);
     expect(entries[`${root}/README.md`]).toBeDefined();
-    // 엑셀이 한글을 깨뜨리지 않게 BOM(EF BB BF)이 붙어 있어야 한다
+    // A BOM (EF BB BF) must be present so Excel does not garble Korean text
     expect([...entries[`${root}/04_데이터연계정의/연계항목_초안.csv`]!.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
   });
 
-  it('같은 내용이면 번들 해시도 같다 — 재현 가능', async () => {
+  it('same content gives the same bundle hash — reproducible', async () => {
     const a = await h.call('GET', `/packages/${processId}/bundle?code=RB01`);
     const b = await h.call('GET', `/packages/${processId}/bundle?code=RB01`);
     const ma = JSON.parse(new TextDecoder().decode(Object.entries(unzipArchive(a.body)).find(([p]) => p.endsWith('bundle-manifest.json'))![1]));
@@ -403,12 +403,12 @@ describe('레퍼런스 번들', () => {
     expect(ma.models.map((m: any) => m.sha256)).toEqual(mb.models.map((m: any) => m.sha256));
   });
 
-  it('잘못된 코드·버전은 400', async () => {
+  it('invalid code or version is 400', async () => {
     expect((await h.call('GET', `/packages/${processId}/bundle?code=X1`)).status).toBe(400);
     expect((await h.call('GET', `/packages/${processId}/bundle?version=v1`)).status).toBe(400);
   });
 
-  it('번들 열기 — 새 저장소에 공정·설비가 한 번에 열리고 해시가 맞는다', async () => {
+  it('opening a bundle — process and equipment open at once in a new store and the hashes match', async () => {
     const zip = (await h.call('GET', `/packages/${processId}/bundle?code=RB01`)).body as Uint8Array;
     const fresh = harness();
     await fresh.store.init();
@@ -417,12 +417,12 @@ describe('레퍼런스 번들', () => {
     expect(opened.body.problems).toEqual([]);
     expect(opened.body.files).toHaveLength(3);
     expect(opened.body.files.every((f: any) => f.hashOk === true)).toBe(true);
-    // 열린 공정에서 설비가 이어진다
+    // The equipment is linked from the opened process
     const linkage = await fresh.call('GET', `/packages/${opened.body.processPackageId}/bundle/linkage`);
     expect(linkage.body.members.filter((m: any) => m.packageId).length).toBe(2);
   });
 
-  it('이미 같은 파일이 열려 있으면 새로 올리지 않는다', async () => {
+  it('does not upload again if the same file is already open', async () => {
     const zip = (await h.call('GET', `/packages/${processId}/bundle?code=RB01`)).body as Uint8Array;
     const before = (await h.store.listPackages({ limit: 100 })).items.length;
     const opened = await h.call('POST', '/bundles', zip);
@@ -430,12 +430,12 @@ describe('레퍼런스 번들', () => {
     expect((await h.store.listPackages({ limit: 100 })).items.length).toBe(before);
   });
 
-  it('번들을 만든 뒤 파일이 바뀌면 해시 불일치로 알린다', async () => {
+  it('reports a hash mismatch if a file changes after the bundle was built', async () => {
     const zip = (await h.call('GET', `/packages/${processId}/bundle?code=RB01`)).body as Uint8Array;
     const entries = unzipArchive(zip);
     const target = Object.keys(entries).find((p) => p.includes('/02_참조모델/'))!;
-    // 다른 설비 파일로 바꿔치기
-    entries[target] = new Uint8Array(readFileSync('tests/fixtures/11-협동로봇6축.aasx'));
+    // Swap in a different equipment file
+    entries[target] = new Uint8Array(readFileSync('tests/fixtures/11-cobot-6-axis.aasx'));
     const fresh = harness();
     await fresh.store.init();
     const opened = await fresh.call('POST', '/bundles', zipArchive(entries));
@@ -443,7 +443,7 @@ describe('레퍼런스 번들', () => {
     expect(opened.body.problems.some((p: string) => p.includes('해시'))).toBe(true);
   });
 
-  it('manifest가 없는 ZIP은 400', async () => {
+  it('a ZIP without a manifest is 400', async () => {
     const fresh = harness();
     await fresh.store.init();
     const res = await fresh.call('POST', '/bundles', zipArchive({ 'a.txt': new Uint8Array([1]) }));

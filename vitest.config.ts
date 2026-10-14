@@ -6,7 +6,7 @@ const pkg = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      // 저작 UI 의 shadcn kit 경로 별칭(apps/web/vite.config.ts 와 같다)
+      // Path alias for the authoring UI shadcn kit (same as apps/web/vite.config.ts)
       '@/': pkg('./apps/web/src/drive/'),
       '@aas/core': pkg('./packages/aas-core/src/index.ts'),
       '@aas/aasx': pkg('./packages/aasx/src/index.ts'),
@@ -21,7 +21,7 @@ export default defineConfig({
   test: {
     include: ['packages/**/test/**/*.test.{ts,tsx}', 'apps/**/test/**/*.test.{ts,tsx}'],
     environment: 'node',
-    // Node 25+ 의 내장 Web Storage 가 jsdom 의 localStorage 를 가리는 것을 되돌린다(tests/setup/web-storage.ts)
+    // Undo Node 25+'s built-in Web Storage shadowing jsdom's localStorage (tests/setup/web-storage.ts)
     setupFiles: ['tests/setup/web-storage.ts', 'tests/setup/browser-lang.ts'],
   },
 });

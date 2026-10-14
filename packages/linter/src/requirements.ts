@@ -1,13 +1,16 @@
 /**
- * 템플릿 요구 수준 — 서브모델의 요소마다 「필수 · 선택」을 IDTA 템플릿에서 읽는다(2026-10-13).
+ * Template requirement level — reads "required · optional" for each submodel element from the IDTA template (2026-10-13).
  *
- * 개념은 digital-twin 실운영에서 왔다 — IDTA 템플릿 전체를 카탈로그로 두고, 화면에는 「쓰는 항목」만 켜 보인다
- * (06_제품개발/2026H2_VEXPLOR_AAS_디자인전환/digital-twin_AAS_참조분석_2026-10-13.md §2-2). 코드는 옮기지 않았다.
+ * The concept comes from digital-twin production use — keep every IDTA template as a catalog and show only the
+ * "used items" on screen (06_제품개발/2026H2_VEXPLOR_AAS_디자인전환/digital-twin_AAS_참조분석_2026-10-13.md §2-2).
+ * No code was copied.
  *
- * 🔴 근거는 **템플릿 파일의 한정자**(SMT/Cardinality — 옛 판은 Multiplicity)다. 제출용 파일(인스턴스)에는 이 한정자가
- *    남아 있지 않아(시험 파일 4종 모두 0개) 파일만 보고는 알 수 없다. 템플릿은 저장소에 동봉하지 않는다 —
- *    CC BY 4.0 표기 의무 때문에 쓰는 곳이 AAS_TEMPLATES_DIR 에 넣는다(apps/api/src/templates.ts).
- * 🔴 실제 필수 여부는 **상위까지** 본다. 선택(ZeroToOne) 묶음 안의 One 은 그 묶음을 넣을 때만 필수다.
+ * Important: the basis is **the qualifiers in the template file** (SMT/Cardinality — Multiplicity in older versions). Submission files
+ *    (instances) do not retain these qualifiers (0 in all 4 test files), so the file alone cannot tell. Templates are not bundled
+ *    in the repository — because of the CC BY 4.0 attribution obligation, the consumer puts them in AAS_TEMPLATES_DIR
+ *    (apps/api/src/templates.ts).
+ * Important: whether something is actually required is checked **up through its ancestors**. A One inside an optional (ZeroToOne)
+ *    group is required only when that group is included.
  */
 import type { Environment } from '@aas/core';
 
@@ -15,14 +18,14 @@ export type Cardinality = 'One' | 'ZeroToOne' | 'ZeroToMany' | 'OneToMany';
 
 export interface ElementRequirement {
   cardinality: Cardinality;
-  /** 이 요소와 그 위가 모두 필수 — 비워 두면 템플릿을 어긴다 */
+  /** This element and everything above it are required — leaving it empty violates the template */
   required: boolean;
 }
 
-/** 템플릿 하나에서 읽은 요구 수준 — 열쇠는 normalizeElementPath 를 거친 경로 */
+/** Requirement levels read from one template — keys are paths passed through normalizeElementPath */
 export interface TemplateRequirements {
   semanticId: string;
-  /** 템플릿 서브모델의 id — 같은 서브모델이 제 자신과 짝지어지지 않게 */
+  /** id of the template submodel — so a submodel is not paired with itself */
   sourceId?: string;
   templateIdShort?: string;
   elements: Record<string, ElementRequirement>;
@@ -33,7 +36,7 @@ const QUALIFIER_TYPES = new Set(['SMT/Cardinality', 'Cardinality', 'Multiplicity
 
 type Node = Record<string, unknown>;
 
-/** 리스트 자식의 자리 번호를 지운다 — 템플릿의 리스트에는 견본 하나만 있다 */
+/** Strip list-child position numbers — a template's list holds only one sample */
 export function normalizeElementPath(path: string): string {
   return path.replace(/\[\d+\]/g, '[]');
 }
@@ -42,7 +45,7 @@ export function isRequired(cardinality: Cardinality): boolean {
   return cardinality === 'One' || cardinality === 'OneToMany';
 }
 
-/** 요소의 한정자에서 개수 조건을 읽는다. 없으면 undefined(모른다) */
+/** Read the cardinality condition from the element's qualifiers. undefined (unknown) if absent */
 export function cardinalityOf(element: Node): Cardinality | undefined {
   const qualifiers = element['qualifiers'];
   if (!Array.isArray(qualifiers)) return undefined;
@@ -73,8 +76,8 @@ function childrenOf(node: Node): { items: Node[]; list: boolean } | undefined {
 }
 
 /**
- * 템플릿 서브모델 하나 → 경로마다 요구 수준.
- * 경로 모양은 화면의 idShortPath 와 같다(점으로 잇고, 리스트 자식은 `[]`).
+ * One template submodel → requirement level per path.
+ * Paths have the same shape as the UI's idShortPath (joined with dots; list children are `[]`).
  */
 export function templateRequirements(submodel: Node): Record<string, ElementRequirement> {
   const out: Record<string, ElementRequirement> = {};
@@ -86,7 +89,7 @@ export function templateRequirements(submodel: Node): Record<string, ElementRequ
       const required = cardinality !== undefined && parentRequired && isRequired(cardinality);
       if (cardinality !== undefined && out[path] === undefined) out[path] = { cardinality, required };
       const children = childrenOf(element);
-      // 개수 조건이 없는 묶음은 필수로 보지 않는다 — 모르는 것을 필수라고 하지 않는다
+      // Groups without a cardinality condition are not treated as required — we don't call something required when we don't know
       if (children) walk(children.items, path, children.list, required);
     }
   };
@@ -101,10 +104,11 @@ function semanticIdOf(node: Node): string | undefined {
 }
 
 /**
- * 여러 환경에서 템플릿 서브모델(kind=Template, 개수 조건이 하나라도 있는 것)을 모은다.
- * 🔴 kind=Template 만으로는 템플릿이 아니다 — 이 사업의 제출 파일은 형식(Type) 단위라 서브모델이 모두 Template 이다
- *    (시험 파일 4종 실측). 가르는 것은 **개수 조건 한정자**다 — IDTA 템플릿에는 있고 제출 파일에는 없다.
- * 같은 semanticId 의 템플릿이 여럿이면 요소가 더 많이 적힌 쪽을 쓴다.
+ * Collect template submodels (kind=Template with at least one cardinality condition) from multiple environments.
+ * Important: kind=Template alone does not make a template — this project's submission files are per Type, so all their
+ *    submodels are Template (measured on 4 test files). What tells them apart is **the cardinality qualifier** — present in IDTA
+ *    templates, absent in submission files.
+ * When several templates share a semanticId, the one with more elements is used.
  */
 export function collectTemplateCatalog(environments: readonly Environment[]): Map<string, TemplateRequirements> {
   const catalog = new Map<string, TemplateRequirements>();

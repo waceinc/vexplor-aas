@@ -1,8 +1,8 @@
 /**
- * 서브모델 구성요소 상세 정보 테이블 (규정 §13 주의사항 5).
+ * Submodel element detail tables (regulation §13, note 5).
  *
- * 🔴 이 시험의 절반은 "표를 만든다"가 아니라 **"만들지 말아야 할 때 만들지 않는다"** 이다.
- *    규정은 IDTA 표준 템플릿 서브모델의 표를 **생략하라**고 정했다.
+ * Important: half of these tests are not "it builds a table" but **"it does not build one when it must not"**.
+ *    The regulation says tables for IDTA standard template submodels are to be **omitted**.
  */
 import { readAasx } from '@aas/aasx';
 import {
@@ -19,16 +19,16 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const environment = readAasx(
-  new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')),
+  new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')),
 ).environment;
 const find = (idShort: string) => environment.submodels!.find((s) => s.idShort === idShort)!;
 
-describe('무엇을 만들지 가리기', () => {
+describe('Deciding what to build', () => {
   /**
-   * 🔴 판정 기준은 **실제 제출 가이던스(01-롤포밍기 V4.0)의 표 구성**과 대조해 정했다.
-   * 그 문서는 자체 IRI 요소가 없는 두 서브모델에만 표가 없다.
+   * Important: the criterion was set by comparing against **the table layout of the actual submitted guidance (roll forming machine 01, V4.0)**.
+   * In that document, only the two submodels without own-IRI elements have no table.
    */
-  it('장비 특화 요소(자체 IRI)를 담은 서브모델은 표 대상', () => {
+  it('submodels containing equipment-specific elements (own IRIs) get a table', () => {
     for (const name of [
       'TechnicalData',
       'OperationalData',
@@ -40,7 +40,7 @@ describe('무엇을 만들지 가리기', () => {
     }
   });
 
-  it('🔴 장비 특화 요소가 없으면 표를 만들지 않는다 — 규정이 생략하라고 정했다', () => {
+  it('Important: no table without equipment-specific elements — the regulation says to omit it', () => {
     for (const name of ['DigitalNameplate', 'HandoverDocumentation']) {
       const plan = planFor(find(name));
       expect(plan.kind).toBe('info');
@@ -49,24 +49,24 @@ describe('무엇을 만들지 가리기', () => {
     }
   });
 
-  it('🔴 이름으로 가리지 않는다 — IDTA 표준 이름이어도 장비 특화가 섞이면 표가 있다', () => {
-    // MaintenanceInstructions·HierarchicalStructures는 IDTA 표준 이름이지만
-    // 실제 문서에는 표가 있다(장비 특화 내용이 들어가 있기 때문이다)
+  it('Important: not decided by name — even with an IDTA standard name, mixed-in equipment-specific content gets a table', () => {
+    // MaintenanceInstructions and HierarchicalStructures are IDTA standard names,
+    // but the real document has tables for them (because they contain equipment-specific content)
     expect(planFor(find('MaintenanceInstructions')).specificCount).toBeGreaterThan(0);
   });
 });
 
-describe('IDTA SMT 표 서식 — 실제 문서와 같은 모양', () => {
+describe('IDTA SMT table format — same shape as the real document', () => {
   const tables = submodelTables(environment, find('OperationalData'));
 
-  it('담는 요소마다 표가 한 장씩 나온다', () => {
+  it('each container element gets one table', () => {
     const names = tables.map((table) => table.idShort);
     expect(names).toContain('OperationalData');
     expect(names).toContain('MaintenanceMonitoring');
     expect(names).toContain('ConditionStatus');
   });
 
-  it('머리 5줄이 문서와 같다 (idShort · Class · semanticId · Parent · Explanation)', () => {
+  it('the 5 header rows match the document (idShort · Class · semanticId · Parent · Explanation)', () => {
     const one = tables.find((table) => table.idShort === 'ConditionStatus')!;
     expect(one.className).toBe('SubmodelElementCollection');
     expect(one.semantic.idType).toBe('[IRI]');
@@ -74,11 +74,11 @@ describe('IDTA SMT 표 서식 — 실제 문서와 같은 모양', () => {
     expect(one.explanation).toBe('Condition Status');
   });
 
-  it('서브모델 자신은 Parent가 `-`', () => {
+  it('the submodel itself has Parent `-`', () => {
     expect(tables[0]!.parent).toBe('-');
   });
 
-  it('자식 줄이 `[Prop]이름` · `[타입]값` 꼴이다', () => {
+  it('child rows have the form `[Prop]name` · `[type]value`', () => {
     const one = tables.find((table) => table.idShort === 'ConditionStatus')!;
     const row = one.children.find((child) => child.label === '[Prop]RollWearStatus')!;
     expect(row.value).toBe('[string]Normal');
@@ -87,82 +87,82 @@ describe('IDTA SMT 표 서식 — 실제 문서와 같은 모양', () => {
     expect(row.cardinality).toBe('0..1');
   });
 
-  it('담는 요소는 `[-]N elements`로 적는다', () => {
+  it('container elements are written as `[-]N elements`', () => {
     const root = tables[0]!;
     const row = root.children.find((child) => child.label === '[SMC]MaintenanceMonitoring')!;
     expect(row.value).toBe('[-]2 elements');
   });
 
-  it('IRDI는 [IRDI]로, 자체 IRI는 [IRI]로 표시한다', () => {
+  it('IRDIs are marked [IRDI] and own IRIs [IRI]', () => {
     const technical = submodelTables(environment, find('TechnicalData'));
     const list = technical.find((table) => table.idShort === 'TechnicalPropertyAreas')!;
     expect(list.semantic.idType).toBe('[IRDI]');
   });
 
-  it('🔴 IDTA 원본 링크는 supplementalSemanticIds에서 가져온다 — 지어내지 않는다', () => {
+  it('Important: the IDTA origin link comes from supplementalSemanticIds — never invented', () => {
     const maintenance = submodelTables(environment, find('MaintenanceInstructions'));
     const tool = maintenance.find((table) => table.idShort === 'MaintenanceToolList')!;
     expect(tool.semantic.idtaOrigin).toContain('admin-shell.io');
   });
 
-  it('HTML로 뽑으면 표가 된다', () => {
+  it('HTML output is a table', () => {
     const html = submodelTablesHtml(tables);
     expect(html).toContain('idShort:');
     expect(html).toContain('[SME type]idShort');
     expect(html).toContain('border-collapse');
   });
 
-  it('🔴 표마다 제목이 붙는다 — 문서와 같은 꼴, 표 위에', () => {
+  it('Important: every table gets a caption — same form as the document, above the table', () => {
     const html = submodelTablesHtml(tables, { from: 15, submodelName: 'OperationalData' });
-    // 실제 가이던스: `표 5 TechnicalData - GeneralInformation`
+    // matches the real guidance caption format, e.g. Table 5 TechnicalData - GeneralInformation
     expect(html).toContain('표 15 OperationalData - OperationalData');
     expect(html).toContain('표 16 OperationalData - MaintenanceMonitoring');
-    // 제목이 표보다 앞에 온다
+    // the caption comes before the table
     expect(html.indexOf('표 15 OperationalData')).toBeLessThan(html.indexOf('<table'));
   });
 
-  it('번호는 이어서 매긴다 — 문서 전체에서 하나로 흐른다', () => {
+  it('numbering continues — one sequence across the whole document', () => {
     const first = smtTableCaption(1, 'TechnicalData', tables[0]!);
     expect(first).toBe(`표 1 TechnicalData - ${tables[0]!.idShort}`);
   });
 });
 
-describe('표 내용', () => {
+describe('Table contents', () => {
   const rows = submodelTable(environment, find('OperationalData'));
 
-  it('계층이 살아 있다 — 구조를 보여 주는 것이 목적이다', () => {
+  it('hierarchy is preserved — showing the structure is the point', () => {
     expect(rows.length).toBeGreaterThan(10);
     expect(rows.some((row) => row.depth === 0)).toBe(true);
     expect(rows.some((row) => row.depth > 0)).toBe(true);
     expect(rows[0]!.path).not.toContain('.');
   });
 
-  it('예시 값이 들어간다 — 규정이 "예시 데이터를 명확히"라고 요구한다', () => {
+  it('example values are included — the regulation requires "clear example data"', () => {
     expect(rows.some((row) => row.example !== '')).toBe(true);
   });
 
-  it('설명과 semanticId가 들어간다 (정성 평가 항목)', () => {
+  it('description and semanticId are included (qualitative evaluation items)', () => {
     expect(rows.some((row) => row.description !== '')).toBe(true);
     expect(rows.every((row) => row.semanticId !== '')).toBe(true);
   });
 
-  it('🔴 담는 요소에는 데이터타입을 적지 않는다 — 오해를 부른다', () => {
+  it('Important: container elements get no data type — it would be misleading', () => {
     const container = rows.find((row) => row.modelType === 'SubmodelElementCollection')!;
     expect(container.dataType).toBe('');
   });
 
-  it('HTML은 표로 붙는다 — 글자만 붙으면 소용없다', () => {
+  it('HTML pastes as a table — plain text alone is useless', () => {
     const html = tableHtml(rows);
     expect(html).toContain('<table');
     expect(html).toContain('<th>idShort</th>');
     expect(html).toContain('border-collapse');
   });
 
-  it('🔴 CSV에 BOM을 붙인다 — 없으면 엑셀이 한글을 깨뜨린다', () => {
+  it('Important: CSV gets a BOM — without it Excel garbles Hangul', () => {
     expect(tableCsv(rows).charCodeAt(0)).toBe(0xfeff);
   });
 
-  it('CSV에서 큰따옴표를 이스케이프한다', () => {
+  it('escapes double quotes in CSV', () => {
     const csv = tableCsv([
       {
         depth: 0,
@@ -180,16 +180,16 @@ describe('표 내용', () => {
   });
 });
 
-describe('표를 생략하는 서브모델의 정보', () => {
+describe('Info for submodels whose table is omitted', () => {
   const info = submodelInfo(find('DigitalNameplate'));
 
-  it('파일에서 읽을 수 있는 것만 채운다', () => {
+  it('fills only what can be read from the file', () => {
     expect(info.elementCount).toBeGreaterThan(0);
     expect(info.dictionaries.length).toBeGreaterThan(0);
   });
 
-  it('🔴 모르는 것은 지어내지 않는다 — 사람이 채울 자리로 남긴다', () => {
-    // 템플릿 원본 링크는 IDTA Content Hub에서 사람이 확인해야 한다(주의사항 2)
+  it('Important: unknowns are never invented — left as slots for a person to fill', () => {
+    // the template origin link must be checked by a person on the IDTA Content Hub (note 2)
     expect(info.templateLink).toBe('');
     expect(info.toWrite.join(' ')).toContain('템플릿 원본 링크');
     expect(info.toWrite.join(' ')).toContain('용어사전 버전');

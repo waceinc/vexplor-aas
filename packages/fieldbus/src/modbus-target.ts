@@ -1,14 +1,14 @@
 /**
- * Modbus 주소 해석과 값 풀기 — 순수 함수(소켓 없음).
+ * Modbus address resolution and value decoding — pure functions (no sockets).
  *
- * 표기는 W3C WoT Modbus 바인딩을 따른다(AID IDTA-02017 이 그대로 쓴다):
- *   href = modbus+tcp://{장치}:{포트}/{unitID}/{주소}?quantity={개수}
- *   AID 에서는 base(EndpointMetadata) + href(forms) 로 나뉘어 오므로 둘을 합친다 — href 가 절대 주소면 그것,
- *   「/unit/주소」면 base 의 장치에, 「주소」만 있으면 base 경로의 unitID(없으면 modv_unitID, 그래도 없으면 1)에 붙인다.
- * 폼 항목(AID 에서는 modv_* 이름): entity(Coil · DiscreteInput · HoldingRegister · InputRegister) 또는 function,
- * type(xsd:*), mostSignificantByte · mostSignificantWord(원문 기본값 true).
- * zeroBasedAddressing 은 원문에서 폐지 예정이고 「TD 에는 쓰는 쪽이 그대로 쓸 주소를 적는다」 — 그래서 주소는 적힌 대로 쓰고,
- * 이 항목이 'false'(첫 레지스터가 1)로 **명시된** 경우에만 1 을 뺀다.
+ * Notation follows the W3C WoT Modbus binding (used as-is by AID IDTA-02017):
+ *   href = modbus+tcp://{device}:{port}/{unitID}/{address}?quantity={count}
+ *   In AID it arrives split into base (EndpointMetadata) + href (forms), so the two are combined — if href is absolute, use it;
+ *   "/unit/address" attaches to the base device; a bare "address" attaches to the unitID in the base path (else modv_unitID, else 1).
+ * Form fields (named modv_* in AID): entity (Coil / DiscreteInput / HoldingRegister / InputRegister) or function,
+ * type (xsd:*), mostSignificantByte / mostSignificantWord (default true per the original spec).
+ * zeroBasedAddressing is slated for deprecation in the original spec, and "the TD states the address the consumer uses as-is" — so addresses
+ * are used as written, and 1 is subtracted only when this field is **explicitly** 'false' (first register is 1).
  */
 import { fill, tr } from '@aas/core';
 
@@ -18,11 +18,11 @@ export interface ModbusTarget {
   host: string;
   port: number;
   unitId: number;
-  /** 요청에 실을 0 기준 주소 */
+  /** Zero-based address sent in the request */
   address: number;
   quantity: number;
   entity: ModbusEntity;
-  /** xsd 자료형 — 접두 없이(boolean · short · unsignedShort · int · unsignedInt · float · double · integer · string · hexBinary) */
+  /** xsd data type — without prefix (boolean, short, unsignedShort, int, unsignedInt, float, double, integer, string, hexBinary) */
   type: string;
   msb: boolean;
   msw: boolean;
@@ -40,7 +40,7 @@ const FUNCTION_ENTITY: Record<string, ModbusEntity> = {
   readinputregister: 'InputRegister',
 };
 
-/** 폼 항목을 이름 접두(modv_ · modv:)와 상관없이 찾는다 */
+/** Looks up a form field regardless of its name prefix (modv_ or modv:) */
 function field(fields: Record<string, string>, name: string): string | undefined {
   for (const [key, value] of Object.entries(fields)) {
     if (key.replace(/^modv[_:]/, '').toLowerCase() === name.toLowerCase()) return value;
@@ -50,7 +50,7 @@ function field(fields: Record<string, string>, name: string): string | undefined
 
 const bool = (text: string | undefined, fallback: boolean): boolean => (text === undefined ? fallback : text.trim().toLowerCase() !== 'false');
 
-/** 자료형이 차지하는 레지스터 수 — quantity 를 안 적었을 때 */
+/** Number of registers a data type occupies — used when quantity is not given */
 function registersFor(type: string): number {
   if (type === 'int' || type === 'unsignedInt' || type === 'float') return 2;
   if (type === 'double' || type === 'long' || type === 'unsignedLong') return 4;
@@ -94,7 +94,7 @@ export function modbusTarget(base: string | undefined, href: string, fields: Rec
   return { host, port, unitId, address, quantity, entity, type, msb: bool(field(fields, 'mostSignificantByte'), true), msw: bool(field(fields, 'mostSignificantWord'), true) };
 }
 
-/** 레지스터(16비트 낱말들)를 자료형 값으로 */
+/** Registers (16-bit words) -> typed value */
 export function decodeRegisters(words: readonly number[], target: Pick<ModbusTarget, 'type' | 'msb' | 'msw'>): number | string | boolean {
   const ordered = target.msw ? [...words] : [...words].reverse();
   const bytes = new Uint8Array(ordered.length * 2);
@@ -129,7 +129,7 @@ export function decodeRegisters(words: readonly number[], target: Pick<ModbusTar
     case 'string':
       return new TextDecoder().decode(bytes).replace(/\0+$/, '');
     default:
-      // integer · 모르는 자료형 — 낱말 수로 정한다(1 = 부호 있는 16비트, 2 = 32비트)
+      // integer or unknown data type — decided by word count (1 = signed 16-bit, 2 = 32-bit)
       return ordered.length >= 2 ? view.getInt32(0) : view.getInt16(0);
   }
 }

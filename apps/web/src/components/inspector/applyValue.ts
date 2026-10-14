@@ -1,7 +1,7 @@
 /**
- * 서브모델 JSON 에 값 하나를 얹는다 — 값 표(BulkValues)와 CSV 채우기(csvfill)가 함께 쓴다.
- * 경로는 idShort 를 점(.)으로 이은 것. MLP 는 첫 언어, Range 는 「min~max」 글자로 받는다.
- * 경로가 없으면 아무것도 하지 않는다(false).
+ * Sets one value in a submodel JSON — shared by the value table (BulkValues) and fill-from-CSV (csvfill).
+ * The path is idShorts joined with dots (.). MLP takes the first language, Range takes "min~max" text.
+ * Does nothing when the path does not exist (false).
  */
 export function applyValue(holder: Record<string, unknown>, path: string, value: string): boolean {
   const segments = path.split('.');

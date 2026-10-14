@@ -1,12 +1,12 @@
 /**
- * 감사 기록 — 「누가 바꿨나」.
+ * Audit log — "who changed it".
  *
- * 🔴 이 파일이 지키는 것은 **길목 한 곳(api.ts)에서 깐 행위자가 저장소까지 간다**는 사실이다.
- *    라우트가 매개변수로 넘기지 않아도 남아야 한다 — 그러라고 AsyncLocalStorage를 쓴다.
- *    여기가 깨지면 "대부분 남는다"가 되는데, 감사 기록에서 그것은 안 남는 것만 못하다.
+ * Important: what this file guards is that **the actor set at one choke point (api.ts) reaches the store**.
+ *    It must be recorded even when routes do not pass it as a parameter — that is why AsyncLocalStorage is used.
+ *    If this breaks it becomes "mostly recorded", which for an audit log is worse than not recording at all.
  *
- * 🔴 함께 지키는 반대쪽: **없는 사실을 지어내지 않는다.** 로그인을 쓰지 않는 서버
- *    (설치판·개발)에서는 「누가」가 비어 있어야지, 아무 이름이나 들어가면 안 된다.
+ * Important: the opposite side guarded alongside: **do not invent facts.** On a server without login
+ *    (installs, development) "who" must stay empty, never some arbitrary name.
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -17,7 +17,7 @@ import { createApi } from '../src/api.js';
 import type { ApiRequest } from '../src/http.js';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const GOLDEN = '01-롤포밍기-공34.aasx';
+const GOLDEN = '01-roll-forming-machine.aasx';
 const goldenBytes = new Uint8Array(readFileSync(root + GOLDEN));
 const golden = readAasx(goldenBytes);
 const submodelId = golden.environment.submodels![0]!.id;
@@ -25,7 +25,7 @@ const encoded = Buffer.from(submodelId, 'utf8').toString('base64url');
 
 type Reply = { status: number; headers: Record<string, string>; body: any };
 
-/** 토큰·쿠키를 들려 보낼 수 있는 요청 한 건 */
+/** One request that can carry a token or cookie */
 function caller(
   api: (request: ApiRequest) => Promise<Reply>,
   init: { cookie?: string; token?: string } = {},
@@ -48,7 +48,7 @@ function cookieFrom(response: Reply): string {
   return (response.headers?.['set-cookie'] ?? '').split(';')[0] ?? '';
 }
 
-/** 패키지를 담고, 서브모델을 한 번 고치고, 그 이력을 돌려준다 */
+/** Loads a package, edits a submodel once, and returns its history */
 async function editOnce(
   api: (request: ApiRequest) => Promise<Reply>,
   init: { cookie?: string; token?: string } = {},
@@ -89,15 +89,15 @@ async function loggedIn(): Promise<{
   return { api, cookie: cookieFrom(made) };
 }
 
-describe('감사 기록 — 누가', () => {
-  it('로그인한 사람의 이름이 이력에 남는다 — 라우트가 넘기지 않아도', async () => {
+describe('audit log — who', () => {
+  it('the logged-in person name is recorded in history — even if routes do not pass it', async () => {
     const { api, cookie } = await loggedIn();
     const history = await editOnce(api, { cookie });
     expect(history).toHaveLength(1);
     expect(history[0].actorName).toBe('홍길동');
   });
 
-  it('API 키로 들어온 변경은 「API 키」로 남는다 — 사람과 구분된다', async () => {
+  it('changes made via an API key are recorded as "API key" — distinguished from people', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store, { auth: { tokens: ['기계키'], readOnlyTokens: [] } }) as (
@@ -105,11 +105,11 @@ describe('감사 기록 — 누가', () => {
     ) => Promise<Reply>;
     const history = await editOnce(api, { token: '기계키' });
     expect(history[0].actorName).toBe('API 키');
-    // 🔴 키 값 자체는 어디에도 적지 않는다 — 기록은 평문으로 돌아다닌다
+    // Important: the key value itself is never written anywhere — logs travel around in plain text
     expect(JSON.stringify(history)).not.toContain('기계키');
   });
 
-  it('인증을 쓰지 않는 서버는 비워 둔다 — 없는 사실을 지어내지 않는다', async () => {
+  it('a server without auth leaves it empty — does not invent facts', async () => {
     const store = new InMemoryStore();
     await store.init();
     const api = createApi(store) as (request: ApiRequest) => Promise<Reply>;
@@ -117,7 +117,7 @@ describe('감사 기록 — 누가', () => {
     expect(history[0].actorName).toBeUndefined();
   });
 
-  it('표시 이름을 바꿔도 지난 기록은 그때 그 이름이다', async () => {
+  it('changing the display name keeps the name used at the time in past records', async () => {
     const { api, cookie } = await loggedIn();
     const call = caller(api, { cookie });
     const created = await call('POST', '/packages', goldenBytes, { name: GOLDEN });
@@ -128,7 +128,7 @@ describe('감사 기록 — 누가', () => {
       idShort: '첫번째',
     });
 
-    // 이름을 바꾸고 다시 고친다 (이름이 바뀌면 세션이 끊기므로 다시 로그인한다)
+    // Change the name and edit again (changing the name ends the session, so log in again)
     const me = await call('GET', '/auth/me');
     const userId = me.body.user.id;
     await call('PATCH', `/auth/users/${userId}`, { displayName: '홍길순' });
@@ -147,11 +147,11 @@ describe('감사 기록 — 누가', () => {
     });
 
     const history = await again('GET', `/packages/${packageId}/history/${encoded}`);
-    // 최신이 앞 — 바꾼 뒤 이름 · 바꾸기 전 이름. 과거가 소급해 바뀌면 감사 기록이 아니다
+    // Newest first — name after the change, then name before. If the past changed retroactively it would not be an audit log
     expect(history.body.result.map((entry: any) => entry.actorName)).toEqual(['홍길순', '홍길동']);
   });
 
-  it('되돌리기 목록에도 누가 한 변경인지 붙는다', async () => {
+  it('the undo list also shows who made each change', async () => {
     const { api, cookie } = await loggedIn();
     const call = caller(api, { cookie });
     const created = await call('POST', '/packages', goldenBytes, { name: GOLDEN });

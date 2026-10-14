@@ -1,13 +1,13 @@
 /**
- * 설정 — 지금은 언어 하나뿐이다.
+ * Settings — currently just the language.
  *
- * 🔴 **영어가 어디까지인지 먼저 말한다.** 화면 글자와 서버가 만드는 글(지적 문구·규칙 설명·
- *    검증 결과서·번들 안내·오류)은 모두 영어가 있다(2026-10-14). 영어 화면에도 한국어로 남는 것은
- *    **파일에서 온 것**(이름·값)과 **제출 묶음의 폴더·파일 이름**(제출 구조가 정한 이름)뿐이다.
- *    모르고 보면 "번역이 덜 됐다"로 읽힌다 — 그래서 무엇이 남는지 적어 둔다.
+ * Important: **state first how far English goes.** Screen text and the text the server produces (finding messages, rule descriptions,
+ *    validation reports, bundle notes, errors) all have English (2026-10-14). What stays Korean on the English screen is only
+ *    **what comes from the file** (names, values) and **folder/file names in the submission bundle** (names fixed by the submission structure).
+ *    Without knowing this it reads as "translation is incomplete" — so we write down what remains.
  *
- * 🔴 **언어를 바꾸면 화면을 새로 읽는다**(부르는 쪽이 한다). 파일 맨 위에 적어 둔 글자표는
- *    처음 읽힌 언어로 굳어 있어, 다시 그리기만 하면 반쪽만 바뀐다(i18n.ts `current`).
+ * Important: **changing the language reloads the screen** (the caller does it). String tables defined at the top of files
+ *    are frozen in the language first loaded, so merely re-rendering changes only half of it (i18n.ts `current`).
  */
 import type { Lang } from '../i18n.js';
 import { tr } from '../i18n.js';
@@ -33,7 +33,7 @@ export function Settings({ lang, onChange, onClose, t }: Props): React.JSX.Eleme
             title={tr('화면 글자를 한국어로 — 모든 글자가 한국어입니다')}
             onClick={() => onChange('ko')}
           >
-            {/* i18n-ignore — 언어 이름은 그 언어로 적는다(영어 화면에서도 「한국어」) */}
+            {/* i18n-ignore — a language's name is written in that language ("한국어" even on the English screen) */}
             한국어
           </button>
           <button

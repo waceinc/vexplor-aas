@@ -1,6 +1,6 @@
 /**
- * 수집 칸 — 이 파일에 아직 수집 연결(AID)이 없을 때 — 만들기 · 가상 PLC 로 시험.
- * components/Collection.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석·판정은 옮기기 전 글자 그대로다.
+ * Collection pane — when this file has no collection connection (AID) yet — create one · test with the virtual PLC.
+ * Extracted from components/Collection.tsx (2026-10-13 componentization) — markup · comments · judgements moved verbatim at the time.
  */
 import { tr } from '../../i18n.js';
 

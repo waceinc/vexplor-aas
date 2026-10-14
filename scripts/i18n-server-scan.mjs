@@ -1,17 +1,18 @@
 /**
- * 서버 코드에서 **번역기를 거치지 않는 한국어**를 찾는다 — 린터 지적 문구 · 규칙 설명 · 결과서 ·
- * 번들 README · API 오류. 화면 쪽(i18n-scan.mjs)과 같은 파서 · 같은 약속을 쓴다.
+ * Finds **Korean text that bypasses the translator** in server code — linter findings, rule descriptions,
+ * reports, bundle READMEs, API errors. Uses the same parser and conventions as the UI side (i18n-scan.mjs).
  *
- *     node scripts/i18n-server-scan.mjs                 # 파일별 개수
- *     node scripts/i18n-server-scan.mjs --list          # 하나씩 전부
- *     node scripts/i18n-server-scan.mjs --keys          # tr()을 거치지만 영어 사전에 없는 것
- *     node scripts/i18n-server-scan.mjs --only packages/linter/src/rules   # 경로로 좁히기
- *     node scripts/i18n-server-scan.mjs --check         # 하나라도 남았으면 종료코드 1 (CI용)
+ *     node scripts/i18n-server-scan.mjs                 # count per file
+ *     node scripts/i18n-server-scan.mjs --list          # every occurrence
+ *     node scripts/i18n-server-scan.mjs --keys          # routed through tr() but missing from the English dictionary
+ *     node scripts/i18n-server-scan.mjs --only packages/linter/src/rules   # narrow by path
+ *     node scripts/i18n-server-scan.mjs --check         # exit code 1 if anything remains (for CI)
  *
- * 사전 = packages/aas-core/src/i18n/en/*.ts (영역별로 나눠 둔다 — 여럿이 같이 옮겨도 한 파일에서 부딪히지 않게).
+ * Dictionary = packages/aas-core/src/i18n/en/*.ts (split by area so several translators working at once do not collide in one file).
  *
- * 한국어가 맞는 자리는 `// i18n-ignore — 까닭`으로 뺀다(그 줄과 바로 다음 줄). 예: 제출 묶음의 폴더 이름처럼
- * 규격이 정한 값, 서버가 받은 글자와 견주는 값. 까닭이 없으면 다음 사람이 왜 뺐는지 모른다.
+ * Places where Korean belongs are excluded with `// i18n-ignore — reason` (that line and the next). E.g. values fixed by
+ * a spec, such as folder names in a submission bundle, or values compared against text the server received. Without a
+ * reason the next person does not know why it was excluded.
  */
 import { parse } from '@babel/parser';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
@@ -20,7 +21,7 @@ import { scanFile, marks } from './i18n-scan.mjs';
 
 const HANGUL = /[가-힣]/;
 
-/** 서버 글이 사는 곳 — 화면(apps/web)은 i18n-scan.mjs가 본다 */
+/** Where server text lives — the UI (apps/web) is covered by i18n-scan.mjs */
 const ROOTS = [
   'packages/aas-core/src',
   'packages/aasx/src',
@@ -31,7 +32,7 @@ const ROOTS = [
   'packages/fieldbus/src',
   'apps/api/src',
 ];
-/** 사전 자체 · 번역 장치 */
+/** The dictionary itself and the translation machinery */
 const EXEMPT = ['packages/aas-core/src/i18n/'];
 const DICT_DIR = 'packages/aas-core/src/i18n/en';
 
@@ -52,7 +53,7 @@ export function serverFiles() {
     .filter((file) => !EXEMPT.some((prefix) => file.startsWith(prefix)));
 }
 
-/** 서버 영어 사전 — 파일을 실행하지 않고 읽어 꺼낸다. 같은 열쇠가 두 파일에 있으면 알려 준다 */
+/** Server English dictionary — extracted by parsing the files, not executing them. Reports a key that appears in two files */
 export function serverDictionary() {
   const found = new Map();
   const duplicates = [];
@@ -86,7 +87,7 @@ export function serverDictionary() {
   return { dict: found, duplicates };
 }
 
-// ── 명령줄 ────────────────────────────────────────────────────────────────
+// ── Command line ────────────────────────────────────────────────────────────────
 if (process.argv[1]?.endsWith('i18n-server-scan.mjs')) {
   const args = process.argv.slice(2);
   const list = args.includes('--list');
@@ -113,7 +114,7 @@ if (process.argv[1]?.endsWith('i18n-server-scan.mjs')) {
   for (const [key, value] of dict) {
     if (value === undefined || value === '' && HANGUL.test(key)) broken.push({ key, value: String(value) });
     else if (marks(key) !== marks(value)) broken.push({ key, value });
-    else if (HANGUL.test(value)) broken.push({ key, value }); // 영어 자리에 한국어가 남았다
+    else if (HANGUL.test(value)) broken.push({ key, value }); // Korean left in the English slot
   }
 
   rows.sort((a, b) => b.untranslated.length - a.untranslated.length);
@@ -122,13 +123,13 @@ if (process.argv[1]?.endsWith('i18n-server-scan.mjs')) {
     if (list) for (const item of row.untranslated) console.log(`         ${item.line}  [${item.kind}] ${item.text.slice(0, 110)}`);
   }
   console.log(`
-[서버] 번역기를 거치지 않는 한국어: ${total}곳`);
-  console.log(`[서버] 번역기를 거치지만 영어 사전에 없는 것: ${missing.size}개 (사전 ${dict.size}항목)`);
-  console.log(`[서버] 번역문이 비었거나 표시({0} · <b>)가 원문과 다르거나 한국어가 남은 것: ${broken.length}개`);
-  console.log(`[서버] 두 사전 파일에 같은 열쇠: ${duplicates.length}개`);
+[server] Korean text bypassing the translator: ${total}`);
+  console.log(`[server] Routed through the translator but missing from the English dictionary: ${missing.size} (dictionary has ${dict.size} entries)`);
+  console.log(`[server] Translations that are empty, have markers ({0} · <b>) differing from the source, or still contain Korean: ${broken.length}`);
+  console.log(`[server] Same key in two dictionary files: ${duplicates.length}`);
   if (showKeys) for (const [text, where] of missing) console.log(`   ${where}  ${text.slice(0, 120)}`);
   for (const item of broken.slice(0, 20)) console.log(`   [FAIL] ${item.key.slice(0, 70)}\n      → ${String(item.value).slice(0, 70)}`);
-  for (const item of duplicates.slice(0, 20)) console.log(`   [FAIL] 겹친 열쇠 (${item.file}) ${item.key.slice(0, 70)}`);
+  for (const item of duplicates.slice(0, 20)) console.log(`   [FAIL] duplicate key (${item.file}) ${item.key.slice(0, 70)}`);
 
   if (check && (total > 0 || missing.size > 0 || broken.length > 0 || duplicates.length > 0)) process.exit(1);
 }

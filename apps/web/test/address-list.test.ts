@@ -1,8 +1,8 @@
 /**
- * 수집 주소 목록 검증.
+ * Collected address list tests.
  *
- * 이 표는 시운전 때 OT팀에 넘어가는 종이다. 주소가 빠지거나 어긋나면 사람이 헛짚는다.
- * 그래서 「주소가 다 나오는가」보다 **「되는 주소인지 표에서 보이는가」**를 더 본다.
+ * This table is the sheet handed to the OT team at commissioning. A missing or wrong address sends people down the wrong path.
+ * So more than "does every address appear", we check **"can you tell from the table whether an address works"**.
  */
 import { localTime } from '../src/model.js';
 import { describe, expect, it } from 'vitest';
@@ -21,7 +21,7 @@ const roller: AidInterfaceView = {
 };
 
 describe('addressRows', () => {
-  it('인터페이스마다 태그 하나가 한 줄이 된다', () => {
+  it('each tag of each interface becomes one row', () => {
     const rows = addressRows([roller]);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
@@ -37,12 +37,12 @@ describe('addressRows', () => {
     expect(rows[1]?.observable).toBe('아니오');
   });
 
-  it('title이 없으면 idShort로 적는다', () => {
+  it('falls back to idShort when title is missing', () => {
     const [row] = addressRows([{ ...roller, title: undefined }]);
     expect(row?.interfaceName).toBe('InterfaceTemplateForOPCUA');
   });
 
-  it('같은 태그의 값이 여럿이면 가장 최근 것만 붙는다', () => {
+  it('when a tag has several values, only the latest is attached', () => {
     const values: CollectedValueView[] = [
       {
         interfaceName: 'InterfaceTemplateForOPCUA',
@@ -61,24 +61,24 @@ describe('addressRows', () => {
     ] as CollectedValueView[];
     const [row] = addressRows([roller], values);
     expect(row?.latestValue).toBe('250');
-    expect(row?.observedAt).toBe(localTime('2026-08-31T02:00:00.000Z')); // 이 PC 시간대로 (UTC 그대로 찍던 것을 고쳤다, 2026-09-10)
+    expect(row?.observedAt).toBe(localTime('2026-08-31T02:00:00.000Z')); // in this PC's time zone (fixed from printing raw UTC, 2026-09-10)
   });
 
-  it('🔴 「물어봤는데 값이 없다」와 「아직 안 물어봤다」를 가른다', () => {
-    // 시운전 점검표에서 이 둘은 전혀 다르다 — 앞은 설비가 아직 준비 안 된 것, 뒤는 확인 자체를 안 한 것
+  it('Important: distinguishes "asked but no value" from "not asked yet"', () => {
+    // On the commissioning checklist these are completely different: the first means the equipment is not ready, the second means nobody checked
     const [waiting, untouched] = addressRows([roller], [], undefined, new Set(['RotationSpeed']));
     expect(waiting?.quality).toBe('값 대기');
     expect(untouched?.quality).toBe('');
   });
 
-  it('아직 수집하지 않은 태그는 값 칸이 빈다 — 지어내지 않는다', () => {
+  it('tags not yet collected leave the value cell empty (nothing is made up)', () => {
     const rows = addressRows([roller]);
     expect(rows[0]?.latestValue).toBe('');
     expect(rows[0]?.quality).toBe('');
     expect(rows[0]?.observedAt).toBe('');
   });
 
-  it('🔴 이름이 모델과 안 맞으면 표에 드러난다 — 값은 쌓이는데 밖에서 안 보이는 상태', () => {
+  it('Important: a name that does not match the model shows up in the table (values pile up but are invisible from outside)', () => {
     const live: LiveMapping = {
       collected: 2,
       applied: 1,
@@ -92,7 +92,7 @@ describe('addressRows', () => {
     expect(rows[1]?.modelLink).toBe('이름 안 맞음');
   });
 
-  it('이름이 여러 곳에 겹치면 몇 곳인지 적는다', () => {
+  it('when a name matches several places, records how many', () => {
     const live: LiveMapping = {
       collected: 1,
       applied: 0,
@@ -101,7 +101,7 @@ describe('addressRows', () => {
     expect(addressRows([roller], [], live)[0]?.modelLink).toBe('이름 중복 (2곳)');
   });
 
-  it('주소가 없는 태그도 빠뜨리지 않는다 — 빠진 주소를 찾는 것이 이 표의 쓰임새다', () => {
+  it('keeps tags without an address (finding missing addresses is what this table is for)', () => {
     const [row] = addressRows([
       { ...roller, properties: [{ name: 'Temp', observable: true }] },
     ]);
@@ -111,18 +111,18 @@ describe('addressRows', () => {
 });
 
 describe('addressCsv', () => {
-  it('엑셀이 한글을 깨뜨리지 않게 BOM으로 시작한다', () => {
+  it('starts with a BOM so Excel does not garble Korean', () => {
     expect(addressCsv(addressRows([roller]))).toMatch(/^﻿/);
   });
 
-  it('머리글과 칸 수가 맞는다', () => {
+  it('header and column counts match', () => {
     const lines = addressCsv(addressRows([roller])).split('\r\n');
     expect(lines[0]).toBe(`﻿${ADDRESS_COLUMNS.map((c) => `"${c}"`).join(',')}`);
     expect(lines).toHaveLength(3);
     expect(lines[1]?.split(',')).toHaveLength(ADDRESS_COLUMNS.length);
   });
 
-  it('큰따옴표가 든 값을 깨뜨리지 않는다', () => {
+  it('does not break values containing double quotes', () => {
     const csv = addressCsv(addressRows([{ ...roller, title: '롤포밍기 "A"동' }]));
     expect(csv).toContain('"롤포밍기 ""A""동"');
   });

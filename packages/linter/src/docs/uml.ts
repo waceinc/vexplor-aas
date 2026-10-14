@@ -1,52 +1,52 @@
 /**
- * 서브모델 UML 클래스 다이어그램 (SVG).
+ * Submodel UML class diagram (SVG).
  *
- * 근거: KTL 규정 §13 주의사항 3 — **모든 서브모델에 UML Diagram 첨부**.
- * 🔴 모양은 실제 제출 가이던스(01-롤포밍기 V4.0 · [별첨1] 기계식 프레스 V2.0)의
- *    「그림 14~20 서브모델 UML 다이어그램」을 그대로 따랐다. 내 취향으로 그리면
- *    문서 안에서 앞뒤 그림과 따로 논다.
+ * Basis: KTL regulation §13, caution 3 — **attach a UML Diagram for every submodel**.
+ * Important: the layout follows "Figures 14–20, submodel UML diagrams" from actual submitted guidance
+ *    (01-Roll Forming Machine V4.0 · [Attachment 1] Mechanical Press V2.0) exactly. Drawn to my own taste,
+ *    it would clash with the surrounding figures in the document.
  *
- * 그 그림의 규칙:
- *  ① 바깥에 프레임을 두르고 왼쪽 위 탭에 `SMT <서브모델명>`
- *  ② 클래스 상자 = «스테레오타입»(SM·SMC·SML) + 이름 + 구분선 + **속성 칸**
- *  ③ 속성 한 줄 = `+ 이름 : 타입 = "값"` — 잎(Property·MLP)은 값까지, 담는 것은 타입만
- *  ④ **담는 요소만 자기 상자를 갖는다.** 잎은 부모 상자의 속성 줄로만 나온다
- *  ⑤ 왼쪽에서 오른쪽으로 흐르고, 합성(◆)으로 잇는다. 자식 쪽에 다중도(0..1 · 1..*)
- *  ⑥ 흰 바탕·검정 선. 문서는 흰 종이다
+ * Rules of that figure:
+ *  ① An outer frame with `SMT <submodel name>` in the top-left tab
+ *  ② Class box = «stereotype» (SM, SMC, SML) + name + divider + **attribute compartment**
+ *  ③ One attribute line = `+ name : type = "value"` — leaves (Property, MLP) include the value, containers only the type
+ *  ④ **Only container elements get their own box.** Leaves appear only as attribute lines in the parent box
+ *  ⑤ Flows left to right, connected by composition (◆). Multiplicity (0..1 · 1..*) on the child side
+ *  ⑥ White background, black lines. The document is white paper
  *
- * 라이브러리를 쓰지 않고 SVG를 직접 쓴다 — 상자와 선뿐이라 의존성을 늘릴 이유가 없다.
+ * Writes SVG directly without a library — it is only boxes and lines, so no reason to add a dependency.
  */
 import { fill, tr, type Environment, type Submodel, type SubmodelElement } from '@aas/core';
 
 export interface UmlOptions {
   /**
-   * 몇 단계까지 상자로 펼칠지. 기본 {@link DEFAULT_MAX_DEPTH}.
+   * How many levels to expand into boxes. Default {@link DEFAULT_MAX_DEPTH}.
    *
-   * 🔴 예전 기본값 3은 **실제 파일을 잘랐다**(2026-09-21 실측). 골든 파일 7종 중 3종이
-   *    안쪽을 잃었다 — HandoverDocumentation 6→10 · TechnicalData 8→14 ·
-   *    MaintenanceInstructions 12→15 상자. 특히 TechnicalData는 `RollGeometry : SMC`처럼
-   *    껍데기만 남고 **실제 사양 값이 한 개도 나오지 않았다**. 장비 특화 서브모델이라
-   *    가이던스에서 값이 보여야 하는 바로 그 그림이었다.
+   * Important: the old default of 3 **truncated real files** (measured 2026-09-21). 3 of the 7 golden files
+   *    lost their inner parts — HandoverDocumentation 6→10 · TechnicalData 8→14 ·
+   *    MaintenanceInstructions 12→15 boxes. TechnicalData in particular kept only shells like
+   *    `RollGeometry : SMC` and **showed not a single actual spec value**. Being an equipment-specific
+   *    submodel, it was exactly the figure whose values must be visible in the guidance.
    */
   maxDepth?: number;
-  /** 한 상자에 담을 속성 줄 수. 넘치면 「… 그 밖 N개」 */
+  /** Number of attribute lines per box. Overflow becomes "… N more" */
   maxAttributes?: number;
-  /** 기본 글자 크기(px) */
+  /** Base font size (px) */
   fontSize?: number;
-  /** 속성 줄의 값 길이 상한 */
+  /** Maximum value length in an attribute line */
   valueLimit?: number;
 }
 
 /**
- * 상자로 펼치는 기본 깊이.
+ * Default depth expanded into boxes.
  *
- * 담는 요소를 **끝까지** 펼치는 것이 옳지만 상한은 남긴다 — 기형적으로 깊은 파일에서
- * 그림이 무한히 넓어지면 A4 축소 배율이 떨어져 글자가 뭉갠다.
- * 실측 최대는 5단계(HandoverDocumentation)라 8이면 여유가 있다.
+ * Expanding containers **all the way down** is correct, but a cap remains — in an abnormally deep file
+ * the figure would grow without bound, the A4 scale-down factor would drop, and text would smear.
+ * The measured maximum is 5 levels (HandoverDocumentation), so 8 leaves headroom.
  */
 const DEFAULT_MAX_DEPTH = 8;
 
-/** 담는 요소만 상자를 갖는다 */
+/** Only container elements get boxes */
 const CONTAINERS = new Set([
   'SubmodelElementCollection',
   'SubmodelElementList',
@@ -54,7 +54,7 @@ const CONTAINERS = new Set([
   'AnnotatedRelationshipElement',
 ]);
 
-/** 실제 문서가 쓰는 약칭 */
+/** Abbreviations used in actual documents */
 const SHORT: Record<string, string> = {
   Submodel: 'SM',
   SubmodelElementCollection: 'SMC',
@@ -79,9 +79,9 @@ interface Node {
   attributes: string[];
   children: Node[];
   /**
-   * 이 상자로 들어오는 선에 붙는 다중도.
-   * 🔴 **부모**가 무엇인지로 정해진다 — 리스트(SML)의 자식이면 `1..*`, 그 밖은 `0..1`.
-   *    문서의 그림이 그렇다: `SM ◆—0..1— Markings(SML) ◆—1..*— Marking(SMC)`
+   * Multiplicity on the line entering this box.
+   * Important: determined by what the **parent** is — `1..*` if it is a child of a list (SML), otherwise `0..1`.
+   *    That is how the document's figure does it: `SM ◆—0..1— Markings(SML) ◆—1..*— Marking(SMC)`
    */
   multiplicity: string;
 }
@@ -100,7 +100,7 @@ function raw(node: SubmodelElement): Record<string, unknown> {
 
 function childrenOf(node: SubmodelElement): SubmodelElement[] {
   const record = raw(node);
-  // 뿌리(서브모델)는 자식을 다른 이름으로 담는다
+  // The root (submodel) holds its children under a different name
   if (Array.isArray(record['submodelElements'])) {
     return record['submodelElements'] as SubmodelElement[];
   }
@@ -120,7 +120,7 @@ function clip(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit)}...`;
 }
 
-/** 속성 줄의 값 — 문서는 `= "값"` 꼴로 적는다 */
+/** Value of an attribute line — the document writes it as `= "value"` */
 function valueOf(node: SubmodelElement, limit: number): string | undefined {
   const record = raw(node);
   if (node.modelType === 'MultiLanguageProperty') {
@@ -139,7 +139,7 @@ function valueOf(node: SubmodelElement, limit: number): string | undefined {
   return undefined;
 }
 
-/** 속성 줄 하나 — `+ 이름 : 타입 = "값"` */
+/** One attribute line — `+ name : type = "value"` */
 function attributeLine(
   node: SubmodelElement,
   index: number,
@@ -157,8 +157,9 @@ function attributeLine(
 }
 
 /**
- * SubmodelElementList의 자식은 전부 같은 꼴이라 **대표 하나만** 그린다(문서도 그렇게 한다).
- * 이름은 `MarkingsEntry_0` 같은 색인 꼬리를 떼고, 목록 이름과 같아지면 복수형 s를 뗀다.
+ * Children of a SubmodelElementList all have the same shape, so **only one representative** is drawn (the document
+ * does the same). The name drops index suffixes like `MarkingsEntry_0`, and drops the plural s if it would
+ * otherwise equal the list name.
  */
 function listItemName(listName: string, first: SubmodelElement | undefined, index: number): string {
   const base = (first?.idShort ?? '').replace(/Entry_?\d+$/, '').replace(/_\d+$/, '');
@@ -176,9 +177,9 @@ function toNode(
 ): Node {
   const kids = childrenOf(element);
   const isList = element.modelType === 'SubmodelElementList';
-  // 리스트 자식은 전부 같은 꼴이라 대표 하나만 그린다(문서도 그렇게 한다)
+  // List children all have the same shape, so only one representative is drawn (the document does the same)
   const shown = isList ? kids.slice(0, 1) : kids;
-  /** 리스트 자식은 색인 꼬리를 뗀 이름으로 부른다 — `MarkingsEntry_0` → `Marking` */
+  /** List children are named with the index suffix removed — `MarkingsEntry_0` → `Marking` */
   const nameOf = (child: SubmodelElement, index: number): string =>
     isList ? listItemName(element.idShort ?? '', child, index) : (child.idShort ?? `[${index}]`);
 
@@ -204,7 +205,7 @@ function toNode(
         depth + 1,
         options,
         nameOf(child, index),
-        // 🔴 리스트의 자식이면 1..* — 다중도는 부모가 정한다
+        // Important: a child of a list gets 1..* — multiplicity is decided by the parent
         isList ? '1..*' : '0..1',
       );
     }),
@@ -236,7 +237,7 @@ export function renderUml(root: Node, frameLabel: string, options: UmlOptions = 
   const lineHeight = attrSize + 8;
   const headerHeight = fontSize + attrSize + 22;
 
-  // ① 상자 크기
+  // ① Box sizes
   const measure = (node: Node): Placed => {
     const width =
       Math.max(
@@ -249,7 +250,7 @@ export function renderUml(root: Node, frameLabel: string, options: UmlOptions = 
   };
   const placed = measure(root);
 
-  // ② 열 x 좌표 — 깊이마다 가장 넓은 상자에 맞춘다
+  // ② Column x coordinates — fit to the widest box at each depth
   const widthByDepth: number[] = [];
   const scanWidth = (node: Placed, depth: number): void => {
     widthByDepth[depth] = Math.max(widthByDepth[depth] ?? 0, node.width);
@@ -263,7 +264,7 @@ export function renderUml(root: Node, frameLabel: string, options: UmlOptions = 
     cursorX += width + COL_GAP;
   });
 
-  // ③ y 좌표 — 자식 묶음의 한가운데에 부모를 둔다
+  // ③ y coordinates — place the parent at the center of its group of children
   let cursorY = PAD + FRAME_PAD + 10;
   const layout = (node: Placed, depth: number): void => {
     node.x = xByDepth[depth]!;
@@ -282,7 +283,7 @@ export function renderUml(root: Node, frameLabel: string, options: UmlOptions = 
   };
   layout(placed, 0);
 
-  // ④ 그리기
+  // ④ Drawing
   const boxes: string[] = [];
   const edges: string[] = [];
 
@@ -313,7 +314,7 @@ export function renderUml(root: Node, frameLabel: string, options: UmlOptions = 
       const toX = child.x;
       const toY = child.y + child.height / 2;
       const midX = (fromX + toX) / 2;
-      // 합성 마름모는 **부모 쪽**에 붙는다
+      // The composition diamond attaches on the **parent side**
       const d = 6;
       edges.push(
         `<path class="link" d="M ${fromX + d * 2} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}"/>`,
@@ -329,7 +330,7 @@ export function renderUml(root: Node, frameLabel: string, options: UmlOptions = 
   const width = contentRight + FRAME_PAD + PAD;
   const height = cursorY + FRAME_PAD;
 
-  // 프레임과 왼쪽 위 탭 — 문서의 그림이 이 모양이다
+  // Frame and top-left tab — this is the shape of the document's figure
   const tabText = frameLabel;
   const tabWidth = textWidth(tabText, fontSize) + 30;
   const tabHeight = fontSize + 14;
@@ -369,13 +370,13 @@ export function submodelUml(submodel: Submodel, options: UmlOptions = {}): strin
   };
   const name = submodel.idShort ?? submodel.id;
   const node = toNode(submodel as unknown as SubmodelElement, 0, settings, name, '0..1');
-  // 서브모델 자신은 modelType이 'Submodel'이 아닐 수 있다(파일마다 다르다) — 뿌리는 항상 SM이다
+  // The submodel itself may not have modelType 'Submodel' (varies by file) — the root is always SM
   node.stereotype = 'SM';
   node.name = name;
   return renderUml(node, `SMT ${name}`, settings);
 }
 
-/** AAS 한 대의 전체 구성도 — 같은 모양으로 그린다 */
+/** Overall structure diagram of one AAS — drawn in the same style */
 export function overviewUml(environment: Environment, options: UmlOptions = {}): string {
   const settings: Required<UmlOptions> = {
     maxDepth: options.maxDepth ?? 1,

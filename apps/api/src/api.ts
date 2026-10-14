@@ -1,8 +1,8 @@
 /**
- * API 조립 — 라우팅과 오류 변환.
+ * API assembly — routing and error conversion.
  *
- * 저장소 오류(NotFound·Conflict·InvalidContent)를 HTTP 상태로 옮기는 곳이 여기 한 곳뿐이도록
- * 모아 뒀다. 핸들러는 도메인 오류를 그냥 던지면 된다.
+ * Gathered here so that this is the only place that maps store errors (NotFound, Conflict, InvalidContent)
+ * to HTTP statuses. Handlers can simply throw domain errors.
  */
 import { fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
@@ -39,18 +39,18 @@ export type { ApiOptions } from './api-options.js';
 import type { ApiOptions } from './api-options.js';
 
 /**
- * 전체 라우트 표.
+ * The full route table.
  *
- * 밖으로 내보내는 이유는 규격 대조 때문이다 — scripts/part2-coverage.mjs가 이 표를
- * IDTA Part 2 원문(docs/spec/part2/)과 맞대어 본다. 라우트를 늘리거나 지우면 그 대조가 따라 움직인다.
+ * It is exported for spec cross-checking — scripts/part2-coverage.mjs compares this table
+ * against the IDTA Part 2 original text (docs/spec/part2/). Adding or removing routes moves that comparison along.
  */
 export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] {
   return [
     ...buildAuthRoutes(store, {
       sessions: options.sessions ?? new SessionStore(),
       throttle: new LoginThrottle(),
-      // 프록시가 붙여 주는 X-Forwarded-Proto를 본다. 평문으로 들어온 사람에게
-      // Secure를 붙이면 브라우저가 쿠키를 버려 로그인이 아예 안 된다
+      // Look at X-Forwarded-Proto set by the proxy. Attaching Secure for someone connecting over plain HTTP
+      // makes the browser drop the cookie, so login fails entirely
       secureCookie: options.secureCookie ?? ((request) => isHttps(request.headers, false)),
       tokenAuth: !isOpen(options.auth ?? OPEN_ACCESS),
       ...(options.setupCode === undefined ? {} : { setupCode: options.setupCode }),
@@ -70,57 +70,57 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
       ...(options.aasxLimits ? { aasxLimits: options.aasxLimits } : {}),
       ...(options.policy ? { policy: options.policy } : {}),
     }),
-    // 템플릿 요구 수준(필수 · 선택) — 값 표가 쓴다
+    // Template requirement levels (mandatory, optional) — used by the value table
     ...requirementRoutes(store),
-    // 형식 → 호기 반영(호기별로 나누기로 만든 파일)
+    // Type -> unit propagation (files created by splitting per unit)
     ...derivationRoutes(store),
-    // 루트는 AASX 파일 서버 인터페이스의 기저 주소다
+    // The root is the base address of the AASX file server interface
     descriptionRoute('/description', AASX_FILE_SERVER_PROFILES),
     ...part2Routes(store),
-    // 레지스트리·디스커버리 — 서버 단위(파일 하나가 아니라 이 서버가 가진 전부)
+    // Registry and discovery — server-wide (everything this server holds, not a single file)
     ...registryRoutes(store, options.publicBaseUrl ? { publicBaseUrl: options.publicBaseUrl } : {}),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
     {
       method: 'GET',
       pattern: '/health',
-      // 인증이 꺼져 있다는 사실을 숨기지 않는다 — 운영에 올린 뒤 확인하는 자리다
-      // 판 번호를 함께 준다 — 배포처가 여럿이면 "어느 판인가"가 문의의 첫 질문이다
+      // Do not hide that authentication is off — this is where it is checked after going into production
+      // Include the version number — with multiple deployments, "which version" is the first question in any inquiry
       handle: async () =>
         json(200, {
           status: 'ok',
           version: PRODUCT_VERSION,
-          // 🔴 키가 없어도 계정이 있으면 로그인을 요구한다 — 「off」라고 하면 운영자도 공격자도 오해한다
+          // Important: even without a key, login is required if accounts exist — saying "off" would mislead both operators and attackers
           auth: isOpen(options.auth ?? OPEN_ACCESS) && (await store.countUsers()) === 0 ? 'off' : 'on',
         }),
     },
   ];
 }
 
-/** 모델을 바꿀 수 있는 요청인가 — 되돌리기 스냅샷을 찍을지 정한다 */
+/** Whether the request can change the model — decides whether to take an undo snapshot */
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const UNDO_PATTERNS = new Set(['/packages/:packageId/undo', '/packages/:packageId/redo']);
-/** 모델과 함께 곁 파일도 바꾸는 요청 — 되돌리기가 곁 파일까지 찍는다(undo.ts) */
+/** Requests that change sidecar files along with the model — undo snapshots the sidecar files too (undo.ts) */
 const SIDECAR_PATTERNS = new Set(['/packages/:packageId/derivation/apply']);
 
 export function createApi(base: AasStore, options: ApiOptions = {}): (request: ApiRequest) => Promise<ApiResponse> {
-  // 🔴 저장소에 작업 공간 겹을 씌운다. 라우트는 **이 겹만** 본다 — 날것의 저장소를 쥔
-  //    라우트가 하나라도 있으면 그 길로 남의 파일이 샌다. 문맥을 깔지 않으면(나누지 않는
-  //    서버) 이 겹은 아무 일도 하지 않는다
-  // 체험판은 **언제나** 나눈다 — 여럿이 같은 계정으로 들어오는데 나누지 않으면 서로의 파일을 본다
+  // Important: wrap the store in a workspace layer. Routes see **only this layer** — if even one route held
+  //    the raw store, other people's files would leak through it. Without a context set up (a server that does not
+  //    partition) this layer does nothing
+  // The demo **always** partitions — many enter with the same account, and without partitioning they see each other's files
   const privateWorkspaces = options.privateWorkspaces === true || options.demo !== undefined;
   const quota = options.maxPackagesPerOwner ?? 50;
   const store = scopeStore(base, privateWorkspaces && quota > 0 ? { maxPackagesPerOwner: quota } : {});
-  // 형식 반영은 형식 사본(곁 파일)도 함께 바꾼다 — 되돌릴 때 함께 돌아가야 한다(undo.ts)
+  // Type propagation also changes the type copy (sidecar file) — it must be rolled back together on undo (undo.ts)
   const undo = new UndoStack(store, undefined, [DERIVATION_PART]);
-  // 🔴 라우트와 요청 처리가 **같은 세션 표**를 봐야 한다 — 따로 만들면 로그인해도 안 통한다
+  // Important: routes and request handling must see **the same session table** — separate ones mean login won't work
   const sessions = options.sessions ?? new SessionStore();
   const routes = compile(buildRoutes(store, { ...options, sessions, undo }));
 
   const auth = options.auth ?? OPEN_ACCESS;
   /**
-   * 계정이 생겼는가 — 한 번 참이 되면 다시 묻지 않는다(마지막 관리자는 지울 수 없다).
-   * 키가 있는 서버는 어차피 열어 주지 않으므로 묻지도 않는다.
+   * Whether accounts exist — once true, never asked again (the last admin cannot be deleted).
+   * A server with a key never opens anyway, so it doesn't ask.
    */
   let accountsExist = false;
   const accountsNow = async (): Promise<boolean> => {
@@ -128,24 +128,24 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     return accountsExist;
   };
 
-  // 🔴 언어를 맨 바깥에서 깐다 — 인증 거절 · 없는 경로 오류까지 그 요청의 언어로 나간다(lang.ts)
+  // Important: set the language at the very outside — even auth rejections and unknown-path errors go out in the request's language (lang.ts)
   return (request: ApiRequest): Promise<ApiResponse> => runInLang(langOf(request), () => handle(request));
 
   async function handle(request: ApiRequest): Promise<ApiResponse> {
-    // 🔴 로그인한 사람이 먼저, 기계용 API 키가 나중이다(auth.ts의 순서 설계).
-    //    세션이 없으면 undefined가 가고, 그러면 예전처럼 토큰을 본다.
+    // Important: logged-in people first, machine API keys after (the order design in auth.ts).
+    //    With no session, undefined is passed, and then tokens are checked as before.
     const principal = await principalOf(store, sessions, request);
-    // 🔴 CSRF — 쿠키로 들어온 **쓰기**만 원점을 따진다. 브라우저가 쿠키를 알아서 싣기
-    //    때문에 생기는 위험이고, API 키는 남의 사이트가 붙일 수 없어 해당이 없다
+    // Important: CSRF — only **writes** arriving via cookie have their origin checked. The risk comes from the browser
+    //    attaching cookies on its own; API keys cannot be attached by another site, so they are not affected
     if (principal) {
       const blocked = crossSiteWrite(request, options.corsOrigins ?? []);
       if (blocked) return blocked;
     }
-    // 경로를 찾기 **전에** 막는다. 없는 경로에 대고 토큰을 떠보는 일을 줄인다
+    // Block **before** matching the path. Reduces probing tokens against nonexistent paths
     const allowed = authorize(auth, request, principal, principal ? true : await accountsNow());
     if (!allowed.ok) return allowed.response!;
-    // 라우트가 "누가 불렀나"를 알아야 하는 자리가 있다(계정 관리·감사 기록).
-    // 🔴 푸는 곳은 여기 한 곳 — 라우트가 스스로 다시 풀면 두 해석이 갈린다
+    // Some places in routes need to know "who called" (account management, audit records).
+    // Important: this is the only place it is resolved — if routes resolved it again themselves, the two interpretations would diverge
     const inbound: ApiRequest = principal ? { ...request, principal } : request;
 
     const found = match(routes, inbound.method, inbound.path);
@@ -156,21 +156,21 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       return errorResponse(405, 'MethodNotAllowed', fill(tr('허용되지 않는 메서드입니다: {0}'), { 0: request.method }));
     }
 
-    // 「누가」를 **여기 한 번만** 깐다. 라우트와 저장소가 매개변수 없이 집어 쓴다 —
-    // 호출 자리 서른 군데에 일일이 끼우면 한 군데만 빠져도 그 변경은 기록이 빈다(actor.ts)
+    // Set "who" **only once, here**. Routes and the store pick it up without parameters —
+    // threading it through thirty call sites means missing just one leaves that change unrecorded (actor.ts)
     const actor = actorOf(principal, allowed);
-    // 「누구의 눈으로 저장소를 보는가」도 여기 한 번만 깐다. 나누지 않는 서버는 깔지 않는다
+    // "Through whose eyes the store is viewed" is also set only once, here. Servers that don't partition don't set it
     const workspace = privateWorkspaces ? workspaceOf(principal, allowed, options.demo) : undefined;
     return runInWorkspace(workspace, () => runAsActor(actor, async () => {
       try {
-        // 되돌리기 — 모델을 바꿀 수 있는 요청은 직전 상태를 찍어 두고, 실제로 달라졌을 때만 쌓는다.
-        // 되돌리기 요청 자체는 예외(스택을 스스로 옮긴다). 패키지 삭제는 스택을 버린다
+        // Undo — requests that can change the model snapshot the prior state, and push it only when something actually changed.
+        // Undo requests themselves are exempt (they move the stack themselves). Deleting a package discards the stack
         const packageId = found.params['packageId'];
-        // 🔴 주소에 패키지가 든 요청은 **그 패키지가 보이는지부터** 본다(나누는 서버에서만).
-        //    저장소 겹이 대부분을 막지만, 저장소 **밖에** 패키지 id로 들고 있는 것이 있다 —
-        //    되돌리기 목록이 그렇다(서버 메모리). 그 길로 남의 목록을 읽고, 되돌리기를
-        //    시도해 남의 목록을 지울 수 있었다(시험이 잡았다). 여기서 한 번 더 막아,
-        //    앞으로 그런 상태가 더 생겨도 빠질 자리가 없게 한다.
+        // Important: for requests with a package in the URL, first check **whether that package is visible** (only on partitioning servers).
+        //    The store layer blocks most cases, but some things are held by package id **outside** the store —
+        //    the undo list is one (server memory). Through that path one could read someone else's list, and by attempting
+        //    undo, erase someone else's list (caught by a test). Blocking once more here ensures that
+        //    even if more such state appears in the future, there is no gap to slip through.
         if (workspace && packageId !== undefined && !(await store.getPackage(packageId))) {
           return errorResponse(404, 'NotFound', fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: packageId }));
         }
@@ -179,8 +179,8 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
             ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name, SIDECAR_PATTERNS.has(found.route.pattern))
             : undefined;
         const response = await found.route.handle({ request: inbound, params: found.params });
-        // 🔴 데모 계정은 **파일을 가지고 나가지 못한다.** 경로가 아니라 나가는 응답을
-        //    본다 — 내려받기 경로가 늘어도 빠뜨릴 자리가 없다(demo.ts)
+        // Important: the demo account **cannot take files out.** It looks at the outgoing response, not the path
+        //    — even as download paths grow, nothing is missed (demo.ts)
         if (options.demo && isDemoAccount(options.demo, principal) && isFileDownload(response)) {
           return errorResponse(
             403,
@@ -201,17 +201,17 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
 }
 
 /**
- * 이 요청의 작업 공간.
+ * This request's workspace.
  *
- * | 누구 | 열쇠 | 전부 보나 |
+ * | Who | Key | Sees everything |
  * |---|---|---|
- * | 데모 계정 | `visitor:<로그인마다 다른 이름>` | 아니다 — 같은 계정이라도 서로 못 본다 |
- * | 가입한 사람 | `user:<계정 id>` | 아니다 — 다시 로그인해도 같은 칸이다 |
- * | 관리자 | `user:<계정 id>` | **본다** — 운영하려면 남의 것도 봐야 한다 |
- * | API 키 | `apikey` | **본다** — 기계 연동(레지스트리·수집)은 전체를 다룬다 |
- * | 그 밖 | `anonymous` | 아니다 — 공용(주인 없는 것)만 보인다 |
+ * | Demo account | `visitor:<name differing per login>` | No — even on the same account they can't see each other |
+ * | Signed-up user | `user:<account id>` | No — same slot even after logging in again |
+ * | Admin | `user:<account id>` | **Yes** — operating requires seeing others' items |
+ * | API key | `apikey` | **Yes** — machine integrations (registry, collection) handle everything |
+ * | Otherwise | `anonymous` | No — only shared (ownerless) items are visible |
  *
- * 🔴 데모 계정을 계정 id로 가르면 **모두가 한 칸에 들어간다** — 여럿이 같이 쓰는 한 계정이다.
+ * Important: partitioning the demo account by account id puts **everyone in one slot** — it is one account shared by many.
  */
 function workspaceOf(
   principal: Principal | undefined,
@@ -228,31 +228,31 @@ function workspaceOf(
   return { key: 'anonymous', seesAll: false };
 }
 
-/** 여럿이 같이 쓰는 데모 계정인가 — 가입해 만든 자기 계정과 가르는 기준 */
+/** Whether this is the shared demo account — the criterion distinguishing it from one's own signed-up account */
 function isDemoAccount(demo: DemoConfig, principal: Principal | undefined): boolean {
-  // 🔴 로그인하지 않은 상태(인증이 꺼진 서버)도 체험으로 본다 — 공개 서버에서
-  //    로그인 없이 들어온 사람에게 내려받기를 열어 주면 막은 뜻이 없다
+  // Important: not being logged in (a server with auth off) also counts as demo — on a public server,
+  //    opening downloads to people who came in without logging in would defeat the purpose of blocking
   if (!principal) return true;
   return principal.login.toLowerCase() === demo.login.toLowerCase();
 }
 
 /**
- * 이 요청의 행위자.
+ * This request's actor.
  *
- * 🔴 **사람이 아닌 것도 적는다.** API 키로 들어온 변경을 「기록 없음」으로 두면, 나중에
- *    감사 기록을 볼 때 「옛날 기록」과 「기계가 한 일」이 구분되지 않는다. 기계는 기계라고
- *    적되 **어느 키인지는 적지 않는다** — 키 값은 비밀이고, 로그는 평문으로 돌아다닌다.
- * 🔴 인증을 안 쓰는 서버(설치판·개발)는 undefined다. 혼자 쓰는 PC에서 「누가」는 뜻이 없고,
- *    아무 이름이나 적으면 없던 사실을 지어내는 것이다.
+ * Important: **non-humans are recorded too.** If changes made via API key are left as "no record", then later
+ *    when reviewing the audit record, "old records" and "things a machine did" cannot be told apart. Machines are recorded as machines,
+ *    but **which key is not recorded** — key values are secret, and logs travel around in plain text.
+ * Important: servers not using authentication (installed edition, development) give undefined. On a single-user PC "who" means nothing,
+ *    and writing an arbitrary name would invent a fact that never existed.
  */
 function actorOf(principal: Principal | undefined, allowed: AuthResult): Actor | undefined {
   if (principal) return { id: principal.userId, name: principal.displayName };
-  // i18n-ignore — 변경 이력(DB의 actor_name)에 저장되는 행위자 이름이다. 요청 언어로 바꾸면 기록이 섞인다
+  // i18n-ignore — the actor name stored in the change history (DB actor_name). Converting it to the request language would mix records
   if (allowed.via === 'apikey') return { id: 'apikey', name: 'API 키' };
   return undefined;
 }
 
-/** 되돌리기·다시 하기 — 규격 밖 연산(EXTENSIONS에 등록) */
+/** Undo and redo — non-spec operations (registered in EXTENSIONS) */
 function undoRoutes(undo: UndoStack): Route[] {
   return [
     {
@@ -293,12 +293,12 @@ export function toErrorResponse(error: unknown): ApiResponse {
   if (error instanceof ConflictError) return errorResponse(409, 'Conflict', error.message);
   if (error instanceof InvalidContentError) return errorResponse(400, 'BadRequest', error.message);
   if (error instanceof ValueNotSupportedError) return errorResponse(400, 'BadRequest', error.message);
-  // 상한 초과는 형식 오류가 아니라 "너무 크다"는 뜻이다 — 413이 맞다(기획서 Ⅷ Zip Bomb)
+  // Exceeding a limit is not a format error but means "too large" — 413 is correct (spec VIII Zip Bomb)
   if (error instanceof AasxLimitError) return errorResponse(413, 'PayloadTooLarge', error.message);
   if (error instanceof AasxReadError) return errorResponse(400, 'BadRequest', error.message);
   if (error instanceof Error && error.message.startsWith('base64url')) {
     return errorResponse(400, 'BadRequest', error.message);
   }
-  // 여기까지 오면 우리가 예상하지 못한 것이다. 원문을 숨기지 않는다 — 폐쇄망 운영에서 진단이 먼저다
+  // Reaching here means something we didn't anticipate. Do not hide the original message — diagnosis comes first in air-gapped operation
   return errorResponse(500, 'InternalServerError', error instanceof Error ? error.message : String(error));
 }

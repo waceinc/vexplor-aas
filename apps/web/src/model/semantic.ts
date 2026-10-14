@@ -1,60 +1,60 @@
 /**
- * 모델 — semanticId 그 자리 검증(IRDI · IRI · 정책).
- * src/model.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 model.ts 로 쓴다.
+ * Model — in-place semanticId validation (IRDI · IRI · policy).
+ * Split out of src/model.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via model.ts.
  */
 
 
 /**
- * semanticId 형식 검사 — M4 축소판(§2에서 eCl@ss 검색 UI 대신 직접 입력 + 검증으로 결정).
+ * semanticId format check — reduced M4 (decided in §2: direct input + validation instead of an eCl@ss search UI).
  *
- * 판정 근거는 실측 규칙이다.
- *  - KOSMO는 semanticId로 **IRDI(0173-/0112/) 또는 자체 IRI**만 인정한다(02_Validator_대응규칙 §110)
- *  - eCl@ss 말미 `-00` 코드는 CDP에 존재하지 않는다(AAS_OPC UA.md L9) — 재검증 대상
- *  - 형식이 맞아도 대응 CD가 없으면 KOSMO-SME-3으로 걸린다
+ * The verdicts are based on measured rules.
+ *  - KOSMO accepts only **IRDI (0173-/0112/) or our own IRI** as semanticId (02_Validator response rules §110)
+ *  - eCl@ss codes ending in `-00` do not exist in CDP (AAS_OPC UA.md L9) — must be re-checked
+ *  - Even with the right format, a missing matching CD is flagged as KOSMO-SME-3
  *
- * 린터가 어차피 잡아 주지만, **입력하는 순간 알려 주는 편이 되돌리기 싸다.**
+ * The linter catches it anyway, but **telling at the moment of input makes it cheaper to undo.**
  */
 export interface SemanticIdNote {
   level: 'ok' | 'warning' | 'error';
   message: string;
 }
 
-/** eCl@ss IRDI — 예: 0173-1#02-AAA123#001 */
+/** eCl@ss IRDI — e.g. 0173-1#02-AAA123#001 */
 const ECLASS_IRDI = String.raw`0173-\d+#\d{2}-[A-Z0-9]+#\d{3}`;
 
-/** IEC CDD IRDI — 예: 0112/2///61987#ABA231#009 */
+/** IEC CDD IRDI — e.g. 0112/2///61987#ABA231#009 */
 const IEC_CDD_IRDI = String.raw`0112\/\d+\/\/\/[0-9_A-Za-z]+#[A-Z]{3}\d+#\d{3}`;
 
 const ONE_IRDI = `(?:${ECLASS_IRDI}|${IEC_CDD_IRDI})`;
 
 /**
- * 표준 사전 IRDI — **둘을 `/`로 이은 복합형도 표준이다**(사용자 2026-09-14 제기, 실측으로 확인).
+ * Standard dictionary IRDI — **the compound form joining two with `/` is also standard** (raised by user 2026-09-14, confirmed by measurement).
  *
- * IDTA 템플릿이 리스트 항목(SMC)에 「속성 IRDI / 클래스 IRDI」를 이어 붙인다 —
- * 예: `0173-1#02-ABI500#003/0173-1#01-AHF579#003`(HandoverDocumentation의 Document.
- * 앞은 속성 `#02`, 뒤는 클래스 `#01`).
+ * IDTA templates join "property IRDI / class IRDI" on list items (SMC) —
+ * e.g. `0173-1#02-ABI500#003/0173-1#01-AHF579#003` (Document in HandoverDocumentation;
+ * the first is property `#02`, the second is class `#01`).
  *
- * 🔴 근거: 골든 파일 4종이 **모두** 이 형태를 6건씩 쓰고(Documents·DocumentIds·
- * DocumentClassifications·DocumentVersions… 항목), 같은 id의 CD도 함께 들어 있다.
- * 그중 `01-롤포밍기-공34.aasx`는 **KOSMO Validator 전 항목 Passed**다. 서버 린터도
- * 접두(`0173-`/`0112/`)만 보므로 통과시킨다 — 화면만 "형식이 표준과 다르다"고 경고해
- * 멀쩡한 표준 값에 경고를 띄우고 있었다.
+ * Important — evidence: all 4 golden files use this form **6 times each** (Documents · DocumentIds ·
+ * DocumentClassifications · DocumentVersions… items), and CDs with the same ids are included.
+ * Of those, `01-roll-forming-machine.aasx` **passes every KOSMO Validator item**. The server linter
+ * also checks only the prefix (`0173-`/`0112/`) and lets it through — only the UI warned "format differs from the standard",
+ * flagging perfectly valid standard values.
  */
 const IRDI_RE = new RegExp(`^${ONE_IRDI}(?:\\/${ONE_IRDI})?$`);
 
-/** 복합형인가 — 안내 문구를 다르게 준다 */
+/** Is it the compound form — gives a different guidance message */
 const COMPOUND_IRDI_RE = new RegExp(`^${ONE_IRDI}\\/${ONE_IRDI}$`);
 
 export function checkSemanticId(
   value: string,
   policy: { iriBase: string; irdiPrefixes: string[] },
   hasConceptDescription: boolean,
-  /** 서브모델의 semanticId는 템플릿 IRI다 — 화이트리스트(SM-3)는 같지만 CD를 요구하지 않는다 */
+  /** A submodel semanticId is a template IRI — same whitelist (SM-3) but no CD is required */
   scope: 'element' | 'submodel' = 'element',
   /**
-   * 번역기 — 안 주면 한국어 그대로.
-   * 🔴 정책값이 섞인 문장이 있어 밖에서 `t(message)`로는 못 옮긴다(허용 목록 안내의 접두 목록).
-   *    그래서 만드는 자리에서 옮긴다.
+   * Translator — when omitted, Korean as is.
+   * Important: some sentences embed policy values, so they cannot be translated outside with `t(message)` (the prefix list in the allow-list hint).
+   *    So they are translated where they are built.
    */
   t: (text: string) => string = (text) => text,
 ): SemanticIdNote[] {

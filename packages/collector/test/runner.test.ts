@@ -1,8 +1,8 @@
 /**
- * 주기 실행 검증 — 현장에서 깨지는 방식 셋을 막았는지 본다.
- *  ① 장비 하나가 죽어도 나머지는 계속 수집
- *  ② 한 주기가 길어져도 겹쳐 돌지 않음
- *  ③ 연결이 상하면 버리고 다음 주기에 다시 붙음
+ * Periodic run tests — checks that three field failure modes are handled.
+ *  (1) One device dying does not stop collection from the others
+ *  (2) A long cycle never overlaps the next
+ *  (3) A broken connection is discarded and reconnected on the next cycle
  */
 import {
   CollectionRunner,
@@ -20,7 +20,7 @@ const iface = (name: string, href: string): AidInterface => ({
   properties: [{ name: 'Speed', href, observable: true, formFields: {} }],
 });
 
-/** 손으로 돌리는 시계 — 실제 시간을 기다리지 않는다 */
+/** Manually advanced clock — does not wait for real time */
 function manualTimers(): TimerHost & { fire(): Promise<void>; pending: number } {
   let handlers: (() => void)[] = [];
   return {
@@ -48,8 +48,8 @@ function sink(): { samples: ValueSample[]; append: (s: readonly ValueSample[]) =
   return { samples, append: async (batch) => void samples.push(...batch) };
 }
 
-describe('주기 실행', () => {
-  it('주기마다 수집한다', async () => {
+describe('Periodic run', () => {
+  it('collects every cycle', async () => {
     const timers = manualTimers();
     const target = sink();
     let reads = 0;
@@ -71,7 +71,7 @@ describe('주기 실행', () => {
 
     runner.start();
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(target.samples).toHaveLength(1); // 첫 주기는 곧바로
+    expect(target.samples).toHaveLength(1); // first cycle runs immediately
 
     await timers.fire();
     expect(target.samples).toHaveLength(2);
@@ -81,7 +81,7 @@ describe('주기 실행', () => {
     expect(timers.pending).toBe(0);
   });
 
-  it('장비 하나가 죽어도 나머지는 계속 수집한다', async () => {
+  it('keeps collecting from the others when one device dies', async () => {
     const target = sink();
     const runner = new CollectionRunner({
       packageId: 'pkg_1',
@@ -106,7 +106,7 @@ describe('주기 실행', () => {
     await runner.stop();
   });
 
-  it('한 주기가 길어지면 겹쳐 돌지 않는다', async () => {
+  it('does not overlap when a cycle runs long', async () => {
     const target = sink();
     let inFlight = 0;
     let maxInFlight = 0;
@@ -129,17 +129,17 @@ describe('주기 실행', () => {
       timers: manualTimers(),
     });
 
-    // 앞 주기가 끝나기 전에 한 번 더 부른다
+    // call again before the previous cycle finishes
     const first = runner.runOnce();
     const second = await runner.runOnce();
     await first;
 
-    expect(maxInFlight).toBe(1); // 절대 겹치지 않는다
-    expect(second.collected).toBe(0); // 겹친 호출은 빈 주기로 돌아온다
+    expect(maxInFlight).toBe(1); // never overlaps
+    expect(second.collected).toBe(0); // an overlapping call returns an empty cycle
     await runner.stop();
   });
 
-  it('연결이 상하면 버리고 다음 주기에 다시 붙는다', async () => {
+  it('discards a broken connection and reconnects on the next cycle', async () => {
     const target = sink();
     let opened = 0;
     let closed = 0;
@@ -168,15 +168,15 @@ describe('주기 실행', () => {
 
     const bad = await runner.runOnce();
     expect(bad.interfaces[0]!.error).toContain('소켓 끊김');
-    expect(closed).toBe(1); // 상한 연결은 닫는다
+    expect(closed).toBe(1); // the broken connection is closed
 
     const good = await runner.runOnce();
     expect(good.collected).toBe(1);
-    expect(opened).toBe(2); // 새로 붙었다
+    expect(opened).toBe(2); // reconnected
     await runner.stop();
   });
 
-  it('멈추면 더 이상 돌지 않고 연결도 닫는다', async () => {
+  it('stops running and closes connections when stopped', async () => {
     const timers = manualTimers();
     let closed = 0;
     const target = sink();
@@ -198,7 +198,7 @@ describe('주기 실행', () => {
     await runner.stop();
 
     const before = target.samples.length;
-    await timers.fire(); // 멈춘 뒤의 타이머는 아무 일도 하지 않는다
+    await timers.fire(); // a timer firing after stop does nothing
     expect(target.samples).toHaveLength(before);
     expect(closed).toBe(1);
   });

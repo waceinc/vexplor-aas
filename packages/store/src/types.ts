@@ -1,14 +1,14 @@
 /**
- * 저장소 계약 — 기획서 M1.
+ * Store contract — spec M1.
  *
- * 값 동기화 정책 **A안(파일이 원본)** 이 이 설계를 결정한다(docs/PROGRESS.md §2-2).
- *  - Identifiable은 **원본 JSON을 통째로** 보관한다. 조회용 컬럼은 파생일 뿐이고, 어긋나면 원본이 이긴다.
- *  - 패키지의 썸네일·첨부·기타 파트를 함께 보관한다. 이게 없으면 export가 무손실이 아니다.
- *  - 배열 순서(ordinal)를 보존한다. 순서가 바뀌면 왕복이 원본과 달라진다.
+ * Value sync policy **Option A (the file is the original)** determines this design (docs/PROGRESS.md §2-2).
+ *  - Identifiables are stored as **the whole original JSON**. Query columns are merely derived; if they disagree, the original wins.
+ *  - A package's thumbnail, attachments and other parts are stored too. Without them export is not lossless.
+ *  - Array order (ordinal) is preserved. If the order changes, the round trip differs from the original.
  *
- * 그리고 하나 더 — **결함 있는 파일도 손실 없이 받는다.**
- * 저장소가 유효성을 강제하면 린터(M5)가 지적할 대상 자체가 들어오지 못한다.
- * 그래서 id에 UNIQUE를 걸지 않는다(KOSMO-CD-5 중복 id는 실측 결함이다).
+ * And one more — **defective files are also accepted without loss.**
+ * If the store enforced validity, the very things the linter (M5) should flag could never get in.
+ * That is why there is no UNIQUE on id (KOSMO-CD-5 duplicate ids are a measured defect).
  */
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
@@ -25,43 +25,43 @@ export const IDENTIFIABLE_MODEL_TYPES: readonly IdentifiableModelType[] = [
   'ConceptDescription',
 ];
 
-/** Environment의 어느 배열에 담기는지 — 무손실 왕복의 기준 */
+/** Which Environment array it belongs to — the basis of lossless round trips */
 export const ENVIRONMENT_FIELD: Record<IdentifiableModelType, keyof Environment> = {
   AssetAdministrationShell: 'assetAdministrationShells',
   Submodel: 'submodels',
   ConceptDescription: 'conceptDescriptions',
 };
 
-/** AASX 파일 하나에 대응하는 작업 단위 */
+/** Unit of work corresponding to one AASX file */
 export interface PackageRecord {
   id: string;
-  /** 원본 파일명 — 사람이 알아보는 이름 */
+  /** Original file name — the human-recognizable name */
   name: string;
-  /** AAS 본문 파트명. 기본 /aasx/data.json */
+  /** AAS body part name. Default /aasx/data.json */
   specPart: string;
-  /** 낙관적 잠금용. 소속 Identifiable이 바뀔 때마다 오른다 */
+  /** For optimistic locking. Incremented whenever a contained Identifiable changes */
   revision: number;
   createdAt: string;
   updatedAt: string;
   /**
-   * 주인 — 어느 작업 공간의 것인가(2026-10-04).
+   * Owner — which workspace it belongs to (2026-10-04).
    *
-   * **없으면 「공용」이다.** 팀이 같이 쓰는 서버(기본)에서는 아무 패키지에도 주인이 없고,
-   * 모두가 전부를 본다 — 이 필드가 생기기 전과 똑같이 돈다.
-   * 작업 공간을 나누는 서버(체험판)에서는 올린 사람의 열쇠가 적히고 그 사람만 본다.
-   * 그때도 주인 없는 것(기동 때 올린 템플릿)은 누구나 **읽을 수는** 있다(scoped.ts).
+   * **Absent means "shared".** On a server shared by a team (the default) no package has an owner,
+   * and everyone sees everything — it behaves exactly as before this field existed.
+   * On a server that splits workspaces (trial edition), the uploader's key is recorded and only that person sees it.
+   * Even then, ownerless items (templates loaded at startup) **can be read** by anyone (scoped.ts).
    */
   owner?: string;
 }
 
 /**
- * - thumbnail · supplementary · extra — AASX 안의 파트다. 내보내면 그대로 AASX에 들어간다
- * - **bundle** — 레퍼런스 번들에 딸린 문서·증빙(Use-Case·가이던스·수집 기록…). 🔴 AASX에는 **넣지 않는다.**
- *   공정 파일의 해시가 바뀌면 번들 대조가 깨진다. 번들을 다시 내보낼 때 되살리려고 보관만 한다(2026-09-30)
+ * - thumbnail · supplementary · extra — parts inside the AASX. On export they go into the AASX as-is
+ * - **bundle** — documents/evidence attached to a reference bundle (Use-Case, guidance, collection logs…). Important: **not put into the AASX.**
+ *   If the process file's hash changes, bundle verification breaks. Kept only so it can be restored when the bundle is re-exported (2026-09-30)
  */
 export type PackageFileRole = 'thumbnail' | 'supplementary' | 'extra' | 'bundle';
 
-/** 무손실 export에 필요한 비(非)모델 파트 */
+/** Non-model parts required for lossless export */
 export interface PackageFileRecord {
   part: string;
   role: PackageFileRole;
@@ -70,68 +70,68 @@ export interface PackageFileRecord {
 }
 
 export interface IdentifiableRecord {
-  /** 저장소 내부 키. id 중복 결함도 담아야 하므로 id와 별개로 둔다 */
+  /** Store-internal key. Kept separate from id because duplicate-id defects must also be stored */
   uid: string;
   packageId: string;
   modelType: IdentifiableModelType;
   id: string;
   idShort?: string;
-  /** semanticId 첫 키 값 — 조회 편의를 위한 파생 컬럼 */
+  /** First key value of semanticId — a derived column for query convenience */
   semanticId?: string;
-  /** AAS의 assetInformation.assetKind */
+  /** The AAS's assetInformation.assetKind */
   assetKind?: string;
-  /** Submodel의 kind */
+  /** The Submodel's kind */
   kind?: string;
-  /** Environment 배열 안에서의 원래 순서 */
+  /** Original order within the Environment array */
   ordinal: number;
-  /** 원본 JSON 그대로 */
+  /** The original JSON as-is */
   content: Record<string, unknown>;
   revision: number;
   updatedAt: string;
 }
 
 /**
- * 수집값 — 기획서 M8 · Phase 5.
+ * Collected values — spec M8 · Phase 5.
  *
- * 🔴 값 동기화 **A안**: 이 값들은 **모델로 되돌아가지 않는다.** 모델 테이블을 참조만 하고
- * 반대 방향은 없다. 산출물이 Type/Template이라 런타임 값을 되쓰면 메타모델 의미 위반이다.
+ * Important: value sync **Option A**: these values **never flow back into the model.** They only reference the model tables;
+ * there is no reverse direction. Since the deliverable is a Type/Template, writing runtime values back would violate metamodel semantics.
  */
 export interface CollectedValue {
   packageId: string;
-  /** AID 인터페이스 이름 */
+  /** AID interface name */
   interfaceName: string;
-  /** AID property 이름 */
+  /** AID property name */
   propertyName: string;
-  /** 읽어 온 주소(NodeId 등) */
+  /** Address it was read from (NodeId, etc.) */
   source?: string;
   observedAt: string;
   /**
-   * 이 도구가 **실제로 읽어 온 시각**(ISO). 2026-10-13 추가.
-   * 🔴 `observedAt`은 장비가 준 시각(OPC UA SourceTimestamp)이라 **값이 바뀔 때만** 움직인다 — 값이 일정한 태그는
-   *    매번 잘 읽어도 시각이 옛날에 멈춰 있어, 그걸로 「받는 중」을 판정하면 멀쩡한 태그가 끊긴 것으로 보인다.
-   *    값마다 수신 시각을 따로 남긴다(실운영 교훈 — digital-twin 점검에서 271행의 시각이 모두 같아 「받는 중」이
-   *    뜻을 잃은 사례). 옛 기록에는 없다 — 그때는 observedAt 으로 대신한다.
+   * The time **this tool actually read it** (ISO). Added 2026-10-13.
+   * Important: `observedAt` is the time given by the device (OPC UA SourceTimestamp), so it **only moves when the value changes** — for tags with a
+   *    constant value, the timestamp stays frozen in the past even though they are read fine every time, so judging "receiving" by it makes healthy tags look disconnected.
+   *    A receive time is kept separately per value (lesson from real operation — in a digital-twin check all 271 rows had the same timestamp, so "receiving"
+   *    lost its meaning). Old records lack it — observedAt is used instead in that case.
    */
   receivedAt?: string;
   valueNumber?: number;
   valueText?: string;
-  /** 품질(OPC UA StatusCode 등). 나쁜 값도 버리지 않고 표시해 남긴다 */
+  /** Quality (OPC UA StatusCode, etc.). Bad values are not discarded but kept with their marking */
   quality?: string;
 }
 
 export interface ValueQuery {
   interfaceName?: string;
   propertyName?: string;
-  /** ISO 시각. 포함(>=) */
+  /** ISO time. Inclusive (>=) */
   from?: string;
-  /** ISO 시각. 미포함(<) */
+  /** ISO time. Exclusive (<) */
   to?: string;
-  /** 기본 1000 */
+  /** Default 1000 */
   limit?: number;
   /**
-   * from · to · 정렬을 어느 시각으로 보나. 기본 observed(장비 시각 — 하이퍼테이블이 이 열로 나뉘어 빠르다).
-   * received = 수신 시각(없는 옛 기록은 장비 시각). 값이 일정한 태그는 장비 시각이 멈춰 있어
-   * 「오늘 받은 값」을 장비 시각으로 고르면 빠진다 — 하루 상태 막대처럼 받은 때가 중요한 곳이 쓴다(2026-10-14).
+   * Which timestamp from · to · sorting use. Default observed (device time — the hypertable is partitioned on this column, so it is fast).
+   * received = receive time (device time for old records lacking it). For constant-value tags the device time is frozen, so
+   * selecting "values received today" by device time misses them — used where the time of receipt matters, such as a daily status bar (2026-10-14).
    */
   basis?: 'observed' | 'received';
 }
@@ -139,47 +139,47 @@ export interface ValueQuery {
 export type HistoryOperation = 'update' | 'delete';
 
 /**
- * 바꾼 사람 — 감사 기록의 「누가」(2026-10-02).
+ * The person who made a change — the "who" of the audit log (2026-10-02).
  *
- * 🔴 **이름을 같이 베껴 둔다.** 사람 표를 참조만 하면 계정을 지우거나 이름을 바꿨을 때
- *    과거 기록이 함께 바뀌어 버린다. 감사 기록은 **그때 그 이름**이어야 한다.
+ * Important: **the name is copied along with it.** If only the users table were referenced, deleting an account or renaming
+ *    someone would change past records too. An audit log must keep **the name as it was at the time**.
  */
 export interface Actor {
-  /** 사용자 id. 사람이 아니면 `apikey:full` 같은 표시용 값이 온다 */
+  /** User id. For non-humans, a display value such as `apikey:full` arrives */
   id: string;
-  /** 그때의 표시 이름 */
+  /** Display name at the time */
   name: string;
 }
 
-/** 버전 이력 — 기획서 M1의 "버전 관리". A안에서 되돌리기의 근거가 된다 */
+/** Version history — the "version management" of spec M1. Under Option A it is the basis for reverting */
 export interface HistoryRecord {
   uid: string;
   packageId: string;
   modelType: IdentifiableModelType;
   id: string;
-  /** 이 이력이 담고 있는 **변경 전** 리비전 */
+  /** The revision **before the change** that this history entry holds */
   revision: number;
   content: Record<string, unknown>;
   operation: HistoryOperation;
   changedAt: string;
   /**
-   * 누가 바꿨나. **없을 수 있다** — 로그인을 쓰지 않는 서버(설치판·혼자 쓰기)와
-   * 2026-10-02 이전에 쌓인 이력이 그렇다. 화면은 빈 칸을 「기록 없음」으로 읽는다.
+   * Who changed it. **May be absent** — on servers without login (installed edition, single user) and for
+   * history accumulated before 2026-10-02. The UI reads an empty cell as "no record".
    */
   actorId?: string;
   actorName?: string;
 }
 
 export interface PageQuery {
-  /** 한 번에 가져올 개수. Part 2의 limit에 대응 */
+  /** Number of items to fetch at once. Corresponds to Part 2's limit */
   limit?: number;
-  /** 직전 응답의 cursor. Part 2의 cursor에 대응 */
+  /** cursor from the previous response. Corresponds to Part 2's cursor */
   cursor?: string;
 }
 
 /**
- * 목록 필터 — IDTA Part 2의 질의 인자(idShort · semanticId · assetKind)에 대응한다.
- * 조회용 파생 컬럼과 짝이며, Postgres에서는 인덱스가 그대로 쓰인다.
+ * List filter — corresponds to IDTA Part 2 query parameters (idShort · semanticId · assetKind).
+ * Pairs with the derived query columns; in Postgres the indexes are used directly.
  */
 export interface IdentifiableFilter {
   idShort?: string;
@@ -191,39 +191,39 @@ export interface ListQuery extends PageQuery, IdentifiableFilter {}
 
 export interface PageResult<T> {
   items: T[];
-  /** 다음 쪽이 있으면 채워진다 */
+  /** Filled when there is a next page */
   cursor?: string;
 }
 
 export interface CreateOptions {
   /**
-   * 넣을 자리(ordinal). 비우면 맨 뒤.
-   * 🔴 「바꾸기」(지우고 새로 넣기)가 자리를 잃지 않게 하려고 둔 것이다 — 필수 서브모델 4종의
-   *    순서가 화면에서 깨져 보였다(2026-09-07 실전 검증). 같은 ordinal이 이미 있어도 막지 않는다:
-   *    정렬은 안정적이고, 지운 자리에 다시 넣는 쓰임새가 전부다.
+   * Position to insert at (ordinal). Empty means the end.
+   * Important: exists so that "replace" (delete then insert) does not lose its position — the order of the 4 mandatory
+   *    submodels appeared broken on screen (2026-09-07 field verification). Not blocked even if the same ordinal already exists:
+   *    sorting is stable, and re-inserting into a deleted slot is the only use case.
    */
   ordinal?: number;
 }
 
 export interface WriteOptions {
   /**
-   * 기대 리비전. 지정하면 다르면 ConflictError를 던진다(낙관적 잠금).
-   * 기획서 Ⅷ "동시 편집 — 낙관적 잠금 또는 버전 충돌 처리"에 대응한다.
+   * Expected revision. If given and different, throws ConflictError (optimistic locking).
+   * Corresponds to spec Ⅷ "concurrent editing — optimistic locking or version conflict handling".
    */
   expectedRevision?: number;
   /**
-   * 이 변경을 한 사람. 비우면 요청 문맥(`runAsActor`)에서 집어 온다 —
-   * 보통은 비워 두고, 저장소를 직접 쓰는 쪽만 채운다. 자세한 사유는 actor.ts.
+   * The person who made this change. If empty, it is picked up from the request context (`runAsActor`) —
+   * usually left empty; only callers using the store directly fill it in. See actor.ts for the full rationale.
    */
   actor?: Actor;
 }
 
-/** 목록을 누구의 눈으로 볼 것인가 — 그 주인의 것 + 공용 */
+/** Whose eyes to view the list through — that owner's items + shared */
 export interface PackageScope {
   owner: string;
 }
 
-/** 볼 수는 있지만 고칠 수 없는 것 — API 계층에서 403으로 옮긴다 */
+/** Visible but not editable — mapped to 403 in the API layer */
 export class ForbiddenError extends Error {
   constructor(message: string) {
     super(message);
@@ -238,7 +238,7 @@ export class NotFoundError extends Error {
   }
 }
 
-/** 저장할 수 없는 내용 — API 계층에서 400으로 옮긴다 */
+/** Content that cannot be stored — mapped to 400 in the API layer */
 export class InvalidContentError extends Error {
   constructor(message: string) {
     super(message);
@@ -257,71 +257,71 @@ export class ConflictError extends Error {
 }
 
 /**
- * 쓰는 사람.
+ * A user.
  *
- * 🔴 역할은 셋뿐이다. 더 잘게 나눌수록 "이 사람이 무엇을 할 수 있나"를 아무도 모르게 된다.
- *   · admin  — 계정을 만들고 지운다. 편집자가 하는 일을 다 할 수 있다
- *   · editor — 파일을 올리고 고치고 내려받는다 (지금의 전체 권한 토큰)
- *   · viewer — 보기만 (지금의 읽기 전용 토큰)
+ * Important: there are only three roles. The finer they are split, the less anyone knows "what this person can do".
+ *   · admin  — creates and deletes accounts. Can do everything an editor can
+ *   · editor — uploads, edits and downloads files (the current full-access token)
+ *   · viewer — view only (the current read-only token)
  */
 export type UserRole = 'admin' | 'editor' | 'viewer';
 
 export interface UserRecord {
   id: string;
-  /** 로그인에 쓰는 이름. 대소문자를 가리지 않게 소문자로 저장한다 */
+  /** Name used to log in. Stored in lowercase so it is case-insensitive */
   login: string;
   displayName: string;
   role: UserRole;
   /**
-   * 연락처 — **선택**이다(2026-10-04).
+   * Contact — **optional** (2026-10-04).
    *
-   * 🔴 일부러 **확인하지 않는다.** 메일 서버가 없고, 확인 절차를 흉내만 내면
-   *    「확인된 주소」라고 믿게 만들어 더 나쁘다. 그냥 적어 둔 값이다.
-   * 🔴 개인정보다. 받기 시작하면 처리방침·동의·보관기간·파기가 따라온다
-   *    (docs/배포_호스팅.md). 그래서 비울 수 있게 두었다.
+   * Important: deliberately **not verified.** There is no mail server, and merely imitating a verification step
+   *    would make people believe it is a "verified address", which is worse. It is just a value someone wrote down.
+   * Important: this is personal data. Once collected, a privacy policy, consent, retention period and disposal follow
+   *    (docs/배포_호스팅.md). That is why it can be left empty.
    */
   email?: string;
-  /** 회사명 — 회원가입 때 받는다(처리방침을 올린 서버에서만). 2026-10-06 */
+  /** Company name — collected at sign-up (only on servers that publish a privacy policy). 2026-10-06 */
   company?: string;
   /**
-   * 개인정보 수집·이용에 동의한 시각. 🔴 「동의했다」는 증빙이다 — 체크했다는 사실을
-   * 서버가 직접 적어 둔다(화면이 보냈다는 것만으로는 나중에 보일 것이 없다)
+   * Time of consent to the collection and use of personal data. Important: "consented" is evidence — the server records
+   * the fact of the checkbox itself (that the UI sent it alone leaves nothing to show later)
    */
   consentAt?: string;
-  /** 🔴 해시만 둔다. 원문 비밀번호는 어디에도 남기지 않는다 */
+  /** Important: hash only. The plaintext password is kept nowhere */
   passwordHash: string;
-  /** 잠근 계정 — 지우지 않고 막는다. 이력에 남은 「누가」가 깨지지 않게 */
+  /** Locked account — blocked rather than deleted, so the "who" recorded in history does not break */
   disabled: boolean;
   createdAt: string;
   lastLoginAt?: string;
 }
 
-/** 새 계정을 만들 때 받는 것 */
+/** What is accepted when creating a new account */
 export interface NewUser {
   login: string;
   displayName: string;
   role: UserRole;
   passwordHash: string;
-  /** 선택 — 위 UserRecord.email 설명을 볼 것 */
+  /** Optional — see the UserRecord.email description above */
   email?: string;
   company?: string;
   consentAt?: string;
 }
 
 /**
- * 저장소 포트.
+ * Store port.
  *
- * 구현체는 두 개다 — InMemoryStore(개발·테스트)와 PostgresStore(운영).
- * 같은 적합성 테스트(test/conformance.ts)를 두 구현에 모두 돌려 동작 차이를 막는다.
+ * There are two implementations — InMemoryStore (development/testing) and PostgresStore (production).
+ * The same conformance tests (test/conformance.ts) run against both implementations to prevent behavioral differences.
  */
 export interface AasStore {
-  /** 스키마 준비 등 1회성 초기화. 인메모리는 아무 것도 하지 않는다 */
+  /** One-time initialization such as preparing the schema. The in-memory store does nothing */
   init(): Promise<void>;
 
-  // ── 패키지 ────────────────────────────────────────────────────────────────
+  // ── Packages ──────────────────────────────────────────────────────────────
   /**
-   * `keep` — AASX 파트 말고 **함께 보관할 파일**(role `bundle`). 올린 원본 바이트 같은 것.
-   * 🔴 담는 동작 안에서 넣는다 — 따로 putPackageFile하면 리비전이 올라 방금 올린 파일이 「고친 파일」로 보인다
+   * `keep` — **files to store alongside** besides the AASX parts (role `bundle`), such as the uploaded original bytes.
+   * Important: put them in within the import operation — a separate putPackageFile bumps the revision, so the just-uploaded file looks "edited"
    */
   importPackage(input: {
     name: string;
@@ -329,33 +329,33 @@ export interface AasStore {
     id?: string;
     keep?: readonly PackageFileRecord[];
     /**
-     * 주인. 비우면 지금 작업 공간의 것이 되고(작업 공간이 없으면 공용),
-     * **`null`은 「일부러 공용」** 이다 — 공용 파일을 통째로 바꿀 때 공용으로 남기려고 쓴다.
+     * Owner. If empty, it belongs to the current workspace (shared if there is no workspace);
+     * **`null` means "deliberately shared"** — used to keep a shared file shared when replacing it wholesale.
      */
     owner?: string | null;
   }): Promise<PackageRecord>;
-  /** 저장된 것을 원래 AASX 구조로 되돌린다. writeAasx에 그대로 넘길 수 있다 */
+  /** Restores stored data to the original AASX structure. Can be passed straight to writeAasx */
   exportPackage(packageId: string): Promise<AasxPackage>;
   getPackage(packageId: string): Promise<PackageRecord | undefined>;
   /**
-   * `scope`를 주면 **그 주인의 것과 공용(주인 없음)만** 돌려준다.
-   * 🔴 거르는 일을 저장소가 한다 — 받아 온 뒤에 밖에서 거르면 `limit`·`cursor`가 틀어진다
-   *    (한 쪽 20건 중 내 것이 3건이면 3건만 오고, 다음 쪽이 있는지도 알 수 없다).
+   * Given `scope`, returns **only that owner's items and shared (ownerless) items**.
+   * Important: the store does the filtering — filtering outside after fetching breaks `limit`/`cursor`
+   *    (if only 3 of 20 items on a page are mine, only 3 arrive, and there is no way to know whether a next page exists).
    */
   listPackages(page?: PageQuery, scope?: PackageScope): Promise<PageResult<PackageRecord>>;
   deletePackage(packageId: string): Promise<void>;
-  /** 모델만 필요할 때. 린터·Quick Fix에 그대로 넘긴다 */
+  /** When only the model is needed. Passed straight to the linter / Quick Fix */
   getEnvironment(packageId: string): Promise<Environment>;
 
-  // ── 비모델 파트 (썸네일·첨부) ──────────────────────────────────────────────
-  // Part 2의 asset-information/thumbnail처럼 파일 하나만 다뤄야 하는 연산이 있다.
-  // 통째로 export해서 골라내면 Identifiable을 전부 읽는 낭비가 된다.
+  // ── Non-model parts (thumbnail, attachments) ──────────────────────────────
+  // Some operations, like Part 2's asset-information/thumbnail, deal with a single file only.
+  // Exporting everything and picking one out wastes reading all Identifiables.
   packageFiles(packageId: string): Promise<PackageFileRecord[]>;
   putPackageFile(packageId: string, file: PackageFileRecord): Promise<void>;
-  /** 없으면 NotFoundError */
+  /** NotFoundError if absent */
   deletePackageFile(packageId: string, part: string): Promise<void>;
 
-  // ── Identifiable CRUD (IDTA Part 2의 /shells · /submodels · /concept-descriptions) ──
+  // ── Identifiable CRUD (IDTA Part 2's /shells · /submodels · /concept-descriptions) ──
   listIdentifiables(
     packageId: string,
     modelType: IdentifiableModelType,
@@ -385,48 +385,48 @@ export interface AasStore {
     options?: WriteOptions,
   ): Promise<void>;
 
-  // ── 수집값 (시계열) ───────────────────────────────────────────────────────
-  /** 모아 온 값을 쌓는다. 모델은 건드리지 않는다(A안) */
+  // ── Collected values (time series) ────────────────────────────────────────
+  /** Appends collected values. Does not touch the model (Option A) */
   appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void>;
-  /** 최근 것이 앞에 온다 */
+  /** Most recent first */
   readValues(packageId: string, query?: ValueQuery): Promise<CollectedValue[]>;
   /**
-   * `before`(ISO 시각)보다 오래된 수집값을 **모든 패키지에서** 지우고 지운 개수를 돌려준다.
-   * 보존 기간(retention) 집행용 — 모델·리비전은 건드리지 않는다.
+   * Deletes collected values older than `before` (ISO time) **across all packages** and returns the number deleted.
+   * For enforcing the retention period — does not touch models or revisions.
    */
   pruneValues(before: string): Promise<number>;
 
-  /** 변경 전 내용들. 최신 변경이 앞이다 */
+  /** Contents before changes. Most recent change first */
   history(
     packageId: string,
     modelType: IdentifiableModelType,
     id: string,
   ): Promise<HistoryRecord[]>;
 
-  // ── 사용자 (2026-10-02) ───────────────────────────────────────────────────
-  /** 로그인 이름으로 찾는다. 잠긴 계정도 돌려준다 — 막는 판단은 부르는 쪽이 한다 */
+  // ── Users (2026-10-02) ────────────────────────────────────────────────────
+  /** Finds by login name. Locked accounts are returned too — the caller decides whether to block */
   findUserByLogin(login: string): Promise<UserRecord | undefined>;
   getUser(id: string): Promise<UserRecord | undefined>;
-  /** 만든 차례대로. 계정 관리 화면이 쓴다 */
+  /** In creation order. Used by the account management screen */
   listUsers(): Promise<UserRecord[]>;
-  /** 🔴 같은 login이 이미 있으면 거절한다(표의 UNIQUE와 같은 뜻을 메모리 구현에도 세운다) */
+  /** Important: rejects if the same login already exists (enforces the same meaning as the table's UNIQUE in the memory implementation too) */
   createUser(user: NewUser): Promise<UserRecord>;
-  /** 비밀번호·이름·역할·잠금을 고친다. 준 것만 바꾼다 */
+  /** Edits password, name, role and lock state. Changes only what is given */
   updateUser(
     id: string,
     patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email' | 'company'>>,
   ): Promise<UserRecord | undefined>;
-  /** 로그인에 성공한 시각 — 안 쓰는 계정을 가려내는 근거 */
+  /** Time of successful login — the basis for spotting unused accounts */
   touchUserLogin(id: string): Promise<void>;
   /**
-   * 계정을 **지운다**(탈퇴). 없으면 false.
+   * **Deletes** an account (withdrawal). false if absent.
    *
-   * 🔴 감사 기록은 **남는다.** 이력에 적힌 「누가」는 사람 표를 참조하지 않고 그때의
-   *    이름을 베껴 둔 값이라(2026-10-02) 계정이 사라져도 과거가 깨지지 않는다.
-   *    개인정보를 지우라는 요구에 응하면서 「무슨 일이 있었나」는 지키는 설계다.
-   * 🔴 잠그기(disabled)와 다르다. 잠그면 연락처가 남는다 — 지우라는 요구에는 모자란다.
+   * Important: the audit log **remains.** The "who" recorded in history does not reference the users table but is a copy
+   *    of the name at the time (2026-10-02), so the past does not break even when the account disappears.
+   *    A design that complies with requests to erase personal data while preserving "what happened".
+   * Important: different from locking (disabled). Locking keeps the contact details — not enough for an erasure request.
    */
   deleteUser(id: string): Promise<boolean>;
-  /** 계정이 하나도 없으면 **첫 관리자 만들기**를 띄워야 한다 */
+  /** If there are no accounts at all, **create the first admin** must be shown */
   countUsers(): Promise<number>;
 }

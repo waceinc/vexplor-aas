@@ -1,9 +1,9 @@
 /**
- * Quick Fix 검증.
+ * Quick Fix verification.
  *
- * 결함 주입 테스트(injection.test.ts)와 짝을 이룬다 — 저쪽이 "잡아내는가"를 보고,
- * 여기는 "고친 결과가 실제로 통과하는가"를 본다.
- * 교정이 다른 규칙을 새로 깨뜨리면 after.error가 0이 아니게 되므로 회귀가 바로 드러난다.
+ * Pairs with the defect-injection test (injection.test.ts) — that one checks "is it caught?",
+ * this one checks "does the fixed result actually pass?".
+ * If a fix newly breaks another rule, after.error becomes non-zero, so the regression shows up immediately.
  */
 import { readAasx, writeAasx } from '@aas/aasx';
 import type {
@@ -24,10 +24,10 @@ const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url))
 let golden: ReturnType<typeof readAasx>;
 
 beforeAll(() => {
-  golden = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+  golden = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
 });
 
-/** 골든 Environment를 복제해 결함을 주입한 뒤 린트 → 교정 → 재린트한다 */
+/** Clones the golden Environment, injects a defect, then lint → fix → re-lint */
 function fixMutated(
   mutate: (env: Environment) => void,
   options: ApplyFixOptions = {},
@@ -35,7 +35,7 @@ function fixMutated(
   const env = structuredClone(golden.environment);
   mutate(env);
   const result = lintAndFix(env, { package: golden.opc, ...options });
-  // 주입이 실제로 위반을 만들었는지 확인한다 — 이게 없으면 통과가 공회전일 수 있다
+  // Confirm the injection actually produced a violation — without this, a pass could be vacuous
   expect(result.before.countBySeverity.error).toBeGreaterThan(0);
   return { ...result, env: result.environment };
 }
@@ -44,7 +44,7 @@ function errorsOf(findings: readonly { ruleId: string; severity: string }[], rul
   return findings.filter((f) => f.ruleId === ruleId && f.severity === 'error').length;
 }
 
-/** 교정 결과에 남은 위반을 사람이 읽을 형태로 — 실패 시 원인이 바로 보이게 한다 */
+/** Remaining violations after fixing, in human-readable form — so the cause is obvious on failure */
 function remaining(result: LintAndFixResult): string {
   return result.after.findings
     .filter((f) => f.severity === 'error')
@@ -79,8 +79,8 @@ function findElement(
   throw new Error('조건에 맞는 요소를 찾지 못했습니다');
 }
 
-describe('Quick Fix — 실측 결함 8종 교정', () => {
-  it('KOSMO-AAS-1: 썸네일 누락을 패키지 파트에서 찾아 채운다', () => {
+describe('Quick Fix — fixing the 8 observed defect types', () => {
+  it('KOSMO-AAS-1: fills a missing thumbnail by finding it among the package parts', () => {
     const r = fixMutated((env) => {
       delete env.assetAdministrationShells![0]!.assetInformation.defaultThumbnail;
     });
@@ -91,15 +91,15 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-AAS-1: 패키지 정보 없이는 고치지 않고 이유를 남긴다', () => {
+  it('KOSMO-AAS-1: without package info, does not fix and records the reason', () => {
     const env = structuredClone(golden.environment);
     delete env.assetAdministrationShells![0]!.assetInformation.defaultThumbnail;
-    const r = lintAndFix(env); // package 미지정
+    const r = lintAndFix(env); // package not given
     expect(r.applied.filter((a) => a.ruleId === 'KOSMO-AAS-1')).toHaveLength(0);
     expect(r.skipped.some((s) => s.ruleId === 'KOSMO-AAS-1' && s.reason.includes('패키지 정보'))).toBe(true);
   });
 
-  it('KOSMO-AAS-3: administration이 없으면 id 접미에서 만들어 낸다', () => {
+  it('KOSMO-AAS-3: derives administration from the id suffix when it is missing', () => {
     const r = fixMutated((env) => {
       delete env.assetAdministrationShells![0]!.administration;
     });
@@ -107,7 +107,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SM-2: id 접미가 어긋나면 id를 고치고 AAS의 참조까지 갱신한다', () => {
+  it('KOSMO-SM-2: fixes a mismatched id suffix and updates the AAS references too', () => {
     const target = golden.environment.submodels!.findIndex((s) => s.idShort === 'OperationalData');
     const oldId = golden.environment.submodels![target]!.id;
 
@@ -117,19 +117,19 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
 
     const fixed = r.env.submodels![target]!;
     expect(fixed.id.endsWith('/2/3')).toBe(true);
-    // 참조 무결성 — AAS의 submodels[]와 자기 semanticId가 함께 따라와야 한다
+    // Referential integrity — the AAS submodels[] and its own semanticId must follow along
     const refs = (r.env.assetAdministrationShells![0]!.submodels ?? []).flatMap((ref) =>
       ref.keys.map((k) => k.value),
     );
     expect(refs).toContain(fixed.id);
     expect(refs).not.toContain(oldId);
     expect(fixed.semanticId!.keys[0]!.value).toBe(fixed.id);
-    // 이관 대장에 원본이 남는다
+    // The original is kept in the migration log
     expect(r.relocations[fixed.id]).toBe(oldId);
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-AAS-5: globalAssetId를 규약대로 만든다', () => {
+  it('KOSMO-AAS-5: builds globalAssetId per the convention', () => {
     const r = fixMutated((env) => {
       delete env.assetAdministrationShells![0]!.assetInformation.globalAssetId;
     });
@@ -139,7 +139,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-AAS-6 · SM-4: Type · Template으로 되돌린다', () => {
+  it('KOSMO-AAS-6 · SM-4: reverts to Type · Template', () => {
     const r = fixMutated((env) => {
       env.assetAdministrationShells![0]!.assetInformation.assetKind = 'Instance';
       env.submodels![0]!.kind = 'Instance';
@@ -149,7 +149,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SM-3: 허용 목록 밖 semanticId를 자기 id로 옮기고 원본을 대장에 남긴다', () => {
+  it('KOSMO-SM-3: moves a non-allowlisted semanticId to its own id and records the original in the log', () => {
     const idtaIri = 'https://admin-shell.io/zvei/nameplate/3/0/Nameplate';
     const r = fixMutated((env) => {
       env.submodels![0]!.semanticId = {
@@ -163,7 +163,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SM-3: 키 타입이 Submodel로 바뀐 것을 GlobalReference로 되돌린다 (basyx 드롭 방지)', () => {
+  it('KOSMO-SM-3: reverts a key type changed to Submodel back to GlobalReference (prevents basyx drop)', () => {
     const r = fixMutated((env) => {
       env.submodels![0]!.semanticId!.keys[0]!.type = 'Submodel';
     });
@@ -171,7 +171,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-CD-2: 허용 목록 밖 CD id를 자체 IRI 규약으로 옮기고 참조를 갱신한다', () => {
+  it('KOSMO-CD-2: moves a non-allowlisted CD id to the in-house IRI convention and updates references', () => {
     const index = golden.environment.conceptDescriptions!.findIndex(
       (cd) => cd.id === 'https://www.smart-factory.kr/ids/cd/AlarmActive/1/0',
     );
@@ -181,7 +181,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
       const cd = env.conceptDescriptions![index]!;
       const oldId = cd.id;
       cd.id = 'https://example.com/AlarmActive';
-      // 참조도 함께 옮겨 둔다 — 실제 이관 사고와 같은 모양
+      // Move the references too — the same shape as the real migration incident
       for (const sm of env.submodels ?? []) {
         for (const node of allElements(sm)) {
           const key = node.semanticId?.keys?.[0];
@@ -193,12 +193,12 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     const cd = r.env.conceptDescriptions![index]!;
     expect(cd.id).toBe(canonical);
     expect(r.relocations[canonical]).toBe('https://example.com/AlarmActive');
-    // 참조가 따라왔는지 — 어디에도 옛 id가 남으면 안 된다
+    // Did the references follow — the old id must not remain anywhere
     expect(JSON.stringify(r.env)).not.toContain('https://example.com/AlarmActive');
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SME-3: semanticId가 없으면 규약대로 붙이고 CD가 없으면 만든다', () => {
+  it('KOSMO-SME-3: adds a semanticId per the convention when missing, and creates the CD when missing', () => {
     const { node } = findElement(golden.environment, (n) => n.modelType === 'Property');
     const idShort = node.idShort!;
 
@@ -214,9 +214,9 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SME-3: idShort 없는 리스트 자식의 CD는 부모 리스트 이름의 단수형(Markings → Marking)으로 만든다', () => {
-    // AASd-120 교정 뒤 모습 — idShort 없는 리스트 자식의 semanticId가 가리키는 CD가 없다.
-    // 전에는 "idShort가 없어 ConceptDescription을 만들 수 없습니다"로 건너뛰어 단추 숫자와 팝업이 어긋났다(2026-09-11)
+  it('KOSMO-SME-3: creates the CD for an idShort-less list child from the singular of the parent list name (Markings → Marking)', () => {
+    // The state after the AASd-120 fix — the CD that an idShort-less list child's semanticId points to is missing.
+    // Previously this was skipped with "cannot create a ConceptDescription because idShort is missing", so the button count and the popup disagreed (2026-09-11)
     let semantic = '';
     const r = fixMutated((env) => {
       const { node } = findElement(env, (n) => n.idShort === 'Markings' && n.modelType === 'SubmodelElementList');
@@ -231,7 +231,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('AASd-109: Property 리스트에 valueTypeListElement가 없으면 자식들의 valueType으로 채운다', () => {
+  it('AASd-109: fills a missing valueTypeListElement on a Property list from the children valueType', () => {
     const r = fixMutated((env) => {
       const sm = env.submodels!.find((s) => s.idShort === 'TechnicalData')!;
       sm.submodelElements!.push({
@@ -249,7 +249,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(r.after.findings.filter((f) => f.ruleId === 'AASd-107/108/109/114' && f.severity === 'error')).toEqual([]);
   });
 
-  it('KOSMO-SME-3: CD가 통째로 없어진 경우 골든 파일과 같은 모양으로 새로 만든다', () => {
+  it('KOSMO-SME-3: when a CD is missing entirely, recreates it in the same shape as the golden file', () => {
     const { node } = findElement(
       golden.environment,
       (n) => n.modelType === 'Property' && (n.semanticId?.keys[0]?.value ?? '').includes('/ids/cd/'),
@@ -263,7 +263,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     const created = r.env.conceptDescriptions!.find((cd) => cd.id === semantic);
     expect(created).toBeDefined();
     expect(created!.idShort).toBe(node.idShort);
-    const content = created!.embeddedDataSpecifications![0]!.dataSpecificationContent as {
+    const content = created!.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as {
       preferredName: { language: string; text: string }[];
       dataType?: string;
     };
@@ -272,7 +272,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SME-5: 자체 CD면 CD의 dataType을 Property에 맞춘다', () => {
+  it('KOSMO-SME-5: for an in-house CD, aligns the CD dataType to the Property', () => {
     const { node } = findElement(
       golden.environment,
       (n) =>
@@ -289,16 +289,16 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     });
 
     const cd = r.env.conceptDescriptions!.find((c) => c.id === semantic)!;
-    const content = cd.embeddedDataSpecifications![0]!.dataSpecificationContent as { dataType?: string };
+    const content = cd.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as { dataType?: string };
     expect(content.dataType).toBe('BOOLEAN');
-    // 우리 쪽 valueType은 건드리지 않는다
+    // Our valueType is left untouched
     const fixed = findElement(r.env, (n) => n.idShort === idShort && n.modelType === 'Property');
     expect((fixed.node as Property).valueType).toBe('xs:boolean');
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-SME-5: 외부 표준 사전(IRDI) CD면 반대로 Property의 valueType을 맞춘다', () => {
-    // IRDI CD를 가리키는 Property를 골라 valueType만 어긋나게 만든다
+  it('KOSMO-SME-5: for an external standard dictionary (IRDI) CD, aligns the Property valueType instead', () => {
+    // Pick a Property pointing to an IRDI CD and make only its valueType mismatch
     const found = findElement(
       golden.environment,
       (n) => n.modelType === 'Property' && (n.semanticId?.keys[0]?.value ?? '').startsWith('0112/'),
@@ -306,7 +306,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     const idShort = found.node.idShort!;
     const semantic = found.node.semanticId!.keys[0]!.value;
     const cd = golden.environment.conceptDescriptions!.find((c) => c.id === semantic)!;
-    const dataType = (cd.embeddedDataSpecifications![0]!.dataSpecificationContent as { dataType?: string })
+    const dataType = (cd.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as { dataType?: string })
       .dataType;
 
     const r = fixMutated((env) => {
@@ -315,53 +315,53 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     });
 
     const fixedCd = r.env.conceptDescriptions!.find((c) => c.id === semantic)!;
-    const fixedContent = fixedCd.embeddedDataSpecifications![0]!.dataSpecificationContent as {
+    const fixedContent = fixedCd.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as {
       dataType?: string;
     };
-    // 외부 CD 원본은 그대로 두고
+    // The external CD stays as is
     expect(fixedContent.dataType).toBe(dataType);
-    // 우리 쪽 valueType이 바뀐다
+    // and our valueType changes
     const fixedProp = findElement(r.env, (n) => n.idShort === idShort && n.modelType === 'Property');
     expect((fixedProp.node as Property).valueType).not.toBe('xs:boolean');
     expect(remaining(r)).toBe('');
   });
 
-  it('KOSMO-CD-4: 허용 목록 밖 dataType을 STRING으로 정규화한다', () => {
+  it('KOSMO-CD-4: normalizes a non-allowlisted dataType to STRING', () => {
     const r = fixMutated((env) => {
       const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-        .dataSpecificationContent as { dataType?: string };
+        .dataSpecificationContent as unknown as { dataType?: string };
       content.dataType = 'FILE';
     });
     const content = r.env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { dataType?: string };
+      .dataSpecificationContent as unknown as { dataType?: string };
     expect(content.dataType).toBe('STRING');
     expect(remaining(r)).toBe('');
   });
 
-  it('🔴 AASc-3a-009: 단위를 지어내지 않고 dataType을 COUNT로 낮춘다', () => {
-    // 「12.5」가 kW인지 A인지 우리는 모른다 — 틀린 단위는 안 붙은 것보다 위험하다
+  it('Important: AASc-3a-009: does not invent a unit; downgrades dataType to COUNT instead', () => {
+    // We cannot know whether "12.5" is kW or A — a wrong unit is more dangerous than none
     const r = fixMutated((env) => {
       const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-        .dataSpecificationContent as { dataType?: string; unit?: string };
+        .dataSpecificationContent as unknown as { dataType?: string; unit?: string };
       content.dataType = 'REAL_MEASURE';
       delete content.unit;
     });
     const content = r.env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { dataType?: string; unit?: string };
+      .dataSpecificationContent as unknown as { dataType?: string; unit?: string };
     expect(content.dataType).toBe('REAL_COUNT');
-    // 단위를 만들어 넣지 않았다
+    // No unit was made up
     expect(content.unit).toBeUndefined();
     expect(remaining(r)).toBe('');
-    // 되돌리라는 말을 남긴다 — 사람이 판단할 자리다
+    // Leaves a note to revert — this is for a human to decide
     expect(r.applied.some((a) => a.description.includes('되돌리십시오'))).toBe(true);
   });
 
-  it('AASc-3a-009: 단위가 이미 있으면 애초에 지적되지 않는다', () => {
-    // 🔴 fixMutated를 쓰지 않는다 — 그건 「위반이 생겼는지」를 먼저 확인하는 도구인데
-    //    여기서 확인할 것은 정반대로 **위반이 안 생기는 것**이다
+  it('AASc-3a-009: is not flagged in the first place when a unit already exists', () => {
+    // Important: do not use fixMutated — it first checks that "a violation was produced",
+    //    whereas here we check the exact opposite: **that no violation is produced**
     const env = structuredClone(golden.environment);
     const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { dataType?: string; unit?: string };
+      .dataSpecificationContent as unknown as { dataType?: string; unit?: string };
     content.dataType = 'REAL_MEASURE';
     content.unit = 'rpm';
     const r = lintAndFix(env, { package: golden.opc });
@@ -369,7 +369,7 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(content.dataType).toBe('REAL_MEASURE');
   });
 
-  it('PKG-FILE-URI: 상대경로 File.value에 file:// 스킴을 붙인다', () => {
+  it('PKG-FILE-URI: adds the file:// scheme to a relative-path File.value', () => {
     const found = findElement(golden.environment, (n) => n.modelType === 'File');
     const idShort = found.node.idShort!;
 
@@ -383,23 +383,23 @@ describe('Quick Fix — 실측 결함 8종 교정', () => {
     expect(remaining(r)).toBe('');
   });
 
-  it('PKG-LANG-DUP: 중복 언어 태그 중 뒤엣것만 지우고 텍스트는 손대지 않는다', () => {
+  it('PKG-LANG-DUP: removes only the later duplicate language tag and leaves the text untouched', () => {
     const r = fixMutated((env) => {
       const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-        .dataSpecificationContent as { preferredName: { language: string; text: string }[] };
+        .dataSpecificationContent as unknown as { preferredName: { language: string; text: string }[] };
       content.preferredName.push({ language: 'en', text: '나중에 들어온 오타본' });
     });
 
     const content = r.env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { preferredName: { language: string; text: string }[] };
+      .dataSpecificationContent as unknown as { preferredName: { language: string; text: string }[] };
     expect(content.preferredName.filter((s) => s.language === 'en')).toHaveLength(1);
     expect(content.preferredName.some((s) => s.text === '나중에 들어온 오타본')).toBe(false);
     expect(remaining(r)).toBe('');
   });
 });
 
-describe('Quick Fix — 계약', () => {
-  it('입력 Environment를 변경하지 않는다', () => {
+describe('Quick Fix — contract', () => {
+  it('does not mutate the input Environment', () => {
     const env = structuredClone(golden.environment);
     const snapshot = JSON.stringify(env);
     env.assetAdministrationShells![0]!.assetInformation.assetKind = 'Instance';
@@ -407,18 +407,18 @@ describe('Quick Fix — 계약', () => {
 
     lintAndFix(env, { package: golden.opc });
     expect(JSON.stringify(env)).toBe(mutated);
-    expect(mutated).not.toBe(snapshot); // 주입이 실제로 반영됐는지 확인
+    expect(mutated).not.toBe(snapshot); // Confirm the injection actually took effect
   });
 
-  it('교정할 것이 없으면 한 바퀴만 돌고 끝난다', () => {
+  it('runs a single pass and stops when there is nothing to fix', () => {
     const r = lintAndFix(golden.environment, { package: golden.opc });
     expect(r.applied).toHaveLength(0);
     expect(r.rounds).toBe(1);
     expect(r.after.countBySeverity.error).toBe(0);
   });
 
-  it('교정기가 없는 규칙은 조용히 넘기지 않고 이유를 남긴다', () => {
-    // KOSMO-CD-5(중복 id)는 fixable이지만 자동 교정 대상이 아니다 — 사람이 합쳐야 한다
+  it('does not silently skip rules without a fixer; records the reason', () => {
+    // KOSMO-CD-5 (duplicate id) is fixable but not auto-fixed — a human has to merge
     const r = fixMutated((env) => {
       const cd = structuredClone(env.conceptDescriptions![0]!) as ConceptDescription;
       env.conceptDescriptions!.push(cd);
@@ -427,13 +427,13 @@ describe('Quick Fix — 계약', () => {
     expect(r.skipped.some((s) => s.ruleId === 'KOSMO-CD-5' && s.reason.includes('자동 교정기'))).toBe(true);
   });
 
-  it('한 번에 다 드러나지 않는 결함도 반복으로 수렴시킨다', () => {
+  it('converges by iteration on defects that do not all surface at once', () => {
     const r = fixMutated((env) => {
       const shell = env.assetAdministrationShells![0]!;
       shell.assetInformation.assetKind = 'Instance';
       delete shell.assetInformation.globalAssetId;
       delete shell.assetInformation.defaultThumbnail;
-      delete env.submodels![0]!.administration; // administration을 만든 뒤에야 id 검사가 열린다
+      delete env.submodels![0]!.administration; // the id check only opens up after administration is created
       env.submodels![1]!.kind = 'Instance';
       env.submodels![2]!.semanticId = {
         type: 'ExternalReference',
@@ -446,7 +446,7 @@ describe('Quick Fix — 계약', () => {
     expect(r.rounds).toBeLessThanOrEqual(5);
   });
 
-  it('교정 결과가 AASX로 저장돼 다시 읽어도 위반 0건이다', () => {
+  it('the fixed result saved as AASX and read back has 0 violations', () => {
     const env = structuredClone(golden.environment);
     env.assetAdministrationShells![0]!.assetInformation.assetKind = 'Instance';
     delete env.assetAdministrationShells![0]!.assetInformation.globalAssetId;
@@ -462,8 +462,8 @@ describe('Quick Fix — 계약', () => {
   });
 });
 
-describe('Quick Fix — 규격 준수(AASd-120 · AASd-090)', () => {
-  it('SML 자식의 idShort를 지운다 — 표준 도구가 통과하는 형태로', () => {
+describe('Quick Fix — spec compliance (AASd-120 · AASd-090)', () => {
+  it('removes idShort from SML children — into a form standard tools accept', () => {
     const env = structuredClone(golden.environment);
     const before = lint(env, ALL_RULES, {
       package: golden.opc,
@@ -477,16 +477,16 @@ describe('Quick Fix — 규격 준수(AASd-120 · AASd-090)', () => {
     });
     expect(result.after.countBySeverity.error).toBe(0);
     expect(result.applied.some((a) => a.ruleId === 'AASd-120')).toBe(true);
-    // 지운 값은 기록에 남는다 — 되돌릴 수 있어야 한다
+    // Removed values are recorded — it must be reversible
     const applied = result.applied.find((a) => a.ruleId === 'AASd-120')!;
     expect(applied.before).toBe('MarkingsEntry_0');
 
-    // KOSMO 규칙은 그대로 0건 — 지워도 제출에 영향이 없다
+    // KOSMO rules stay at 0 — removal does not affect submission
     const kosmo = lint(result.environment, ALL_RULES, { package: golden.opc });
     expect(kosmo.countBySeverity.error).toBe(0);
   });
 
-  it('허용값 밖 category는 지운다 — 무엇으로 바꿀지는 사람이 정한다', () => {
+  it('removes a category outside the allowed values — a human decides what to replace it with', () => {
     const r = fixMutated((env) => {
       const property = findElement(env, (n) => n.modelType === 'Property').node;
       property.category = 'DOCUMENT';

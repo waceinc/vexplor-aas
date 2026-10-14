@@ -1,17 +1,17 @@
 /**
- * 문서용 자료 — 가이던스에 **붙여넣을** 그림과 표.
+ * Document assets — figures and tables to **paste** into the guidance.
  *
- * 근거: KTL 규정 §13.
- *  - 주의사항 3 — 모든 서브모델에 **UML Diagram 첨부**
- *  - 주의사항 5 — 장비 특화 서브모델에 한해 **구성요소 상세 정보 테이블** 작성
+ * Basis: KTL rules §13.
+ *  - Caution 3 — **attach a UML diagram** to every submodel
+ *  - Caution 5 — write a **component detail table** only for equipment-specific submodels
  *
- * 🔴 가이던스 **문장은 도구가 쓰지 않는다.** 파일에 있는 사실만 뽑아 준다.
- * 🔴 문서를 직접 고치지도 않는다 — 표를 프로그램이 재생성하다 19건이 손상돼
- *    백업에서 복구한 사고가 있다(02_Validator_대응규칙 §4.3). 우리는 그 자리에 들어가지 않는다.
+ * Important: the tool **does not write guidance sentences.** It only extracts facts present in the file.
+ * Important: it does not edit the document directly either — there was an incident where a program regenerating tables
+ *    damaged 19 of them and they had to be restored from backup (02_Validator_대응규칙 §4.3). We stay out of that role.
  *
- * 붙여넣기가 실제로 되게 하는 것이 이 화면의 전부다.
- *  - 그림은 **PNG로** 클립보드에 넣는다. 한글(HWP)은 SVG를 제대로 못 받는다
- *  - 표는 **HTML로** 클립보드에 넣는다. 그래야 워드·한글·엑셀에 표 모양 그대로 붙는다
+ * Making pasting actually work is the whole point of this screen.
+ *  - Figures go to the clipboard **as PNG**. Hangul (HWP) does not accept SVG properly
+ *  - Tables go to the clipboard **as HTML**. Only then do they paste as tables into Word, Hangul, and Excel
  */
 import { useEffect, useRef, useState } from 'react';
 import { api, type DocPlan, type SubmodelInfo, type TableRow } from '../api.js';
@@ -24,19 +24,19 @@ import { T } from './T.js';
 interface Props {
   packageId: string;
   submodels: Submodel[];
-  /** 장비명 — 문서 제목과 파일명에 쓴다 */
+  /** Equipment name — used in the document title and file name */
   assetName: string;
   onClose: () => void;
 }
 
 export function DocAssets({ packageId, submodels, assetName, onClose }: Props): React.JSX.Element {
-  const [target, setTarget] = useState<string>(''); // '' = 전체 구성도
+  const [target, setTarget] = useState<string>(''); // '' = full structure diagram
   const [svg, setSvg] = useState<string>('');
   const [note, setNote] = useState<string>();
   const [plan, setPlan] = useState<DocPlan>();
   const [rows, setRows] = useState<TableRow[]>();
   const [info, setInfo] = useState<SubmodelInfo>();
-  /** 서버가 만든 표 HTML — 화면에 보이는 것과 문서에 붙는 것이 같아야 한다 */
+  /** Table HTML built by the server — what is shown on screen and what is pasted into the document must be the same */
   const [tableHtml, setTableHtml] = useState<string>('');
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string>();
@@ -54,7 +54,7 @@ export function DocAssets({ packageId, submodels, assetName, onClose }: Props): 
     };
   }, [packageId, target]);
 
-  // 표 — 규정은 **장비 특화 서브모델에만** 표를 요구한다. 표준 템플릿이면 info가 온다
+  // Table — the rules require a table **only for equipment-specific submodels**. For a standard template, info comes back
   useEffect(() => {
     if (target === '') {
       setPlan(undefined);
@@ -83,7 +83,7 @@ export function DocAssets({ packageId, submodels, assetName, onClose }: Props): 
     setError(undefined);
     try {
       const html = await api.tableHtml(packageId, target);
-      // 🔴 HTML로 넣어야 워드·한글·엑셀에 **표 모양 그대로** 붙는다. 글자만 붙으면 소용없다
+      // Important: it must go in as HTML to paste into Word, Hangul, and Excel **as a table**. Pasting plain text is useless
       await navigator.clipboard.write([
         new ClipboardItem({
           'text/html': new Blob([html], { type: 'text/html' }),
@@ -106,18 +106,18 @@ export function DocAssets({ packageId, submodels, assetName, onClose }: Props): 
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
       setNote(tr('그림을 복사했습니다. 문서에 붙여넣으십시오(Ctrl+V).'));
     } catch {
-      // 클립보드 권한이 없거나 브라우저가 막는 경우가 있다 — 그때는 파일로 준다
+      // Clipboard permission may be missing or blocked by the browser — in that case hand it over as a file
       setError(tr('복사가 막혔습니다. 「PNG 내려받기」를 쓰십시오.'));
     }
   };
 
   /**
-   * 문서 한 벌 내려받기 — **진짜 .docx**.
+   * Download the full document — **a real .docx**.
    *
-   * 🔴 처음엔 HTML 기반 `.doc`로 만들었는데, 워드가 **용지 설정을 적용하지 않았다**
-   *    (실측: 그림 폭은 17cm로 들어갔지만 page setup이 비어 있었다. 용지가 Letter로
-   *    열리면 본문 폭이 16.5cm라 그림이 넘친다). 한글(HWP)은 더 제멋대로 연다.
-   *    .docx는 용지·여백·그림 크기를 EMU로 못박으므로 둘 다 똑같이 연다.
+   * Important: it was first built as an HTML-based `.doc`, but Word **did not apply the page setup**
+   *    (measured: figures went in at 17 cm wide but page setup was empty. If the page opens as Letter
+   *    the body width is 16.5 cm and figures overflow). Hangul (HWP) opens it even more unpredictably.
+   *    .docx pins paper, margins, and figure size in EMU, so both open it the same way.
    */
   const buildDocument = async (): Promise<void> => {
     setBuilding(true);
@@ -183,7 +183,7 @@ export function DocAssets({ packageId, submodels, assetName, onClose }: Props): 
       </div>
 
       <div className="row-buttons">
-        {/* 서브모델 전부를 한 문서로 — 열어서 필요한 부분만 복사하면 된다 */}
+        {/* All submodels in one document — open it and copy only the parts you need */}
         <button
           className="primary"
           disabled={building}
@@ -199,7 +199,7 @@ export function DocAssets({ packageId, submodels, assetName, onClose }: Props): 
       {error && <p className="note error">{error}</p>}
       <p className="hint"><T k={'한글(HWP)·워드에는 <b>그림 복사</b>(PNG)가 안전합니다. SVG는 크기를 키워도 안 깨지지만 한글에서 제대로 안 붙는 경우가 있습니다.'} /></p>
 
-      {/* 흰 바탕 그대로 보여 준다 — 문서에 붙였을 때와 같은 모습이어야 한다 */}
+      {/* Shown on a white background as-is — it must look the same as when pasted into a document */}
       <div className="diagram" ref={holder} dangerouslySetInnerHTML={{ __html: svg }} />
 
       {plan && (
@@ -225,7 +225,7 @@ export function DocAssets({ packageId, submodels, assetName, onClose }: Props): 
                 </button>
                 <span className="hint"><T k={'{0}행'} v={[rows.length]} /></span>
               </div>
-              {/* 서버가 만든 표를 그대로 보여 준다 — 흰 바탕이어야 문서에 붙였을 때와 같다 */}
+              {/* Show the server-built table as-is — it needs a white background to match how it looks pasted into a document */}
               <div className="preview" dangerouslySetInnerHTML={{ __html: tableHtml }} />
             </>
           )}

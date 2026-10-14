@@ -1,7 +1,7 @@
 /**
- * 화면 효과 — 시작하기 목록 체크 · 처음 둘러보기 · F1 도움말 · 알림 띠 자동 닫기 · Esc 로 하나씩 닫기 · Ctrl+Z 되돌리기.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름으로 받는다(c 에서 꺼낸다).
+ * Screen effects — getting-started checklist ticks · first-run tour · F1 help · auto-dismiss of notice strips · Esc closes one thing at a time · Ctrl+Z undo.
+ * Split out of App.tsx (componentization, 2026-10-13) — the code is verbatim from before the move,
+ * and the state and actions it uses arrive under the same names (taken from c).
  */
 import { useCallback, useEffect } from 'react';
 import { type StartItem } from '../components/GettingStarted.js';
@@ -10,22 +10,22 @@ import type { Full } from './context.js';
 
 export function useAppBehavior(c: Pick<Full, 'adding' | 'auth' | 'busy' | 'demoLocked' | 'fileInput' | 'filesOpen' | 'fixPlans' | 'historyFor' | 'markStart' | 'notice' | 'onDownload' | 'onFix' | 'onOpenSample' | 'onRedo' | 'onUndo' | 'packageId' | 'selectedKey' | 'setAdding' | 'setFilesOpen' | 'setHistoryFor' | 'setNotice' | 'setSelectedKey' | 'setShowFindings' | 'setShowHelp' | 'setShowOpcua' | 'setShowRules' | 'setStartAccounts' | 'setTour' | 'showFindings' | 'showHelp' | 'showOpcua' | 'showRules' | 'start' | 't' | 'tour' | 'undoState'>) {
   const { adding, auth, busy, demoLocked, fileInput, filesOpen, fixPlans, historyFor, markStart, notice, onDownload, onFix, onOpenSample, onRedo, onUndo, packageId, selectedKey, setAdding, setFilesOpen, setHistoryFor, setNotice, setSelectedKey, setShowFindings, setShowHelp, setShowOpcua, setShowRules, setStartAccounts, setTour, showFindings, showHelp, showOpcua, showRules, start, t, tour, undoState } = c;
-  // 시작하기 목록 — 파일을 열었다 · 검사 결과를 봤다
+  // Getting-started checklist — opened a file · viewed check results
   useEffect(() => {
     if (packageId) markStart('open');
   }, [packageId, markStart]);
   useEffect(() => {
     if (showFindings) markStart('check');
   }, [showFindings, markStart]);
-  /** 안으로 들어와 있나 — 로그인 화면에서는 도움말 장치를 띄우지 않는다 */
+  /** Signed in? — help widgets are not shown on the login screen */
   const inside = auth !== undefined && !(auth.authRequired && !auth.authenticated);
-  /** 지금 화면 — 도움말이 먼저 펼칠 주제 */
+  /** Current screen — the topic help opens first */
   const helpContext: HelpContext = showFindings || fixPlans ? 'check' : packageId ? 'edit' : 'open';
   const startTour = useCallback((name: string) => {
     setShowHelp(false);
     setTour({ name, steps: name === 'file' ? fileTour() : welcomeTour() });
   }, []);
-  /** 시작하기 목록의 네 줄 — 누르면 그 일을 바로 시작한다(할 수 없으면 무엇을 먼저 할지 알린다) */
+  /** The four getting-started rows — clicking one starts that task right away (if it can't, says what to do first) */
   const startItems = (): StartItem[] => {
     const has = (step: StartStep): boolean => start.done.includes(step);
     return [
@@ -67,7 +67,7 @@ export function useAppBehavior(c: Pick<Full, 'adding' | 'auth' | 'busy' | 'demoL
           },
     ];
   };
-  // 처음 들어왔을 때 · 처음 파일을 열었을 때 한 번씩. 🔴 시험에서는 저절로 띄우지 않는다(화면을 덮는다)
+  // Once on first entry and once on first file open. Important: never auto-show in tests (it covers the screen)
   useEffect(() => {
     if (import.meta.env.MODE === 'test' || !inside || tour || showHelp) return;
     const name = packageId ? 'file' : 'welcome';
@@ -75,7 +75,7 @@ export function useAppBehavior(c: Pick<Full, 'adding' | 'auth' | 'busy' | 'demoL
     const timer = window.setTimeout(() => startTour(name), packageId ? 1400 : 900);
     return () => window.clearTimeout(timer);
   }, [inside, packageId, tour, showHelp, startTour]);
-  // F1 — 도움말 (브라우저 자체 도움말 대신)
+  // F1 — help (instead of the browser's own help)
   useEffect(() => {
     if (!inside) return;
     const onKey = (event: KeyboardEvent): void => {
@@ -87,17 +87,17 @@ export function useAppBehavior(c: Pick<Full, 'adding' | 'auth' | 'busy' | 'demoL
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [inside]);
-  // 알림 띠는 저절로 사라진다 — 닫기를 누르지 않으면 한 시간 전 알림이 그대로 남아 있었다
+  // Notice strips dismiss themselves — without clicking close, an hour-old notice used to linger
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(undefined), 6000);
     return () => window.clearTimeout(timer);
   }, [notice]);
-  // Esc — 열린 것부터 하나씩 닫는다. 아무것도 안 열려 있으면 선택을 내려놓는다
-  // Ctrl/⌘+Z — 되돌리기, Shift를 더하면 다시 하기(입력 칸 안에서는 그 칸의 몫)
+  // Esc — close open things one at a time. If nothing is open, clear the selection
+  // Ctrl/⌘+Z — undo; with Shift, redo (inside an input field it belongs to that field)
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      // 입력 중인 칸의 Esc·Ctrl+Z는 그 칸의 몫이다(검색창 비우기·글자 되돌리기)
+      // Esc and Ctrl+Z in a focused input belong to that input (clearing search, undoing typing)
       const target = event.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !busy) {
@@ -116,7 +116,7 @@ export function useAppBehavior(c: Pick<Full, 'adding' | 'auth' | 'busy' | 'demoL
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- onUndo/onRedo는 매 렌더 새로 만들어진다; 상태는 그 안에서 읽는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onUndo/onRedo are recreated every render; state is read inside them
   }, [showFindings, showOpcua, showRules, adding, historyFor, filesOpen, selectedKey, busy, packageId, undoState]);
   return { inside, helpContext, startTour, startItems };
 }

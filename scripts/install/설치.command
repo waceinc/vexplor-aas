@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# VEXPLOR AAS Studio 설치 (맥) — 이 파일을 두 번 클릭하십시오.
-# 🔴 .command 확장자라 파인더에서 두 번 클릭하면 터미널이 열린다.
-#    (처음에는 "확인되지 않은 개발자" 경고가 날 수 있다 — 우클릭 → 열기)
+# VEXPLOR AAS Studio install (Mac) — double-click this file.
+# Important: with the .command extension, double-clicking in Finder opens Terminal.
+#    (The first time an "unidentified developer" warning may appear — right-click → Open)
 set -uo pipefail
 cd "$(dirname "$0")"
 
@@ -11,9 +11,9 @@ echo "  VEXPLOR AAS Studio 설치"
 echo "================================================"
 echo
 
-# 🔴 파인더에서 두 번 클릭하면 PATH가 /usr/bin:/bin:/usr/sbin:/sbin 뿐이다.
-#    Docker CLI는 /usr/local/bin 등에 있어서 "설치돼 있지 않습니다"로 잘못 멈춘다(실측).
-#    터미널에서는 잘 되는데 두 번 클릭만 안 되는 원인이 이것이다.
+# Important: when double-clicked in Finder, PATH is only /usr/bin:/bin:/usr/sbin:/sbin.
+#    The Docker CLI lives in /usr/local/bin etc., so it wrongly stops with "not installed" (measured).
+#    This is why it works from Terminal but not on double-click.
 for _dir in /usr/local/bin /opt/homebrew/bin "$HOME/.docker/bin" \
             /Applications/Docker.app/Contents/Resources/bin; do
   [ -d "$_dir" ] && case ":$PATH:" in *":$_dir:"*) ;; *) PATH="$PATH:$_dir" ;; esac
@@ -26,8 +26,8 @@ if ! command -v docker >/dev/null 2>&1; then
   echo; read -r -p "엔터를 누르면 닫힙니다."; exit 1
 fi
 
-# 🔴 Docker를 DMG 창에서 바로 실행하면 CLI가 /Volumes/... 를 가리킨다.
-#    지금은 돌지만 DMG를 빼거나 재부팅하면 통째로 사라진다 — 미리 잡아 준다.
+# Important: if Docker is launched straight from the DMG window, the CLI points into /Volumes/... .
+#    It works for now, but vanishes entirely once the DMG is ejected or after a reboot — catch it early.
 if readlink "$(command -v docker)" 2>/dev/null | grep -q '^/Volumes/'; then
   echo "[X] Docker가 아직 「응용 프로그램」 폴더에 설치되지 않았습니다."
   echo "    지금은 DMG(디스크 이미지) 창에서 돌고 있어서, 재부팅하면 사라집니다."
@@ -67,9 +67,9 @@ grep -Eq '^POSTGRES_PASSWORD=.+' .env || {
   open -e .env 2>/dev/null || true
   read -r -p "엔터를 누르면 닫힙니다."; exit 1
 }
-# 접속 토큰은 **없어도 된다**. 사내에서 누구나 열고 고쳐도 되는 것이 기본 쓰임새다.
-# 다만 프로그램에는 "토큰이 없으면 이 컴퓨터에서만 연다"는 안전장치가 있어서,
-# 토큰 없이 여러 사람이 쓰려면 AAS_ALLOW_OPEN=1이 있어야 한다. 없으면 넣어 준다.
+# An access token is **optional**. The default use case is in-house, where anyone may open and edit.
+# But the program has a safeguard: "without a token, listen on this computer only",
+# so several people using it without a token need AAS_ALLOW_OPEN=1. Add it if missing.
 grep -Eq '^AAS_ALLOW_OPEN=' .env || printf '\n# 토큰 없이 사내에서 함께 쓰기\nAAS_ALLOW_OPEN=1\n' >> .env
 
 if grep -Eq '^AAS_TOKEN=.+' .env; then

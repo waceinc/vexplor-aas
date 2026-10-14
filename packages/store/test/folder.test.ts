@@ -1,9 +1,9 @@
 /**
- * 폴더 보관함 검증.
+ * Folder store tests.
  *
- * 두 가지를 본다.
- *  ① 메모리·PostgreSQL과 **똑같이 동작하는가** — 같은 적합성 테스트를 그대로 돌린다
- *  ② **껐다 켜도 남는가** — 이게 이 보관함을 만든 유일한 이유다
+ * Checks two things:
+ *  (1) Does it **behave exactly like** the in-memory and PostgreSQL stores — runs the same conformance suite
+ *  (2) Does data **survive a restart** — the sole reason this store exists
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -35,27 +35,27 @@ describeStore('FolderStore', async () => open(freshDir()));
 describeStoreFilters('FolderStore', async () => open(freshDir()));
 
 const fixtures = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const golden = () => readAasx(new Uint8Array(readFileSync(`${fixtures}01-롤포밍기-공34.aasx`)));
+const golden = () => readAasx(new Uint8Array(readFileSync(`${fixtures}01-roll-forming-machine.aasx`)));
 
-describe('FolderStore — 껐다 켜도 남는다', () => {
+describe('FolderStore — survives a restart', () => {
   let dir: string;
   beforeEach(() => {
     dir = freshDir();
   });
 
-  it('올린 파일이 다시 열었을 때 그대로 있다', async () => {
+  it('an uploaded file is still there after reopening', async () => {
     const first = await open(dir);
     const record = await first.importPackage({ name: '롤포밍기.aasx', package: golden() });
     const before = await first.getEnvironment(record.id);
 
-    // 서버를 껐다 켠 셈이다 — 새 객체로 다시 읽는다
+    // Equivalent to restarting the server — reread with a new instance
     const second = await open(dir);
     const list = await second.listPackages();
     expect(list.items.map((p) => p.name)).toEqual(['롤포밍기.aasx']);
     expect(await second.getEnvironment(record.id)).toEqual(before);
   });
 
-  it('내려받기가 무손실이다 — 첨부와 썸네일까지 남는다', async () => {
+  it('download is lossless — attachments and thumbnail survive too', async () => {
     const first = await open(dir);
     const record = await first.importPackage({ name: 'g.aasx', package: golden() });
     const exported = await first.exportPackage(record.id);
@@ -63,19 +63,19 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
     const second = await open(dir);
     const again = await second.exportPackage(record.id);
     expect(again.specPart).toBe(exported.specPart);
-    expect(again.thumbnail?.path).toBe(exported.thumbnail?.path);
+    expect(again.thumbnail?.part).toBe(exported.thumbnail?.part);
     expect(again.thumbnail?.data).toEqual(exported.thumbnail?.data);
-    expect(again.supplementaryFiles.map((f) => f.path).sort()).toEqual(
-      exported.supplementaryFiles.map((f) => f.path).sort(),
+    expect(again.supplementaryFiles.map((f) => f.part).sort()).toEqual(
+      exported.supplementaryFiles.map((f) => f.part).sort(),
     );
     for (const file of exported.supplementaryFiles) {
-      const match = again.supplementaryFiles.find((f) => f.path === file.path);
+      const match = again.supplementaryFiles.find((f) => f.part === file.part);
       expect(match?.data).toEqual(file.data);
     }
     expect([...again.extraParts.keys()].sort()).toEqual([...exported.extraParts.keys()].sort());
   });
 
-  it('고친 내용과 이력이 남는다', async () => {
+  it('edits and history persist', async () => {
     const first = await open(dir);
     const record = await first.importPackage({ name: 'g.aasx', package: golden() });
     const submodels = await first.listIdentifiables(record.id, 'Submodel');
@@ -92,13 +92,13 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
     expect(await second.history(record.id, 'Submodel', target.id)).toHaveLength(1);
   });
 
-  it('🔴 저장이 겹쳐도 깨지지 않는다 — 임시 파일을 공유해 ENOENT로 터지던 것', async () => {
+  it('overlapping saves do not break — previously crashed with ENOENT from a shared temp file', async () => {
     const store = await open(dir);
     const record = await store.importPackage({ name: 'g.aasx', package: golden() });
     const submodels = await store.listIdentifiables(record.id, 'Submodel');
     const targets = submodels.items.slice(0, 5);
 
-    // 같은 패키지에 동시에 다섯 번 쓴다 — 화면에서 저장과 자동 고치기가 겹치는 모습이다
+    // Five concurrent writes to one package — what happens when a UI save overlaps an auto-fix
     await Promise.all(
       targets.map((target, index) =>
         store.updateIdentifiable(record.id, 'Submodel', target.id, {
@@ -108,7 +108,7 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
       ),
     );
 
-    // 다시 열어 **디스크에 전부 남았는지** 본다. 마지막 쓰기만 남으면 앞의 것을 잃은 것이다
+    // Reopen and check **everything reached disk**. If only the last write survived, earlier ones were lost
     const again = await open(dir);
     for (const [index, target] of targets.entries()) {
       const after = await again.getIdentifiable(record.id, 'Submodel', target.id);
@@ -116,7 +116,7 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
     }
   });
 
-  it('수집값이 쌓이고 남는다', async () => {
+  it('collected values accumulate and persist', async () => {
     const first = await open(dir);
     const record = await first.importPackage({ name: 'g.aasx', package: golden() });
     await first.appendValues(record.id, [
@@ -141,16 +141,16 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
     expect(values).toHaveLength(2);
     expect(values.map((v) => v.valueNumber).sort()).toEqual([21, 22]);
 
-    // 보존 기간으로 지운 것은 다시 열어도 돌아오지 않는다 — values.jsonl을 다시 썼기 때문
+    // Values pruned by retention do not come back after reopening — because values.jsonl was rewritten
     expect(await second.pruneValues('2026-08-25T00:00:05.000Z')).toBe(1);
     const third = await open(dir);
     expect((await third.readValues(record.id)).map((v) => v.valueNumber)).toEqual([22]);
-    // 다 지우면 파일 자체가 없어진다
+    // Pruning everything removes the file itself
     expect(await third.pruneValues('2027-01-01T00:00:00.000Z')).toBe(1);
     expect(await (await open(dir)).readValues(record.id)).toHaveLength(0);
   });
 
-  it('지운 패키지는 다시 열어도 없다', async () => {
+  it('a deleted package stays gone after reopening', async () => {
     const first = await open(dir);
     const record = await first.importPackage({ name: 'g.aasx', package: golden() });
     await first.deletePackage(record.id);
@@ -159,7 +159,7 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
     expect((await second.listPackages()).items).toEqual([]);
   });
 
-  it('새 패키지 번호가 기존 것과 부딪히지 않는다', async () => {
+  it('new package ids do not collide with existing ones', async () => {
     const first = await open(dir);
     const a = await first.importPackage({ name: 'a.aasx', package: golden() });
 
@@ -170,8 +170,8 @@ describe('FolderStore — 껐다 켜도 남는다', () => {
   });
 });
 
-describe('FolderStore — 계정도 껐다 켜도 남는다 (2026-10-06 사용자 실측)', () => {
-  it('만든 관리자·고친 내용·지운 계정이 다시 열어도 그대로다', async () => {
+describe('FolderStore — accounts also survive a restart (user-reported, 2026-10-06)', () => {
+  it('created admin, edits and deleted accounts are unchanged after reopening', async () => {
     const dir = freshDir();
     const first = await open(dir);
     const admin = await first.createUser({ login: 'Admin', displayName: '관리자', role: 'admin', passwordHash: 'scrypt$x' });
@@ -187,12 +187,36 @@ describe('FolderStore — 계정도 껐다 켜도 남는다 (2026-10-06 사용�
     expect((await second.findUserByLogin('admin'))?.lastLoginAt).toBeDefined();
     expect((await second.getUser(kim.id))?.disabled).toBe(true);
     expect(await second.findUserByLogin('lee')).toBeUndefined();
-    // 🔴 지운 계정의 번호를 새 계정이 물려받으면 감사 기록의 「누가」가 섞인다
+    // Important: if a new account inherited a deleted account's id, the audit trail's "who" would get mixed up
     const next = await second.createUser({ login: 'park', displayName: '박', role: 'editor', passwordHash: 'h' });
     expect(next.id).not.toBe(lee.id);
   });
 
-  it('계정 파일이 깨졌으면 기동을 멈춘다 — 계정 0개로 뜨면 아무나 첫 관리자가 된다', async () => {
+  it('a stale id counter in the accounts file does not let a new account overwrite an existing one', async () => {
+    // A counter behind the stored ids happens when users.json is restored from an older backup or edited by hand.
+    // The ids already in the file are the backstop — the next id must come after the highest of them.
+    const dir = freshDir();
+    const stored = (id: string, login: string) => ({ id, login, displayName: login, role: 'editor', passwordHash: 'h', disabled: false, createdAt: '2026-10-01T00:00:00.000Z' });
+    writeFileSync(join(dir, 'users.json'), JSON.stringify({ users: [stored('user_1', 'kim'), stored('user_2', 'lee')], nextUserId: 1 }), 'utf8');
+
+    const store = await open(dir);
+    const park = await store.createUser({ login: 'park', displayName: '박', role: 'viewer', passwordHash: 'h' });
+    expect(park.id).toBe('user_3');
+    expect((await store.findUserByLogin('kim'))?.id).toBe('user_1');
+    expect(await store.countUsers()).toBe(3);
+  });
+
+  it('an accounts file without a counter does not hand out "user_NaN"', async () => {
+    const dir = freshDir();
+    const stored = (id: string, login: string) => ({ id, login, displayName: login, role: 'editor', passwordHash: 'h', disabled: false, createdAt: '2026-10-01T00:00:00.000Z' });
+    writeFileSync(join(dir, 'users.json'), JSON.stringify({ users: [stored('user_4', 'kim')] }), 'utf8');
+
+    const store = await open(dir);
+    const park = await store.createUser({ login: 'park', displayName: 'Park', role: 'viewer', passwordHash: 'h' });
+    expect(park.id).toBe('user_5');
+  });
+
+  it('refuses to start when the accounts file is corrupt — starting with 0 accounts would let anyone become first admin', async () => {
     const dir = freshDir();
     writeFileSync(join(dir, 'users.json'), '{ 깨진', 'utf8');
     await expect(open(dir)).rejects.toThrow(/users\.json/);

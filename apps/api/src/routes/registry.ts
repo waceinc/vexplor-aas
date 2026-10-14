@@ -1,16 +1,16 @@
 /**
  * AAS Registry & Discovery (IDTA Part 2).
  *
- * BaSyx는 이것을 **별도 서비스**로 둔다 — 앱이 자기 AAS를 등록해 두면, 다른 시스템이
- * 자산 ID로 "그 AAS가 어디 있는지" 찾는다. 설비가 여러 서버에 흩어지면 이게 없으면 못 찾는다.
+ * BaSyx runs this as a **separate service** — apps register their AAS, and other systems
+ * look up "where that AAS is" by asset ID. When equipment is spread across servers, it cannot be found without this.
  *
- * 🔴 **우리는 등록을 받지 않고 파생시킨다.** 이 서버가 저장소이기도 하므로, 무엇을 갖고 있는지
- *    이미 안다. 등록 절차를 두면 **등록과 실제가 어긋나는 순간**이 생긴다(BaSyx에서 흔한 사고다) —
- *    파일을 지웠는데 레지스트리에는 남아 있는 식이다. 파생시키면 어긋날 자리가 없다.
+ * Important: **we do not accept registrations; we derive them.** This server is also the repository, so it already knows
+ *    what it holds. A registration step creates **moments when registration and reality diverge** (a common incident with BaSyx) —
+ *    e.g. a file is deleted but remains in the registry. Deriving leaves no room for divergence.
  *
- * 🔴 지금은 **읽기(GET)만** 연다. 다른 서버에 있는 AAS를 등록해 두는 쓰기(POST·PUT·DELETE)는
- *    보관 자리(저장소 스키마)가 필요해 다음 단계로 미뤘다. 규격 대조표에 미구현으로 남는다 —
- *    "있는 척"보다 낫다.
+ * Important: for now only **reads (GET)** are exposed. Writes (POST/PUT/DELETE) that register AAS hosted on other servers
+ *    need storage (a repository schema), so they are deferred to the next stage. They remain marked unimplemented in the spec coverage table —
+ *    better than "pretending it exists".
  */
 import type { AssetAdministrationShell, Environment, Submodel } from '@aas/core';
 import type { AasStore } from '@aas/store';
@@ -20,14 +20,14 @@ import type { Route } from '../router.js';
 import { decodeIdentifier } from '../base64url.js';
 import { fill, tr } from '@aas/core';
 
-/** 규격이 정한 인터페이스 이름 */
+/** Interface names defined by the spec */
 const AAS_INTERFACE = 'AAS-3.0';
 const SUBMODEL_INTERFACE = 'SUBMODEL-3.0';
 
 export interface RegistryOptions {
   /**
-   * 밖에서 이 서버를 부르는 주소. 없으면 요청의 Host 헤더에서 만든다.
-   * 🔴 레지스트리가 알려 주는 주소가 틀리면 아무도 못 찾아온다 — 리버스 프록시 뒤에 두면 반드시 준다.
+   * Address used to reach this server from outside. If absent, it is built from the request's Host header.
+   * Important: if the address the registry advertises is wrong, nobody can find their way here — always set it behind a reverse proxy.
    */
   publicBaseUrl?: string;
 }
@@ -98,7 +98,7 @@ function submodelDescriptor(submodel: Submodel, base: string, packageId: string)
   };
 }
 
-/** AAS가 참조하는 서브모델만 딸려 붙인다 — 파일 안에 있어도 매달리지 않은 것은 그 AAS 것이 아니다 */
+/** Attach only the submodels the AAS references — one that is in the file but not linked to it does not belong to that AAS */
 function referencedSubmodels(shell: AssetAdministrationShell, environment: Environment): Submodel[] {
   const wanted = new Set(
     ((shell as unknown as Record<string, unknown>)['submodels'] as
@@ -148,8 +148,8 @@ interface Held {
 }
 
 /**
- * 이 서버가 가진 것을 전부 훑어 서술자를 만든다.
- * 🔴 파일 수에 비례해 훑는다. 설비 수백 대가 되면 색인을 따로 둬야 한다 — 지금은 정직하게 훑는다.
+ * Scan everything this server holds and build descriptors.
+ * Important: the scan grows with the number of files. At hundreds of machines a separate index will be needed — for now it plainly scans everything.
  */
 async function scan(store: AasStore, base: string): Promise<Held[]> {
   const out: Held[] = [];
@@ -172,9 +172,9 @@ async function scan(store: AasStore, base: string): Promise<Held[]> {
 }
 
 /**
- * 🔴 같은 AAS id가 두 파일에 있으면 **하나만 알려 준다.** 레지스트리에서 같은 id가 둘이면
- *    찾는 쪽이 어느 것을 써야 할지 알 수 없다 — 같은 파일을 두 번 올리면 실제로 생기는 일이다.
- *    최근에 바뀐 파일을 남긴다. 겹친 사실은 `/registry-conflicts`에서 볼 수 있다.
+ * Important: if the same AAS id is in two files, **only one is advertised.** With the same id twice in a registry,
+ *    the caller cannot tell which to use — this actually happens when the same file is uploaded twice.
+ *    The most recently changed file is kept. The overlap can be seen at `/registry-conflicts`.
  */
 function dedupe(held: readonly Held[]): ShellDescriptor[] {
   const best = new Map<string, Held>();
@@ -189,21 +189,21 @@ async function allDescriptors(store: AasStore, base: string): Promise<ShellDescr
   return dedupe(await scan(store, base));
 }
 
-/** 질의 인자의 자산 식별자 — base64url로 감싼 JSON이다(규격) */
+/** Asset identifier from the query parameter — JSON wrapped in base64url (spec) */
 function parseAssetIds(request: ApiRequest): { name: string; value: string }[] {
   const values = request.queryAll?.['assetIds'] ?? (request.query['assetIds'] ? [request.query['assetIds']] : []);
   const out: { name: string; value: string }[] = [];
   for (const raw of values) {
     let text = raw;
     try {
-      // 규격은 base64url을 요구하지만, 날것 JSON으로 보내는 구현도 흔하다 — 둘 다 받는다
+      // The spec requires base64url, but implementations sending raw JSON are common — accept both
       text = raw.trim().startsWith('{') ? raw : decodeIdentifier(raw);
     } catch {
       throw new ApiError(400, 'BadRequest', fill(tr('assetIds를 해석하지 못했습니다: {0}'), { 0: raw }));
     }
     try {
       const parsed = JSON.parse(text) as { name?: string; value?: string };
-      // i18n-ignore — 바로 아래 catch가 삼키는 안쪽 신호라 밖으로 나가지 않는다
+      // i18n-ignore — an internal signal swallowed by the catch right below, never sent out
       if (typeof parsed.value !== 'string') throw new Error('value 없음');
       out.push({ name: parsed.name ?? 'globalAssetId', value: parsed.value });
     } catch {
@@ -213,7 +213,7 @@ function parseAssetIds(request: ApiRequest): { name: string; value: string }[] {
   return out;
 }
 
-/** 그 AAS가 가진 자산 식별자 전부 — globalAssetId도 한 항목으로 본다(디스커버리 규약) */
+/** All asset identifiers the AAS has — globalAssetId also counts as one entry (discovery convention) */
 function assetLinksOf(descriptor: ShellDescriptor): { name: string; value: string }[] {
   const links: { name: string; value: string }[] = [];
   if (descriptor.globalAssetId !== undefined) {
@@ -278,7 +278,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
       },
     },
     {
-      /** 서브모델 레지스트리 — AAS를 거치지 않고 서브모델만 찾는 자리 */
+      /** Submodel registry — where submodels are found directly without going through an AAS */
       method: 'GET',
       pattern: `${BASE}/submodel-descriptors`,
       async handle({ request }) {
@@ -305,8 +305,8 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
     },
     {
       /**
-       * 디스커버리 — **자산 ID로 AAS를 찾는다.** 이 레지스트리의 존재 이유다.
-       * 현장 시스템은 AAS id가 아니라 자산 번호(일련번호·설비코드)를 들고 온다.
+       * Discovery — **find AAS by asset ID.** This is why this registry exists.
+       * Field systems come with asset numbers (serial numbers, equipment codes), not AAS ids.
        */
       method: 'GET',
       pattern: `${BASE}/lookup/shells`,
@@ -317,7 +317,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
 
         const matches = all.filter((descriptor) => {
           const links = assetLinksOf(descriptor);
-          // 여러 개를 주면 **전부** 맞아야 한다(규격: AND)
+          // If several are given, **all** must match (spec: AND)
           return wanted.every((want) =>
             links.some((link) => link.value === want.value && (want.name === 'globalAssetId' || link.name === want.name)),
           );
@@ -327,8 +327,8 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
     },
     {
       /**
-       * 🔴 규격 밖 — **겹친 id 점검**. 표준 응답에는 하나만 나가므로, 겹쳤다는 사실을
-       *    알릴 자리가 따로 필요하다. 같은 파일을 두 번 올리면 바로 생긴다.
+       * Important: outside the spec — **duplicate id check**. The standard response returns only one, so a separate place
+       *    is needed to report the duplication. It happens immediately when the same file is uploaded twice.
        */
       method: 'GET',
       pattern: '/registry-conflicts',
@@ -344,7 +344,7 @@ export function registryRoutes(store: AasStore, options: RegistryOptions = {}): 
             id,
             idShort: entries[0]!.descriptor.idShort,
             packages: entries.map((entry) => entry.packageId),
-            /** 표준 응답에 나가는 쪽 */
+            /** The one returned in the standard response */
             serving: entries.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a)).packageId,
           }));
         return json(200, { total: held.length, conflicts });

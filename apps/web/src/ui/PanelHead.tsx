@@ -1,5 +1,5 @@
 /**
- * 카드 머리 — 제목과 오른쪽 「닫기」. 파일 목록 · 이력 카드가 같은 머리를 쓴다(.file-list-head).
+ * Card header — title and a "Close" on the right. The file list and history cards share this header (.file-list-head).
  */
 import type { ReactNode } from 'react';
 

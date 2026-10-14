@@ -1,10 +1,10 @@
 /**
- * 화면 안 도움말 — 따로 매뉴얼을 펼치지 않아도 그 자리에서 찾게(2026-10-08 사용자 요청).
+ * In-screen help — find answers on the spot without opening a separate manual (user request 2026-10-08).
  *
- * 🔴 **글은 여기 한 곳**에 둔다. 도움말 패널 · 따라 하기 안내 · 시작하기 목록이 모두 이 파일을 쓴다.
- *    기능을 바꾸는 사람이 같은 저장소의 이 파일을 함께 고치게 되어, 매뉴얼(PPT)처럼 화면과
- *    따로 놀며 낡지 않는다.
- * 🔴 함수로 내준다 — 언어를 바꾸면 화면을 새로 읽으므로, 부를 때마다 지금 언어로 옮긴다(tr).
+ * Important: **the text lives in this one place**. The help panel, the guided tour and the getting-started list all use this file.
+ *    Whoever changes a feature edits this file in the same repository, so it does not drift from the screen and go stale
+ *    the way a manual (PPT) does.
+ * Important: exposed as functions — switching language re-reads the screen, so each call translates into the current language (tr).
  */
 import { tr } from './i18n.js';
 
@@ -15,7 +15,7 @@ export interface HelpTopic {
   title: string;
   summary: string;
   steps: string[];
-  /** 덧붙여 알아 둘 것 — 주의 · 팁 */
+  /** Extra things to know — caveats · tips */
   note?: string;
 }
 
@@ -127,12 +127,12 @@ export function helpTopics(): HelpTopic[] {
   ];
 }
 
-/** 지금 화면에 먼저 보일 주제 */
+/** Topic to show first for the current screen */
 export function topicFor(context: HelpContext): string {
   return context === 'start' ? 'open' : context;
 }
 
-/** 따라 하기 안내 한 걸음 — 가리킬 곳은 CSS 선택자(+ 글자가 들어 있는 것) */
+/** One step of the guided tour — the target is a CSS selector (+ the element containing the text) */
 export interface TourStep {
   sel: string;
   text?: string;
@@ -140,7 +140,7 @@ export interface TourStep {
   body: string;
 }
 
-/** 처음 들어왔을 때 — 아직 파일이 없는 첫 화면 */
+/** On first entry — the welcome screen with no file yet */
 export function welcomeTour(): TourStep[] {
   return [
     { sel: '.welcome button', text: tr('AASX 파일 열기'), title: tr('파일 열기'), body: tr('내 PC의 .aasx 파일을 올려 엽니다. 여기서부터 시작합니다.') },
@@ -152,7 +152,7 @@ export function welcomeTour(): TourStep[] {
   ];
 }
 
-/** 처음 파일을 열었을 때 */
+/** When a file is first opened */
 export function fileTour(): TourStep[] {
   return [
     { sel: '.tree-pane', title: tr('트리'), body: tr('AAS → 서브모델 → 요소 순서입니다. 고르면 가운데에 내용이 나옵니다.') },
@@ -166,7 +166,7 @@ export function fileTour(): TourStep[] {
   ];
 }
 
-// ── 시작하기 목록 — 이 브라우저에 남는다(사용자 편의일 뿐, 없어져도 괜찮다) ──
+// ── Getting-started list — kept in this browser (a convenience only; losing it is fine) ──
 
 export type StartStep = 'open' | 'check' | 'fix' | 'download';
 export const START_STEPS: readonly StartStep[] = ['open', 'check', 'fix', 'download'];
@@ -187,7 +187,7 @@ export function readStart(): StartState {
       return { done: (parsed.done ?? []).filter((step) => START_STEPS.includes(step)), hidden: parsed.hidden === true };
     }
   } catch {
-    // 사생활 보호 창 등에서는 저장소가 던진다 — 처음 상태로 간다
+    // Storage throws in private windows and the like — fall back to the initial state
   }
   return { done: [], hidden: false };
 }
@@ -196,16 +196,16 @@ export function writeStart(state: StartState): void {
   try {
     globalThis.localStorage?.setItem(START_KEY, JSON.stringify(state));
   } catch {
-    // 저장하지 못해도 화면은 그대로 쓴다
+    // Even if saving fails, the screen keeps working
   }
 }
 
-/** 이미 본 안내 — 'welcome' · 'file' */
+/** Tours already seen — 'welcome' · 'file' */
 export function tourSeen(name: string): boolean {
   try {
     return (globalThis.localStorage?.getItem(TOUR_KEY) ?? '').split(',').includes(name);
   } catch {
-    return true; // 기억할 수 없으면 매번 띄우지 않는다 — 귀찮게 하지 않는 쪽으로
+    return true; // If it cannot be remembered, do not show it every time — err on the side of not nagging
   }
 }
 
@@ -215,6 +215,6 @@ export function markTourSeen(name: string): void {
     seen.add(name);
     globalThis.localStorage?.setItem(TOUR_KEY, [...seen].join(','));
   } catch {
-    // 무시한다
+    // Ignore
   }
 }

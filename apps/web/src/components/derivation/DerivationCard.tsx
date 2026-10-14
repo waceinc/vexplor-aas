@@ -1,9 +1,9 @@
 /**
- * 형식 파일 카드 — 파일 요약에서 「이 호기는 어느 형식에서 나왔고, 형식이 바뀐 것이 있나」를 보여 준다.
+ * Type-file card — shows in the file summary "which type this unit came from, and whether the type has changed".
  *
- * 호기별로 나누기로 만든 파일은 처음부터 연결돼 있다. 그 전에 만든 호기는 여기서 형식 파일을 골라 연결한다 —
- * 기준은 연결하는 때의 형식이라, 그 전에 달라진 값은 이 호기 고유 값으로 남는다.
- * 서버가 판정하고(apps/api/src/routes/derivation.ts) 여기서는 보여 주고 고르게만 한다.
+ * Files made by splitting per unit are linked from the start. Units made before that pick their type file here to link —
+ * the baseline is the type at the moment of linking, so values that differed before then stay as this unit's own values.
+ * The server decides (apps/api/src/routes/derivation.ts); this only displays and lets the user choose.
  */
 import { useEffect, useState } from 'react';
 import { api, type DerivationView, type PackageDescription } from '../../api.js';
@@ -14,14 +14,14 @@ interface Props {
   packageId: string;
   packages: readonly PackageDescription[];
   busy: boolean;
-  /** 처리 중 표시와 오류 분류 — useCore 의 run */
+  /** In-progress indicator and error classification — useCore's run */
   run: <T>(work: () => Promise<T>) => Promise<T | undefined>;
-  /** 반영한 뒤 트리·지적·되돌리기 목록을 다시 읽는다 */
+  /** After applying, reload the tree, findings, and undo list */
   loadPackage: (packageId: string) => Promise<void>;
   setNotice: (notice: string) => void;
   /**
-   * 파일을 다시 읽을 때마다 바뀌는 값(서브모델 리비전 표) — 이것이 바뀌면 카드도 다시 읽는다.
-   * 없으면 머리글 「되돌리기」로 반영을 되돌려도 카드가 「변경 없음」에 머문다(2026-10-14 화면 실측).
+   * A value that changes every time the file is reloaded (submodel revision table) — when it changes, the card reloads too.
+   * Without it, undoing the apply via the header "Undo" leaves the card stuck at "no changes" (measured on screen, 2026-10-14).
    */
   revisions: Readonly<Record<string, number>>;
 }
@@ -39,7 +39,7 @@ export function DerivationCard({ packageId, packages, busy, run, loadPackage, se
     api
       .derivation(packageId)
       .then((result) => alive && setView(result))
-      .catch(() => alive && setView(undefined)); // 못 읽으면 카드를 그리지 않는다 — 다른 일을 막지 않는다
+      .catch(() => alive && setView(undefined)); // If it cannot be read, do not draw the card — do not block other work
     return () => {
       alive = false;
     };

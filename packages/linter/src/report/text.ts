@@ -1,18 +1,18 @@
 /**
- * 텍스트 리포트.
+ * Text report.
  *
- * KOSMO Validator 에러 로그의 세 토막 구조를 그대로 따른다(명세 §7) — 결과서 제출이 의무이므로
- * 동일 구조를 유지하는 편이 안전하다. 다만 KOSMO가 AASc-3a 계열에서 key를 빼먹는 결함은 개선해
- * 우리는 항상 key를 출력한다.
+ * Follows the three-part structure of the KOSMO Validator error log as-is (spec §7) — since submitting the report
+ * is mandatory, keeping the same structure is the safer choice. However, we fix KOSMO's defect of omitting the key
+ * in the AASc-3a family: we always output the key.
  */
 import type { Finding, LintResult, Severity } from '../types.js';
 import { fill, tr } from '@aas/core';
 
-/** 등급 글자 — 언어가 요청마다 다르므로 부를 때 옮긴다 */
+/** Severity labels — language differs per request, so translated at call time */
 const severityLabel = (severity: Severity): string =>
   ({ error: tr('위반'), warning: tr('경고'), info: tr('참고') })[severity];
 
-/** 한 건을 KOSMO 리포트 형식으로 출력한다 */
+/** Prints one finding in the KOSMO report format */
 export function formatFinding(finding: Finding): string {
   const head =
     `The ${finding.elementType} "${finding.key}" violates the ${finding.layer} rules ` +
@@ -24,9 +24,9 @@ export function formatFinding(finding: Finding): string {
 }
 
 export interface TextReportOptions {
-  /** 출력할 최대 건수. 기본은 전부 */
+  /** Maximum number of findings to print. Default is all */
   limit?: number;
-  /** 대상 파일명 등 제목에 넣을 문구 */
+  /** Text to put in the title, such as the target file name */
   title?: string;
 }
 
@@ -72,7 +72,7 @@ export function formatReport(result: LintResult, options: TextReportOptions = {}
   return out.join('\n');
 }
 
-/** 한 줄 요약 — CI 로그용 */
+/** One-line summary — for CI logs */
 export function formatSummary(result: LintResult, label = ''): string {
   const { error, warning } = result.countBySeverity;
   const mark = result.passed ? 'PASS' : 'FAIL';

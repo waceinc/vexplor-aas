@@ -6,7 +6,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 http://scripts.sil.org/OFL
 */
-/* 로직스튜디오 styles/pretendard-alias.css 와 같은 방식 — 가변 글꼴을 drive --font-sans 첫 이름 「Pretendard」로 건다 */
+/* Same approach as Logic Studio styles/pretendard-alias.css — maps the variable font to "Pretendard", the first name in drive --font-sans */
 /* [0] */
 @font-face {
 	font-family: 'Pretendard';

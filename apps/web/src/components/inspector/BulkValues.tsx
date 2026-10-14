@@ -1,8 +1,8 @@
 /**
- * 값 한꺼번에 입력 — 서브모델을 고르면 안의 값(Property · MLP · Range)을 표로 입력하고 한 번에 저장한다.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
- * 입력 중인 값은 이 부품의 상태다. 다른 요소로 옮기거나 저장으로 내용이 바뀌면 Inspector 가 key 를 바꿔
- * 새로 그리므로 처음 값으로 돌아간다(예전 「지문이 바뀌면 초기화」 효과와 같은 결과).
+ * Bulk value entry — picking a submodel lets you enter its values (Property · MLP · Range) as a table and save them at once.
+ * Split out of components/Inspector.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
+ * Values being typed are this part's state. When moving to another element or when a save changes the content, Inspector changes
+ * the key and redraws it, so it returns to the initial values (same result as the old "reset when the fingerprint changes").
  */
 import { useState } from 'react';
 import { fill, tr } from '../../i18n.js';
@@ -16,23 +16,23 @@ import { needOf, type Need } from './need.js';
 interface Props {
   node: TreeNode;
   busy: boolean;
-  /** 이 서브모델의 템플릿 요구 수준 — 없으면 「모름」 */
+  /** Template requirement level of this submodel — "unknown" when absent */
   requirement?: SubmodelRequirement;
-  /** 수집 연결(AID)의 항목 이름 — 같은 이름의 칸은 수집으로 채워진다 */
+  /** Collection-connection (AID) item names — cells with the same name are filled by collection */
   collectedNames?: ReadonlySet<string>;
   onBulkSaveValues: (node: TreeNode, content: Record<string, unknown>) => void;
-  /** CSV 에서 채우기(여러 설비 파일)를 마친 뒤 — 알림을 띄우고 지금 파일을 다시 읽는다. 없으면 단추를 그리지 않는다 */
+  /** After fill-from-CSV (several equipment files) finishes — shows a notice and re-reads the current file. No button is drawn when absent */
   onCsvFilled?: (notice: string) => void;
   t: (text: string) => string;
 }
 
 export function BulkValues({ node, busy, requirement, collectedNames, onBulkSaveValues, onCsvFilled, t }: Props): React.JSX.Element | null {
   const [csvOpen, setCsvOpen] = useState(false);
-  /** 값 표의 편집분 — idShortPath → 새 값. 저장 때 서브모델 JSON에 한꺼번에 얹는다 */
+  /** Edits in the value table — idShortPath → new value. Applied to the submodel JSON all at once on save */
   const [bulk, setBulk] = useState<Record<string, string>>({});
-  /** 채울 것(필수 · 수집)만 보기 — 템플릿을 알 때만 켤 수 있다 */
+  /** Show only what to fill (required · collected) — can be turned on only when the template is known */
   const [onlyNeeded, setOnlyNeeded] = useState(false);
-  // 잎 값들을 모은다 — Property(글), MLP(첫 언어), Range(min~max)
+  // Collect leaf values — Property (text), MLP (first language), Range (min~max)
   const rows: { path: string; label: string; kind: string; current: string; need: Need }[] = [];
   const collect = (children: readonly TreeNode[], prefix: string): void => {
     for (const child of children) {
@@ -99,7 +99,7 @@ export function BulkValues({ node, busy, requirement, collectedNames, onBulkSave
           }}
         />
       )}
-      {/* 무엇을 채워야 하나 — 템플릿을 알면 필수 · 수집 · 선택을 센다. 모르면 그 사실을 말한다 */}
+      {/* What needs filling — if the template is known, count required · collected · optional. If not, say so */}
       {requirement ? (
         <div className="need-summary">
           <span className="need required">{fill(tr('필수 {0}'), { 0: count('required') })}</span>
@@ -139,7 +139,7 @@ export function BulkValues({ node, busy, requirement, collectedNames, onBulkSave
         disabled={busy || dirty === 0}
         title={t('표에서 고친 값을 한 번에 반영합니다 — 요소마다 누르지 않아도 됩니다')}
         onClick={() => {
-          // 서브모델 JSON을 복제해 바뀐 값만 얹는다 — 한 번의 PATCH로 저장된다
+          // Clone the submodel JSON and apply only the changed values — saved with a single PATCH
           const content = JSON.parse(JSON.stringify(node.node)) as Record<string, unknown>;
           for (const [path, value] of Object.entries(bulk)) applyValue(content, path, value);
           onBulkSaveValues(node, content);
@@ -152,7 +152,7 @@ export function BulkValues({ node, busy, requirement, collectedNames, onBulkSave
   );
 }
 
-/** 구분 표시 — 색만으로 나누지 않는다(글자로 적는다) */
+/** Kind label — not distinguished by color alone (written as text) */
 function needTag(need: Need): React.JSX.Element | null {
   if (need === 'unknown') return null;
   const text = need === 'required' ? tr('필수') : need === 'collected' ? tr('수집') : tr('선택');

@@ -1,4 +1,4 @@
-/** @aas/collector — 수집 커넥터 (기획서 M8). AID 해석 + 수집 실행 */
+/** @aas/collector — collection connector (spec M8). AID parsing + collection execution */
 export * from './aid.js';
 export * from './aid-build.js';
 export * from './types.js';

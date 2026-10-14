@@ -1,9 +1,9 @@
 /**
- * API 클라이언트 — 레퍼런스 번들 · 문서용 자료 · 규칙 목록의 모양(타입).
- * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화). api/types.ts 가 다시 내보낸다.
+ * API client — shapes (types) of reference bundles · document data · rule lists.
+ * Split out of src/api.ts (2026-10-13 componentization). Re-exported by api/types.ts.
  */
 
-/** 레퍼런스 번들 — 공정에 묶인 설비 하나의 준비 상태 */
+/** Reference bundle — readiness of one asset bound to a process */
 export interface BundleMemberView {
   name: string;
   globalAssetId: string;
@@ -12,9 +12,9 @@ export interface BundleMemberView {
   packageId?: string;
   fileName?: string;
   version?: string;
-  /** aasd120 — 표준 검증기(aas-test-engines)는 오류로 보는 AASd-120 건수. KOSMO는 안 본다 */
+  /** aasd120 — number of AASd-120 cases the standard validator (aas-test-engines) treats as errors. KOSMO does not check them */
   lint?: { passed: boolean; error: number; warning: number; aasd120?: number };
-  /** 수집 연결(AID)이 붙은 시연본 */
+  /** Demo copy with a collection connection (AID) attached */
   demo?: { login: string; password: string };
 }
 
@@ -45,7 +45,7 @@ export interface LinkageFindingView {
   names: string[];
 }
 
-/** 실동작 증빙 — 설비(형식) 자신이나 거기서 파생된 호기의 수집 기록 요약 */
+/** Runtime evidence — summary of collection records of the asset (type) itself or of units derived from it */
 export interface EvidenceSourceView {
   model: string;
   instance: string;
@@ -69,14 +69,14 @@ export interface BundleView {
     suggested: EvidenceLevel | null;
     levels: Record<EvidenceLevel, string>;
     sources: EvidenceSourceView[];
-    /** 번들을 열 때 이어받은 이전 증빙 — 새 수집이 없으면 이것이 실린다 */
+    /** Earlier evidence carried over when the bundle was opened — included when there is no new collection */
     carried?: {
       level: string | null;
       entries: EvidenceSourceView[];
       from: { code?: string; version?: string; createdAt?: string };
     };
   };
-  /** 사람이 넣은 문서·증빙 — 다시 내보내도 보존된다 */
+  /** Documents · evidence added by people — preserved across re-exports */
   attachments: { path: string; size: number }[];
   attachmentFolders: string[];
 }
@@ -88,7 +88,7 @@ export interface BundleImportView {
   problems: string[];
 }
 
-/** 규칙·규약 카탈로그 — 판정 근거를 보여 주는 자료 */
+/** Rule · convention catalog — material showing the basis of each verdict */
 export interface RuleCatalog {
   rules: { id: string; layer: string; title: string; source: string; fixable: boolean }[];
   layers: { layer: string; title: string; meaning: string; count: number }[];
@@ -104,7 +104,7 @@ export interface RuleCatalog {
   sources: { key: string; from: string }[];
 }
 
-/** 서브모델별 문서 자료 계획 (규정 §13 주의사항 5) */
+/** Per-submodel document data plan (regulation §13 caution 5) */
 export interface DocPlan {
   idShort: string;
   kind: 'table' | 'info';
@@ -123,7 +123,7 @@ export interface TableRow {
   description: string;
 }
 
-/** 실제 가이던스가 쓰는 IDTA SMT 표 (규정 §13 주의사항 5) */
+/** The IDTA SMT table the actual guidance uses (regulation §13 caution 5) */
 export interface SemanticCell {
   idType: string;
   id: string;

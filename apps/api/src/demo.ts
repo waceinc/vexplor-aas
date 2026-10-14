@@ -1,21 +1,21 @@
 /**
- * 체험판(데모) — 누구나 눌러 볼 수 있게 공개해 두는 서버.
+ * Trial (demo) mode — a server published so that anyone can try it out.
  *
- * 🔴 **기본은 꺼져 있다.** 켜는 것은 서버를 올리는 사람의 명시적 선택(`DEMO_MODE=on`)이고,
- *    내려받아 직접 돌리는 사람에게는 아무 제한이 없다. 오픈소스로 내놓는 프로그램에
- *    제한을 박아 두는 것은 뜻이 없다 — 소스가 공개돼 있으니 이 파일만 지우면 풀린다.
- *    제한이 실제로 서는 자리는 **우리가 띄운 서버 한 곳뿐**이고, 거기서의 목적도
- *    「약을 올려 가입시키기」가 아니라 **공개 모래밭을 운영하는 최소한의 안전장치**다.
+ * Important: **off by default.** Turning it on is an explicit choice by whoever runs the server (`DEMO_MODE=on`);
+ *    anyone who downloads and runs it themselves gets no restrictions at all. Hard-coding restrictions into a program
+ *    released as open source is pointless — the source is public, so deleting this file lifts them.
+ *    The only place the restrictions actually hold is **the one server we run**, and the purpose there is
+ *    not "tease people into signing up" but **the minimum safeguard for operating a public sandbox**.
  *
- * 데모 계정으로는 **파일을 내려받을 수 없다.** 가입해 자기 계정으로 들어오면 받을 수 있다.
+ * The demo account **cannot download files.** Sign up and log in with your own account to download.
  *
- * 🔴 데모 계정은 **여럿이 같이 쓰는 한 계정**이다. 그래서 작업 공간을 **로그인마다** 가른다 —
- *    같은 계정으로 들어와도 서로가 올린 파일을 보지 못한다(@aas/store scoped.ts · api.ts).
- *    처음에는 가르지 않고 「남이 봅니다」라고 적어만 두었는데, 설비 도면·운전 데이터가
- *    올라오는 도구에서 그것은 고지가 아니라 사고 예고였다(2026-10-04에 바로잡음).
+ * Important: the demo account is **one account shared by many people**. So workspaces are separated **per login** —
+ *    even under the same account, people cannot see each other's uploaded files (@aas/store scoped.ts · api.ts).
+ *    At first we did not separate them and only noted "others can see this", but in a tool where equipment drawings
+ *    and operating data get uploaded, that was not a notice but a forecast of an incident (fixed on 2026-10-04).
  *
- *    방문자의 작업 공간은 **한동안 안 쓰면 지운다**(기본 60분). 이제 이유는 사생활이 아니라
- *    디스크다 — 떠난 방문자의 파일이 쌓이기만 한다. 가입한 사람의 파일은 지우지 않는다.
+ *    A visitor's workspace is **deleted after a period of inactivity** (60 minutes by default). The reason now is not privacy
+ *    but disk space — files from departed visitors just keep piling up. Registered users' files are never deleted.
  */
 import type { AasStore, UserRole } from '@aas/store';
 
@@ -23,27 +23,27 @@ import type { ApiResponse } from './http.js';
 import { fill, tr } from '@aas/core';
 
 export interface DemoConfig {
-  /** 데모 계정의 로그인 이름 — 이 계정으로 들어오면 내려받기가 막힌다 */
+  /** Login name of the demo account — logging in with it blocks downloads */
   login: string;
-  /** 처음 한 번 계정을 만들 때 쓰는 비밀번호 */
+  /** Password used once when the account is first created */
   password: string;
   displayName: string;
-  /** 데모 계정의 역할. 눌러 보는 것이 목적이라 고칠 수는 있어야 한다 */
+  /** Role of the demo account. The point is to try things out, so it must be able to edit */
   role: UserRole;
-  /** 방문자가 이만큼(분) 손대지 않은 파일을 지운다. 0이면 안 지운다(쌓이기만 한다) */
+  /** Delete files a visitor has not touched for this many minutes. 0 means never delete (they just pile up) */
   resetMinutes: number;
 }
 
 /**
- * 🔴 기본 비밀번호가 `0629`다(2026-10-08 — 예전에는 `1234`). 이것이 위험하지 않은 **유일한 이유**는 데모 계정이
- *    내려받기도 계정 관리도 못 하고, 올린 것이 주기적으로 지워지는 모래밭 전용이기
- *    때문이다. `DEMO_MODE`를 켜지 않은 서버에는 이 계정이 **생기지 않는다.**
+ * Important: the default password is `0629` (2026-10-08 — previously `1234`). The **only reason** this is not dangerous is that the demo account
+ *    can neither download nor manage accounts, and is a sandbox-only account whose uploads are periodically wiped.
+ *    On servers that do not turn on `DEMO_MODE`, this account is **never created.**
  */
 const DEFAULTS = {
-  // 2026-10-08 — 예전에는 admin. 「관리자」로 읽혀 운영자 계정과 헷갈렸다
+  // 2026-10-08 — previously admin. It read as "administrator" and got confused with the operator account
   login: 'demo',
   password: '0629',
-  // i18n-ignore — 계정 표에 저장되는 표시 이름(자료)이라 요청마다 바뀌면 안 된다
+  // i18n-ignore — a display name stored in the accounts table (data), so it must not change per request
   displayName: '데모 계정',
   role: 'editor' as UserRole,
   resetMinutes: 60,
@@ -62,14 +62,14 @@ export function demoFromEnv(env: Record<string, string | undefined>): DemoConfig
 }
 
 /**
- * 이 응답이 **파일을 내보내는 것**인가.
+ * Is this response **exporting a file**?
  *
- * 🔴 경로 목록으로 막지 않는 이유: 내려받기 경로가 지금도 다섯 군데고(AASX·번들 ZIP·
- *    첨부·표 CSV·…) 앞으로 늘어난다. 한 군데만 빠뜨리면 막았다고 믿는 채로 새어 나간다.
- *    대신 **나가는 응답**을 본다 — 첨부로 내보내는 것은 전부 걸린다.
+ * Important: why not block by a list of paths: there are already five download paths (AASX, bundle ZIP,
+ *    attachments, table CSV, …) and more will come. Miss just one and it leaks while we believe it is blocked.
+ *    Instead we inspect the **outgoing response** — anything sent out as an attachment is caught.
  *
- * 화면으로 보는 것은 막지 않는다. 검증 결과서는 `content-disposition`이 없어 그대로
- * 열린다 — 도구가 무엇을 해 주는지는 보여 줘야 체험이 성립한다.
+ * Viewing on screen is not blocked. The verification report has no `content-disposition`, so it opens
+ * as-is — the trial only works if it shows what the tool does.
  */
 export function isFileDownload(response: ApiResponse): boolean {
   const disposition = response.headers['content-disposition'] ?? '';
@@ -77,11 +77,11 @@ export function isFileDownload(response: ApiResponse): boolean {
 }
 
 /**
- * 데모 계정을 만들어 두고, 이미 있으면 **설정에 맞춘다**(이름 · 비밀번호).
+ * Create the demo account, and if it already exists, **bring it in line with the settings** (name, password).
  *
- * 🔴 예전에는 있으면 아무것도 안 했다. 그러면 `.env`에서 비밀번호를 바꿔도 운영 중인 서버의
- *    계정은 옛 비밀번호 그대로라, 화면에는 새 비밀번호가 뜨는데 로그인이 안 된다(2026-10-08).
- *    데모 계정은 관리자도 화면에서 못 바꾸는 계정이라(auth.ts) 설정이 유일한 원본이다.
+ * Important: previously we did nothing if it existed. Then even after changing the password in `.env`, the running server's
+ *    account kept the old password, so the screen showed the new password but login failed (2026-10-08).
+ *    The demo account cannot be changed even by an admin in the UI (auth.ts), so the settings are its only source of truth.
  */
 export async function seedDemoUser(
   store: AasStore,
@@ -98,8 +98,8 @@ export async function seedDemoUser(
     await store.updateUser(found.id, patch);
     return 'updated';
   }
-  // 🔴 저장소에 바로 넣는다 — API의 비밀번호 규칙(10자 이상)을 타면 `1234`가 거절된다.
-  //    규칙을 느슨하게 고치는 쪽이 아니라 **이 자리만 예외**로 두는 쪽이 맞다
+  // Important: insert directly into the store — going through the API's password rule (10+ characters) would reject `1234`.
+  //    The right move is to make **this one spot an exception**, not to loosen the rule
   await store.createUser({
     login: demo.login,
     displayName: demo.displayName,
@@ -109,17 +109,17 @@ export async function seedDemoUser(
   return 'created';
 }
 
-/** 체험 방문자의 작업 공간 열쇠 머리 — api.ts의 workspaceOf와 같은 값이어야 한다 */
+/** Workspace key prefix for trial visitors — must be the same value as workspaceOf in api.ts */
 export const VISITOR_PREFIX = 'visitor:';
 
 /**
- * 한동안 손대지 않은 **방문자의** 파일을 지우고, 지운 개수를 돌려준다.
+ * Delete **visitors'** files left untouched for a while, and return the number deleted.
  *
- * 🔴 **방문자 것만 지운다.** 처음에는 주기마다 전부 지웠는데, 그러면 가입한 사람의 파일도
- *    한 시간 뒤에 사라진다 — 「가입하면 내려받을 수 있다」고 해 놓고 받을 것을 지우는 꼴이다.
- *    주인 없는 것(템플릿)과 가입한 사람의 것은 건드리지 않는다.
- * 🔴 **시각이 아니라 「안 쓴 지 얼마」로 지운다.** 정각마다 지우면 59분에 올린 사람은
- *    1분 만에 잃는다. 마지막으로 고친 때부터 센다.
+ * Important: **delete visitors' files only.** At first we wiped everything every cycle, but then registered users' files
+ *    also vanished an hour later — saying "sign up and you can download" and then deleting what they would download.
+ *    Ownerless items (templates) and registered users' files are left alone.
+ * Important: **delete by "time since last use", not by clock time.** Wiping on the hour means someone who uploaded at :59
+ *    loses it a minute later. We count from the last modification.
  */
 export async function sweepVisitorFiles(store: AasStore, idleMinutes: number, now: number = Date.now()): Promise<number> {
   if (idleMinutes <= 0) return 0;
@@ -133,16 +133,16 @@ export async function sweepVisitorFiles(store: AasStore, idleMinutes: number, no
     }
     cursor = page.cursor;
   } while (cursor !== undefined);
-  // 다 훑은 **뒤에** 지운다 — 훑는 중에 지우면 쪽 번호가 밀려 건너뛰는 것이 생긴다
+  // Delete **after** the full scan — deleting mid-scan shifts page numbers and some items get skipped
   for (const id of stale) await store.deletePackage(id);
   return stale.length;
 }
 
 /**
- * 방문자 파일 정리를 주기적으로 돌린다.
+ * Run the visitor-file cleanup periodically.
  *
- * 🔴 요청 밖에서 돈다 — 작업 공간 문맥이 없어 **모든 패키지를 본다**(서버 자신이다).
- *    그래서 넘기는 저장소는 감싸지 않은 것이어도, 감싼 것이어도 같다.
+ * Important: runs outside any request — there is no workspace context, so it **sees every package** (it is the server itself).
+ *    So the store passed in may be the unwrapped one or the wrapped one; it makes no difference.
  */
 export function startDemoReset(
   store: AasStore,
@@ -150,7 +150,7 @@ export function startDemoReset(
   log: (message: string) => void = () => undefined,
 ): { stop: () => void } {
   if (minutes <= 0) return { stop: () => undefined };
-  // 기다리는 시간의 1/4마다 본다(최소 1분) — 「60분 안 쓰면」이 실제로는 60~75분이 된다
+  // Check every 1/4 of the wait time (minimum 1 minute) — "unused for 60 minutes" effectively becomes 60–75 minutes
   const every = Math.max(1, Math.min(10, Math.floor(minutes / 4)));
   const timer = setInterval(() => {
     void sweepVisitorFiles(store, minutes)

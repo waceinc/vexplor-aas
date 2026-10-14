@@ -1,9 +1,9 @@
 /**
- * CSV 에서 채우기 — 설비 대장(한 줄 = 설비 한 대)을 붙여 넣거나 올려, 같은 서브모델을 가진 여러 설비 파일의 값을 한 번에 채운다.
+ * Fill from CSV — paste or upload an equipment register (one row = one machine) to fill values of many equipment files that share the same submodel at once.
  *
- * 순서: ① 표 넣기 → ② 설비를 가리키는 열과 열마다 넣을 항목 고르기(이름이 같으면 미리 골라 둔다) → ③ 바뀌는 값 미리 보기 → ④ 반영.
- * 반영은 파일마다 서브모델을 한 번씩 저장한다 — 되돌리기도 파일마다 「되돌리기」로 한다.
- * 계산은 plan.ts, 값 얹기는 inspector/applyValue.ts 가 한다.
+ * Steps: (1) put in the table → (2) pick the column identifying the equipment and the item for each column (preselected when names match) → (3) preview changed values → (4) apply.
+ * Applying saves the submodel once per file — undo is also per file, with "Undo".
+ * plan.ts does the calculation; inspector/applyValue.ts sets the values.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { parseCsv } from '@aas/linter';
@@ -14,11 +14,11 @@ import { applyValue } from '../inspector/applyValue.js';
 import { guessKeyColumn, leavesOf, planFill, suggestTarget, type FileTarget } from './plan.js';
 
 interface Props {
-  /** 지금 고른 서브모델(JSON) — 이 idShort 를 가진 서브모델을 파일마다 찾는다 */
+  /** The currently picked submodel (JSON) — the submodel with this idShort is looked up in each file */
   submodel: Record<string, unknown>;
   busy: boolean;
   onClose: () => void;
-  /** 반영을 마친 뒤 — 알림 글과 함께 부른다(지금 파일을 다시 읽는다) */
+  /** After applying — called with the notice text (re-reads the current file) */
   onDone: (notice: string) => void;
 }
 
@@ -39,7 +39,7 @@ export function CsvFillDialog({ submodel, busy, onClose, onDone }: Props): React
   const headers = table[0] ?? [];
   const rows = table.slice(1);
 
-  // 표가 바뀌면 열 대응을 다시 추측한다 — 사람이 고친 것은 표를 바꾸기 전까지 그대로다
+  // When the table changes, guess the column mapping again — what a person corrected stays until the table changes
   const headerKey = headers.join('\u0001');
   useEffect(() => {
     const names = headerKey === '' ? [] : headerKey.split('\u0001');
@@ -47,7 +47,7 @@ export function CsvFillDialog({ submodel, busy, onClose, onDone }: Props): React
     setMapping(names.map((header) => suggestTarget(header, leaves)));
   }, [headerKey, leaves]);
 
-  // 파일마다 같은 idShort 의 서브모델을 읽어 둔다 — 미리 보기와 반영이 같은 판을 쓴다
+  // Read each file's submodel with the same idShort up front — preview and apply use the same version
   useEffect(() => {
     let alive = true;
     void (async () => {

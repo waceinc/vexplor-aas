@@ -1,12 +1,12 @@
 /**
- * API 클라이언트 — 로그인 · 계정
- * src/api.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 api.ts 로 쓴다.
+ * API client — login · accounts
+ * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
 import type { AuthState, UserView } from './types.js';
 import { request, asJson } from './http.js';
 
 export const authApi = {
-  // ── 로그인 (2026-10-02) ──────────────────────────────────────────────────
+  // ── Login (2026-10-02) ──────────────────────────────────────────────────
   authMe: (): Promise<AuthState> => request('/auth/me'),
   login: (login: string, password: string): Promise<{ user: AuthState['user'] }> =>
     request('/auth/login', asJson({ login, password })),
@@ -27,7 +27,7 @@ export const authApi = {
     agreed = false,
   ): Promise<{ user: AuthState['user'] }> =>
     request('/auth/signup', asJson({ login, password, displayName, email, company, agreed })),
-  // ── 계정 관리(관리자) ──
+  // ── Account management (admin) ──
   listUsers: (): Promise<{ result: UserView[] }> => request('/auth/users'),
   createUser: (user: { login: string; displayName: string; role: string; password: string }): Promise<unknown> =>
     request('/auth/users', asJson(user)),
@@ -40,14 +40,14 @@ export const authApi = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(patch),
     }),
-  /** 관리자가 남의 계정을 지운다 — 그 사람이 올린 파일도 함께. 되돌릴 수 없다 */
+  /** An admin deletes someone else's account — together with the files they uploaded. Irreversible */
   deleteUser: (id: string): Promise<{ deleted: string; files: number }> =>
     request(`/auth/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  /** 탈퇴 — 내 계정을 지운다. 감사 기록의 「누가」는 남는다 */
+  /** Withdraw — deletes my own account. The "who" in the audit log is kept */
   deleteMe: (): Promise<void> => request('/auth/me', { method: 'DELETE' }),
   changePassword: (current: string, next: string): Promise<unknown> =>
     request('/auth/password', asJson({ current, next })),
-  /** 내 정보 고치기 — 표시 이름 · 회사명 · 이메일. 빈 문자열은 지운다 */
+  /** Edit my profile — display name · company · email. An empty string clears the field */
   updateMe: (patch: { displayName?: string; company?: string; email?: string }): Promise<{ user: AuthState['user'] }> =>
     request('/auth/me', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }),
 };

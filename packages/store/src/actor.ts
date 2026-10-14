@@ -1,17 +1,17 @@
 /**
- * 「누가 바꿨나」 — 요청 하나가 도는 동안의 **행위자**.
+ * "Who changed it" — the **actor** for the duration of a single request.
  *
- * 왜 매개변수로 안 넘기고 이렇게 두는가:
- *   모델을 바꾸는 호출 자리가 라우트에만 서른 군데쯤 된다. 거기에 actor를 일일이 끼워
- *   넣으면 **한 군데만 빠뜨려도 그 변경은 「누가」가 빈 채로 남는다.** 감사 기록에서
- *   "대부분 남는다"는 안 남는 것만 못하다 — 빠진 줄이 사고 당시의 줄일 수 있다.
- *   그래서 들어오는 길목 한 곳(api.ts)에서 한 번 깔고, 저장소가 집어 쓴다.
+ * Why this instead of passing it as a parameter:
+ *   There are roughly thirty call sites that modify the model in the routes alone. Threading actor
+ *   through each of them means **missing just one leaves that change with an empty "who".** For an
+ *   audit log, "mostly recorded" is worse than not recorded — the missing row may be the one from the incident.
+ *   So it is set once at the single entry point (api.ts) and the store picks it up.
  *
- * AsyncLocalStorage는 Node 내장이고 **비동기 문맥별로** 값을 든다. 요청 두 개가 겹쳐
- * 돌아도 서로의 행위자를 보지 않는다 — 모듈 전역 변수 한 개로 했다면 바로 섞였을 자리다.
+ * AsyncLocalStorage is built into Node and holds a value **per async context**. Even when two requests
+ * overlap, neither sees the other's actor — a single module-level global would have mixed them right here.
  *
- * 🔴 명시로 준 `options.actor`가 언제나 이긴다. 저장소를 직접 쓰는 쪽(수집기·시험)은
- *    이 문맥 밖에서 돌기 때문에, 숨은 값이 명시를 덮으면 설명할 수 없는 기록이 남는다.
+ * Important: an explicitly passed `options.actor` always wins. Callers that use the store directly (collector, tests)
+ *    run outside this context, so if a hidden value overrode the explicit one, the log would contain unexplainable entries.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -19,26 +19,26 @@ import type { Actor } from './types.js';
 
 const storage = new AsyncLocalStorage<Actor>();
 
-/** `fn`이 도는 동안(그 안에서 기다리는 비동기 호출까지) 행위자를 `actor`로 둔다 */
+/** Sets the actor to `actor` while `fn` runs (including async calls awaited inside it) */
 export function runAsActor<T>(actor: Actor | undefined, fn: () => T): T {
   return actor === undefined ? fn() : storage.run(actor, fn);
 }
 
-/** 지금 문맥의 행위자. 문맥 밖이면 undefined */
+/** The actor of the current context. undefined outside a context */
 export function currentActor(): Actor | undefined {
   return storage.getStore();
 }
 
-/** 저장소 구현이 이력을 쓸 때 부른다 — 명시가 있으면 그것, 없으면 문맥 */
+/** Called by store implementations when writing history — explicit if given, otherwise the context */
 export function resolveActor(explicit?: Actor): Actor | undefined {
   return explicit ?? currentActor();
 }
 
 /**
- * 이력 한 줄에 붙일 `actorId`·`actorName`.
+ * `actorId`/`actorName` to attach to one history row.
  *
- * 비었으면 **키 자체를 만들지 않는다** — `actorId: undefined`를 넣으면 JSON으로 왕복하는
- * 폴더 저장소에서 `"actorId": null`이 되어, 「기록 없음」과 「누가 null인 사람」이 섞인다.
+ * When empty, **do not create the keys at all** — putting `actorId: undefined` becomes `"actorId": null`
+ * in the folder store that round-trips through JSON, mixing "no record" with "a person who is null".
  */
 export function actorFields(explicit?: Actor): { actorId?: string; actorName?: string } {
   const actor = resolveActor(explicit);

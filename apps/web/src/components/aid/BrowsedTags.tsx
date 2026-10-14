@@ -1,6 +1,6 @@
 /**
- * 수집 연결 만들기 — 설비에서 훑어 온 태그 고르기(지금 값을 보며 고른다).
- * components/AddAid.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Create a collection connection — pick tags browsed from the equipment (choosing while looking at current values).
+ * Extracted from components/AddAid.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
  */
 import type { api } from '../../api.js';
 import { tr } from '../../i18n.js';
@@ -48,7 +48,7 @@ export function BrowsedTags({ found, picked, setPicked, setFound, applyPicked }:
               />
               <span className="tag-name">{node.name}</span>
               <span className="chip">{node.type}</span>
-              {/* 🔴 지금 값 — "이게 그 태그가 맞나"를 고르는 자리에서 확인한다 */}
+              {/* Important: current value — confirm "is this the right tag" right where it is picked */}
               {node.value !== undefined && <span className="now">{node.value}</span>}
               {node.error && <span className="warn">{node.error}</span>}
               <div className="mono address">{node.path}</div>

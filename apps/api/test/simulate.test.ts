@@ -1,8 +1,8 @@
 /**
- * 「가상 PLC로 연결」 — 설치판만 가진 평가자가 번들을 재현하는 길.
+ * "Connect to virtual PLC" — how an evaluator who only has the installer reproduces the bundle.
  *
- * 🔴 이 시험의 요점: **버튼 한 번으로 실제 OPC UA 수집까지 되는가.** 모의 객체가 아니라
- *    내장 가상 PLC(node-opcua 서버)에 실제로 붙어 값을 읽는다.
+ * Important: the point of this test: **does a single button press get all the way to real OPC UA collection?** Not a mock —
+ *    it actually connects to the built-in virtual PLC (a node-opcua server) and reads values.
  */
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
@@ -12,11 +12,11 @@ import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')));
+const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
 const PORT = 14870 + Math.floor(Math.random() * 100);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-describe('가상 PLC로 연결', () => {
+describe('connecting to the virtual PLC', () => {
   const simulator = new SimulatorServer({ port: PORT });
   const store = new InMemoryStore();
   const handle = createApi(store, {
@@ -44,7 +44,7 @@ describe('가상 PLC로 연결', () => {
     await simulator.stop();
   });
 
-  it('버튼 한 번 — 태그가 서고 수집 연결이 생기고, 실제로 값이 들어온다', async () => {
+  it('one button press — tags are created, a collection connection appears, and values actually arrive', async () => {
     const res = await call('POST', `/packages/${machineId}/simulate`);
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ machine: 'RollFormingMachine', title: SIMULATOR_TITLE });
@@ -58,7 +58,7 @@ describe('가상 PLC로 연결', () => {
     expect(values.every((v: any) => v.quality === 'Good')).toBe(true);
   }, 60_000);
 
-  it('다시 눌러도 같은 연결이다 — 태그가 두 벌로 늘지 않는다', async () => {
+  it('pressing again gives the same connection — tags are not duplicated', async () => {
     const again = await call('POST', `/packages/${machineId}/simulate`);
     expect(again.status).toBe(201);
     const { interfaces } = (await call('GET', `/packages/${machineId}/interfaces`)).body;
@@ -66,7 +66,7 @@ describe('가상 PLC로 연결', () => {
     expect(interfaces[0].properties).toHaveLength(again.body.tags);
   });
 
-  it('🔴 이미 다른 주소(현장 PLC)로 연결된 설비는 덮지 않는다 — 409', async () => {
+  it('Important: does not overwrite equipment already connected to another address (field PLC) — 409', async () => {
     const other = (await store.importPackage({ name: 'site.aasx', package: golden() })).id;
     await call('POST', `/packages/${other}/aid`, {
       endpoint: 'opc.tcp://192.168.10.25:4840/PLC',
@@ -76,12 +76,12 @@ describe('가상 PLC로 연결', () => {
     expect(res.status).toBe(409);
   });
 
-  it('공정(묶음) 파일에는 붙이지 않는다 — 400', async () => {
+  it('does not attach to a process (group) file — 400', async () => {
     const proc = (await call('POST', '/packages/new', { assetName: 'Line', unit: 'composite' })).body.packageId;
     expect((await call('POST', `/packages/${proc}/simulate`)).status).toBe(400);
   });
 
-  it('수집이 꺼진 배포에서는 501', async () => {
+  it('501 on a deployment with collection off', async () => {
     const bare = createApi(new InMemoryStore());
     const response = await bare({ method: 'POST', path: `/packages/x/simulate`, query: {}, queryAll: {}, headers: {} } as ApiRequest);
     expect(response.status).toBe(501);

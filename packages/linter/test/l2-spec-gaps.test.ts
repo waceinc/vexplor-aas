@@ -1,9 +1,10 @@
 /**
- * AAS 참조모델 제약조건 spec(aas-test-engines v1.0.3 기준) 전수 대조에서 메운 구멍들.
+ * Gaps closed by a full comparison against the AAS reference-model constraint spec
+ * (as of aas-test-engines v1.0.3).
  *
- * 🔴 이 제약들은 우리 도구가 **만들지는 않지만**, 편집(semanticId 비우기)이나
- *    남의 파일 열기(XML 지원 이후)로 실제로 마주칠 수 있다. 우리 린터가 놓치면
- *    aas-test-engines에서 떨어진다 — AASd-120 사고와 같은 유형이다.
+ * Important: our tool **never produces** these, but they can really show up through editing
+ *    (clearing a semanticId) or opening someone else's file (since XML support). If our linter
+ *    misses them, the file fails in aas-test-engines — the same kind of incident as AASd-120.
  */
 import { lint, L2_RULES } from '@aas/linter';
 import type { Environment } from '@aas/core';
@@ -24,8 +25,8 @@ const submodel = (elements: unknown[]): Environment =>
 const hit = (env: Environment, ruleId: string) =>
   lint(env, L2_RULES).findings.filter((finding) => finding.ruleId === ruleId);
 
-describe('AASd-118 — 보조 semanticId만 있는 요소', () => {
-  it('semanticId 없이 supplementalSemanticIds만 있으면 위반', () => {
+describe('AASd-118 — elements with only supplemental semanticIds', () => {
+  it('supplementalSemanticIds without a semanticId is a violation', () => {
     const env = submodel([
       {
         modelType: 'Property',
@@ -40,7 +41,7 @@ describe('AASd-118 — 보조 semanticId만 있는 요소', () => {
     expect(hit(env, 'AASd-118')).toHaveLength(1);
   });
 
-  it('둘 다 있으면 통과 — 골든 파일이 실제로 이 모양이다', () => {
+  it('passes when both are present — the golden file actually has this shape', () => {
     const env = submodel([
       {
         modelType: 'Property',
@@ -57,16 +58,16 @@ describe('AASd-118 — 보조 semanticId만 있는 요소', () => {
   });
 });
 
-describe('AASd-123/125/127 — 모델 참조 키 사슬', () => {
+describe('AASd-123/125/127 — model reference key chain', () => {
   const withSemantic = (semanticId: unknown): Environment =>
     submodel([{ modelType: 'Property', idShort: 'P', valueType: 'xs:string', value: 'x', semanticId }]);
 
-  it('ModelReference 첫 키가 Property면 위반 (AASd-123)', () => {
+  it('a ModelReference whose first key is Property is a violation (AASd-123)', () => {
     const env = withSemantic({ type: 'ModelReference', keys: [{ type: 'Property', value: 'x' }] });
     expect(hit(env, 'AASd-121~128').some((f) => f.message.includes('AAS 식별 대상이'))).toBe(true);
   });
 
-  it('둘째 키가 Submodel이면 위반 (AASd-125)', () => {
+  it('a second key of Submodel is a violation (AASd-125)', () => {
     const env = withSemantic({
       type: 'ModelReference',
       keys: [
@@ -77,7 +78,7 @@ describe('AASd-123/125/127 — 모델 참조 키 사슬', () => {
     expect(hit(env, 'AASd-121~128').some((f) => f.message.includes('요소류가 아닙니다'))).toBe(true);
   });
 
-  it('File 뒤의 FragmentReference는 통과, Property 뒤면 위반 (AASd-126·127)', () => {
+  it('FragmentReference after File passes, after Property is a violation (AASd-126/127)', () => {
     const good = withSemantic({
       type: 'ModelReference',
       keys: [
@@ -99,7 +100,7 @@ describe('AASd-123/125/127 — 모델 참조 키 사슬', () => {
     expect(hit(bad, 'AASd-121~128').some((f) => f.message.includes('File·Blob이 아닙니다'))).toBe(true);
   });
 
-  it('정상 사슬(Submodel→SMC→Property)은 통과', () => {
+  it('a valid chain (Submodel→SMC→Property) passes', () => {
     const env = withSemantic({
       type: 'ModelReference',
       keys: [
@@ -125,19 +126,19 @@ describe('AASd-116/133 — SpecificAssetId', () => {
       ],
     }) as unknown as Environment;
 
-  it('예약 이름 globalAssetId는 위반 (대소문자 무시)', () => {
+  it('the reserved name globalAssetId is a violation (case-insensitive)', () => {
     const env = withAsset([{ name: 'GlobalAssetId', value: 'urn:x' }]);
     expect(hit(env, 'AASd-116/133')).toHaveLength(1);
   });
 
-  it('externalSubjectId가 ModelReference면 위반', () => {
+  it('an externalSubjectId that is a ModelReference is a violation', () => {
     const env = withAsset([
       { name: 'serial', value: '123', externalSubjectId: { type: 'ModelReference', keys: [] } },
     ]);
     expect(hit(env, 'AASd-116/133')).toHaveLength(1);
   });
 
-  it('정상이면 통과', () => {
+  it('passes when valid', () => {
     const env = withAsset([
       { name: 'serial', value: '123', externalSubjectId: { type: 'ExternalReference', keys: [] } },
     ]);
@@ -145,7 +146,7 @@ describe('AASd-116/133 — SpecificAssetId', () => {
   });
 });
 
-describe('AASc-3a-010 — value와 valueList 배타', () => {
+describe('AASc-3a-010 — value and valueList are mutually exclusive', () => {
   const cd = (content: Record<string, unknown>): Environment =>
     ({
       conceptDescriptions: [
@@ -166,7 +167,7 @@ describe('AASc-3a-010 — value와 valueList 배타', () => {
       ],
     }) as unknown as Environment;
 
-  it('둘 다 있으면 위반', () => {
+  it('both present is a violation', () => {
     const env = cd({
       value: '42',
       valueList: { valueReferencePairs: [{ value: '42', valueId: { type: 'ExternalReference', keys: [] } }] },
@@ -174,7 +175,7 @@ describe('AASc-3a-010 — value와 valueList 배타', () => {
     expect(hit(env, 'AASc-3a-010')).toHaveLength(1);
   });
 
-  it('하나만 있으면 통과', () => {
+  it('only one present passes', () => {
     expect(hit(cd({ value: '42' }), 'AASc-3a-010')).toHaveLength(0);
     expect(
       hit(cd({ valueList: { valueReferencePairs: [{ value: '42' }] } }), 'AASc-3a-010'),
@@ -182,7 +183,7 @@ describe('AASc-3a-010 — value와 valueList 배타', () => {
   });
 });
 
-describe('AASd-119/129 — TemplateQualifier 일관성', () => {
+describe('AASd-119/129 — TemplateQualifier consistency', () => {
   const withQualifier = (kind: string | undefined): Environment =>
     ({
       submodels: [
@@ -204,16 +205,16 @@ describe('AASd-119/129 — TemplateQualifier 일관성', () => {
       ],
     }) as unknown as Environment;
 
-  it('Instance 서브모델 안의 TemplateQualifier는 위반', () => {
+  it('a TemplateQualifier inside an Instance submodel is a violation', () => {
     expect(hit(withQualifier('Instance'), 'AASd-119/129')).toHaveLength(1);
     expect(hit(withQualifier(undefined), 'AASd-119/129')).toHaveLength(1);
   });
 
-  it('Template 서브모델 안이면 통과', () => {
+  it('passes inside a Template submodel', () => {
     expect(hit(withQualifier('Template'), 'AASd-119/129')).toHaveLength(0);
   });
 
-  it('일반 Qualifier(ConceptQualifier)는 상관없다', () => {
+  it('an ordinary Qualifier (ConceptQualifier) is unaffected', () => {
     const env = withQualifier('Instance');
     (env.submodels![0]!.submodelElements![0] as never as { qualifiers: { kind: string }[] }).qualifiers[0]!.kind =
       'ConceptQualifier';
@@ -221,7 +222,7 @@ describe('AASd-119/129 — TemplateQualifier 일관성', () => {
   });
 });
 
-describe('AASd-128 — 리스트 키 뒤는 정수 색인', () => {
+describe('AASd-128 — the key after a list key must be an integer index', () => {
   const withRef = (keys: { type: string; value: string }[]): Environment =>
     submodel([
       {
@@ -233,7 +234,7 @@ describe('AASd-128 — 리스트 키 뒤는 정수 색인', () => {
       },
     ]);
 
-  it('SubmodelElementList 키 뒤가 이름이면 위반', () => {
+  it('a name after a SubmodelElementList key is a violation', () => {
     const env = withRef([
       { type: 'Submodel', value: 'https://example.com/sm/1' },
       { type: 'SubmodelElementList', value: 'Markings' },
@@ -242,7 +243,7 @@ describe('AASd-128 — 리스트 키 뒤는 정수 색인', () => {
     expect(hit(env, 'AASd-121~128').some((f) => f.message.includes('정수 색인이'))).toBe(true);
   });
 
-  it('정수면 통과', () => {
+  it('an integer passes', () => {
     const env = withRef([
       { type: 'Submodel', value: 'https://example.com/sm/1' },
       { type: 'SubmodelElementList', value: 'Markings' },
@@ -252,22 +253,22 @@ describe('AASd-128 — 리스트 키 뒤는 정수 색인', () => {
   });
 });
 
-describe('AASd-130 — XML 금지 문자', () => {
-  it('제어문자가 든 값은 위반 (복사·붙여넣기로 흔히 들어온다)', () => {
+describe('AASd-130 — characters forbidden in XML', () => {
+  it('a value containing control characters is a violation (commonly introduced by copy-paste)', () => {
     const env = submodel([
       { modelType: 'Property', idShort: 'P', valueType: 'xs:string', value: '온도\u0000값' },
     ]);
     expect(hit(env, 'AASd-130')).toHaveLength(1);
   });
 
-  it('홀 서로게이트도 위반 — JSON은 통과시키지만 XML 도구가 죽는다', () => {
+  it('a lone surrogate is also a violation — JSON lets it through but XML tools crash', () => {
     const env = submodel([
       { modelType: 'Property', idShort: 'P', valueType: 'xs:string', value: 'x\uD800y' },
     ]);
     expect(hit(env, 'AASd-130')).toHaveLength(1);
   });
 
-  it('한글·개행·탭·이모지는 통과', () => {
+  it('Hangul, newlines, tabs and emoji pass', () => {
     const env = submodel([
       { modelType: 'Property', idShort: 'P', valueType: 'xs:string', value: '줄1\n줄2\t끝 🏭 한글' },
     ]);
@@ -275,7 +276,7 @@ describe('AASd-130 — XML 금지 문자', () => {
   });
 });
 
-describe('AASd-134 — Operation 변수 이름', () => {
+describe('AASd-134 — Operation variable names', () => {
   const operation = (names: string[][]): Environment =>
     submodel([
       {
@@ -286,11 +287,11 @@ describe('AASd-134 — Operation 변수 이름', () => {
       },
     ]);
 
-  it('입력과 출력에 같은 이름이 있으면 위반', () => {
+  it('the same name in inputs and outputs is a violation', () => {
     expect(hit(operation([['a'], ['a']]), 'AASd-134')).toHaveLength(1);
   });
 
-  it('전부 다르면 통과', () => {
+  it('all distinct passes', () => {
     expect(hit(operation([['a', 'b'], ['c']]), 'AASd-134')).toHaveLength(0);
   });
 });

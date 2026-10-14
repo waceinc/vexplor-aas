@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-basyx-python-sdk 적재 검증 — **상호운용의 실측**.
+basyx-python-sdk load check — **interoperability measured, not assumed**.
 
-CLAUDE.md 「절대 잊으면 안 되는」 §1·§3이 말하는 두 가지를 이 스크립트가 매번 확인한다.
-  ① SML 직계 자식에 idShort가 있으면 AASd-120에 걸린다
-  ② 잘못된 semanticId 키 타입을 만나면 **서브모델을 조용히 드롭한다**(실측 7→5)
+Every run confirms the two known basyx pitfalls:
+  (1) an idShort on a direct child of a SubmodelElementList violates AASd-120
+  (2) an invalid semanticId key type makes basyx **silently drop the submodel** (measured 7 -> 5)
 
-🔴 2026-08-24 실측으로 ①의 양상을 정정했다. basyx 1.2.1은 **예외를 던지고도 읽기를 계속한다** —
-파일은 "열리고" 서브모델 수도 그대로인데 **SML 자식과 그 아래 하위 트리가 통째로 빠진다.**
-골든 파일 실측: 요소 **99개**만 읽힘 / AASd-120을 고친 같은 파일은 **164개**. 65개가 말없이 사라진다.
+[WARN] Measurement on 2026-08-24 corrected how (1) shows up. basyx 1.2.1 **raises an exception and keeps reading** —
+the file "opens" and the submodel count is unchanged, but **the list children and their whole subtrees are missing.**
+Golden file measured: only **99** elements read / the same file with AASd-120 fixed reads **164**. 65 vanish without a word.
 
-그래서 "열렸다/안 열렸다"로 끝내지 않고 **요소까지 센다.** 조용한 손실이 이 판의 함정이다.
+So this does not stop at "opened / did not open" — **it counts elements too.** Silent loss is the trap here.
 
-사용:
-    out/venv/bin/python scripts/basyx-check.py <파일.aasx> [...] [--expect-submodels 7]
-    (설치: out/venv/bin/pip install basyx-python-sdk==1.2.1)
+Usage:
+    out/venv/bin/python scripts/basyx-check.py <file.aasx> [...] [--expect-submodels 7]
+    (install: out/venv/bin/pip install basyx-python-sdk==1.2.1)
 
-종료 코드: 하나라도 읽지 못하면 1.
+Exit code: 1 if any file cannot be read.
 """
 import sys
 
@@ -26,7 +26,7 @@ from basyx.aas.model import DictObjectStore
 
 
 def count_elements(collection) -> int:
-    """하위 트리까지 센다. **여기서 줄어드는 것이 조용한 손실이다.**"""
+    """Count down through the subtrees. **A drop here is the silent loss.**"""
     total = 0
     for element in collection:
         total += 1
@@ -41,8 +41,8 @@ def check(path: str, expect_submodels: int = None) -> bool:
     try:
         with AASXReader(path) as reader:
             reader.read_into(object_store=store, file_store=files)
-    except Exception as error:  # noqa: BLE001 — 어떤 예외든 "적재 실패"로 본다
-        print(f"❌ 적재 실패  {path}")
+    except Exception as error:  # noqa: BLE001 — any exception counts as "load failed"
+        print(f"[FAIL] load failed  {path}")
         print(f"   {type(error).__name__}: {str(error)[:200]}")
         return False
 
@@ -52,20 +52,20 @@ def check(path: str, expect_submodels: int = None) -> bool:
     elements = sum(count_elements(s.submodel_element) for s in submodels)
 
     ok = True
-    print(f"✅ 적재됨  {path}")
-    # DictSupplementaryFileContainer는 len()을 지원하지 않는다 — 순회해서 센다
+    print(f"[OK] loaded  {path}")
+    # DictSupplementaryFileContainer does not support len() — count by iterating
     attachments = sum(1 for _ in files)
     print(
         f"   AAS {len(shells)} · Submodel {len(submodels)} · "
-        f"ConceptDescription {len(concepts)} · 요소 {elements} · 첨부 {attachments}"
+        f"ConceptDescription {len(concepts)} · elements {elements} · attachments {attachments}"
     )
 
     if elements == 0 and submodels:
-        print("   ⚠️  요소가 하나도 안 읽혔다 — 조용한 손실을 의심할 것")
+        print("   [FAIL] no elements were read — suspect silent loss")
         ok = False
     if expect_submodels is not None and len(submodels) != expect_submodels:
-        # 조용한 드롭 — 예외 없이 사라지는 쪽이 더 위험하다
-        print(f"   ⚠️  서브모델이 {expect_submodels}개여야 하는데 {len(submodels)}개다. 조용히 드롭됐다")
+        # Silent drop — vanishing without an exception is the more dangerous case
+        print(f"   [FAIL] expected {expect_submodels} submodels but got {len(submodels)}. Silently dropped")
         ok = False
     return ok
 

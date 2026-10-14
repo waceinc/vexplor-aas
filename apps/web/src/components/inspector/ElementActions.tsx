@@ -1,6 +1,6 @@
 /**
- * 편집 칸 아래 동작 — 요소 추가 · 사본 만들기 · 삭제.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Actions below the edit fields — add element · make copy · delete.
+ * Split out of components/Inspector.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 import type { TreeNode } from '../../model.js';
 
@@ -16,8 +16,8 @@ interface Props {
 export function ElementActions({ node, busy, onAddChild, onDuplicate, onDelete, t }: Props): React.JSX.Element {
   return (
     <>
-      {/* 순서 바꾸기는 여기 없다 — 왼쪽 트리에서 끌어서 놓는다(우클릭 메뉴·Alt+↑↓도). 버튼 이름만으로
-          무엇인지 모르겠다는 지적(2026-09-04)에 따라 남는 것도 하는 일을 그대로 적는다 */}
+      {/* Reordering is not here — drag and drop in the left tree (also the right-click menu · Alt+↑↓). Following the remark that
+          button names alone did not say what they do (2026-09-04), the remaining ones state exactly what they do */}
       <div className="row-buttons actions">
         {onAddChild && (
           <button disabled={busy} title={t('이 안에 새 요소를 만듭니다')} onClick={() => onAddChild(node)}>

@@ -1,11 +1,11 @@
 /**
- * 시작하기 목록 — 처음 쓰는 사람이 무엇을 해 볼지 순서로 보여 준다(2026-10-08).
+ * Getting-started list — shows first-time users, in order, what to try (2026-10-08).
  *
- * 파일 열기 → 검사 결과 → 자동 고치기 → 내려받기. 해 보면 저절로 체크된다.
- * 줄을 누르면 그 일을 바로 시작한다(할 수 없는 때는 무엇을 먼저 할지 알려 준다).
+ * Open a file → check results → auto fix → download. Items are checked off automatically once done.
+ * Clicking a row starts that task right away (when it cannot be done yet, it says what to do first).
  *
- * 🔴 화면 구석에 작게 — 일을 가리지 않는다. 접을 수 있고, 다 하면 저절로 사라진다.
- *    「닫기」로 숨겨도 「? 도움말 → 시작하기 목록 보기」로 다시 꺼낸다.
+ * Important: small, in a corner of the screen — it does not cover the work. It can be collapsed and disappears by itself when everything is done.
+ *    Even if hidden with "Close", it can be brought back via "? Help → Show getting-started list".
  */
 import { useState } from 'react';
 
@@ -17,7 +17,7 @@ export interface StartItem {
   label: string;
   hint: string;
   done: boolean;
-  /** 지금 할 수 있으면 그 일을 시작한다. 없으면 hint만 보인다 */
+  /** Starts the task if it can be done now. Otherwise only the hint is shown */
   action?: () => void;
 }
 

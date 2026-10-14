@@ -1,6 +1,6 @@
 /**
- * 구성 트리 — 공정(또는 조립체) 넣기 줄 — 파일 없는 층의 이름을 적는다. Enter 로 연달아.
- * components/HierarchyTree.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Composition tree — process (or assembly) add row — type the name of a level without a file. Enter to add several in a row.
+ * Split out of components/HierarchyTree.tsx (2026-10-13 componentization) — markup and comments were moved verbatim.
  */
 import { useEffect, useRef, useState } from 'react';
 import { fill, tr } from '../../i18n.js';
@@ -10,7 +10,7 @@ interface Props {
   path: string[];
   siblings: readonly string[];
   terms: Terms;
-  /** 라인을 넣는 줄인가 — 낱말·표시만 다르다 */
+  /** Is this a row for adding a line — only the wording and labels differ */
   line?: boolean;
   busy: boolean;
   onAddGroup: (parentPath: string[], name: string, line?: boolean) => void;
@@ -22,9 +22,9 @@ export function GroupAdder({ path, siblings, terms, line = false, busy, onAddGro
   const label = line && terms.line ? terms.line : terms.group;
   const [name, setName] = useState('');
   const adderRef = useRef<HTMLDivElement>(null);
-  // 그 자리로 스크롤한다(입력 줄이 다른 자리로 옮겨 가면 Hierarchy 가 key 를 바꿔 새로 그린다 — 값도 비워진다)
-  // 중괄호로 감싸 아무것도 돌려주지 않는다 — 요즘 크롬은 scrollIntoView 가 Promise 를 돌려줘, 그대로 돌려주면
-  // React 가 그것을 정리 함수로 알고 줄이 닫힐 때 불러 화면 전체가 멈췄다(2026-10-14 실측). jsdom 에는 scrollIntoView 가 없다
+  // Scroll to that spot (when the input row moves elsewhere, Hierarchy changes the key and redraws it — the value is cleared too)
+  // Wrapped in braces so nothing is returned — current Chrome's scrollIntoView returns a Promise; returning it made
+  // React treat it as a cleanup function and call it when the row closed, freezing the whole screen (measured 2026-10-14). jsdom has no scrollIntoView
   useEffect(() => {
     void adderRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }, []);
@@ -32,7 +32,7 @@ export function GroupAdder({ path, siblings, terms, line = false, busy, onAddGro
   const commit = (): void => {
     if (!ok) return;
     onAddGroup(path, name, line);
-    setName(''); // 줄은 열어 둔다 — 공정 여러 개를 연달아
+    setName(''); // keep the row open — for adding several processes in a row
   };
   return (
     <div className="build-adder" ref={adderRef}>

@@ -1,12 +1,12 @@
 /**
- * 새로 만들기 — 설비 한 대, 또는 여러 설비로 이루어진 공정.
+ * Create new — one machine, or a process made of several machines.
  *
- * 🔴 빈 AAS를 만들지 않는다. KOSMO는 서브모델 4종을 요구하고 총 개수를 6~8종으로 묶는다 —
- * 빈 파일에서 출발하면 그걸 사람이 기억해 하나씩 붙여야 한다. 뼈대는 **서버(린터 정책)** 가 만든다.
- * 여기서는 이름과 추가할 서브모델만 받는다.
+ * Important: never create an empty AAS. KOSMO requires 4 submodel kinds and caps the total at 6–8 kinds —
+ * starting from an empty file means a person has to remember that and attach them one by one. The skeleton is built by **the server (linter policy)**.
+ * Here we only take the name and the submodels to add.
  *
- * 공정을 고르면 계층 서브모델(IDTA 02011)이 진입점까지 채워진 채로 만들어진다.
- * 그다음 설비를 하나씩 매다는 것은 「무엇으로 이루어졌나」 패널이 맡는다.
+ * Choosing a process creates the hierarchy submodel (IDTA 02011) already filled up to the entry node.
+ * Hanging the machines under it one by one is the job of the "What is it made of" panel.
  */
 import { useState } from 'react';
 import { HierarchyTree, type Adder, type DraftNode } from './HierarchyTree.js';
@@ -18,9 +18,9 @@ export type AssetUnit = 'equipment' | 'composite';
 
 interface Props {
   policy?: Policy;
-  /** 공정에 넣을 수 있는 후보 — 지금 열려 있는 설비 파일들 */
+  /** Candidates that can go into a process — the equipment files open now */
   candidates?: PackageDescription[];
-  /** PC 폴더에서 .aasx를 올려 그 자리에서 넣는다 — HierarchyTree로 넘긴다 */
+  /** Upload a .aasx from a PC folder and add it in place — passed through to HierarchyTree */
   onImportFile?: (file: File) => Promise<string | undefined>;
   busy: boolean;
   onCancel: () => void;
@@ -28,17 +28,17 @@ interface Props {
     assetName: string,
     extraSubmodels: string[],
     unit: AssetUnit,
-    /** 함께 만들 구성 — 회사 → 공정 → 설비 트리(초안). 만든 뒤 줄마다 API로 넣는다 */
+    /** Composition created together — company → process → equipment tree (draft). After creation it is added row by row through the API */
     tree: DraftNode[],
   ) => void;
-  /** 번역기 (i18n.ts) */
+  /** Translator (i18n.ts) */
   t: (text: string) => string;
 }
 
-/** 필수 4종에 더해 기본으로 넣는 것 — 서버의 DEFAULT_EXTRA_SUBMODELS와 같아야 한다 */
+/** Added by default on top of the required 4 — must match the server's DEFAULT_EXTRA_SUBMODELS */
 /**
- * 필수 4종의 설명 — 순서까지 규정 그대로다(정책 requiredSubmodels 순).
- * 초보자는 영문 이름만으로 무엇인지 모른다.
+ * Descriptions of the required 4 — even the order follows the rules (policy requiredSubmodels order).
+ * Beginners cannot tell what they are from the English names alone.
  */
 const REQUIRED_HINTS: Record<string, string> = {
   DigitalNameplate: tr('명판 — 제조사·모델명·일련번호'),
@@ -48,8 +48,8 @@ const REQUIRED_HINTS: Record<string, string> = {
 };
 
 /**
- * 선택 서브모델 — IDTA 공식 발행 54종 중 이 사업에서 쓸 법한 것(2026-08-26 사용자 확정).
- * 번호는 필수 4종에 이어 5~11로 매긴다. 장비 특화(○○Safety)는 이름이 제각각이라 직접 입력이다.
+ * Optional submodels — those likely used in this program out of the 54 officially published by IDTA (confirmed by the user, 2026-08-26).
+ * Numbered 5–11 after the required 4. Equipment-specific ones (xxxSafety) have varied names, so they are typed directly.
  */
 const OPTIONAL_EXTRAS: { name: string; hint: string; on: boolean }[] = [
   { name: 'HierarchicalStructures', hint: tr('BoM 구조 복잡 장비'), on: true },
@@ -74,29 +74,29 @@ export function NewPackage({
 }: Props): React.JSX.Element {
   const [assetName, setAssetName] = useState('');
   const [extra, setExtra] = useState('');
-  /** 선택 서브모델 체크 — 기본은 실측 표준 구성(계층·정비지침)만 켠다 */
+  /** Optional submodel checks — by default only the measured standard set (hierarchy · maintenance instructions) is on */
   const [optional, setOptional] = useState<Record<string, boolean>>(
     Object.fromEntries(OPTIONAL_EXTRAS.map((option) => [option.name, option.on])),
   );
   const [unit, setUnit] = useState<AssetUnit>('equipment');
   /**
-   * 구성 초안 — 회사(이 파일) → 공정 → 설비. 만들 때와 만든 뒤가 **같은 트리 편집기**다(HierarchyTree).
-   * 🔴 체크 목록 + 「어느 층」 셀렉트로는 트리가 안 그려졌다(사용자 2026-09-08). 줄의 「＋」가 그 줄 밑에 넣는다
+   * Composition draft — company (this file) → process → equipment. Creation and after-creation use **the same tree editor** (HierarchyTree).
+   * Important: a checklist plus a "which level" select did not draw a tree (user, 2026-09-08). A row's "+" adds under that row
    */
   const [tree, setTree] = useState<DraftNode[]>([]);
   const [adder, setAdder] = useState<Adder>();
 
   const valid = /^[A-Za-z][A-Za-z0-9_]*$/.test(assetName);
-  // 공정·회사·라인은 같은 구조(계층만)라 화면도 하나다 — 이름으로 정해진다
+  // Process, company and line have the same structure (hierarchy only), so there is one screen — the name decides
   const process = unit !== 'equipment';
   const userExtras = extra.split(',').map((entry) => entry.trim()).filter((entry) => entry !== '');
-  // 🔴 선택 2종(계층·정비지침)은 설비에만 — 공정은 계층만으로 시작한다(앞서 실측으로 잡은 버그)
+  // Important: the 2 optional ones (hierarchy · maintenance instructions) are for equipment only — a process starts with the hierarchy only (a bug caught earlier by measurement)
   const checkedExtras = DEFAULT_EXTRAS.filter((name) => optional[name]);
   const extras = process ? userExtras : [...checkedExtras, ...userExtras];
   const required = policy?.requiredSubmodels ?? [];
   const total = required.length + extras.length;
 
-  /** 경로의 자식 목록을 바꿔 새 트리를 만든다 — 상태는 불변으로 다룬다 */
+  /** Builds a new tree by replacing the child list at the path — state is treated as immutable */
   const updateAt = (list: DraftNode[], path: string[], fn: (children: DraftNode[]) => DraftNode[]): DraftNode[] => {
     if (path.length === 0) return fn(list);
     return list.map((node) =>
@@ -105,7 +105,7 @@ export function NewPackage({
   };
   const addAt = (path: string[], node: DraftNode): void =>
     setTree((current) => updateAt(current, path, (children) => [...children, node]));
-  /** 공정을 빼면 그 밑 것들은 한 층 위로 올라온다 — 말없이 지우지 않는다 */
+  /** Removing a process moves what was under it up one level — nothing is deleted silently */
   const removeAt = (path: string[]): void => {
     const name = path[path.length - 1]!;
     setTree((current) =>
@@ -123,10 +123,10 @@ export function NewPackage({
   return (
     <div className="add-form">
       <h3>{tr('새로 만들기')}</h3>
-      {/* 🔴 공정·회사·라인을 버튼으로 나누지 않는다 — 구조가 완전히 같고(계층 하나), 층 이름을 고정하면
-          "라인은? 사이트는?" 할 때마다 버튼이 는다. 표준 계층(RAMI 4.0)은 재귀라 층 이름은 사용자가
-          짓는 것이 맞다(2026-08-26 확정). 버튼을 「공정」으로 줄였다가 되돌렸다 — 한 공정이 아니라
-          회사 그룹으로 만드는 쓰임이 맞다(사용자 2026-09-08). 이름은 「그룹(회사/공정)」 */}
+      {/* Important: process, company and line are not split into buttons — the structure is exactly the same (one hierarchy), and fixing level names
+          adds a button every time someone asks "what about lines? sites?". The standard hierarchy (RAMI 4.0) is recursive, so the user
+          should name the levels (confirmed 2026-08-26). We once reduced the button to "Process" and reverted it — the right use is making
+          a company group, not one process (user, 2026-09-08). The name is "Group (company/process)" */}
       <div className="unit-choice">
         <button
           className={unit === 'equipment' ? 'primary' : ''}
@@ -151,7 +151,7 @@ export function NewPackage({
           : tr('설비 한 대의 AAS입니다. 필수 서브모델 4종이 자동으로 들어갑니다.')}
       </p>
 
-      {/* ① 이름 */}
+      {/* (1) Name */}
       <label>
         {process ? tr('① 이름 (회사·공정·라인)') : tr('설비 이름')}
         <input
@@ -172,7 +172,7 @@ export function NewPackage({
             <ol className="sm-required">
               {required.map((name, index) => (
                 <li key={name}>
-                  {/* 필수는 잠긴 체크로 — 선택 목록과 같은 열(체크 · 번호 · 이름)에 놓여 이름 시작점이 맞는다 */}
+                  {/* Required ones are locked checks — in the same columns (check · number · name) as the optional list, so names start aligned */}
                   <label>
                     <input type="checkbox" checked disabled aria-label={tr('자동으로 들어갑니다')} />
                     <span className="sm-num">{index + 1}.</span>
@@ -219,7 +219,7 @@ export function NewPackage({
           </label>
           <p className="hint"><T k={'만들면 <b>{0}종</b>이 들어갑니다: {1}'} v={[total, <span className="mono">{[...required, ...extras].join(' · ')}</span>]} />
           </p>
-          {/* KOSMO-AAS-4 — 총 6~8종. 9종부터는 만들자마자 위반이라 미리 알린다 */}
+          {/* KOSMO-AAS-4 — 6–8 kinds in total. From 9 kinds it violates the rule the moment it is created, so warn ahead */}
           {total > 8 && (
             <p className="note warning">
               <T k={'{0}종은 KOSMO 상한(8종)을 넘습니다 — 만들자마자 위반(KOSMO-AAS-4)이 됩니다. 설비 특화 서브모델을 줄이십시오.'} v={[total]} /></p>

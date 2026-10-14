@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * 라인 층 화면 — 회사 줄의 「＋ 라인」, 라인 줄의 「＋ 공정」, 그 밑 「＋ 설비」. 즉시 모드(만든 뒤)와 초안(새로 만들기) 둘 다.
+ * Line level screen: "+ Line" on the company row, "+ Process" on the line row, then "+ Equipment". Both immediate mode (after creation) and draft (new).
  */
 import { readAasx } from '@aas/aasx';
 import { InMemoryStore } from '@aas/store';
@@ -23,15 +23,15 @@ async function tree(packageId: string): Promise<TreeNode[]> {
   return ((await (await fetch(`/packages/${packageId}/hierarchy`)).json()) as { children: TreeNode[] }).children;
 }
 
-/** 입력 줄에 이름을 적고 Enter */
+/** Type a name into the input row and press Enter */
 function typeName(label: RegExp, name: string): void {
   const input = screen.getByLabelText(label);
   fireEvent.change(input, { target: { value: name } });
   fireEvent.keyDown(input, { key: 'Enter' });
 }
 
-describe('라인 층 화면', () => {
-  it('만든 회사 파일에서 「＋ 라인」 → 라인 줄의 「＋ 공정」 — 파일에 라인 → 공정으로 남고 요약에 라인 수가 나온다', async () => {
+describe('line level screen', () => {
+  it('in a created company file, + Line then + Process on the line row: the file records line -> process and the summary shows the line count', async () => {
     const store = new InMemoryStore();
     await store.init();
     wireFetch(store);
@@ -43,7 +43,7 @@ describe('라인 층 화면', () => {
     typeName(/^라인 이름$/, 'BodyLine');
     await waitFor(async () => expect((await tree('pkg_1'))[0]).toMatchObject({ name: 'BodyLine', line: true }));
 
-    // 라인 줄에는 「＋ 공정」이 붙고, 공정 줄에는 붙지 않는다
+    // the line row gets "+ Process"; the process row does not
     const lineRow = (await within(panel).findByText('BodyLine')).closest('.build-row') as HTMLElement;
     fireEvent.click(within(lineRow).getByRole('button', { name: '＋ 공정' }));
     typeName(/^공정 이름$/, 'WeldingProcess');
@@ -52,16 +52,16 @@ describe('라인 층 화면', () => {
     expect(within(processRow).queryByRole('button', { name: '＋ 공정' })).toBeNull();
     expect(within(processRow).getByRole('button', { name: '＋ 설비' })).toBeTruthy();
 
-    // 요약 타일에 라인 1 — 공정·그룹과 따로 센다
+    // summary tile shows line 1, counted separately from processes and groups
     const tiles = document.querySelector('.summary .tiles') as HTMLElement;
     await waitFor(() => expect(within(tiles).getByText('라인').previousElementSibling?.textContent).toBe('1'));
     expect(within(tiles).getByText('공정·그룹').previousElementSibling?.textContent).toBe('1');
   });
 
-  it('새로 만들기(초안)에서도 라인 → 공정 → 이름만 설비가 그대로 만들어진다', async () => {
+  it('new (draft) mode also creates line -> process -> name-only equipment as is', async () => {
     const store = new InMemoryStore();
     await store.init();
-    await store.importPackage({ name: '01-롤포밍기.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });
+    await store.importPackage({ name: '01-롤포밍기.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'))) });
     wireFetch(store);
     render(<App />);
     await screen.findByText('DigitalNameplate');
@@ -92,8 +92,8 @@ describe('라인 층 화면', () => {
     });
   });
 
-  it('입력 줄을 바꿔 열어도 화면이 멈추지 않는다 — scrollIntoView 가 Promise 를 돌려주는 브라우저에서도', async () => {
-    // 요즘 크롬처럼 Promise 를 돌려준다. 효과가 그것을 돌려주면 React 가 정리 함수로 불러 화면 전체가 멈췄다(2026-10-14)
+  it('switching the open input row does not freeze the screen, even in browsers where scrollIntoView returns a Promise', async () => {
+    // like recent Chrome, returns a Promise. When the effect returned it, React called it as a cleanup function and the whole screen froze (2026-10-14)
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: () => Promise.resolve(), configurable: true });
     try {
       const store = new InMemoryStore();
@@ -103,9 +103,9 @@ describe('라인 층 화면', () => {
       render(<App />);
       const panel = (await screen.findByText('공정·설비 구성')).closest('.hierarchy') as HTMLElement;
       fireEvent.click(within(panel).getByRole('button', { name: '＋ 라인' }));
-      typeName(/^라인 이름$/, 'BodyLine'); // 라인 줄은 열린 채로 남는다
+      typeName(/^라인 이름$/, 'BodyLine'); // the line row stays open
       const lineRow = (await within(panel).findByText('BodyLine')).closest('.build-row') as HTMLElement;
-      fireEvent.click(within(lineRow).getByRole('button', { name: '＋ 공정' })); // 라인 입력 줄이 닫히고 공정 입력 줄이 열린다
+      fireEvent.click(within(lineRow).getByRole('button', { name: '＋ 공정' })); // the line input row closes and the process input row opens
       fireEvent.click(within(lineRow).getByRole('button', { name: '＋ 설비' }));
       expect(await screen.findByText('공정·설비 구성')).toBeTruthy();
       expect(screen.getByPlaceholderText(/이름만/)).toBeTruthy();

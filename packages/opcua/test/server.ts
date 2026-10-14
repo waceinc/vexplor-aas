@@ -1,14 +1,14 @@
 /**
- * 시험용 OPC UA 서버 — 실물 PLC 없이 **진짜 프로토콜**로 왕복한다.
+ * Test OPC UA server — round-trips over the **real protocol** without a physical PLC.
  *
- * node-opcua에 서버가 함께 들어 있어 가능한 일이다. 가짜 리더로만 시험하면
- * 어댑터가 프로토콜을 제대로 다루는지는 끝내 확인되지 않는다.
+ * Possible because node-opcua ships a server. Testing only with a fake reader
+ * never confirms that the adapter handles the protocol correctly.
  */
 import { DataType, OPCUAServer, StatusCodes, Variant } from 'node-opcua';
 
 export interface TestServer {
   endpoint: string;
-  /** 값을 바꿔 수집 결과가 따라오는지 보기 위해 */
+  /** Change the value to see that collected results follow it */
   setSpeed(value: number): void;
   stop(): Promise<void>;
 }
@@ -47,9 +47,9 @@ export async function startTestServer(port: number): Promise<TestServer> {
   });
 
   /*
-   * 🔴 **정수 값을 가진 Int32 태그.** 값만 보면 float와 구별되지 않아서
-   *    자료형 판정이 DataType을 제대로 읽는지 여기서만 드러난다 —
-   *    실제로 이 자리가 깨져 정수 태그가 죄다 string으로 잡혔다(2026-09-01 실측).
+   * Important: **an Int32 tag holding an integer value.** By value alone it is indistinguishable from float,
+   *    so only here does it show whether type detection reads DataType correctly —
+   *    this spot actually broke and every integer tag was detected as string (measured 2026-09-01).
    */
   namespace.addVariable({
     componentOf: device,
@@ -59,7 +59,7 @@ export async function startTestServer(port: number): Promise<TestServer> {
     value: { get: () => new Variant({ dataType: DataType.Int32, value: 5200 }) },
   });
 
-  // 나쁜 상태를 돌려주는 태그 — 현장에서 센서가 죽은 상황
+  // Tag that returns a bad status — a sensor that died on site
   namespace.addVariable({
     componentOf: device,
     browseName: 'BrokenSensor',
@@ -69,10 +69,10 @@ export async function startTestServer(port: number): Promise<TestServer> {
   });
 
   /*
-   * 🔴 **아직 값이 안 들어온 태그** — 「고장」이 아니라 「대기」다.
-   *    설비 기동 직후에 흔한 상태이고, 우리 산출물은 Type/Template이라 빈 값이 정상이다.
-   *    BrokenSensor(진짜 고장)와 **한 서버 안에 나란히** 둬야 둘을 가르는지가 확인된다 —
-   *    따로 두면 "둘 다 Bad로 시작하니 같은 것"이라는 착각을 시험이 잡아 주지 못한다.
+   * Important: **a tag with no value yet** — "waiting", not "broken".
+   *    Common right after the machine starts; our output is a Type/Template, so an empty value is normal.
+   *    It must sit **side by side in one server** with BrokenSensor (a real failure) to confirm the two are told apart —
+   *    kept apart, the test would not catch the mistake "both start with Bad, so they are the same".
    */
   namespace.addVariable({
     componentOf: device,
@@ -83,8 +83,8 @@ export async function startTestServer(port: number): Promise<TestServer> {
   });
 
   await server.start();
-  // 🔴 서버가 광고하는 주소는 호스트명(.local)이라 이 기계에서 못 풀고 60초를 매단다(실측).
-  // 시험은 루프백으로 붙는다 — 프로토콜 왕복을 보는 것이 목적이고 이름 해석은 곁가지다
+  // Important: the address the server advertises is a hostname (.local) that this machine cannot resolve, hanging for 60 s (measured).
+  // Tests connect over loopback — the goal is the protocol round-trip; name resolution is a side issue
   const endpoint = `opc.tcp://127.0.0.1:${port}/UA/RollFormingMachine`;
 
   return {

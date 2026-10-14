@@ -1,4 +1,4 @@
-/** @aas/aasx — AASX(OPC) 패키지 입출력 */
+/** @aas/aasx — AASX (OPC) package I/O */
 export * from './opc.js';
 export * from './package.js';
 export * from './limits.js';

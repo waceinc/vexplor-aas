@@ -1,28 +1,28 @@
 /**
- * 설비 상태 — 수집값에서 가동 · 정지 · 알람 · 전원 꺼짐을 읽고, 하루 막대(간트)의 구간으로 만든다(화면 없음).
+ * Equipment state — reads running · stopped · alarm · power off from collected values and turns them into segments of a daily bar (Gantt) (no UI).
  *
- * digital-twin 의 상태 추출(요소 이름으로 상태 태그를 찾고 값을 정규화)과 하루 간트(08시 시작 24시간) 개념을 옮겼다.
- * 이름 추측은 고객마다 틀릴 수 있어 판정 규칙을 밖에서 바꿀 수 있게 했고(StateRules),
- * 규칙에 없는 값은 지어내지 않고 「판정 못함」으로 둔다. 값이 끊긴 구간은 「데이터 없음」이다.
+ * Ports digital-twin's state extraction (find the state tag by element name and normalize its value) and the daily Gantt (24 hours from 08:00).
+ * Name guessing can be wrong per customer, so the matching rules can be changed from outside (StateRules);
+ * values not in the rules are not invented but left as "undetermined". Spans where values stop are "no data".
  */
 import type { CollectedValueView } from '../../api.js';
 
 export type MachineState = 'run' | 'stop' | 'alarm' | 'off';
 export type BarState = MachineState | 'unknown' | 'none';
 
-/** 상태마다 그 값으로 볼 글자 — 대소문자 · 공백은 무시한다 */
+/** Strings to read as each state — case and whitespace are ignored */
 export type StateRules = Record<MachineState, readonly string[]>;
 
 export const DEFAULT_STATE_RULES: StateRules = {
-  run: ['가동', '운전', '정상', '생산', 'run', 'running', 'auto', 'production', 'on', 'true', '1'], // i18n-ignore — 화면 글자가 아니라 장비 값과 맞춰 보는 자료
-  stop: ['정지', '대기', 'stop', 'stopped', 'idle', 'standby', 'hold', 'off', 'false', '0'], // i18n-ignore — 화면 글자가 아니라 장비 값과 맞춰 보는 자료
-  alarm: ['알람', '이상', '고장', '비상', 'alarm', 'fault', 'error', 'trip', 'emergency'], // i18n-ignore — 화면 글자가 아니라 장비 값과 맞춰 보는 자료
-  off: ['전원꺼짐', '전원off', 'poweroff', 'shutdown'], // i18n-ignore — 화면 글자가 아니라 장비 값과 맞춰 보는 자료
+  run: ['가동', '운전', '정상', '생산', 'run', 'running', 'auto', 'production', 'on', 'true', '1'], // i18n-ignore — not screen text; data matched against equipment values
+  stop: ['정지', '대기', 'stop', 'stopped', 'idle', 'standby', 'hold', 'off', 'false', '0'], // i18n-ignore — not screen text; data matched against equipment values
+  alarm: ['알람', '이상', '고장', '비상', 'alarm', 'fault', 'error', 'trip', 'emergency'], // i18n-ignore — not screen text; data matched against equipment values
+  off: ['전원꺼짐', '전원off', 'poweroff', 'shutdown'], // i18n-ignore — not screen text; data matched against equipment values
 };
 
 const norm = (text: string): string => text.toLowerCase().replace(/[\s_\-]/g, '');
 
-/** 값 하나를 상태로 — 규칙에 없으면 undefined(판정 못함) */
+/** One value to a state — undefined (undetermined) when not in the rules */
 export function normalizeState(value: Pick<CollectedValueView, 'valueText' | 'valueNumber'>, rules: StateRules = DEFAULT_STATE_RULES): MachineState | undefined {
   const raw = value.valueText !== undefined && value.valueText !== '' ? value.valueText : value.valueNumber !== undefined ? String(value.valueNumber) : '';
   const key = norm(raw);
@@ -33,7 +33,7 @@ export function normalizeState(value: Pick<CollectedValueView, 'valueText' | 'va
   return undefined;
 }
 
-/** 상태 태그를 이름으로 고른다 — 하나만 맞을 때만(둘 이상이면 사람이 고른다) */
+/** Picks the state tag by name — only when exactly one matches (two or more: a person picks) */
 const STATE_TAG = /^(status|state|machinestatus|machinestate|operatingstate|operationstate|operatingstatus|runstate|runstatus|equipmentstatus|가동상태|운전상태|설비상태|상태)$/;
 export function pickStateTag(names: readonly string[]): string | undefined {
   const hits = names.filter((name) => STATE_TAG.test(norm(name)));
@@ -47,8 +47,8 @@ export interface Segment {
 }
 
 /**
- * 하루 구간 — 값 하나는 다음 값까지, 길어도 holdMs 까지만 이어진다(그 뒤는 데이터 없음).
- * 창 시작 전 마지막 값도 holdMs 안이면 창 처음을 채운다. 같은 상태가 이어지면 하나로 합친다.
+ * Daily segments — one value lasts until the next value, but at most holdMs (after that, no data).
+ * The last value before the window start also fills the start of the window if within holdMs. Consecutive equal states merge into one.
  */
 export function stateTimeline(
   samples: readonly { at: number; state: MachineState | undefined }[],
@@ -81,20 +81,20 @@ export function stateTimeline(
   return merged;
 }
 
-/** 상태별 합계(ms) */
+/** Total per state (ms) */
 export function stateTotals(segments: readonly Segment[]): Record<BarState, number> {
   const totals: Record<BarState, number> = { run: 0, stop: 0, alarm: 0, off: 0, unknown: 0, none: 0 };
   for (const segment of segments) totals[segment.state] += segment.to - segment.from;
   return totals;
 }
 
-/** 그날의 창 — startHour 시 시작 24시간(교대 기준). day 는 그 창이 시작하는 날짜(로컬) */
+/** The day's window — 24 hours from startHour (shift basis). day is the (local) date the window starts on */
 export function dayWindow(day: Date, startHour: number): { start: number; end: number } {
   const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), startHour, 0, 0, 0).getTime();
   return { start, end: start + 24 * 3600_000 };
 }
 
-/** 규칙 글 ↔ 목록 — 화면에서 쉼표로 고친다 */
+/** Rule text ↔ list — edited on screen with commas */
 export function parseRuleList(text: string): string[] {
   return text.split(',').map((word) => word.trim()).filter((word) => word !== '');
 }

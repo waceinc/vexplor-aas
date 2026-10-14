@@ -1,6 +1,6 @@
 /**
- * 나무 목록 — 줄 메뉴(우클릭 · 「⋯」) — 그 줄로 할 수 있는 일.
- * components/TreeView.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Tree list — row menu (right-click · "⋯") — what you can do with that row.
+ * Split out of components/TreeView.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import type { TreeNode } from '../../model.js';
 import { fill, tr } from '../../i18n.js';

@@ -1,13 +1,13 @@
 
 /*
- * shadcn/ui 기본 테마 — neutral. 값은 shadcn 이 주는 기본 그대로이고 우리 색으로 바꾸지 않는다
- * (대표 2026-09-22 「shadcn 기본 색상과 UI 및 컴포넌트 모두를 기본으로」).
- * 생 색값은 이 파일에만 있고, 화면은 Tailwind 토큰(bg-background 등)으로만 색을 쓴다.
+ * shadcn/ui default theme — neutral. Values are shadcn's defaults as given; we do not swap in our own colors
+ * (product owner, 2026-09-22: "use shadcn's default colors, UI and components all as defaults").
+ * Raw color values exist only in this file; screens use color only through Tailwind tokens (bg-background etc.).
  */
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* 견적트리 v2 를 따라 2px — 각진 편이지만 라벨·카드가 완전히 네모는 아니다(대표 2026-09-23) */
+  /* 2px, following Quote Tree v2 — fairly square, but labels and cards are not fully sharp-cornered (product owner, 2026-09-23) */
   --radius: 0.125rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -120,20 +120,20 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* 한글은 낱말 단위로 줄바꿈한다 — 기본값(글자 단위)이면 좁은 칸에서 「파/일/받/기」처럼 한 글자씩 세로로 쪼개진다.
-       한 낱말이 칸보다 길면 그때만 끊는다.
-       `overflow-wrap: anywhere` 를 쓰지 않는다 — anywhere 는 최소 폭 계산에서도 아무 데서나 끊을 수 있다고 보아
-       표 칸·flex 항목이 한 글자 폭까지 줄어 「미/수/집」처럼 세로 띠가 됐다(2026-09-26 1024 폭 실측). break-word 는
-       넘칠 때만 끊고 최소 폭은 낱말 폭으로 둔다 */
+    /* Korean text wraps at word boundaries — the default (per character) splits words vertically one character at a time in narrow cells.
+       Break inside a word only when the word is wider than the cell.
+       Do not use `overflow-wrap: anywhere` — anywhere also lets min-width calculation break anywhere,
+       so table cells and flex items shrank to one character wide and became vertical strips (measured 2026-09-26 at 1024 width). break-word
+       breaks only on overflow and keeps the min width at word width */
     word-break: keep-all;
     overflow-wrap: break-word;
   }
 }
 
 /*
- * 카드 그림자 없음 — 대표 지시 2026-09-23 「모든 카드에 그림자는 제거」.
- * shadcn `Card` 의 `shadow-sm` 을 눕힌다. 층(layer) 밖에 두는 이유는 층 안에서는 유틸리티 클래스에 밀리기 때문이다.
- * 떠 있는 것(대화상자·드롭다운·팝오버·툴팁)의 그림자는 그대로 둔다 — 그림자가 곧 「위에 떠 있다」는 표시라서 없애면 뒤 내용과 섞인다.
+ * No card shadows — product owner directive 2026-09-23: "remove shadows from all cards".
+ * Flattens shadcn `Card`'s `shadow-sm`. It sits outside any layer because inside a layer it loses to utility classes.
+ * Floating things (dialogs, dropdowns, popovers, tooltips) keep their shadows — the shadow is what says "floating above"; without it they blend into the content behind.
  */
 [data-slot="card"] {
   box-shadow: none;
@@ -141,29 +141,29 @@
 
 /*
  * ─────────────────────────────────────────────────────────────────────────────
- * 화면 밀도 — 사무실 셸 90% · 본문 80%.
+ * Screen density — office shell 90% · content 80%.
  *
- * `zoom` 이나 `transform: scale()` 은 쓰지 않는다. 그 둘은 이미 그려진 그림만 줄여서
- * 줄바꿈·열 접힘·좁은 화면 분기가 원래 폭 그대로 남는다 — 화면이 그 치수로 다시 흐르지 않는다.
- * 여기서는 **Tailwind 크기 토큰 값 자체**를 낮춰 폭·여백·글자가 실제로 줄고 배치가 다시 계산되게 한다.
- * 생성 CSS 가 크기를 리터럴이 아니라 `calc(var(--spacing) * N)` 과 `var(--text-*)` 로 쓰기 때문에 통한다.
+ * Do not use `zoom` or `transform: scale()`. Both only shrink what is already drawn, so
+ * line breaks, column collapsing and narrow-screen branches stay at the original width — the screen does not reflow at that size.
+ * Here we lower **the Tailwind size token values themselves** so widths, padding and text really shrink and layout is recomputed.
+ * This works because the generated CSS writes sizes not as literals but as `calc(var(--spacing) * N)` and `var(--text-*)`.
  *
- * 이 규칙은 **층(@layer) 밖**에 둔다 — Tailwind 4 는 테마 변수를 `@layer theme` 안에 두므로
- * 층 밖이어야 이긴다. **`@theme inline` 을 쓰면 안 된다** — inline 은 값을 유틸리티에 박아 넣어
- * `var()` 참조를 없애고, 그러면 아래 본문 80% 의 하위 범위 재정의가 통하지 않는다.
+ * These rules sit **outside any @layer** — Tailwind 4 puts theme variables in `@layer theme`, so
+ * they must be outside a layer to win. **Do not use `@theme inline`** — inline bakes values into utilities,
+ * removing the `var()` references, and then the content-80% subtree override below stops working.
  *
- * 줄 높이(`--text-*--line-height`)는 단위 없는 비율이고 자간(`--tracking-*`)은 `em` 이라
- * 글자 크기를 줄이면 함께 줄어든다. 그래서 건드리지 않는다.
+ * Line heights (`--text-*--line-height`) are unitless ratios and letter spacing (`--tracking-*`) is in `em`, so
+ * they shrink along with font size. That is why they are left alone.
  *
- * **현장 태블릿은 이 배율을 받지 않는다.** `:root` 가 아니라 사무실 셸에만 표를 달기 때문이다 —
- * 태블릿 화면은 셸 밖에서 그려지고, 장갑·분진 때문에 오히려 키워야 한다(기능설계서 §5-5).
+ * **Shop-floor tablets do not get this scaling.** It is attached only to the office shell, not `:root` —
+ * tablet screens render outside the shell and, because of gloves and dust, should actually be larger (functional design spec §5-5).
  *
- * 값은 전부 Tailwind 기본값 × 배율이고 근거를 남기려고 계산식을 함께 적는다.
- * 차용: `jhsong/syk-mes-solution` 의 같은 방식(대표 지시 2026-09-23 「방식을 차용하자」).
+ * All values are Tailwind defaults × scale; the formulas are written alongside to keep the rationale.
+ * Borrowed from: the same approach in `jhsong/syk-mes-solution` (product owner directive 2026-09-23: "let's borrow that approach").
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-/* 사무실 셸 90% — 사이드바·머리글·본문이 모두 이 범위에 든다 */
+/* Office shell 90% — sidebar, header and content all fall in this scope */
 [data-scale="shell"] {
   --spacing: 0.225rem; /* .25 × 0.9 */
 
@@ -177,7 +177,7 @@
   --text-4xl: 2.025rem; /* 2.25  × 0.9 */
   --text-5xl: 2.7rem; /* 3     × 0.9 */
 
-  /* `max-w-*` 상한 — 함께 줄이지 않으면 글자만 작아지고 열 폭이 남아 비율이 어긋난다 */
+  /* `max-w-*` caps — if not reduced together, only text shrinks while column widths stay, breaking the proportions */
   --container-xs: 18rem; /* 20 × 0.9 */
   --container-sm: 21.6rem; /* 24 × 0.9 */
   --container-md: 25.2rem; /* 28 × 0.9 */
@@ -192,14 +192,14 @@
 }
 
 /*
- * 본문 80% — 표가 많은 자리라 셸보다 한 단 더 죈다.
+ * Content 80% — table-heavy area, so one step tighter than the shell.
  *
- * 표를 **이미 있는 배치 상자에 단다**. 원본(syk)은 변수만 나르는 껍데기를 하나 더 끼우고
- * `display: contents` 로 상자를 지웠는데, 그건 상자가 늘어나는 것을 막으려는 조치였다.
- * 우리는 본문 `div` 가 원래 있으므로 거기에 달면 되고, **`display: contents` 를 쓰면 안 된다** —
- * 그 자리가 `flex flex-1 flex-col gap-4 p-4` 를 들고 있어서 상자를 지우면 여백과 배치가 함께 사라진다.
+ * Attach the scale **to an existing layout box**. The original (syk) inserted an extra wrapper just to carry variables
+ * and removed its box with `display: contents` — that was to keep the box from growing.
+ * We already have the content `div`, so we attach it there, and **must not use `display: contents`** —
+ * that element carries `flex flex-1 flex-col gap-4 p-4`, so removing the box would lose padding and layout with it.
  *
- * 본문에서 연 대화상자·드롭다운은 포털로 밖에 그려져 셸 배율(90%)을 받는다.
+ * Dialogs and dropdowns opened from content render outside via portals and get the shell scale (90%).
  */
 [data-scale="content"] {
   --spacing: 0.2rem; /* .25 × 0.8 */
@@ -229,14 +229,14 @@
 
 /*
  * ─────────────────────────────────────────────────────────────────────────────
- * 판정 색 — 「WACE 견적트리 v2」의 값을 그대로 가져왔다(대표 지시 2026-09-23 「이 디자인 스타일이 좋다」).
+ * Verdict colors — values taken as is from "WACE Quote Tree v2" (product owner directive 2026-09-23: "I like this design style").
  *
- * shadcn 기본 변형은 넷(default·secondary·destructive·outline)뿐인데 DRIVE 의 판정 상태는 서른 가지가 넘는다.
- * 넷으로는 표에서 「늦음」과 「판정 불가」가 같은 회색으로 붙어 버려 갈리지 않는다.
- * 그래서 **뜻이 있는 자리에만** 색을 더한다 — 정상(teal) · 경고(warn) · 실패(fail) · 정보(cb) · 표 머리(navy).
- * 그 밖의 색은 새로 만들지 않고 shadcn 기본을 쓴다.
+ * shadcn has only four default variants (default · secondary · destructive · outline), but DRIVE has more than thirty verdict states.
+ * With four, "late" and "cannot judge" end up in the same gray in a table and cannot be told apart.
+ * So color is added **only where it carries meaning** — ok (teal) · warning (warn) · failure (fail) · info (cb) · table header (navy).
+ * No other colors are invented; shadcn defaults are used.
  *
- * 연한 배경(`-bg`)이 함께 있는 이유는 표에서 한 칸만 물들여야 하기 때문이다 — 글자색만으로는 멀리서 안 보인다.
+ * Light backgrounds (`-bg`) exist because a table sometimes needs to tint a single cell — text color alone is not visible from a distance.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 :root {
@@ -248,8 +248,8 @@
   --okbg: #e6f4f0;
   --warnbg: #fff3e8;
   --failbg: #fbecec;
-  /* 강조색(cb · teal · warn · fail · 회색 배지) 위에 얹는 글자. 밝은 화면은 강조색이 진해 흰 글자, 어두운 화면은
-     강조색이 밝아져 흰 글자 대비가 2.3~3.3:1로 떨어진다 — 거의 검은 글자로 바꾸면 6.0~8.5:1 (2026-10-14 실측) */
+  /* Text placed on accent colors (cb · teal · warn · fail · gray badge). In light mode the accents are dark, so white text; in dark mode
+     the accents get lighter and white-text contrast drops to 2.3–3.3:1 — near-black text gives 6.0–8.5:1 (measured 2026-10-14) */
   --on-accent: #ffffff;
 }
 
@@ -266,7 +266,7 @@
 }
 
 @theme inline {
-  /* 한글 본문 서체 — 견적트리 v2 와 같은 Pretendard. 패키지로 담아 사내망에서도 뜬다 */
+  /* Korean body font — Pretendard, same as Quote Tree v2. Bundled as a package so it loads on the internal network too */
   --font-sans: Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --color-navy: var(--navy);
   --color-cb: var(--cb);
@@ -279,8 +279,8 @@
 }
 
 /*
- * 표 머리 — 네이비 바탕에 흰 글자. 표가 길어도 머리가 어디인지 바로 보인다.
- * 층 밖에 둔다(유틸리티보다 뒤에 와야 이긴다). 세로선은 여전히 긋지 않는다.
+ * Table header — white text on navy. Even in long tables the header is immediately recognizable.
+ * Kept outside any layer (must come after utilities to win). Still no vertical rules.
  */
 [data-slot="table-header"] [data-slot="table-head"] {
   background-color: var(--navy);
@@ -288,9 +288,9 @@
 }
 
 /*
- * 사용법 인쇄 — 「인쇄」 단추가 body 에 data-print="manual" 을 단 동안만 서랍 하나만 종이에 남긴다.
- * 서랍은 body 바로 밑에 붙는다(Radix 포털) — 그 밖의 형제(앱·덮개)를 모두 감춘다.
- * 화면에서는 고정 위치·자체 스크롤이라 그대로 찍으면 첫 화면 높이만 나온다 — 흐름 배치로 풀어 쪽을 넘기게 한다.
+ * Manual printing — while the "Print" button sets data-print="manual" on body, only the single drawer stays on paper.
+ * The drawer is attached directly under body (Radix portal) — hide all of its other siblings (app · overlay).
+ * On screen it is fixed-position with its own scroll, so printing it as is yields only the first screen height — switch to flow layout so it paginates.
  */
 @media print {
   body[data-print="manual"] > :not([data-manual-sheet]) { display: none !important; }

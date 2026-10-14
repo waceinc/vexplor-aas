@@ -1,22 +1,22 @@
 /**
- * 압축 폭탄(Zip Bomb)·경로 탈출(Zip Slip) 방어 — 기획서 Ⅷ 보안 항목.
+ * Zip Bomb and Zip Slip (path traversal) defenses — spec VIII security item.
  *
- * 업로드를 받는 순간부터 실존하는 위험이다. 다행히 fflate의 `unzipSync`는 **중앙 디렉터리가
- * 선언한 원본 크기(`originalSize`)만큼만 출력 버퍼를 잡는다**(`inflateSync(..., { out: new u8(su) })`).
- * 그래서 **압축을 풀기 전에 filter에서 막으면 메모리 폭발이 원천 차단된다** — 헤더가 거짓말을 해도
- * 그 크기 이상은 할당되지 않고, 스트림이 넘치면 inflate가 스스로 실패한다.
+ * This is a real risk from the moment we accept uploads. Fortunately fflate's `unzipSync` **allocates the output buffer
+ * only up to the original size declared in the central directory (`originalSize`)** (`inflateSync(..., { out: new u8(su) })`).
+ * So **blocking in the filter before decompression rules out memory blow-up entirely** — even if the header lies,
+ * nothing beyond that size is allocated, and inflate fails on its own if the stream overflows.
  *
- * 경로는 지금 당장은 메모리에만 남지만, 재저장·첨부 추출처럼 **디스크에 쓰는 경로가 생기면
- * 그때는 늦다.** 읽는 자리에서 한 번 막아 둔다.
+ * Paths stay in memory only for now, but once **a code path that writes to disk appears** (re-saving, extracting attachments),
+ * **it is too late by then.** So we block them once at the read site.
  */
 import { fill, tr } from '@aas/core';
 
 export interface AasxLimits {
-  /** 풀었을 때 전체 크기 상한. 기본 512MB — 매뉴얼이 든 AASX를 감안한 값(기획서 Ⅷ) */
+  /** Upper limit on total uncompressed size. Default 512MB — sized for AASX files that contain manuals (spec VIII) */
   maxTotalUncompressedBytes: number;
-  /** 파트 하나의 상한. 기본 256MB */
+  /** Upper limit per part. Default 256MB */
   maxEntryUncompressedBytes: number;
-  /** 파트 개수 상한. 작은 파일 수십만 개로 부풀리는 수법을 막는다 */
+  /** Upper limit on part count. Blocks inflation via hundreds of thousands of tiny files */
   maxEntries: number;
 }
 
@@ -26,7 +26,7 @@ export const DEFAULT_LIMITS: AasxLimits = {
   maxEntries: 10_000,
 };
 
-/** 상한을 넘었거나 경로가 위험한 경우. 파일 형식 오류(AasxReadError)와 구분한다 */
+/** A limit was exceeded or a path is dangerous. Distinct from file format errors (AasxReadError) */
 export class AasxLimitError extends Error {
   constructor(message: string) {
     super(message);
@@ -35,10 +35,10 @@ export class AasxLimitError extends Error {
 }
 
 /**
- * ZIP 엔트리 이름이 안전한지.
+ * Whether a ZIP entry name is safe.
  *
- * 막는 것: 상위 경로 탈출(`..`), 절대경로, 드라이브 문자(`C:`), UNC(`//server`), 널 바이트.
- * 역슬래시는 윈도에서 경로 구분자가 되므로 슬래시와 같게 본다.
+ * Blocks: parent traversal (`..`), absolute paths, drive letters (`C:`), UNC (`//server`), null bytes.
+ * Backslashes are treated like slashes because they are path separators on Windows.
  */
 export function isSafeEntryName(name: string): boolean {
   if (name === '' || name.includes('\0')) return false;
@@ -49,8 +49,8 @@ export function isSafeEntryName(name: string): boolean {
 }
 
 /**
- * unzipSync에 넘길 필터. 압축을 풀기 **전에** 판정한다.
- * 상한을 넘으면 예외를 던져 그 자리에서 멈춘다 — 나머지를 마저 푸는 것 자체가 위험이다.
+ * Filter passed to unzipSync. Decides **before** decompression.
+ * Throws and stops immediately when a limit is exceeded — continuing to extract the rest is itself the danger.
  */
 export function createEntryGuard(limits: AasxLimits): (file: {
   name: string;

@@ -661,7 +661,7 @@ The machines in a bundle are types, so they have no values. Values accumulate on
 2. Give the unit a collection link (a real PLC or "Connect a virtual PLC (simulation)") and collect for a few minutes to a few tens of minutes — automatic with `COLLECT_INTERVAL=5`
 3. When section **③** of the bundle shows a count, choose the **evidence level** (A field / B reproduction / C simulation) and **evidence period** (all, last N minutes), then export
 
-![Collection record](images/12-수집기록서.png)
+![Collection record](images/12-collection-record.png)
 
 - `06_검증결과/수집기록.html` — collection link, period, count, statistics and trend per item, status distribution (RUNNING 85% etc.). Print it for a PDF
 - **Real PLC addresses are masked** (`opc.tcp://(비공개):4840/…`). Bundles are published on GitHub
@@ -755,7 +755,7 @@ You can go all the way without hardware.
 
 ```bash
 node scripts/plc-simulator.mjs                                   # terminal ③ — virtual PLC (14840)
-node scripts/make-demo-aasx.mjs                                  # → out/demo/롤포밍기-수집시연.aasx
+node scripts/make-demo-aasx.mjs                                  # → out/demo/roll-forming-machine-collection-demo.aasx
 COLLECT=on LINT_STANDARD_TERMS=preserve node apps/api/dist/server.js
 ```
 
@@ -785,7 +785,7 @@ and collects once — Connected. This is how someone who received a reference bu
 The **script version**, which simulates several machines at once, follows the same rules.
 
 ```bash
-node scripts/plc-simulator.mjs 14850 --from 03-SPR장비-뿌80.aasx --from 28-flowdrillscrew(FDS)장비.aasx
+node scripts/plc-simulator.mjs 14850 --from press-01.aasx --from welder-02.aasx
 #   address: opc.tcp://127.0.0.1:14850/UA/Simulator   (one object per machine)
 ```
 

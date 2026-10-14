@@ -4,20 +4,20 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 /**
- * 개발 서버는 API(@aas/api)로 프록시한다.
- * 브라우저에서 AASX를 파싱하지 않는다는 원칙(기획서 Ⅷ — 매뉴얼이 들어가면 수백 MB)에 따라
- * 파일은 업로드만 하고 해석은 전부 서버가 한다.
+ * The dev server proxies to the API (@aas/api).
+ * Following the principle that the browser does not parse AASX (plan VIII — with manuals inside a file reaches hundreds of MB),
+ * files are only uploaded and all interpretation happens on the server.
  *
- * 🔴 경로를 하나씩 적지 않는다 — `/rules`·`/policy`·`/opcua-status`가 빠져 있어 개발 모드에서
- *    첫 화면에 「Unexpected token '<'」 오류 띠가 뜨고 「규칙」 화면이 비었다(2026-09-09 실측).
- *    API가 내는 최상위 경로를 한 정규식으로 잡는다. 새 경로를 서버에 더하면 여기도 더한다.
- * 🔴 대상은 127.0.0.1 — 윈도우에서 `localhost`는 ::1로 먼저 풀리는데 보호 모드 API는 IPv4에 물린다.
+ * Important: do not list paths one by one — `/rules`, `/policy` and `/opcua-status` were missing, so in dev mode
+ *    the welcome screen showed an "Unexpected token '<'" error bar and the Rules screen was empty (measured 2026-09-09).
+ *    One regex captures the top-level paths the API serves. When a new path is added to the server, add it here too.
+ * Important: the target is 127.0.0.1 — on Windows `localhost` resolves to ::1 first, while the protected-mode API binds to IPv4.
  */
 /**
- * 🔴 대상은 `AAS_API_URL`로 바꿀 수 있다. 이 PC에는 설치판(VEXPLOR AAS Studio)이 8080을 쓰고 있어,
- *    개발 API를 다른 포트에 띄워야 할 때가 있다(2026-09-30 — 개발 화면이 설치판에 붙어 데이터가 섞였다).
- * 🔴 `bundles`(레퍼런스 번들 열기)를 더했다 — 빠지면 개발판에서만 번들 열기가 404다.
- * 🔴 `auth`(로그인·가입·계정)를 더했다 — 빠지면 개발판 첫 화면이 계정 로그인 대신 토큰 입력으로 떨어진다(2026-10-13).
+ * Important: the target can be changed with `AAS_API_URL`. On this PC the installed build (VEXPLOR AAS Studio) uses 8080,
+ *    so the dev API sometimes has to run on another port (2026-09-30 — the dev screen attached to the installed build and data got mixed).
+ * Important: `bundles` (open reference bundle) was added — without it, opening a bundle returns 404 only in the dev build.
+ * Important: `auth` (login, sign-up, account) was added — without it the dev build's welcome screen falls back to token entry instead of account login (2026-10-13).
  */
 const API_TARGET = process.env['AAS_API_URL'] ?? 'http://127.0.0.1:8080';
 const API_PATHS =
@@ -26,7 +26,7 @@ const API_PROXY = { [API_PATHS]: API_TARGET };
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // shadcn kit(src/drive)이 쓰는 경로 별칭 — 로직스튜디오와 같다(`@/lib/cn` · `@/ui/kit/…` · `@/hooks/…`)
+  // Path alias used by the shadcn kit (src/drive) — same as Logic Studio (`@/lib/cn` · `@/ui/kit/…` · `@/hooks/…`)
   resolve: { alias: { '@': fileURLToPath(new URL('./src/drive', import.meta.url)) } },
   server: { port: 5173, proxy: API_PROXY },
   preview: { port: 4173, proxy: API_PROXY },

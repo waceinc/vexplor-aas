@@ -1,18 +1,18 @@
 /**
- * 화면 글자의 언어.
+ * Language of screen text.
  *
- * 🔴 **화면 글자도 서버가 만드는 글도 영어가 있다**(2026-10-14). 서버 글(지적 문구·규칙 설명·
- *    검증 결과서·번들 README·오류)은 `@aas/core`의 `tr()`와 서버 사전(packages/aas-core/src/i18n/en)이
- *    맡고, 화면이 고른 언어는 요청마다 `Accept-Language`로 실려 간다(api/http.ts `withAuth`).
- *    서버 쪽 누락은 `node scripts/i18n-server-scan.mjs --check`가 잡는다.
+ * Important: **both screen text and server-generated text have English** (2026-10-14). Server text (finding messages, rule descriptions,
+ *    validation reports, bundle README, errors) is handled by `tr()` in `@aas/core` and the server dictionary (packages/aas-core/src/i18n/en),
+ *    and the language chosen on screen is sent with every request as `Accept-Language` (api/http.ts `withAuth`).
+ *    Server-side gaps are caught by `node scripts/i18n-server-scan.mjs --check`.
  *
- * 🔴 **화면에 한국어를 새로 적으면 `tr()`·`<T>`로 감싸고 사전(en.ts)에 넣는다.** 빠뜨리면
- *    CI가 멈춘다(`node scripts/i18n-scan.mjs --check`). 사전에 없어도 화면은 한국어로
- *    나오므로(폴백) 깨지지는 않지만, 영어 화면의 그 자리만 한국어로 남는다.
+ * Important: **when you add new Korean text to the screen, wrap it in `tr()`/`<T>` and add it to the dictionary (en.ts).** If you forget,
+ *    CI stops (`node scripts/i18n-scan.mjs --check`). Missing from the dictionary, the screen still shows Korean
+ *    (fallback), so nothing breaks, but that spot alone stays Korean on the English screen.
  *
- * 🔴 사전은 **한국어 글자 자체를 열쇠로** 쓴다. `t('열기')`처럼. 열쇠를 따로 만들면
- *    (`header.open` 같은) 코드에서 무슨 글자인지 안 보이고, 사전에 없을 때 빈칸이 뜬다.
- *    한국어를 열쇠로 두면 **못 찾아도 한국어가 그대로 나온다** — 최악이 "안 번역됨"이다.
+ * Important: the dictionary uses **the Korean text itself as the key**, as in `t('열기')`. With separate keys
+ *    (like `header.open`) the code does not show which text it is, and a missing entry shows a blank.
+ *    With Korean as the key, **a miss still shows the Korean text** — the worst case is "not translated".
  */
 import { lookupEn, setLangSource } from '@aas/core';
 import { EN_MORE } from './en.js';
@@ -21,9 +21,9 @@ export type Lang = 'ko' | 'en';
 
 const KEY = 'aas.lang';
 
-/** 영어 사전 — 없는 열쇠는 한국어 그대로 나간다 */
+/** English dictionary — missing keys go out as the Korean text */
 const EN: Record<string, string> = {
-  // 헤더 — 파일
+  // Header — file
   파일: 'File',
   'AASX 열기': 'Open AASX',
   '새로 만들기': 'New',
@@ -31,19 +31,19 @@ const EN: Record<string, string> = {
   '파일 목록': 'File list',
   '열린 파일 없음': 'No file open',
   '— 파일 고르기 —': '— choose a file —',
-  // 헤더 — 편집·검사
+  // Header — edit · check
   '↶ 되돌리기': '↶ Undo',
   서브모델: 'Submodels',
   '서브모델 추가': 'Add submodel',
   '다른 파일에서 가져오기': 'Import from another file',
   '자동 고치기': 'Auto-fix',
-  // 헤더 — 제출
+  // Header — submit
   내보내기: 'Export',
   '검증 결과서': 'Validation report',
   '문서용 자료': 'Document assets',
   '레퍼런스 번들': 'Reference bundle',
   'AASX 내려받기': 'Download AASX',
-  // 헤더 — 상태·설정
+  // Header — status · settings
   위반: 'Errors',
   경고: 'Warnings',
   '→ 내주는 중': '→ Serving',
@@ -52,7 +52,7 @@ const EN: Record<string, string> = {
   언어: 'Language',
   설정: 'Settings',
   '처리 중…': 'Working…',
-  // 첫 화면
+  // Welcome screen
   '서버에 올려 둔 파일이 있습니다 — 아래에서 골라 이어서 작업하거나, 새 파일을 엽니다.':
     'You have files on the server — pick one below to continue, or open a new one.',
   'AASX 파일을 열면 계층 트리·규칙 지적·수집이 한 화면에 뜹니다.':
@@ -61,7 +61,7 @@ const EN: Record<string, string> = {
   '이어서 작업하기': 'Continue working',
   '올려 둔 파일': 'files on the server',
   건: '',
-  // ── 편집 칸(Inspector) — 버튼과 라벨 (2026-10-02) ──────────────────
+  // ── Edit pane (Inspector) — buttons and labels (2026-10-02) ──────────────────
   '언어 추가': 'Add language',
   '이름 바꾸기': 'Rename',
   '첨부 지우기': 'Remove attachment',
@@ -84,7 +84,7 @@ const EN: Record<string, string> = {
   단위: 'Unit',
   '(없음)': '(none)',
   없음: 'None',
-  // ── 수집 칸(OPC UA) — 2026-10-02 ──────────────────────────────────
+  // ── Collection pane (OPC UA) — 2026-10-02 ──────────────────────────────────
   '← 수집 — 설비에서 받아 오기': '← Collect — read from the equipment',
   수집: 'Collect',
   '수집 연결 만들기': 'Create collection link',
@@ -120,16 +120,16 @@ const EN: Record<string, string> = {
   '이 파일을 엽니다': 'Open this file',
   '같은 파일을 다시 올리면 사본이 하나 더 생깁니다 — 하던 파일은 여기서 고르십시오.':
     'Uploading the same file again makes another copy — pick the one you were working on here.',
-  // ── 편집 칸 — 라벨·안내·고르개 (2026-10-02 2차) ────────────────────
+  // ── Edit pane — labels · hints · pickers (2026-10-02, round 2) ────────────────────
   위치: 'Location',
   이름: 'Name',
   내용: 'Text',
   '변경 이력을 보고 실수를 되돌립니다': 'See the change history and undo a mistake',
 
-  // ── 설치 코드 (첫 관리자 선점 방지 — 2026-10-02) ───────────────────────
+  // ── Setup code (prevents someone else claiming the first admin — 2026-10-02) ───────────────────────
   '설치 코드': 'Setup code',
 
-  // ── 체험판 · 회원가입 (2026-10-04) ──────────────────────────────────────
+  // ── Trial · sign-up (2026-10-04) ──────────────────────────────────────
   '체험판입니다': 'This is a trial server',
   '체험판 안내': 'About the trial',
   '가입 없이 바로 써 볼 수 있습니다': 'Try it now — no sign-up needed',
@@ -141,7 +141,7 @@ const EN: Record<string, string> = {
   '파일 내려받기는 회원가입 후에 됩니다': 'Downloading files requires signing up',
   '또는 내 계정으로 로그인': 'or sign in with your own account',
 
-  // ── 계정 관리 (2026-10-04) ──────────────────────────────────────────────
+  // ── Account management (2026-10-04) ──────────────────────────────────────────────
   '설정 — 언어 · 계정 · 규칙': 'Settings — language, accounts, rules',
   '계정': 'Accounts',
   '계정 관리': 'Manage accounts',
@@ -212,7 +212,7 @@ const EN: Record<string, string> = {
   '이 서버를 띄운 화면(기동 로그)에 적혀 있습니다 — 아무나 관리자가 되지 않게 하는 값입니다.':
     'Shown in the server startup log. It stops a stranger from claiming the admin account.',
 
-  // ── 변경 이력 칸 (감사 기록 — 2026-10-02) ───────────────────────────────
+  // ── Change history pane (audit log — 2026-10-02) ───────────────────────────────
   '변경 이력 {n}건': 'Change history ({n})',
   '아직 변경한 적이 없습니다 — 처음 만든 그대로입니다.':
     'No changes yet — this is as first created.',
@@ -238,7 +238,7 @@ const EN: Record<string, string> = {
     'Deliverables in this project are Type-level (KOSMO-AAS-6).',
   'semanticId (IRDI 또는 자체 IRI)': 'semanticId (IRDI or own IRI)',
   'semanticId (표준 템플릿 IRI 또는 IRDI)': 'semanticId (standard template IRI or IRDI)',
-  // valueType 고르개
+  // valueType picker
   글자: 'text',
   '참/거짓': 'true/false',
   정수: 'integer',
@@ -246,7 +246,7 @@ const EN: Record<string, string> = {
   날짜: 'date',
   '날짜+시각': 'date and time',
   '주소 (URL·IRI)': 'address (URL·IRI)',
-  // 편집 칸 — 툴팁
+  // Edit pane — tooltips
   '이 언어 줄을 뺍니다': 'Remove this language row',
   '언어 줄을 하나 더 만듭니다 — 같은 뜻을 ko·en으로 나란히 적습니다':
     'Add one more language row — write the same meaning in ko and en side by side',
@@ -273,7 +273,7 @@ const EN: Record<string, string> = {
     'Saves the asset information (kind · globalAssetId) — this is the address a group file points at',
   '예: -10~60': 'e.g. -10~60',
   '예: mm · kg · °C': 'e.g. mm · kg · °C',
-  // semanticId 검증 말 (model.ts)
+  // semanticId validation messages (model.ts)
   '표준 사전 IRDI 형식입니다.': 'Valid IRDI from a standard dictionary.',
   '표준 사전 IRDI 복합형입니다 — 「속성/클래스」를 이은 형식으로, IDTA 템플릿이 리스트 항목에 씁니다.':
     'Compound IRDI from a standard dictionary — property/class joined, as IDTA templates use for list items.',
@@ -286,7 +286,7 @@ const EN: Record<string, string> = {
     'This is an official IDTA IRI. The KOSMO Validator rejects it (rule conflict ①).',
   '이 id를 가진 ConceptDescription이 파일에 없습니다. 「자동 고치기」가 규약대로 만들어 줍니다.':
     'No ConceptDescription with this id exists in the file. Auto-fix will create one per the convention.',
-  // ── 요약 칸(Summary) · 부품 구성 · 트리 (2026-10-02 3차) ───────────
+  // ── Summary pane · BoM · tree (2026-10-02, round 3) ───────────
   '이 파일에 넣기': 'Add to this file',
   '＋ 서브모델': '＋ Submodel',
   '＋ 부품': '＋ Part',
@@ -326,7 +326,7 @@ const EN: Record<string, string> = {
   '회사·묶음': 'Company / group',
   'AAS 계층': 'AAS tree',
   '이 항목으로 할 수 있는 일 (우클릭도 됩니다)': 'What you can do with this item (right-click works too)',
-  // 트리 우클릭 메뉴
+  // Tree context menu
   '사본 만들기 (복제)': 'Duplicate',
   '↑ 한 칸 위로': '↑ Move up',
   '↓ 한 칸 아래로': '↓ Move down',
@@ -345,8 +345,8 @@ const EN: Record<string, string> = {
   '조립체 이름 — 예: DriveUnit (Enter로 연달아)': 'Assembly name — e.g. DriveUnit (Enter to add another)',
   '이름만 — 예: PressMachine2': 'Name only — e.g. PressMachine2',
   '부품 이름 — 예: MainMotor': 'Part name — e.g. MainMotor',
-  // 🔴 숫자가 끼는 문장은 **통째로** 둔다. 조각으로 나눠 이으면 영어 어순이 깨진다
-  //    ("Warnings 10of 10of them are cleared…" — 2026-10-02 실측)
+  // Important: keep sentences containing numbers **whole**. Splitting them into fragments and joining breaks English word order
+  //    ("Warnings 10of 10of them are cleared…" — measured 2026-10-02)
   '규칙 위반 {n}건': '{n} rule errors',
   '경고 {n}건 중 {m}건은 위 「자동 고치기」로 함께 지워집니다.':
     'Of {n} warnings, {m} are cleared by Auto-fix above.',
@@ -354,7 +354,7 @@ const EN: Record<string, string> = {
   'semanticId가 없으면 {rule} 위반입니다.': 'Without a semanticId this breaks {rule}.',
   '허용 목록 밖입니다. IRDI({prefixes}) 또는 {base}/... 형식이어야 합니다.':
     'Not in the allowed list. It must be an IRDI ({prefixes}) or {base}/…',
-  // 로그인 (2026-10-02)
+  // Login (2026-10-02)
   로그인: 'Sign in',
   로그아웃: 'Sign out',
   '로그인 이름': 'Login name',
@@ -369,7 +369,7 @@ const EN: Record<string, string> = {
   '두 비밀번호가 다릅니다.': 'The two passwords do not match.',
   '관리자 만들기': 'Create administrator',
   '확인 중…': 'Checking…',
-  // 공통 버튼
+  // Common buttons
   닫기: 'Close',
   취소: 'Cancel',
   저장: 'Save',
@@ -379,21 +379,21 @@ const EN: Record<string, string> = {
 };
 
 /**
- * 고른 언어. 고른 적이 없으면 **브라우저 언어**를 따른다 — 한국어 브라우저는 한국어, 그 밖은 영어
- * (대표 2026-10-14 「글로벌을 우선시」). 고른 것은 그대로 기억한다.
+ * The chosen language. If none was chosen, follow the **browser language** — Korean for a Korean browser, English otherwise
+ * (product owner, 2026-10-14: "prioritize global"). A choice once made is remembered.
  */
 export function readLang(): Lang {
   let stored: string | null = null;
   try {
     stored = window.localStorage.getItem(KEY);
   } catch {
-    // 사생활 보호 창에서는 localStorage가 던진다 — 브라우저 언어로 간다
+    // localStorage throws in private windows — fall back to the browser language
   }
   if (stored === 'en' || stored === 'ko') return stored;
   return browserLang();
 }
 
-/** 브라우저가 첫째로 원하는 언어 — 한국어면 ko, 그 밖(모르는 경우 포함)은 en */
+/** The browser's first preferred language — ko if Korean, en otherwise (including unknown) */
 export function browserLang(languages: readonly string[] | undefined = globalThis.navigator?.languages): Lang {
   const first = languages?.[0] ?? globalThis.navigator?.language ?? '';
   return first.toLowerCase().startsWith('ko') ? 'ko' : 'en';
@@ -403,64 +403,64 @@ export function writeLang(lang: Lang): void {
   try {
     window.localStorage.setItem(KEY, lang);
   } catch {
-    /* 저장 못 해도 이번 판에는 적용된다 */
+    /* Even if it cannot be saved, it applies for this load */
   }
 }
 
-/** 번역기 — 사전에 없으면 받은 한국어를 그대로 돌려준다 */
+/** Translator — if missing from the dictionary, returns the given Korean as is */
 export function translator(lang: Lang): (text: string) => string {
   if (lang === 'ko') return (text) => text;
   return (text) => EN[text] ?? EN_MORE[text] ?? text;
 }
 
 /**
- * 자리 치환 — `t('경고 {n}건…')` 뒤에 숫자를 꽂는다.
- * 🔴 문장을 통째로 옮긴 뒤 숫자만 넣는다. 토막을 이어 붙이면 영어 어순이 무너진다.
+ * Placeholder substitution — inserts numbers into `t('경고 {n}건…')` afterwards.
+ * Important: translate the whole sentence, then insert only the numbers. Joining fragments wrecks English word order.
  */
 export function fill(text: string, values: Record<string, string | number | undefined | null>): string {
-  // 🔴 한 번에 갈아 끼운다. 하나씩 차례로 바꾸면, 먼저 넣은 값 안에 `{1}` 같은 글자가
-  //    들어 있을 때 그것까지 다음 차례에 바뀐다(파일 이름·사용자 입력은 무엇이든 될 수 있다)
+  // Important: replace everything in one pass. Replacing one at a time means that if an earlier inserted value contains text like `{1}`,
+  //    that gets replaced in the next round too (file names and user input can be anything)
   return text.replace(/\{(\w+)\}/g, (whole, key: string) => (key in values ? String(values[key] ?? '') : whole));
 }
 
 /**
- * 지금 언어 — 모듈이 읽힐 때 한 번 정해진다.
+ * Current language — fixed once when the module loads.
  *
- * 🔴 언어를 바꾸면 **화면을 새로 읽는다**(Settings가 그렇게 한다). 상태로 들고 다시 그리게만
- *    하면, 파일 맨 위에 적어 둔 글자표(`const LABELS = {...}`)는 처음 읽힌 언어로 굳어 있어
- *    반쪽만 바뀐다. 언어는 하루에 몇 번씩 바꾸는 것이 아니므로 새로 읽는 쪽이 확실하다.
+ * Important: switching language **reloads the screen** (Settings does that). If it were only held as state and re-rendered,
+ *    label tables written at the top of files (`const LABELS = {...}`) would stay frozen in the language first loaded,
+ *    and only half would change. Language is not switched several times a day, so reloading is the reliable choice.
  */
 const current: Lang = readLang();
 
-/** 날짜 · 시각 · 숫자 형식의 지역 — 고른 언어를 따른다(브라우저 기본값에 맡기면 영어 화면에 「오전 8:00」이 나온다) */
+/** Locale for date · time · number formats — follows the chosen language (left to the browser default, an English screen shows times with the Korean AM marker, e.g. "8:00" prefixed in Korean) */
 export function locale(): string {
   return current === 'en' ? 'en-US' : 'ko-KR';
 }
 
-/** 지금 언어 — 서버에 싣는 값(api/http.ts) */
+/** Current language — the value sent to the server (api/http.ts) */
 export function currentLang(): Lang {
   return current;
 }
 
-// 🔴 서버 패키지 코드(@aas/linter의 CSV 읽기 등)도 화면 안에서 돈다 — 그 글도 같은 언어로
+// Important: server package code (e.g. CSV reading in @aas/linter) also runs inside the screen — its text uses the same language too
 setLangSource(() => current);
 
-// 문서 언어도 맞춘다 — 화면 낭독기 · 브라우저 번역 제안 · 맞춤법 검사가 이 값을 본다(index.html 기본은 ko)
+// Match the document language too — screen readers, browser translation offers and spell check read this value (index.html default is ko)
 if (typeof document !== 'undefined') document.documentElement.lang = current;
 
 /**
- * 글자 하나를 지금 언어로. 사전에 없으면 받은 한국어를 그대로 돌려준다.
+ * One piece of text in the current language. If missing from the dictionary, returns the given Korean as is.
  *
- * 컴포넌트마다 `t`를 속성으로 내려 주지 않아도 되게 하려고 둔 것이다 — 스무 개 컴포넌트에
- * 일일이 꿰면 한 군데가 빠져 그 화면만 한국어로 남는다. `t` 속성도 그대로 쓸 수 있다(같은 일을 한다).
+ * Exists so `t` does not have to be passed down as a prop to every component — threading it through twenty components
+ * one by one means one gets missed and that screen alone stays Korean. The `t` prop still works too (it does the same thing).
  */
 export function tr(text: string): string {
   return current === 'ko' ? text : (EN[text] ?? EN_MORE[text] ?? text);
 }
 
 /**
- * 서버가 준 **값**을 보여 줄 때 — 번들 분류 이름처럼 서버가 한국어 자료로 들고 있는 것.
- * 서버 사전(@aas/core)에서 찾는다. 값 자체는 바꾸지 않고 보이는 글자만 옮긴다(보낼 때는 원래 값).
+ * For showing a **value** the server provided — something the server holds as Korean data, such as bundle category names.
+ * Looks it up in the server dictionary (@aas/core). The value itself is unchanged; only the displayed text is translated (the original value is sent back).
  */
 export function trServerValue(text: string): string {
   return current === 'ko' ? text : (lookupEn(text) ?? text);

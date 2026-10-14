@@ -1,14 +1,14 @@
 /**
- * 계층 구조 검사 — 공정 단위(IDTA 02011 HierarchicalStructures).
+ * Hierarchy checks — process level (IDTA 02011 HierarchicalStructures).
  *
- * 🔴 이 규칙들은 **KOSMO Validator 실측이 아니다.** docs/rules는 설비 20종을 4회 제출해
- *    확정한 것이고, 공정 단위는 제출 실적이 없다. 여기 있는 것은 "공정 파일이 스스로
- *    앞뒤가 맞는가"를 보는 우리 규칙이며, 근거는 IDTA 02011과 V3.0 메타모델이다.
- *    운영기관 답이 오면 그때 KOSMO 규칙으로 승격하거나 내리면 된다.
+ * Important: these rules are **not measured against the KOSMO Validator.** docs/rules were settled by submitting
+ *    the 20 equipment types 4 times; process-level files have no submission record. These are our own rules checking
+ *    "is the process file internally consistent", based on IDTA 02011 and the V3.0 metamodel.
+ *    Once the operating agency answers, they can be promoted to or demoted from KOSMO rules.
  *
- * 왜 필요한가: 공정 파일은 **자기 안에 설비 상세를 담지 않는다.** `globalAssetId`라는
- * 끈 하나로 설비 파일을 가리킬 뿐이라, 그 끈이 끊어져도 파일만 봐서는 멀쩡해 보인다.
- * 끊어질 수 있는 자리를 미리 막는다.
+ * Why this is needed: a process file **does not contain equipment details itself.** It only points to equipment files
+ * through a single thread, `globalAssetId`, so if that thread breaks the file alone still looks fine.
+ * We guard the places where it can break ahead of time.
  */
 import type { Entity, Submodel, SubmodelElement } from '@aas/core';
 import { fill, tr } from '@aas/core';
@@ -17,14 +17,14 @@ import type { LintContext, Report, Rule } from '../types.js';
 
 const SOURCE = 'IDTA 02011 Hierarchical Structures · AASd-014';
 
-/** 계층 서브모델을 찾는다. 없으면 이 규칙들은 아무 말도 하지 않는다(설비 파일이 그렇다) */
+/** Find the hierarchy submodel. If absent, these rules say nothing (equipment files are like that) */
 function hierarchySubmodels(ctx: LintContext): { submodel: Submodel; pointer: string }[] {
   const out: { submodel: Submodel; pointer: string }[] = [];
   (ctx.environment.submodels ?? []).forEach((submodel, i) => {
     if (submodel.idShort !== HIERARCHY_SUBMODEL_ID_SHORT) return;
-    // 🔴 아직 아무것도 안 적은 계층은 건너뛴다. **안 적은 것과 잘못 적은 것은 다르다** —
-    //    설비 뼈대는 이 서브모델을 빈 채로 두고 나중에 채우며, 그건 위반이 아니다
-    //    (설비 뼈대가 태어나자마자 위반 0건이어야 한다는 기존 약속을 깨면 안 된다).
+    // Important: skip hierarchies with nothing filled in yet. **Not filled in is different from filled in wrongly** —
+    //    the equipment skeleton leaves this submodel empty and fills it later, and that is not a violation
+    //    (we must not break the existing promise that an equipment skeleton has 0 violations the moment it is created).
     if (((submodel.submodelElements ?? []) as SubmodelElement[]).length === 0) return;
     out.push({ submodel, pointer: `/submodels/${i}` });
   });
@@ -114,7 +114,7 @@ export const hier2NodeAssetId: Rule = {
         const asset = assetIdOf(child);
         const at = `${pointer}(${submodel.idShort})/submodelElements/${entry.idShort}/${key}`;
 
-        // 🔴 AASd-014 — SelfManagedEntity면 globalAssetId 또는 specificAssetId가 반드시 있어야 한다
+        // Important: AASd-014 — a SelfManagedEntity must have globalAssetId or specificAssetId
         if (child.entityType === 'SelfManagedEntity' && !asset) {
           report({
             severity: 'error',
@@ -130,7 +130,7 @@ export const hier2NodeAssetId: Rule = {
         }
         if (!asset) continue;
 
-        // 자기 자신을 부분품으로 매다는 것은 계층이 아니다
+        // Attaching itself as its own part is not a hierarchy
         if (entryAsset && asset === entryAsset) {
           report({
             severity: 'error',
@@ -143,7 +143,7 @@ export const hier2NodeAssetId: Rule = {
             fixable: false,
           });
         }
-        // 같은 설비를 두 번 매달면 대수 계산도 관계도 어긋난다
+        // Attaching the same equipment twice throws off both the quantity calculation and the relations
         const first = seen.get(asset);
         if (first) {
           report({
@@ -164,7 +164,7 @@ export const hier2NodeAssetId: Rule = {
   },
 };
 
-/** 관계가 가리키는 마지막 대상의 이름 — 참조는 [Submodel, Entity(부모), Entity(자식)] 꼴이다 */
+/** Name of the last target a relation points to — references take the form [Submodel, Entity(parent), Entity(child)] */
 function referencedName(reference: unknown): string | undefined {
   const keys = (reference as { keys?: { type?: string; value?: string }[] } | undefined)?.keys;
   if (!keys || keys.length === 0) return undefined;
@@ -184,10 +184,10 @@ export const hier3HasPart: Rule = {
       if (!entry) continue;
       const statements = statementsOf(entry);
 
-      // 🔴 관계의 **이름으로 짝을 맞추지 않는다.** 실측 파일들은 이름을 자유롭게 짓는다 —
+      // Important: do **not pair by relation name.** Measured files name them freely —
       //    HasPart_System_CFrame · HasPart_Robot_Base · HasPart_J2_Reducer.
-      //    이름 규칙(HasPart_<자식이름>)을 가정했다가 Validator를 통과한 골든 파일 2종을
-      //    떨어뜨렸다. 실제 연결은 first/second 참조에 있으므로 그것을 본다.
+      //    assuming a naming rule (HasPart_<childName>) failed 2 golden files that had passed the Validator.
+      //    The actual link lives in the first/second references, so that is what we check.
       const linked = new Set<string>();
       const relations: { idShort: string; target: string | undefined }[] = [];
       for (const element of statements) {
@@ -213,7 +213,7 @@ export const hier3HasPart: Rule = {
         }
       }
 
-      // 반대쪽 — 관계는 있는데 자식이 없는 경우. 자식만 지우면 이렇게 남는다
+      // The reverse — a relation exists but the child does not. Deleting only the child leaves this behind
       const names = new Set(childNodes(entry).map((c) => c.idShort ?? ''));
       for (const relation of relations) {
         if (relation.target !== undefined && !names.has(relation.target)) {

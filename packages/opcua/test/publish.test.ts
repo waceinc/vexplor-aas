@@ -1,9 +1,9 @@
 /**
- * 배포 엔진(M7) 검증 — AAS 계층이 OPC UA 노드 트리로 옮겨지는가.
+ * Publish engine (M7) checks — is the AAS hierarchy carried over into an OPC UA node tree?
  *
- * 여기서 가장 중요한 것은 **NodeId가 Part 2 idShortPath와 같아야 한다**는 점이다.
- * 같은 요소를 REST와 OPC UA가 다른 이름으로 부르면 현장에서 대조가 안 된다.
- * 그다음이 「결함 있는 파일에서도 노드를 잃지 않는가」다 — 잃으면 basyx와 같은 죄를 짓는다.
+ * Most important here: **the NodeId must equal the Part 2 idShortPath**.
+ * If REST and OPC UA call the same element by different names, they cannot be cross-checked on site.
+ * Next: "are nodes kept even in a defective file?" — losing them repeats basyx's mistake.
  */
 import { describe, expect, it } from 'vitest';
 import type { Environment } from '@aas/core';
@@ -36,7 +36,7 @@ const prop = (idShort: string, valueType: string, value?: string): unknown => ({
 });
 
 describe('opcTypeOf', () => {
-  it('xs 자료형을 다섯 갈래로 좁힌다', () => {
+  it('narrows xs types down to five kinds', () => {
     expect(opcTypeOf('xs:boolean')).toBe('Boolean');
     expect(opcTypeOf('xs:double')).toBe('Double');
     expect(opcTypeOf('xs:float')).toBe('Double');
@@ -45,7 +45,7 @@ describe('opcTypeOf', () => {
     expect(opcTypeOf('xs:string')).toBe('String');
   });
 
-  it('🔴 모르는 것은 String으로 떨어뜨린다 — 숫자로 넘겨짚으면 값이 조용히 사라진다', () => {
+  it('Important: falls back to String for unknown types — guessing a number makes values vanish silently', () => {
     expect(opcTypeOf('xs:dateTime')).toBe('String');
     expect(opcTypeOf(undefined)).toBe('String');
     expect(opcTypeOf('xs:존재하지않음')).toBe('String');
@@ -53,7 +53,7 @@ describe('opcTypeOf', () => {
 });
 
 describe('planForPackage', () => {
-  it('서브모델은 폴더, Property는 변수가 된다', () => {
+  it('a submodel becomes a folder and a Property a variable', () => {
     const plan = planForPackage(env([prop('MotorSpeed', 'xs:double', '1200.5')]), { packageId: PID });
     expect(plan.name).toBe('롤포밍기');
     expect(plan.variables).toBe(1);
@@ -67,12 +67,12 @@ describe('planForPackage', () => {
     });
   });
 
-  it('🔴 NodeId가 Part 2 경로와 같다 — <패키지>/<서브모델 id>/<idShortPath>', () => {
+  it('Important: NodeId equals the Part 2 path — <package>/<submodel id>/<idShortPath>', () => {
     const plan = planForPackage(env([prop('MotorSpeed', 'xs:double')]), { packageId: PID });
     expect(plan.children[0]?.children[0]?.nodeId).toBe('pkg-1/https://ktl/sm/tech/MotorSpeed');
   });
 
-  it('SMC 안쪽은 점으로 잇는다', () => {
+  it('joins SMC children with dots', () => {
     const plan = planForPackage(
       env([
         {
@@ -88,7 +88,7 @@ describe('planForPackage', () => {
     expect(collection?.children[0]?.nodeId).toBe('pkg-1/https://ktl/sm/tech/Motor.Speed');
   });
 
-  it('🔴 SML 자식은 idShort가 없어도 살아남는다 (AASd-120) — 점 없이 [n]', () => {
+  it('Important: SML children survive without an idShort (AASd-120) — [n] without a dot', () => {
     const plan = planForPackage(
       env([
         {
@@ -110,7 +110,7 @@ describe('planForPackage', () => {
     expect(plan.variables).toBe(2);
   });
 
-  it('🔴 idShort가 겹쳐도 노드를 잃지 않는다 — basyx처럼 조용히 삼키지 않는다', () => {
+  it('Important: keeps nodes even when idShorts collide — does not swallow them silently like basyx', () => {
     const plan = planForPackage(
       env([prop('Speed', 'xs:int', '1'), prop('Speed', 'xs:int', '2')]),
       { packageId: PID },
@@ -122,7 +122,7 @@ describe('planForPackage', () => {
     expect(plan.variables).toBe(2);
   });
 
-  it('MultiLanguageProperty는 첫 언어를 문자열로 낸다', () => {
+  it('MultiLanguageProperty outputs the first language as a string', () => {
     const plan = planForPackage(
       env([
         {
@@ -136,7 +136,7 @@ describe('planForPackage', () => {
     expect(plan.children[0]?.children[0]).toMatchObject({ dataType: 'String', value: '정상' });
   });
 
-  it('Range는 구간을 사람이 읽게 붙여 낸다', () => {
+  it('Range outputs the interval in human-readable form', () => {
     const plan = planForPackage(
       env([{ modelType: 'Range', idShort: 'Temp', valueType: 'xs:double', min: '0', max: '80' }]),
       { packageId: PID },
@@ -144,7 +144,7 @@ describe('planForPackage', () => {
     expect(plan.children[0]?.children[0]).toMatchObject({ dataType: 'String', value: '0..80' });
   });
 
-  it('idShort가 없는 서브모델도 트리에서 사라지지 않는다', () => {
+  it('a submodel without idShort does not disappear from the tree', () => {
     const environment = {
       submodels: [{ modelType: 'Submodel', id: 'https://ktl/sm/x', submodelElements: [] }],
     } as unknown as Environment;
@@ -153,7 +153,7 @@ describe('planForPackage', () => {
     expect(plan.name).toBe('이름없음');
   });
 
-  it('flattenVariables가 깊이와 무관하게 변수를 다 찾는다', () => {
+  it('flattenVariables finds all variables regardless of depth', () => {
     const plan = planForPackage(
       env([
         prop('A', 'xs:int', '1'),

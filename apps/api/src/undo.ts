@@ -1,25 +1,25 @@
 /**
- * 되돌리기(Undo)·다시 하기(Redo) — 패키지 단위.
+ * Undo / Redo — per package.
  *
- * 사용자가 바란 것은 "실수했을 때 뒤로가기 버튼"이다. 서브모델별 이력(history/restore)은
- * 있었지만 ① 어느 서브모델의 이력을 열어야 하는지 알아야 하고 ② 시각을 골라야 해서 "한 번 눌러
- * 방금 것을 되돌리기"가 되지 않았다.
+ * What users wanted was "a back button for when I make a mistake". Per-submodel history (history/restore)
+ * existed, but ① you had to know which submodel's history to open and ② you had to pick a timestamp, so "press once
+ * to undo what I just did" was not possible.
  *
- * 방식: **모델을 바꾸는 요청 직전의 Environment를 통째로 찍어 둔다**(api.ts 디스패처가 한다).
- * 어떤 종류의 변경이든(값 편집·삭제·순서·복제·자동 고치기·AID·가져오기) 같은 길로 되돌아간다 —
- * 연산마다 역연산을 짜지 않는다. 되돌릴 때는 지금과 찍어 둔 것을 **Identifiable 단위로 견주어**
- * 달라진 것만 update/create/delete 한다. 그래서 되돌리기도 서브모델 이력에 정상 변경으로 남는다.
+ * Approach: **snapshot the whole Environment right before any model-changing request** (the api.ts dispatcher does this).
+ * Any kind of change (value edit, delete, reorder, duplicate, auto-fix, AID, import) is reverted the same way —
+ * we do not write an inverse for each operation. On undo, we **compare the current state with the snapshot per Identifiable**
+ * and update/create/delete only what differs. So an undo is also recorded as a normal change in submodel history.
  *
- * 한계(알고 정한 것):
- *  - 메모리에만 있다. 서버를 다시 띄우면 비워진다 — 되돌리기는 "이 자리에서 방금"의 개념이다.
- *    영구 이력은 store.history가 따로 든다.
- *  - 첨부 파일·썸네일·패키지 이름은 안 본다. 모델(Environment)만.
- *    예외는 「곁 파일」(sidecars) — 모델과 한 몸으로 바뀌는 파일이다. 형식 반영(routes/derivation.ts)은 값과
- *    형식 사본(기준값)을 함께 바꾸는데, 값만 되돌리면 기준이 새 형식 값에 남아 형식 변경이 「이 호기에서
- *    고친 값」으로 잘못 보였다(2026-10-14 화면 실측). 그런 요청만 곁 파일을 함께 찍고 함께 되돌린다.
- *  - 다른 사람이 낀 변경도 되돌아간다(패키지가 공유 작업물이라 사용자 구분이 없다).
- *  - 지웠던 Identifiable을 되살리면 배열 끝에 붙는다(ordinal은 새로 받는다). 순서는 export에서
- *    무손실이 아닐 수 있으나 내용은 그대로다.
+ * Limitations (deliberate choices):
+ *  - Memory only. Restarting the server clears it — undo means "just now, right here".
+ *    Persistent history is kept separately by store.history.
+ *  - Attachments, thumbnails and package names are not covered. Only the model (Environment).
+ *    The exception is "sidecars" — files that change together with the model. Format propagation (routes/derivation.ts) changes the values and
+ *    the format copy (baseline) together; undoing only the values left the baseline at the new format values, so the format change wrongly
+ *    looked like "values edited on this unit" (observed on screen 2026-10-14). Only such requests snapshot and restore their sidecars too.
+ *  - Changes made by others are reverted too (the package is a shared work item, with no per-user separation).
+ *  - A deleted Identifiable that is restored is appended to the end of the array (it gets a new ordinal). Order may not be
+ *    lossless on export, but the content is intact.
  */
 import type { Environment } from '@aas/core';
 import { ENVIRONMENT_FIELD, type AasStore, type IdentifiableModelType, type PackageFileRecord } from '@aas/store';
@@ -28,20 +28,20 @@ import { fill, tr } from '@aas/core';
 export const UNDO_DEPTH = 30;
 
 export interface Snapshot {
-  /** 그때의 Environment. 견주기 위해 문자열로 든다 */
+  /** The Environment at that time. Kept as a string for comparison */
   json: string;
-  /** 사람이 읽는 변경 설명 — "무엇을 되돌리는지" */
+  /** Human-readable change description — "what is being undone" */
   label: string;
   takenAt: string;
   /**
-   * 곁 파일 — 함께 찍기로 한 요청에만 있다. 파트마다 그때의 파일, 없었으면 null.
-   * 이 칸이 있는 스냅샷으로 돌아갈 때만 곁 파일도 그때로 돌린다(다른 되돌리기는 연결을 건드리지 않는다)
+   * Sidecars — present only for requests that opted to snapshot them. The file at that time per part, or null if it did not exist.
+   * Sidecars are rolled back only when returning to a snapshot that has this field (other undos leave the link untouched)
    */
   files?: Record<string, PackageFileRecord | null>;
 }
 
 export interface UndoStatus {
-  /** 최근 것이 앞 */
+  /** Most recent first */
   undo: string[];
   redo: string[];
 }
@@ -57,16 +57,16 @@ export class UndoStack {
   constructor(
     private readonly store: AasStore,
     private readonly depth = UNDO_DEPTH,
-    /** 곁 파일로 함께 찍을 수 있는 파트(예: 형식 사본) */
+    /** Parts that can be snapshotted as sidecars (e.g. the format copy) */
     private readonly sidecars: readonly string[] = [],
   ) {}
 
   /**
-   * 지금 상태를 찍는다. 패키지가 없으면 undefined.
+   * Snapshot the current state. undefined if the package does not exist.
    *
-   * `actorName`을 주면 설명 뒤에 붙인다 — 되돌리기 목록이 「무엇을」에 더해 「누가」를
-   * 보여 준다. 공용 작업물이라 남이 낀 변경도 같은 더미에 쌓이기 때문이다.
-   * 🔴 다시 찍을 때(commit·shift)는 주지 않는다 — 이미 붙은 설명에 또 붙으면 겹친다.
+   * If `actorName` is given it is appended to the description — the undo list then shows "who" in addition to
+   * "what". Since it is a shared work item, changes by others pile into the same stack.
+   * Important: do not pass it when re-snapshotting (commit/shift) — appending to an already-suffixed description would duplicate it.
    */
   async capture(packageId: string, label: string, actorName?: string, withFiles = false): Promise<Snapshot | undefined> {
     if (!(await this.store.getPackage(packageId))) return undefined;
@@ -83,8 +83,8 @@ export class UndoStack {
   }
 
   /**
-   * 변경 요청이 끝난 뒤 — 실제로 모델이 달라졌으면 직전 스냅샷을 쌓고 redo를 비운다.
-   * (수집·첨부처럼 리비전만 오르고 모델은 그대로인 요청은 쌓이지 않는다)
+   * After a change request finishes — if the model actually changed, push the previous snapshot and clear redo.
+   * (Requests that only bump the revision while the model stays the same, such as collection or attachments, are not pushed)
    */
   async commit(packageId: string, before: Snapshot): Promise<boolean> {
     const after = await this.capture(packageId, before.label);
@@ -104,7 +104,7 @@ export class UndoStack {
     };
   }
 
-  /** 되돌린 변경의 설명을 돌려준다. 없으면 undefined */
+  /** Returns the description of the undone change. undefined if there is none */
   async undo(packageId: string): Promise<string | undefined> {
     return this.shift(packageId, 'undo');
   }
@@ -146,7 +146,7 @@ export class UndoStack {
   }
 }
 
-/** 지금 저장된 것을 `target`과 같게 만든다 — 달라진 Identifiable만 손댄다 */
+/** Make what is stored now equal to `target` — touch only the Identifiables that differ */
 export async function applyEnvironment(store: AasStore, packageId: string, target: Environment): Promise<void> {
   const current = await store.getEnvironment(packageId);
   const key = (modelType: string, id: string) => `${modelType} ${id}`;
@@ -168,7 +168,7 @@ export async function applyEnvironment(store: AasStore, packageId: string, targe
     }
   }
 
-  // 지울 것을 먼저 — 만들 때 id가 부딪히지 않게
+  // Delete first — so ids do not collide when creating
   for (const k of have.keys()) {
     if (!wanted.has(k)) {
       const space = k.indexOf(' ');
@@ -186,8 +186,8 @@ export async function applyEnvironment(store: AasStore, packageId: string, targe
 }
 
 /**
- * 요청에서 사람이 읽는 변경 설명을 만든다 — 되돌리기 버튼의 title이 된다.
- * 경로 규칙마다 정확히 맞추려 하지 않는다: 대상 이름 + 동작 정도면 "무엇을 되돌리는지" 알 수 있다.
+ * Build a human-readable change description from the request — it becomes the undo button's title.
+ * We do not try to match every path rule exactly: target name + action is enough to tell "what is being undone".
  */
 export function describeChange(method: string, path: string): string {
   const decode = (s: string) => {

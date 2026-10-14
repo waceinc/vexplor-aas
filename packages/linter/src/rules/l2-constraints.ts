@@ -1,27 +1,27 @@
 /**
- * L2 — AASd / AASc-3a 제약조건.
+ * L2 — AASd / AASc-3a constraints.
  *
- * 전 25개 중 코드로 AASX를 생성할 때 실수하기 쉬운 것만 구현한다.
- * 나머지는 정상적인 객체 모델을 쓰면 구조적으로 보장된다(명세 §1 L2).
+ * Of all 25, only the ones that are easy to get wrong when generating AASX from code are implemented.
+ * The rest are structurally guaranteed by using a correct object model (spec §1 L2).
  *
- * 🔴 AASd-090 · AASd-120은 **구현한다**(2026-08-24 정정). 예전 이 주석은 "V3에서 삭제됐다"고
- *    적었으나 사실이 아니다 — aas-core-meta v3에 둘 다 있다. 맞는 서술은 이것이다:
- *    **KOSMO Validator가 검사하지 않을 뿐이다.** 표준 도구는 강제한다(aas-test-engines 오류 9건,
- *    basyx-python-sdk는 SML 하위 트리를 조용히 잃는다). 자세한 내력은 docs/PROGRESS.md §4.
+ * Important: AASd-090 and AASd-120 **are implemented** (corrected 2026-08-24). This comment used to say
+ *    they were "removed in V3", which is false — both exist in aas-core-meta v3. The correct statement is:
+ *    **the KOSMO Validator simply does not check them.** Standard tools enforce them (aas-test-engines reports
+ *    9 errors; basyx-python-sdk silently loses the SML subtree). Full history in docs/PROGRESS.md §4.
  *
- * KOSMO 규칙과 겹치는 항목은 여기서 다시 보고하지 않는다:
+ * Items that overlap with KOSMO rules are not reported again here:
  *   AASd-002/117 → KOSMO-*-1 (idShort), AASd-131 → KOSMO-AAS-5,
  *   AASc-3a-004 → KOSMO-CD-4, AASc-3a-008 → KOSMO-CD-3
  */
 import type { Entity, Property, Reference, SubmodelElementList } from '@aas/core';
 import { fill, GLOBALLY_IDENTIFIABLE, tr } from '@aas/core';
 
-/** AASd-123 — 모델 참조의 첫 키로 허용되는 것 */
+/** AASd-123 — what is allowed as the first key of a model reference */
 const AAS_IDENTIFIABLES = ['AssetAdministrationShell', 'Submodel', 'ConceptDescription'];
 import type { LintContext, Report, Rule } from '../types.js';
 import { firstKeyValue, hasLanguage, iec61360Of, needsUnit } from '../util.js';
 
-// i18n-ignore — 근거 문서 파일 이름
+// i18n-ignore — source document file name
 const SPEC = 'AAS 참조모델 제약조건 spec_260812.pdf';
 
 export const aasd005Administration: Rule = {
@@ -109,11 +109,11 @@ export const aasd022UniqueIdShort: Rule = {
     return fill(tr('{0} 1장'), { 0: SPEC });
   },
   check(ctx, report) {
-    // 네임스페이스 = 부모 컨테이너. 부모 pointer를 키로 묶는다
+    // Namespace = parent container. Group by the parent pointer as the key
     const groups = new Map<string, Map<string, number>>();
 
     for (const v of ctx.elements) {
-      // SML 직계 자식은 순서로 식별되므로 고유성 대상이 아니다
+      // Direct SML children are identified by position, so uniqueness does not apply to them
       if (v.parent?.modelType === 'SubmodelElementList') continue;
       const idShort = v.node.idShort;
       if (!idShort) continue;
@@ -139,7 +139,7 @@ export const aasd022UniqueIdShort: Rule = {
   },
 };
 
-/** AASd-107 / 108 / 109 / 114 — SubmodelElementList 계열 제약 */
+/** AASd-107 / 108 / 109 / 114 — SubmodelElementList constraints */
 export const aasdSubmodelElementList: Rule = {
   id: 'AASd-107/108/109/114',
   layer: 'L2',
@@ -158,7 +158,7 @@ export const aasdSubmodelElementList: Rule = {
 
       const key = list.idShort ?? v.idShortPath;
 
-      // AASd-108 — 자식은 모두 typeValueListElement와 같은 타입
+      // AASd-108 — all children must have the same type as typeValueListElement
       children.forEach((child, i) => {
         if (child.modelType !== list.typeValueListElement) {
           report({
@@ -177,7 +177,7 @@ export const aasdSubmodelElementList: Rule = {
         }
       });
 
-      // AASd-109 — Property/Range를 담으면 valueTypeListElement 필수
+      // AASd-109 — when holding Property/Range, valueTypeListElement is required
       const needsValueType =
         list.typeValueListElement === 'Property' || list.typeValueListElement === 'Range';
       if (needsValueType && !list.valueTypeListElement) {
@@ -213,7 +213,7 @@ export const aasdSubmodelElementList: Rule = {
         });
       }
 
-      // AASd-107 / 114 — 자식 semanticId는 서로 같고 semanticIdListElement와도 일치
+      // AASd-107 / 114 — child semanticIds must equal each other and match semanticIdListElement
       const declared = firstKeyValue(list.semanticIdListElement);
       const childSemantics = children.map((c) => firstKeyValue(c.semanticId));
       const present = childSemantics.filter((s): s is string => s !== undefined);
@@ -242,8 +242,8 @@ export const aasdSubmodelElementList: Rule = {
               0: distinct[0],
               1: declared,
             }),
-            // 🔴 자동으로 고치지 않는다 — 어느 쪽이 맞는지는 사람이 안다. 실측: 자식이 「345345」(오타), 선언값이 표준 IRDI.
-            //    fixable로 광고하면서 교정기가 없어 단추 숫자와 팝업이 어긋났다(2026-09-11)
+            // Important: not auto-fixed — only a person knows which side is right. Measured: child was "345345" (typo), declared value a standard IRDI.
+            //    It was advertised as fixable with no fixer, so the button count and the popup disagreed (2026-09-11)
             remedy: tr(
               '둘 중 맞는 쪽으로 맞추십시오 — 대개 표준 사전 값(0173-/0112/로 시작)이 맞고 자식 쪽이 오타입니다. 자식 요소를 골라 semanticId 칸에서 선언값을 넣으면 됩니다(AASd-107).',
             ),
@@ -255,7 +255,7 @@ export const aasdSubmodelElementList: Rule = {
   },
 };
 
-/** AASd-121 / 122 / 124 — Reference 키 규칙 */
+/** AASd-121 / 122 / 124 — Reference key rules */
 export const aasdReferenceKeys: Rule = {
   id: 'AASd-121~128',
   layer: 'L2',
@@ -294,7 +294,7 @@ export const aasdReferenceKeys: Rule = {
       }
 
       if (ref.type === 'ModelReference') {
-        // AASd-123 — 모델 참조의 첫 키는 AAS·Submodel·ConceptDescription 중 하나여야 한다
+        // AASd-123 — the first key of a model reference must be AAS, Submodel or ConceptDescription
         if (!AAS_IDENTIFIABLES.includes(first.type)) {
           report2({
             severity: 'error',
@@ -307,13 +307,13 @@ export const aasdReferenceKeys: Rule = {
             fixable: false,
           });
         }
-        // AASd-125/126 — 둘째 키부터는 Fragment류를 제외한 요소 타입이어야 한다
-        // (마지막 키의 FragmentReference는 126이 허용한다)
+        // AASd-125/126 — from the second key on, keys must be element types other than Fragment kinds
+        // (a FragmentReference as the last key is allowed by 126)
         ref.keys.slice(1).forEach((chainKey, offset) => {
           const index = offset + 1;
           const isLast = index === ref.keys.length - 1;
           if (chainKey.type === 'FragmentReference' && isLast) {
-            // AASd-127 — FragmentReference 앞 키는 File·Blob이어야 한다
+            // AASd-127 — the key before a FragmentReference must be File or Blob
             const previous = ref.keys[index - 1];
             if (previous && previous.type !== 'File' && previous.type !== 'Blob') {
               report2({
@@ -329,7 +329,7 @@ export const aasdReferenceKeys: Rule = {
             }
             return;
           }
-          // AASd-128 — SubmodelElementList 키 뒤의 값은 배열 위치(정수)여야 한다
+          // AASd-128 — the value after a SubmodelElementList key must be an array position (integer)
           const previousKey = ref.keys[index - 1];
           if (previousKey?.type === 'SubmodelElementList' && !/^\d+$/.test(chainKey.value)) {
             report2({
@@ -416,7 +416,7 @@ export const aasc3a002PreferredName: Rule = {
   check(ctx, report) {
     (ctx.environment.conceptDescriptions ?? []).forEach((cd, i) => {
       const content = iec61360Of(cd);
-      if (!content) return; // KOSMO-CD-4가 보고한다
+      if (!content) return; // Reported by KOSMO-CD-4
       if (hasLanguage(content.preferredName, 'en')) return;
 
       const key = cd.idShort ?? cd.id;
@@ -467,19 +467,19 @@ export const aasc3a009UnitRequired: Rule = {
 };
 
 /**
- * AASd-120 — SubmodelElementList 직계 자식은 idShort를 가질 수 없다.
+ * AASd-120 — direct children of a SubmodelElementList must not have an idShort.
  *
- * 🔴 이 규칙의 내력을 알아야 한다(2026-08-24 실측으로 정정).
- * 예전 이 저장소는 "AASd-120은 V3에서 삭제됐다"고 적어 두고 구현하지 않았다. **사실이 아니다.**
- * 규격(V3.0)에 그대로 있고(aas-core-meta v3 SubmodelElementList), KOSMO Validator가
- * 검사하지 않을 뿐이다. 표준 도구는 강제한다 —
- *   · `aas-test-engines` 1.0.3: 골든 파일을 **오류 9건**으로 떨어뜨린다
- *   · `basyx-python-sdk`: 파일을 아예 읽지 못한다(서브모델 드롭)
- * 실측: 골든 파일에서 SML 자식 idShort 10개를 빼면 aas-test-engines **오류 0건**이 되고,
- * KOSMO 규칙 위반은 그대로 0건이다. 즉 **빼는 쪽이 양쪽을 다 만족한다.**
+ * Important: know the history of this rule (corrected by measurement on 2026-08-24).
+ * This repository used to state "AASd-120 was removed in V3" and did not implement it. **That is false.**
+ * It is still in the spec (V3.0; aas-core-meta v3 SubmodelElementList); the KOSMO Validator simply
+ * does not check it. Standard tools enforce it —
+ *   · `aas-test-engines` 1.0.3: fails the golden file with **9 errors**
+ *   · `basyx-python-sdk`: cannot read the file at all (drops the submodel)
+ * Measured: removing the 10 SML child idShorts from the golden file brings aas-test-engines to **0 errors**,
+ * while KOSMO rule violations stay at 0. In other words, **removing them satisfies both sides.**
  *
- * 기본 등급을 경고로 둔 이유: KOSMO 제출을 막을 이유는 없고(검사하지 않는다),
- * 상호운용이 깨진다는 사실은 반드시 알려야 하기 때문이다. 정책으로 승격·강등할 수 있다.
+ * Why the default severity is warning: there is no reason to block a KOSMO submission (it is not checked),
+ * but the fact that interoperability breaks must be reported. Policy can promote or demote it.
  */
 export const aasd120SmlChildIdShort: Rule = {
   id: 'AASd-120',
@@ -506,7 +506,7 @@ export const aasd120SmlChildIdShort: Rule = {
         pointer: `${v.pointer}/idShort`,
         kosmoPath: `${v.kosmoPath}/idShort`,
         message: fill(tr('SubmodelElementList의 직계 자식에 idShort가 있습니다: {0}'), { 0: idShort }),
-        // 🔴 이미 Validator를 받은 파일은 고치면 해시가 달라진다 — 번들은 원본 바이트로 대조한다(2026-09-30)
+        // Important: fixing a file that already passed the Validator changes its hash — bundles compare against the original bytes (2026-09-30)
         remedy: tr(
           'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.',
         ),
@@ -523,12 +523,12 @@ export const aasd120SmlChildIdShort: Rule = {
 };
 
 /**
- * AASd-090 — DataElement의 category는 CONSTANT · PARAMETER · VARIABLE 중 하나.
+ * AASd-090 — a DataElement's category must be one of CONSTANT · PARAMETER · VARIABLE.
  *
- * 이것도 "V3 삭제분"으로 적혀 있었으나 **규격에 있다**(aas-core-meta v3 DataElement).
- * 다만 *비워 두면 무관*하다는 서술은 맞다 — 값이 있을 때만 걸리는 제약이다.
- * 설비 20종은 category를 쓰지 않아 지금까지 드러나지 않았고, 저작 UI에서 category를
- * 넣을 수 있게 된 뒤로는 사람이 잘못 넣을 수 있어 검사한다.
+ * This too was listed as "removed in V3", but **it is in the spec** (aas-core-meta v3 DataElement).
+ * The statement that *leaving it empty is fine* is correct, though — the constraint only applies when a value is set.
+ * The 20 equipment types do not use category, so it never surfaced; since the authoring UI began allowing
+ * category to be entered, a person can enter it wrongly, so we check it.
  */
 const DATA_ELEMENT_TYPES = new Set([
   'Property',
@@ -553,7 +553,7 @@ export const aasd090DataElementCategory: Rule = {
     for (const v of ctx.elements) {
       if (!DATA_ELEMENT_TYPES.has(v.node.modelType)) continue;
       const category = v.node.category;
-      // 비워 두는 것은 규격상 문제가 없다
+      // Leaving it empty is fine per the spec
       if (category === undefined || category === '') continue;
       if (ALLOWED_CATEGORIES.includes(category)) continue;
 
@@ -572,10 +572,10 @@ export const aasd090DataElementCategory: Rule = {
 };
 
 /**
- * AASd-118 — supplementalSemanticIds가 있으면 semanticId도 있어야 한다.
+ * AASd-118 — if supplementalSemanticIds is present, semanticId must also be present.
  *
- * 우리 산출물이 실제로 걸릴 수 있는 자리다: 골든 파일이 supplementalSemanticIds를 쓰고
- * (IDTA 원본 IRI 보존), 화면에서 semanticId를 비우면 이 제약이 깨진다.
+ * Our output can actually hit this: the golden file uses supplementalSemanticIds
+ * (preserving the original IDTA IRI), and clearing semanticId in the UI breaks this constraint.
  */
 export const aasd118SupplementalSemantics: Rule = {
   id: 'AASd-118',
@@ -608,8 +608,8 @@ export const aasd118SupplementalSemantics: Rule = {
 };
 
 /**
- * AASd-116·133 — SpecificAssetId의 예약 이름과 externalSubjectId 타입.
- * 우리 도구는 이 구조를 만들지 않지만, **남의 파일을 열 때** 걸러야 한다(XML 열기 지원 이후).
+ * AASd-116·133 — reserved names of SpecificAssetId and the externalSubjectId type.
+ * Our tool never builds this structure, but it must be filtered **when opening other people's files** (since XML open support).
  */
 export const aasdSpecificAssetId: Rule = {
   id: 'AASd-116/133',
@@ -660,8 +660,8 @@ export const aasdSpecificAssetId: Rule = {
 };
 
 /**
- * AASc-3a-010 — IEC 61360의 value와 valueList는 함께 쓸 수 없다.
- * 남의 파일(값 목록을 쓰는 사전 기반 CD)을 열 때 걸러야 한다.
+ * AASc-3a-010 — IEC 61360 value and valueList cannot be used together.
+ * Must be filtered when opening other people's files (dictionary-based CDs that use value lists).
  */
 export const aasc3a010ValueExclusive: Rule = {
   id: 'AASc-3a-010',
@@ -697,8 +697,8 @@ export const aasc3a010ValueExclusive: Rule = {
 };
 
 /**
- * AASd-119·129 — TemplateQualifier의 일관성.
- * 산출물은 Qualifier를 쓰지 않지만 **남의 파일**에는 있다(IDTA 템플릿이 흔히 쓴다).
+ * AASd-119·129 — TemplateQualifier consistency.
+ * Our output does not use Qualifiers, but **other people's files** do (IDTA templates commonly use them).
  */
 export const aasdTemplateQualifier: Rule = {
   id: 'AASd-119/129',
@@ -718,7 +718,7 @@ export const aasdTemplateQualifier: Rule = {
       const qualifiers = raw['qualifiers'] as { kind?: string }[] | undefined;
       if (!qualifiers?.some((q) => q.kind === 'TemplateQualifier')) continue;
 
-      // 이 요소가 속한 서브모델의 kind — pointer 첫 마디에서 찾는다
+      // kind of the submodel this element belongs to — found from the first segment of the pointer
       const match = /^\/submodels\/(\d+)\//.exec(v.pointer);
       const kind = match ? submodelKind.get(Number(match[1])) : undefined;
       if (kind === 'Template') continue;
@@ -737,10 +737,10 @@ export const aasdTemplateQualifier: Rule = {
 };
 
 /**
- * AASd-130 — 문자열은 XML 1.0 문자만.
- * 제어문자·홀 서로게이트가 섞이면 **XML 직렬화 도구가 그 파일을 못 쓴다**.
- * JSON은 이런 문자를 통과시키므로 우리 경로(JSON)에서는 조용히 지나가다
- * 다른 도구에서 터진다 — 그래서 여기서 잡는다.
+ * AASd-130 — strings may contain only XML 1.0 characters.
+ * If control characters or lone surrogates slip in, **XML serialization tools cannot write the file**.
+ * JSON lets these characters through, so they pass silently on our path (JSON)
+ * and blow up in other tools — which is why we catch them here.
  */
 export const aasd130StringChars: Rule = {
   id: 'AASd-130',
@@ -752,7 +752,7 @@ export const aasd130StringChars: Rule = {
     return fill(tr('{0} 1장'), { 0: SPEC });
   },
   check(ctx, report) {
-    // 금지: C0 제어문자(탭·줄바꿈 제외) · FFFE/FFFF · 홀 서로게이트
+    // Forbidden: C0 control characters (except tab and newline) · FFFE/FFFF · lone surrogates
     const bad = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/;
     const lonely = /(?:[\uD800-\uDBFF](?![\uDC00-\uDFFF]))|(?:(?<![\uD800-\uDBFF])[\uDC00-\uDFFF])/;
 
@@ -786,8 +786,8 @@ export const aasd130StringChars: Rule = {
 };
 
 /**
- * AASd-134 — Operation 변수 idShort 유일.
- * Operation 자체는 사업 밖(KOSMO-SME-2가 지적)이지만, 남의 파일을 열 때는 이것도 봐야 한다.
+ * AASd-134 — Operation variable idShorts must be unique.
+ * Operation itself is out of project scope (flagged by KOSMO-SME-2), but this must also be checked when opening other people's files.
  */
 export const aasd134OperationVariables: Rule = {
   id: 'AASd-134',

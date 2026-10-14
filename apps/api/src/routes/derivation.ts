@@ -1,13 +1,13 @@
 /**
- * 형식 → 호기 반영 — 「호기별로 나누기」로 만든 호기 파일이 원본(형식) 파일의 변경을 받아 오는 길(2026-10-13).
+ * Type → unit propagation — how unit files created by "split per unit" receive changes from the source (type) file (2026-10-13).
  *
- * 호기를 만들 때 형식의 값 사본(base)을 호기 파일 옆에 둔다 — `/.derivation/source.json`, role `bundle`이라
- * AASX 로 내보낼 때는 빠진다(모델·제출 파일을 바꾸지 않는다). 판정은 @aas/linter derivation.ts(3자 비교).
- *   GET    /packages/:id/derivation        연결 상태 + 반영 계획(미리보기)
- *   POST   /packages/:id/derivation/apply  고른 줄만 반영 { keys?: string[] } — 되돌리기(↶)에 그대로 남는다
- *   PUT    /packages/:id/derivation        형식 파일 연결 { sourcePackageId } — 이 기능 전에 만든 호기용. base = 지금 형식
- *   DELETE /packages/:id/derivation        연결 끊기
- * 반영은 서브모델 단위 updateIdentifiable 로 쓴다 — 이력·되돌리기·충돌 보호가 다른 편집과 같은 길을 탄다.
+ * When a unit is created, a copy of the type's values (base) is kept beside the unit file — `/.derivation/source.json`, role `bundle`, so
+ * it is left out when exporting to AASX (the model and submitted files are not altered). The judgment is made by @aas/linter derivation.ts (three-way comparison).
+ *   GET    /packages/:id/derivation        link status + propagation plan (preview)
+ *   POST   /packages/:id/derivation/apply  apply only the chosen rows { keys?: string[] } — recorded as-is in undo (↶)
+ *   PUT    /packages/:id/derivation        link a type file { sourcePackageId } — for units made before this feature. base = current type
+ *   DELETE /packages/:id/derivation        unlink
+ * Propagation writes via per-submodel updateIdentifiable — history, undo and conflict protection follow the same path as other edits.
  */
 import type { Environment } from '@aas/core';
 import {
@@ -29,12 +29,12 @@ export interface DerivationRecord {
   version: 1;
   sourcePackageId: string;
   sourceName: string;
-  /** 마지막으로 반영(또는 연결)한 시각 */
+  /** Time of the last propagation (or link) */
   appliedAt: string;
   snapshot: DerivationSnapshot;
 }
 
-/** 호기 파일에 실을 형식 사본 — importPackage 의 keep 에 넣으면 리비전이 1로 남는다 */
+/** Type copy to carry in the unit file — putting it in importPackage's keep leaves the revision at 1 */
 export function derivationFile(record: DerivationRecord): PackageFileRecord {
   return {
     part: DERIVATION_PART,
@@ -55,7 +55,7 @@ async function readDerivation(store: AasStore, packageId: string): Promise<Deriv
     const parsed = JSON.parse(new TextDecoder().decode(file.data)) as DerivationRecord;
     return parsed.version === 1 && typeof parsed.sourcePackageId === 'string' ? parsed : undefined;
   } catch {
-    return undefined; // 깨진 기록은 없는 것으로 본다 — 다시 연결하면 된다
+    return undefined; // treat a corrupted record as absent — just relink
   }
 }
 
@@ -63,7 +63,7 @@ const count = (changes: readonly DerivationChange[], action: DerivationChange['a
   changes.filter((change) => change.action === action).length;
 
 export function derivationRoutes(store: AasStore): Route[] {
-  /** 연결 상태와 계획 — 형식 파일이 사라졌으면 그 사실만 */
+  /** Link status and plan — if the type file has disappeared, only that fact */
   const plan = async (packageId: string) => {
     if (!(await store.getPackage(packageId))) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
     const record = await readDerivation(store, packageId);
@@ -103,7 +103,7 @@ export function derivationRoutes(store: AasStore): Route[] {
         const wanted = Array.isArray(body.keys) ? new Set(body.keys.map(String)) : undefined;
         const chosen = found.changes.filter((change) => change.action === 'apply' && (!wanted || wanted.has(change.key)));
         const next = applyDerivation(found.mine, found.theirs, chosen);
-        // 달라진 서브모델만 쓴다 — 이력·되돌리기가 다른 편집과 같은 길을 탄다
+        // Write only the changed submodels — history and undo follow the same path as other edits
         const before = new Map((found.mine.submodels ?? []).map((sm) => [sm.id, JSON.stringify(sm)]));
         let written = 0;
         for (const submodel of next.submodels ?? []) {
@@ -131,7 +131,7 @@ export function derivationRoutes(store: AasStore): Route[] {
         if (sourcePackageId === packageId) throw new ApiError(400, 'BadRequest', tr('자기 자신을 형식 파일로 연결할 수 없습니다.'));
         const source = await store.getPackage(sourcePackageId);
         if (!source) throw new ApiError(404, 'NotFound', tr('형식 파일을 찾을 수 없습니다.'));
-        // base 는 「지금 형식」이다 — 그 전의 일은 알 수 없다. 지금 다른 값은 호기 고유 값으로 남는다
+        // base is "the current type" — anything before that cannot be known. Values that differ now remain as unit-specific values
         const record = newDerivation(sourcePackageId, source.name, await store.getEnvironment(sourcePackageId));
         await store.putPackageFile(packageId, derivationFile(record));
         return json(200, { linked: true, sourcePackageId, sourceName: source.name, appliedAt: record.appliedAt });

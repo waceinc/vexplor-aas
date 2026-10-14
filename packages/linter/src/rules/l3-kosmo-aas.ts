@@ -1,8 +1,8 @@
 /**
- * L3 — KOSMO 사업 규칙 · AAS #1 ~ #6.
+ * L3 — KOSMO project rules · AAS #1 – #6.
  *
- * 근거: docs/rules/02_Validator_대응규칙.md §1.2 / §2, 04_린터_규칙_명세.md §1.
- * 실측 결함 이력: #1(1차 위반) · #3(1·2차 위반).
+ * Basis: docs/rules/02_Validator_대응규칙.md §1.2 / §2, 04_린터_규칙_명세.md §1.
+ * Measured defect history: #1 (1st-round violation) · #3 (1st- and 2nd-round violations).
  */
 import type { AssetAdministrationShell } from '@aas/core';
 import { fill, tr } from '@aas/core';
@@ -10,10 +10,10 @@ import type { LintContext, Rule } from '../types.js';
 import { isOrganizationalAssetType } from '../scaffold.js';
 import { idVersionSuffix, isValidIdShort } from '../util.js';
 
-// i18n-ignore — 근거 문서 파일 이름
+// i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2';
 
-/** AAS 하나를 순회하며 위치 정보를 만들어 준다 */
+/** Traverses one AAS and produces location information */
 function eachShell(
   ctx: LintContext,
   fn: (shell: AssetAdministrationShell, pointer: string, kosmoPath: string) => void,
@@ -55,7 +55,7 @@ export const kosmoAas1Thumbnail: Rule = {
         return;
       }
 
-      // 패키지 정보가 있을 때만 파트 실재 여부를 본다
+      // Checks whether parts actually exist only when package information is available
       const pkg = ctx.package;
       if (!pkg) return;
 
@@ -178,9 +178,9 @@ export const kosmoAas4RequiredSubmodels: Rule = {
     const shell = ctx.environment.assetAdministrationShells?.[0];
     const key = shell?.idShort ?? shell?.id ?? tr('AAS 없음');
 
-    // 🔴 공정·회사 파일(assetType 표시)에는 이 규칙을 적용하지 않는다. 필수 4종(명판·기술사양…)과
-    //    6~8종 하한은 **설비 20종 실측**에서 나온 설비 규칙이고, 조직 단위는 Validator 제출용이
-    //    아니라 실공정 구성을 담는 파일이다(2026-08-26 사용자 확정).
+    // Important: this rule does not apply to process/company files (marked by assetType). The 4 required ones (nameplate, technical data…) and
+    //    the 6–8 minimum come from **measuring 20 equipment files** and are equipment rules; organization-level files are not for
+    //    Validator submission but hold the actual process configuration (confirmed by the user 2026-08-26).
     if (isOrganizationalAssetType(shell?.assetInformation?.assetType, ctx.policy.iriBase)) return;
 
     const missing = ctx.policy.requiredSubmodels.filter((r) => !present.has(r));

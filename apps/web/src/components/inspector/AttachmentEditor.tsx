@@ -1,6 +1,6 @@
 /**
- * 첨부 — File · Blob 이 가리키는 실제 파일을 붙이고 · 내려받고 · 뺀다.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Attachments — attach, download, and remove the actual file that a File · Blob points to.
+ * Split out of components/Inspector.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { tr } from '../../i18n.js';
 import type { TreeNode } from '../../model.js';
@@ -34,7 +34,7 @@ export function AttachmentEditor({ node, busy, onUploadAttachment, onDownloadAtt
           disabled={busy}
           onChange={(event) => {
             const chosen = event.target.files?.[0];
-            // 같은 파일을 다시 골라도 onChange가 나게 값을 비운다
+            // Clear the value so onChange fires even when the same file is picked again
             event.target.value = '';
             if (chosen) onUploadAttachment(node, chosen);
           }}

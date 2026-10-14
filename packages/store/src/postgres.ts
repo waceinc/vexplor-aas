@@ -1,14 +1,14 @@
 /**
- * PostgreSQL 저장소.
+ * PostgreSQL store.
  *
- * 드라이버를 직접 의존하지 않고 `SqlClient` 포트만 받는다 — `pg`(운영)와
- * `@electric-sql/pglite`(테스트·개발) 양쪽이 같은 모양이라 그대로 꽂힌다.
- * 덕분에 이 패키지는 런타임 의존성이 0이고, 라이선스 검토 대상도 늘지 않는다.
+ * It does not depend on a driver directly and takes only the `SqlClient` port — `pg` (production) and
+ * `@electric-sql/pglite` (testing/development) have the same shape, so either plugs in as-is.
+ * As a result this package has zero runtime dependencies and adds nothing to the license review.
  *
- * bytea는 hex 문자열로 주고받는다(`decode($n,'hex')` / `encode(data,'hex')`).
- * 드라이버마다 바이너리 바인딩 규약이 달라(Buffer 전용인 pg vs Uint8Array인 pglite)
- * 이식성을 택했다. 🔴 수백 MB 매뉴얼을 넣게 되면 메모리를 두 배로 쓰므로,
- * 그때는 드라이버 고유 바이너리 바인딩으로 갈아탄다(기획서 Ⅷ 대용량 파일 항목).
+ * bytea is exchanged as hex strings (`decode($n,'hex')` / `encode(data,'hex')`).
+ * Binary binding conventions differ between drivers (Buffer-only pg vs Uint8Array pglite),
+ * so portability was chosen. Important: storing manuals of hundreds of MB would double memory use,
+ * so at that point switch to the driver-specific binary binding (spec Ⅷ, large-file item).
  */
 import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
@@ -49,21 +49,21 @@ export interface SqlResult<R> {
   rows: R[];
 }
 
-/** 드라이버가 만족해야 하는 최소 모양 */
+/** The minimal shape a driver must satisfy */
 export interface SqlClient {
   query<R = Record<string, unknown>>(text: string, params?: unknown[]): Promise<SqlResult<R>>;
   /**
-   * 원자적 실행. `pg.Pool`처럼 질의마다 연결이 달라지는 클라이언트는 **반드시 제공해야 한다**
-   * (BEGIN이 다른 연결로 가면 트랜잭션이 성립하지 않는다).
-   * 단일 연결(pg.Client · PGlite)이면 생략해도 된다.
+   * Atomic execution. Clients whose connection can differ per query, like `pg.Pool`, **must provide it**
+   * (if BEGIN goes to a different connection, the transaction does not hold).
+   * Can be omitted for a single connection (pg.Client · PGlite).
    */
   transaction?<T>(fn: (tx: SqlClient) => Promise<T>): Promise<T>;
 }
 
-/** 스키마 판 확인용 자문 잠금 키 — 다른 용도와 겹치지 않는 임의의 값 */
+/** Advisory lock key for schema version checks — an arbitrary value that does not clash with other uses */
 const SCHEMA_LOCK_KEY = 0x00aa5501;
 
-/** DB 스키마가 프로그램보다 새롭다 — 기동을 거부한다 */
+/** The DB schema is newer than the program — startup is refused */
 export class SchemaVersionError extends Error {
   constructor(
     message: string,
@@ -96,7 +96,7 @@ function toHex(data: Uint8Array): string {
 }
 
 function fromHex(value: string): Uint8Array {
-  // pg는 bytea를 '\x...' 형태로 돌려주기도 한다
+  // pg sometimes returns bytea in the form '\x...'
   const hex = value.startsWith('\\x') ? value.slice(2) : value;
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
@@ -145,7 +145,7 @@ function toPackageRecord(row: PackageRow): PackageRecord {
     revision: Number(row.revision),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
-    // 🔴 NULL은 키를 빼고 돌려준다 — 메모리 저장소와 모양이 같아야 대조 시험이 선다
+    // Important: NULL is returned with the key omitted — the shape must match the memory store for the comparison tests to hold
     ...(row.owner ? { owner: row.owner } : {}),
   };
 }
@@ -157,7 +157,7 @@ function toIdentifiableRecord(row: IdentifiableRow): IdentifiableRecord {
     modelType: row.model_type as IdentifiableModelType,
     id: row.id,
     ordinal: Number(row.ordinal),
-    // jsonb는 드라이버가 이미 객체로 준다. 문자열로 오는 드라이버도 있어 한 번 더 본다
+    // Drivers already return jsonb as an object. Some return it as a string, so check once more
     content: typeof row.content === 'string' ? JSON.parse(row.content) : row.content,
     revision: Number(row.revision),
     updatedAt: toIso(row.updated_at),
@@ -179,12 +179,12 @@ const IDENTIFIABLE_COLUMNS =
 export class PostgresStore implements AasStore {
   constructor(private readonly client: SqlClient) {}
 
-  /** 기동 때 확인한 DB 스키마 판. init() 전에는 undefined */
+  /** The DB schema version confirmed at startup. undefined before init() */
   schemaVersion: number | undefined;
 
   async init(): Promise<void> {
     await this.runStatements(SCHEMA_VERSION_SQL);
-    // 🔴 판 확인·올림은 한 트랜잭션 + 자문 잠금 안에서 — 두 인스턴스가 동시에 떠도 한 번만 적용된다
+    // Important: version check and upgrade run inside one transaction + advisory lock — applied only once even if two instances start at the same time
     this.schemaVersion = await withTransaction(this.client, async (tx) => {
       await tx.query('SELECT pg_advisory_xact_lock($1)', [SCHEMA_LOCK_KEY]);
       const { rows } = await tx.query<{ version: number | string | null }>(
@@ -195,16 +195,17 @@ export class PostgresStore implements AasStore {
 
       if (current > SCHEMA_VERSION) {
         throw new SchemaVersionError(
-          // i18n-ignore — 기동할 때 운영자에게 나가는 오류(요청이 없어 언어도 없다)
-          `DB 스키마가 ${current}판인데 이 프로그램은 ${SCHEMA_VERSION}판까지만 압니다 — ` +
-            // i18n-ignore — 위 문장의 이어지는 줄
-            '프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.',
+          // Startup error for the operator — the language comes from AAS_LANG (apps/api/src/lang.ts bootLang)
+          fill(
+            tr('DB 스키마가 {0}판인데 이 프로그램은 {1}판까지만 압니다 — 프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.'),
+            { 0: current, 1: SCHEMA_VERSION },
+          ),
           current,
         );
       }
       if (current === 0) {
-        // 빈 DB이거나 판 번호 도입 전의 DB. SCHEMA_SQL(IF NOT EXISTS)은 **이미 있는 표를 고치지 않는다** —
-        // 1판 표의 제약이 그대로 남는다. 그래서 마이그레이션(멱등)을 전부 한 번 더 돌린다(2판 도입 때 발견)
+        // An empty DB or one from before version numbers were introduced. SCHEMA_SQL (IF NOT EXISTS) **does not alter existing tables** —
+        // version 1 table constraints remain as they were. So all migrations (idempotent) are run once more (found when version 2 was introduced)
         await this.runStatements(SCHEMA_SQL, tx);
         for (const step of MIGRATIONS) await this.runStatements(step.sql, tx);
         await tx.query('INSERT INTO schema_version (version) VALUES ($1)', [SCHEMA_VERSION]);
@@ -216,13 +217,13 @@ export class PostgresStore implements AasStore {
         await tx.query('INSERT INTO schema_version (version) VALUES ($1)', [step.version]);
         current = step.version;
       }
-      // 판이 같아도 SCHEMA_SQL은 멱등이라 한 번 더 돌려 빠진 색인 등을 채운다
+      // Even if the version is the same, SCHEMA_SQL is idempotent, so run it once more to fill in missing indexes, etc.
       await this.runStatements(SCHEMA_SQL, tx);
       return current;
     });
   }
 
-  /** 여러 문장을 한 번에 보내지 못하는 드라이버가 있어 문장 단위로 나눠 보낸다 */
+  /** Some drivers cannot send multiple statements at once, so they are sent one statement at a time */
   private async runStatements(script: string, client: SqlClient = this.client): Promise<void> {
     for (const statement of script.split(';')) {
       const sql = statement.trim();
@@ -252,7 +253,7 @@ export class PostgresStore implements AasStore {
     modelType: IdentifiableModelType,
     id: string,
   ): Promise<IdentifiableRow | undefined> {
-    // id 중복(KOSMO-CD-5 결함)이 실제로 들어온다. 먼저 나온 것을 대표로 본다
+    // Duplicate ids (KOSMO-CD-5 defect) really do come in. The first one is treated as representative
     const { rows } = await client.query<IdentifiableRow>(
       `SELECT ${IDENTIFIABLE_COLUMNS} FROM identifiable
        WHERE package_id = $1 AND model_type = $2 AND id = $3
@@ -321,7 +322,7 @@ export class PostgresStore implements AasStore {
   async appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void> {
     if (values.length === 0) return;
     await this.requirePackage(packageId);
-    // 수집은 모델을 바꾸지 않는다 — 패키지 리비전을 올리지 않는다(A안)
+    // Collection does not change the model — the package revision is not bumped (Option A)
     for (const value of values) {
       await this.client.query(
         `INSERT INTO collected_value
@@ -343,10 +344,10 @@ export class PostgresStore implements AasStore {
   }
 
   async pruneValues(before: string): Promise<number> {
-    // SqlResult에 rowCount가 없으니 RETURNING으로 센다. 하이퍼테이블에서도 그대로 동작한다
-    // (drop_chunks가 더 싸지만 TimescaleDB 없는 배포와 코드를 나누지 않는다)
+    // SqlResult has no rowCount, so count via RETURNING. Works the same on a hypertable
+    // (drop_chunks is cheaper, but the code is not split from deployments without TimescaleDB)
     const { rows } = await this.client.query<{ n: number }>(
-      // 수신 시각으로 본다 — 값이 일정한 태그는 장비 시각이 멈춰 있어, 장비 시각으로 지우면 방금 받은 값까지 지운다
+      // Judged by receive time — for constant-value tags the device time is frozen, so deleting by device time would also delete values just received
       'DELETE FROM collected_value WHERE COALESCE(received_at, observed_at) < $1::timestamptz RETURNING 1 AS n',
       [before],
     );
@@ -354,9 +355,9 @@ export class PostgresStore implements AasStore {
   }
 
   async readValues(packageId: string, query: ValueQuery = {}): Promise<CollectedValue[]> {
-    // 열 이름은 고정 두 가지 중 하나라 문자열로 넣어도 주입이 없다
+    // The column name is one of two fixed values, so inserting it as a string allows no injection
     const at = query.basis === 'received' ? 'COALESCE(received_at, observed_at)' : 'observed_at';
-    // 없는 패키지는 빈 목록이 아니라 NotFound다 — 인메모리 구현과 같아야 한다(적합성 시험)
+    // A missing package is NotFound, not an empty list — must match the in-memory implementation (conformance tests)
     await this.requirePackage(packageId);
     const { rows } = await this.client.query<{
       interface_name: string;
@@ -454,7 +455,7 @@ export class PostgresStore implements AasStore {
 
   async listPackages(page: PageQuery = {}, scope?: PackageScope): Promise<PageResult<PackageRecord>> {
     const limit = page.limit ?? DEFAULT_LIMIT;
-    // 🔴 거르는 조건이 LIMIT **안쪽**에 있어야 한다 — 받아 와서 밖에서 거르면 한 쪽이 덜 찬다
+    // Important: the filter condition must be **inside** the LIMIT — fetching and filtering outside leaves a page short
     const { rows } = await this.client.query<PackageRow>(
       `SELECT * FROM aas_package
        WHERE ($1::text IS NULL OR id > $1)
@@ -489,7 +490,7 @@ export class PostgresStore implements AasStore {
   ): Promise<PageResult<IdentifiableRecord>> {
     await this.requirePackage(packageId);
     const limit = query.limit ?? DEFAULT_LIMIT;
-    // 필터는 전부 파생 컬럼이라 인덱스를 탄다. NULL이면 조건이 통째로 참이 된다
+    // All filters are on derived columns, so they use indexes. If NULL, the condition is true as a whole
     const { rows } = await this.client.query<IdentifiableRow>(
       `SELECT ${IDENTIFIABLE_COLUMNS} FROM identifiable
        WHERE package_id = $1 AND model_type = $2 AND ($3::int IS NULL OR ordinal > $3)
@@ -531,7 +532,7 @@ export class PostgresStore implements AasStore {
       if (await this.findRow(tx, packageId, d.modelType, d.id)) {
         throw new InvalidContentError(fill(tr('이미 있는 id입니다: {0}'), { 0: d.id }));
       }
-      // 자리를 지정하면 그 자리에(COALESCE), 아니면 맨 뒤에
+      // At the given position if specified (COALESCE), otherwise at the end
       const { rows } = await tx.query<IdentifiableRow>(
         `INSERT INTO identifiable
            (package_id, model_type, id, id_short, semantic_id, asset_kind, kind, ordinal, content)
@@ -624,7 +625,7 @@ export class PostgresStore implements AasStore {
     operation: 'update' | 'delete',
     explicitActor?: Actor,
   ): Promise<void> {
-    // 「누가」 — 명시가 없으면 요청 문맥에서. 없으면 NULL(로그인을 안 쓰는 서버)
+    // "Who" — from the request context if not explicit. NULL if absent (servers without login)
     const actor = resolveActor(explicitActor);
     await tx.query(
       `INSERT INTO identifiable_history
@@ -677,15 +678,15 @@ export class PostgresStore implements AasStore {
       content: typeof r.content === 'string' ? JSON.parse(r.content) : r.content,
       operation: r.operation as HistoryRecord['operation'],
       changedAt: toIso(r.changed_at),
-      // 🔴 null은 키를 빼고 돌려준다 — 메모리 저장소와 모양이 같아야 대조 시험이 선다
+      // Important: null is returned with the key omitted — the shape must match the memory store for the comparison tests to hold
       ...(r.actor_id === null ? {} : { actorId: r.actor_id }),
       ...(r.actor_name === null ? {} : { actorName: r.actor_name }),
     }));
   }
 
-  // ── 사용자 (2026-10-02) ───────────────────────────────────────────────────
-  // 🔴 login은 소문자로 맞춰 넣고 찾는다 — 표의 UNIQUE가 대소문자를 가리기 때문이다.
-  //    사람은 Kim과 kim을 같은 이름으로 여기는데 표는 다른 것으로 본다.
+  // ── Users (2026-10-02) ────────────────────────────────────────────────────
+  // Important: login is stored and looked up lowercased — because the table's UNIQUE is case-sensitive.
+  //    People treat Kim and kim as the same name, but the table sees them as different.
 
   async findUserByLogin(login: string): Promise<UserRecord | undefined> {
     const { rows } = await this.client.query<UserRow>(
@@ -709,8 +710,8 @@ export class PostgresStore implements AasStore {
     const login = user.login.trim().toLowerCase();
     if (login === '') throw new Error(tr('로그인 이름이 비어 있습니다.'));
     const display = user.displayName.trim() === '' ? login : user.displayName.trim();
-    // 🔴 id를 DB에서 만들지 않고 여기서 짓는다 — 메모리 구현과 같은 꼴(user_N)이어야
-    //    적합성 테스트가 두 구현을 같은 눈으로 본다
+    // Important: the id is generated here, not in the DB — it must have the same form as the memory implementation (user_N)
+    //    so the conformance tests see both implementations the same way
     const { rows: seq } = await this.client.query<{ next: string }>(
       `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 6) AS integer)), 0) + 1 AS next
          FROM app_user WHERE id ~ '^user_[0-9]+$'`,
@@ -734,7 +735,7 @@ export class PostgresStore implements AasStore {
       );
       return toUserRecord(rows[0]!);
     } catch (caught) {
-      // 23505 = unique_violation. 무슨 일인지 사람 말로 돌려준다
+      // 23505 = unique_violation. Report what happened in plain language
       if ((caught as { code?: string }).code === '23505') {
         throw new Error(fill(tr('이미 있는 로그인 이름입니다: {0}'), { 0: login }));
       }
@@ -746,15 +747,14 @@ export class PostgresStore implements AasStore {
     id: string,
     patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email' | 'company'>>,
   ): Promise<UserRecord | undefined> {
-    // 🔴 준 것만 바꾼다. COALESCE로 undefined를 흘리면 멀쩡한 값이 지워진다
+    // Important: change only what is given. Letting undefined flow through COALESCE would wipe out valid values
     const { rows } = await this.client.query<UserRow>(
-      // i18n-ignore — SQL 문(안의 한국어는 SQL 주석)
       `UPDATE app_user SET
          display_name  = COALESCE($2, display_name),
          role          = COALESCE($3, role),
          password_hash = COALESCE($4, password_hash),
          disabled      = COALESCE($5, disabled),
-         -- 🔴 빈 문자열은 「지우라」는 뜻이다. COALESCE로는 그 뜻을 낼 수 없어 따로 쓴다
+         -- Important: an empty string means "clear it". COALESCE cannot express that, so it is handled separately
          email         = CASE WHEN $6::text IS NULL THEN email
                               WHEN btrim($6::text) = '' THEN NULL
                               ELSE btrim($6::text) END,
@@ -777,9 +777,9 @@ export class PostgresStore implements AasStore {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    // 🔴 identifiable_history는 app_user를 참조하지 않는다(4판에서 일부러 외래키를 뺐다).
-    //    그래서 계정을 지워도 「누가 바꿨나」가 함께 사라지지 않는다
-    // SqlResult에 rowCount가 없다 — 이 저장소의 관례대로 RETURNING으로 센다
+    // Important: identifiable_history does not reference app_user (the foreign key was deliberately dropped in version 4).
+    //    So deleting an account does not make "who changed it" disappear with it
+    // SqlResult has no rowCount — count via RETURNING, per this store's convention
     const { rows } = await this.client.query<{ id: string }>(
       `DELETE FROM app_user WHERE id = $1 RETURNING id`,
       [id],
@@ -840,7 +840,7 @@ function checkRevision(options: WriteOptions, actual: number): void {
   }
 }
 
-/** limit + 1건을 받아 왔다는 전제로 다음 쪽 유무를 판정한다 */
+/** Determines whether a next page exists, assuming limit + 1 rows were fetched */
 function slicePage<T>(rows: T[], limit: number, keyOf: (item: T) => string): PageResult<T> {
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;

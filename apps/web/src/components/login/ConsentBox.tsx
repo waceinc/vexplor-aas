@@ -1,6 +1,6 @@
 /**
- * 로그인 화면 — 개인정보 수집·이용 동의 — 무엇을·왜·언제까지를 동의 칸 바로 위에.
- * components/Login.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 마크업·주석은 옮기기 전 글자 그대로다.
+ * Sign-in screen — consent to collecting and using personal data — what · why · how long, right above the consent box.
+ * Extracted from components/Login.tsx (2026-10-13 componentization) — markup · comments moved verbatim at the time.
  */
 interface Props {
   agreed: boolean;

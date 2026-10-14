@@ -1,16 +1,16 @@
 /**
- * AASX 파일 서버 인터페이스 — IDTA-01002-3-0 `AasxFileServerServiceSpecification/SSP-001`.
+ * AASX file server interface — IDTA-01002-3-0 `AasxFileServerServiceSpecification/SSP-001`.
  *
- * 처음에는 우리 임의 경로로 만들었다가, 규격 원문(docs/spec/part2/)을 확보해 대조하면서
- * **표준에 같은 경로가 이미 있다는 것**을 발견해 규격에 맞췄다.
- *   GET  /packages                 패키지 목록(PackageDescription)
- *   POST /packages                 multipart/form-data로 AASX 저장 → 201 + Location
- *   GET  /packages/{packageId}     **AASX 파일 자체**를 준다 (JSON 메타데이터가 아니다)
- *   PUT  /packages/{packageId}     교체 → 204
- *   DELETE /packages/{packageId}   삭제 → 204
+ * We first built this on our own ad-hoc paths, then while checking against the spec text (docs/spec/part2/)
+ * we found **the standard already defines the same paths**, so we aligned with the spec.
+ *   GET  /packages                 package list (PackageDescription)
+ *   POST /packages                 store AASX via multipart/form-data → 201 + Location
+ *   GET  /packages/{packageId}     returns **the AASX file itself** (not JSON metadata)
+ *   PUT  /packages/{packageId}     replace → 204
+ *   DELETE /packages/{packageId}   delete → 204
  *
- * 우리 고유 확장은 규격 경로를 침범하지 않도록 하위 경로로 뺐다 — `/metadata` · `/lint` · `/fix`.
- * 규격에 없는 경로를 우리가 열었는지는 `node scripts/part2-coverage.mjs`가 감시한다.
+ * Our own extensions live under sub-paths so they do not intrude on spec paths — `/metadata` · `/lint` · `/fix`.
+ * `node scripts/part2-coverage.mjs` watches whether we have opened any path not in the spec.
  */
 import { DEFAULT_SPEC_PART, readAasx, writeAasx, type AasxLimits } from '@aas/aasx';
 import {
@@ -73,13 +73,13 @@ import { originalFile } from './bundle-files.js';
 import { derivationFile, newDerivation } from './derivation.js';
 import { fill, tr } from '@aas/core';
 
-/** AASX 패키지의 미디어 타입 (규격 AasxFileServer §GetAASXByPackageId) */
+/** Media type of an AASX package (spec AasxFileServer §GetAASXByPackageId) */
 export const AASX_MEDIA_TYPE = 'application/asset-administration-shell-package';
 
 /**
- * 결과서에 찍는 시각 — 제출 문서라 **서버의 지역 시각**으로 적는다.
- * ISO(UTC)로 찍었더니 화면 시계와 9시간 어긋난 문서가 나갔다(2026-09-03 시연).
- * 초는 뺀다 — 문서를 구분하는 데는 분이면 충분하고, 눈으로 대조하기 쉽다
+ * Timestamp printed on reports — these are submission documents, so use **the server's local time**.
+ * Printing ISO (UTC) produced a document 9 hours off from the on-screen clock (2026-09-03 demo).
+ * Seconds are dropped — minutes are enough to tell documents apart, and easier to compare by eye
  */
 export function localTimestamp(at: Date): string {
   const two = (n: number) => String(n).padStart(2, '0');
@@ -92,9 +92,9 @@ interface UploadedPackage {
 }
 
 /**
- * 업로드 본문을 읽는다.
- *  - 규격: multipart/form-data (fileName · file · aasIds)
- *  - 확장: 본문에 AASX 바이트를 그대로 두고 `?name=` — 우리 저작 UI가 쓰기 편한 형태다
+ * Reads the upload body.
+ *  - Spec: multipart/form-data (fileName · file · aasIds)
+ *  - Extension: raw AASX bytes in the body plus `?name=` — a form that is convenient for our authoring UI
  */
 function uploadedPackage(request: ApiRequest): UploadedPackage {
   const contentType = request.headers['content-type'] ?? '';
@@ -130,7 +130,7 @@ function uploadedPackage(request: ApiRequest): UploadedPackage {
   return { name, data: body };
 }
 
-/** 규격의 PackageDescription. 우리 메타데이터를 덧붙인다(규격은 추가 속성을 막지 않는다) */
+/** The spec's PackageDescription, with our metadata appended (the spec does not forbid extra properties) */
 async function packageDescription(
   store: AasStore,
   record: PackageRecord,
@@ -140,15 +140,15 @@ async function packageDescription(
   return {
     packageId: record.id,
     aasIds: shells.items.map((r) => r.id),
-    // ↓ 규격 밖 확장. 표준 클라이언트는 모르는 필드를 무시한다
+    // ↓ Non-spec extensions. Standard clients ignore unknown fields
     name: record.name,
-    // 🔴 장비명과 Asset 주소를 목록에 함께 실어 준다. 공정을 만들 때 "이 파일이 무슨
-    //    설비인지"를 알아야 고를 수 있는데, 파일명은 「03-SPR장비-뿌80.aasx」처럼
-    //    사업 번호가 섞여 있어 그것만으로는 판단이 안 된다
+    // Important: include the equipment name and Asset address in the list. Building a process requires knowing
+    //    "what equipment this file is" to pick it, but file names mix in project numbers, like "03-SPR-equipment-80.aasx",
+    //    so the name alone is not enough to tell
     assetName: first?.idShort,
     globalAssetId: (first?.content as { assetInformation?: { globalAssetId?: string } } | undefined)
       ?.assetInformation?.globalAssetId,
-    // 공정(묶음) 파일인지 — 화면이 설비와 공정을 가르는 표준 필드(…/type/*)
+    // Whether this is a process (composite) file — the standard field the UI uses to tell equipment from processes (…/type/*)
     assetType: (first?.content as { assetInformation?: { assetType?: string } } | undefined)?.assetInformation
       ?.assetType,
     revision: record.revision,
@@ -158,8 +158,8 @@ async function packageDescription(
 }
 
 /**
- * 저장본을 AASX로 되돌려 L1(패키지) 규칙까지 검사할 수 있게 한다.
- * L1 규칙은 ZIP 파트·관계·Content_Types를 보므로 Environment만으로는 검사할 수 없다.
+ * Turns the stored copy back into AASX so L1 (package) rules can be checked too.
+ * L1 rules look at ZIP parts, relationships and Content_Types, so the Environment alone cannot be checked.
  */
 async function snapshot(store: AasStore, packageId: string): Promise<ReturnType<typeof readAasx>> {
   const exported = await store.exportPackage(packageId);
@@ -167,9 +167,9 @@ async function snapshot(store: AasStore, packageId: string): Promise<ReturnType<
 }
 
 /**
- * 교정 결과를 저장소에 반영한다.
- * id가 바뀐 교정(IRI 이관)은 삭제 + 생성으로 나타난다 — 새 id는 다른 신원이므로 그게 맞다.
- * 이관 대장(relocations)이 그 연결을 대신 기록한다.
+ * Writes fix results back to the store.
+ * Fixes that change an id (IRI relocation) show up as delete + create — correct, since a new id is a different identity.
+ * The relocation ledger (relocations) records that link instead.
  */
 async function writeBackEnvironment(
   store: AasStore,
@@ -229,12 +229,12 @@ function bodyObject(request: ApiRequest): Record<string, unknown> {
   return body as Record<string, unknown>;
 }
 
-/** Reference의 첫 키 값 */
+/** First key value of a Reference */
 /**
- * 공정 파일의 계층 서브모델을 찾아 준다.
+ * Finds the hierarchy submodel of a process file.
  *
- * 🔴 없으면 404가 아니라 **400**이다. 파일은 있는데 이 기능을 쓸 수 있는 파일이 아닌 것이라,
- *    "없는 것을 달라고 했다"보다 "설비 파일에 공정 기능을 썼다"는 쪽이 맞는 설명이다.
+ * Important: if missing, it is **400**, not 404. The file exists but is not one this feature applies to, so
+ *    "used a process feature on an equipment file" is a better explanation than "asked for something missing".
  */
 async function findHierarchy(
   store: AasStore,
@@ -255,11 +255,11 @@ async function findHierarchy(
 }
 
 /**
- * 순환 검사 — source의 계층을 따라 내려가며 target이 나오면 안 된다.
- * 자산 주소 → 패키지 대응은 열린 파일 전체에서 만든다(파일 수가 적어 그때 훑어도 된다).
+ * Cycle check — walking down source's hierarchy must never reach target.
+ * The asset address → package map is built from all open files (there are few files, so scanning then is fine).
  */
 async function guardCycle(store: AasStore, targetId: string, sourceId: string): Promise<void> {
-  // 자산 주소 → 패키지 id
+  // asset address → package id
   const byAsset = new Map<string, string>();
   const all = await store.listPackages({ limit: 1000 });
   for (const record of all.items) {
@@ -272,7 +272,7 @@ async function guardCycle(store: AasStore, targetId: string, sourceId: string): 
 
   const visited = new Set<string>();
   const walk = async (packageId: string): Promise<boolean> => {
-    if (packageId === targetId) return true; // 순환이다
+    if (packageId === targetId) return true; // it is a cycle
     if (visited.has(packageId)) return false;
     visited.add(packageId);
     const submodels = await store.listIdentifiables(packageId, 'Submodel');
@@ -280,7 +280,7 @@ async function guardCycle(store: AasStore, targetId: string, sourceId: string): 
     if (!hierarchy) return false;
     const entry = findEntryNode(hierarchy.content as never);
     if (!entry) return false;
-    // 🔴 중첩 전체를 본다 — 그룹 밑에 숨은 참조도 순환을 만든다
+    // Important: inspect the full nesting — references hidden under groups also create cycles
     const flat: { globalAssetId?: string; children: unknown[] }[] = [];
     const collect = (nodes: ReturnType<typeof hierarchyTree>): void => {
       for (const node of nodes) {
@@ -305,7 +305,7 @@ async function guardCycle(store: AasStore, targetId: string, sourceId: string): 
   }
 }
 
-/** 이력 요약용 — 그 판의 요소 수(재귀) */
+/** For history summaries — element count of that revision (recursive) */
 function countElements(content: Record<string, unknown>): number {
   let count = 0;
   const walk = (list: unknown): void => {
@@ -321,7 +321,7 @@ function countElements(content: Record<string, unknown>): number {
   return count;
 }
 
-/** 자식에 적힌 대수. 없으면 1대다 */
+/** Unit count written on the child. Defaults to 1 unit */
 function bulkCountOf(entity: { statements?: unknown[] }): number {
   const statements = (entity.statements ?? []) as { idShort?: string; value?: string }[];
   const bulk = statements.find((element) => element.idShort === 'BulkCount');
@@ -335,7 +335,7 @@ function firstKeyValue(reference: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-/** 서브모델 안에서 쓰이는 semanticId를 전부 모은다 — 함께 가져와야 할 CD를 찾는 데 쓴다 */
+/** Collects every semanticId used within a submodel — used to find the CDs that must be brought along */
 function semanticIdsOf(node: unknown, out: Set<string> = new Set()): Set<string> {
   if (Array.isArray(node)) {
     for (const item of node) semanticIdsOf(item, out);
@@ -350,11 +350,11 @@ function semanticIdsOf(node: unknown, out: Set<string> = new Set()): Set<string>
 }
 
 /**
- * 질의 인자로 온 정책 덮어쓰기.
+ * Policy overrides from query parameters.
  *
- * 규정 충돌은 숨기지 않고 **고르게 한다**는 것이 이 제품의 원칙이다(명세 §5).
- * 특히 `smlChildIdShort=forbid`는 "KOSMO 제출"과 "표준 도구·BaSyx 상호운용" 중
- * 무엇을 우선할지 고르는 스위치다.
+ * This product's principle is not to hide rule conflicts but **to let users choose** (spec §5).
+ * In particular, `smlChildIdShort=forbid` is the switch for choosing between "KOSMO submission" and
+ * "interoperability with standard tools/BaSyx".
  */
 function policyFromQuery(request: ApiRequest): Partial<LinterPolicy> {
   const overrides: Partial<LinterPolicy> = {};
@@ -367,7 +367,7 @@ function policyFromQuery(request: ApiRequest): Partial<LinterPolicy> {
   return overrides;
 }
 
-/** 린트 결과를 응답용으로 줄인다 — findings 전량은 저작 UI가 따로 받아 간다 */
+/** Trims the lint result for the response — the authoring UI fetches the full findings separately */
 function lintSummary(result: ReturnType<typeof lint>): Record<string, unknown> {
   return {
     passed: result.passed,
@@ -378,23 +378,23 @@ function lintSummary(result: ReturnType<typeof lint>): Record<string, unknown> {
 }
 
 export interface PackageRouteOptions {
-  /** 서버 기본 린터 정책. 질의 인자가 오면 그것이 우선한다 */
+  /** Server default linter policy. Query parameters take precedence when present */
   policy?: Partial<LinterPolicy>;
   /**
-   * 업로드 AASX의 압축 해제 상한(기획서 Ⅷ Zip Bomb).
-   * 배포 환경의 메모리에 맞춰 조절한다 — 폐쇄망 소형 서버와 클라우드가 같을 수 없다.
+   * Decompression cap for uploaded AASX (spec Ⅷ, zip bomb).
+   * Tune to the deployment's memory — a small air-gapped server and the cloud cannot be the same.
    */
   aasxLimits?: Partial<AasxLimits>;
   /**
-   * 수집 어댑터를 어떻게 열지(M8). 주지 않으면 수집 경로가 501로 답한다 —
-   * 저작만 하는 배포에서는 OPC UA 스택을 올릴 이유가 없다.
+   * How to open a collection adapter (M8). If omitted, collection routes answer 501 —
+   * an authoring-only deployment has no reason to load the OPC UA stack.
    */
   openReader?: (descriptor: AidInterface) => Promise<ProtocolReader>;
-  /** 설비 훑기. 같은 이유로 주입받는다 — 프로토콜을 아는 곳은 @aas/opcua 하나뿐이다 */
+  /** Device browsing. Injected for the same reason — @aas/opcua is the only place that knows the protocol */
   browseDevice?: (endpoint: string) => Promise<unknown>;
   /**
-   * 내장 가상 PLC — 설비 AASX를 주면 그 운전 데이터 이름대로 태그를 세우고 접속 주소·태그를 돌려준다.
-   * 없으면 「가상 PLC로 연결」이 501로 답한다(수집이 꺼진 배포)
+   * Built-in virtual PLC — given an equipment AASX, creates tags named after its operational data and returns the endpoint and tags.
+   * If absent, "Connect to virtual PLC" answers 501 (deployment with collection off)
    */
   simulate?: (
     environment: Environment,
@@ -402,13 +402,13 @@ export interface PackageRouteOptions {
 }
 
 /**
- * 한 파일을 고쳐 되쓴다.
- * 낱개 교정과 일괄 교정이 **같은 길**을 쓰도록 뽑아 뒀다 — 둘이 갈라지면 결과가 달라진다.
+ * Fixes one file and writes it back.
+ * Extracted so single and batch fixes take **the same path** — if the two diverge, results differ.
  */
 /**
- * IRI 이관 대장 — 패키지 안의 파트로 남긴다(`/aasx/_idta_relocated_iris.json`, 20종 작업 때와 같은 이름).
- * 🔴 교정 응답에만 실려 있던 것을 2026-09-11에 파트로 옮겼다: "옮기고 끝"이면 규정 해석이 뒤집혔을 때
- *    되돌릴 길이 없다(04 명세 §5의 제품 요구). 파트라서 내려받은 .aasx에 같이 들어가고 다시 올려도 살아 있다
+ * IRI relocation ledger — kept as a part inside the package (`/aasx/_idta_relocated_iris.json`, same name as in the 20-template work).
+ * Important: moved on 2026-09-11 from the fix response alone into a part: if it were "relocate and forget", there would be
+ *    no way back when a rule interpretation is reversed (product requirement, spec 04 §5). As a part it ships inside the downloaded .aasx and survives re-upload
  */
 const LEDGER_PART = '/aasx/_idta_relocated_iris.json';
 
@@ -437,12 +437,12 @@ async function writeLedger(store: AasStore, packageId: string, ledger: Record<st
   });
 }
 
-/** 새로 옮긴 것을 대장에 합친다 — 먼저 적힌 원본이 남는다(두 번 옮겨도 최초 원본으로 돌아가야 한다) */
+/** Merges new relocations into the ledger — the earliest recorded original wins (even after two moves, we must return to the very first original) */
 async function mergeLedger(store: AasStore, packageId: string, added: Record<string, string>): Promise<Record<string, string>> {
   if (Object.keys(added).length === 0) return readLedger(store, packageId);
   const current = await readLedger(store, packageId);
   for (const [now, origin] of Object.entries(added)) {
-    // 옮긴 것을 또 옮겼으면(원본→A→B) 대장은 B→원본으로
+    // If a relocated id was relocated again (original→A→B), the ledger records B→original
     const root = current[origin] ?? origin;
     if (current[now] === undefined) current[now] = root;
   }
@@ -451,9 +451,9 @@ async function mergeLedger(store: AasStore, packageId: string, added: Record<str
 }
 
 /**
- * 교정 미리보기 — 무엇을 어떻게 고칠지 **저장하지 않고** 계산한다(사용자 2026-09-11: 팝업에서 항목별
- * 전/후를 보고 체크한 것만 반영). 썸네일이 없으면 임시 그림 파트가 있는 것으로 치고 계산한다 —
- * 실제 반영(fixOne)이 그 파트를 만들기 때문에 미리보기와 결과가 같아야 한다
+ * Fix preview — computes what would be fixed and how **without saving** (user, 2026-09-11: see per-item
+ * before/after in a popup and apply only the checked ones). If there is no thumbnail, compute as if a placeholder image part existed —
+ * the real apply (fixOne) creates that part, so preview and result must match
  */
 async function previewFix(
   store: AasStore,
@@ -475,16 +475,16 @@ async function fixOne(
   store: AasStore,
   packageId: string,
   overrides: Partial<LinterPolicy>,
-  /** 고칠 수 있는 경고도 함께 손댈지 — 저작 UI는 켠다(2026-09-07). 스크립트 호출은 기본 위반만 */
+  /** Whether to also touch fixable warnings — the authoring UI turns this on (2026-09-07). Script calls fix violations only by default */
   includeWarnings = false,
-  /** 미리보기에서 고른 것만 — 없으면 전부 */
+  /** Only what was picked in the preview — all if omitted */
   select?: readonly FixSelector[],
 ): Promise<{ result: ReturnType<typeof lintAndFix>; counts: unknown; ledger: Record<string, string> }> {
-  // 🔴 썸네일 사전 처리 — 패키지에 이미지 파트가 하나도 없으면 fixer가 "파일을 먼저
-  //    추가하라"며 전부 건너뛴다. 그런데 화면은 「고칠 수 있음」이라 광고한다(실측:
-  //    XML판 픽스처에서 고치기가 헛돌았다). 뼈대가 쓰는 임시 그림을 넣어 주면
-  //    KOSMO-AAS-1 fixer가 그걸 가리키고, PKG-THUMB-PART의 파트·관계·Content_Types는
-  //    writeAasx가 만든다. 임시 그림이라는 사실은 요약의 「다음 할 일」이 알려 준다.
+  // Important: thumbnail pre-processing — if the package has no image part at all, the fixer skips everything with
+  //    "add a file first", while the UI advertises "fixable" (observed: fixing spun
+  //    without effect on the XML fixture). Inserting the placeholder image the scaffold uses lets the
+  //    KOSMO-AAS-1 fixer point at it, and writeAasx creates PKG-THUMB-PART's part, relationship and Content_Types.
+  //    The "next steps" in the summary tells the user it is a placeholder image.
   const files = await store.packageFiles(packageId);
   const hasImage = files.some((file) => /\.(png|jpe?g|gif|bmp)$/i.test(file.part));
   if (!hasImage) {
@@ -516,10 +516,10 @@ export function packageRoutes(store: AasStore, options: PackageRouteOptions = {}
     ...routes,
     {
       /**
-       * 「가상 PLC로 연결」 — 평가자가 설치판만으로 번들을 재현하는 길(2026-09-30).
-       * 내장 가상 PLC에 이 설비를 붙이고, 그 태그로 수집 연결(AID)을 만든다. 만드는 길은 「수집 연결 만들기」와
-       * **같은 처리**를 그대로 탄다 — 두 길이 갈라지면 결과가 달라진다.
-       * 🔴 이미 **다른 주소**로 수집 연결이 있으면 덮지 않는다(409) — 현장 PLC 연결을 시뮬레이션으로 조용히 바꾸면 안 된다.
+       * "Connect to virtual PLC" — how an evaluator reproduces a bundle with only the installed build (2026-09-30).
+       * Attaches this equipment to the built-in virtual PLC and creates a collection connection (AID) from its tags. Creation goes
+       * through **exactly the same handling** as "Create collection connection" — if the two paths diverge, results differ.
+       * Important: if a collection connection to **a different address** already exists, it is not overwritten (409) — a real PLC connection must not be silently swapped for a simulation.
        */
       method: 'POST',
       pattern: '/packages/:packageId/simulate',
@@ -575,11 +575,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
   return [
     {
       /**
-       * 새 설비 만들기.
+       * Create new equipment.
        *
-       * 🔴 빈 AAS를 주지 않는다. KOSMO는 서브모델 4종을 요구하고 총 개수를 6~8종으로 묶는다.
-       * 빈 파일에서 출발하면 그것을 사람이 기억해 하나씩 붙여야 하는데, 그건 지금도 되는 일이라
-       * 새로 만들 이유가 없다. **태어나자마자 위반 0건인 뼈대**를 준다.
+       * Important: do not hand out an empty AAS. KOSMO requires 4 submodels and caps the total at 6–8.
+       * Starting from an empty file means a person must remember and add each one, which is already possible today,
+       * so there would be no reason to build this. Provide **a scaffold with 0 violations from birth**.
        */
       method: 'POST',
       pattern: '/packages/new',
@@ -597,7 +597,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const extras = Array.isArray(body['extraSubmodels'])
           ? (body['extraSubmodels'] as unknown[]).map(String)
           : undefined;
-        // 설비 / 묶음(composite). process·company는 옛 이름 — 같은 구조라 그대로 받는다
+        // Equipment / composite. process and company are legacy names — same structure, so accepted as is
         const wanted = String(body['unit'] ?? 'equipment');
         const unit = ['composite', 'process', 'company'].includes(wanted)
           ? (wanted as 'composite' | 'process' | 'company')
@@ -626,10 +626,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 파일 복제 — 호기별로 나누기의 실체.
+       * File clone — what "split per unit" actually does.
        *
-       * 서브모델·첨부·썸네일까지 통째로 복사하고 **id는 새 이름으로 개명**한다.
-       * 이름만 단 빈 마디를 주면 "기존 파일의 서브모델이 안 딸려온다"(실측 제보).
+       * Copies everything including submodels, attachments and thumbnail, and **renames ids to the new name**.
+       * Handing out an empty node with just a name meant "the existing file's submodels don't come along" (field report).
        */
       method: 'POST',
       pattern: '/packages/:packageId/clone',
@@ -658,7 +658,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const record = await store.importPackage({
           name: `${assetName}.aasx`,
           package: { ...exported, environment },
-          // 형식 사본 — 나중에 형식을 고치면 이 호기로 내려보낼 기준(routes/derivation.ts). AASX 에는 안 들어간다
+          // Type copy — the baseline for pushing later type edits down to this unit (routes/derivation.ts). Not included in the AASX
           keep: [derivationFile(newDerivation(packageId, source.name, exported.environment))],
         });
         return json(201, await packageDescription(store, record));
@@ -691,7 +691,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ request }) {
         const upload = uploadedPackage(request);
         const pkg = readAasx(upload.data, readOptions);
-        // 원본 바이트 보관 — 고치지 않으면 레퍼런스 번들에 이 파일 그대로 들어간다(해시 대조)
+        // Keep the original bytes — if not fixed, this exact file goes into the reference bundle (hash check)
         const record = await store.importPackage({ name: upload.name, package: pkg, keep: [originalFile(upload.data)] });
         const description = await packageDescription(store, record);
         return {
@@ -724,10 +724,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
 
         const upload = uploadedPackage(request);
         const pkg = readAasx(upload.data, readOptions);
-        // 교체는 새로 담는 것과 같다. 같은 packageId를 유지해 클라이언트의 링크를 지킨다
+        // Replacing is the same as storing anew. Keep the same packageId to preserve client links
         await store.deletePackage(packageId);
-        // 🔴 주인을 **그대로 넘긴다.** 안 넘기면 바꾼 사람의 것이 된다 — 관리자가 남의 파일을
-        //    바꿔 줬다고 그 파일이 관리자 것이 되거나, 공용 파일이 한 사람 것이 되면 안 된다
+        // Important: **carry the owner over unchanged.** Otherwise the file would belong to whoever replaced it — an admin replacing
+        //    someone's file must not make it the admin's, and a shared file must not become one person's
         await store.importPackage({
           id: packageId,
           name: upload.name,
@@ -748,7 +748,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
 
-    // ── 아래는 규격 밖 확장 — 저작 UI가 쓴다 ──────────────────────────────────
+    // ── Below: non-spec extensions — used by the authoring UI ──────────────────────────────────
     {
       method: 'GET',
       pattern: '/packages/:packageId/metadata',
@@ -760,11 +760,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 서브모델 변경 이력 — 되돌리기의 재료.
+       * Submodel change history — the raw material for undo.
        *
-       * 저장소는 처음부터 변경 전 내용을 통째로 쌓아 왔는데(store.history) 화면이 쓸 길이
-       * 없었다. 실수(잘못 지움·잘못 고침)를 복구할 방법이 없다는 것이 실사용 검증에서
-       * 확인된 구멍이다(2026-08-26).
+       * The store has kept full pre-change content from the start (store.history), but the UI had no way
+       * to use it. Having no way to recover from mistakes (wrong delete, wrong edit) was a hole
+       * found in real-use validation (2026-08-26).
        */
       method: 'GET',
       pattern: '/packages/:packageId/history/:submodelId',
@@ -778,9 +778,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             changedAt: entry.changedAt,
             operation: entry.operation,
             revision: entry.revision,
-            // 사람이 "어느 판인지" 가늠할 단서 — 그때의 요소 수
+            // A hint for people to tell "which revision" — the element count at that time
             elementCount: countElements(entry.content),
-            // 「누가」 — 없을 수 있다(로그인을 안 쓰는 서버, 2026-10-02 이전 기록)
+            // "Who" — may be missing (servers without login, records before 2026-10-02)
             actorName: entry.actorName,
           })),
         });
@@ -788,9 +788,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 이력의 한 판으로 되돌린다.
-       * 🔴 되돌리기 자체도 이력에 남는다(updateIdentifiable을 그대로 타므로) —
-       *    되돌린 것을 또 되돌릴 수 있다. 조용히 덮어쓰고 끝나는 것보다 한 수 위다.
+       * Restores one revision from history.
+       * Important: the restore itself is recorded in history too (it goes through updateIdentifiable) —
+       *    a restore can itself be undone. Better than silently overwriting and moving on.
        */
       method: 'POST',
       pattern: '/packages/:packageId/history/:submodelId/restore',
@@ -806,7 +806,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         if (current) {
           await store.updateIdentifiable(packageId, 'Submodel', submodelId, entry.content);
         } else {
-          // 지워진 서브모델의 복원 — delete 이력이 마지막 내용을 들고 있다
+          // Restoring a deleted submodel — the delete history entry holds the last content
           await store.createIdentifiable(packageId, entry.content);
         }
         return json(200, { restored: changedAt });
@@ -814,11 +814,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 공정의 계층 — 무엇으로 이루어졌는지 보여 준다.
+       * Process hierarchy — shows what it is made of.
        *
-       * 공정 파일은 **자기 안에 설비 상세를 담지 않는다.** globalAssetId라는 끈 하나로
-       * 설비 파일을 가리킬 뿐이다(값 동기화 A안과 같은 정신 — 원본은 한 군데다).
-       * 그래서 화면이 "무엇이 매달려 있는지"를 물어볼 자리가 필요하다.
+       * A process file **does not contain equipment details itself.** It only points to equipment files
+       * through a single link, globalAssetId (same spirit as value-sync option A — there is one source of truth).
+       * So the UI needs a place to ask "what is attached".
        */
       method: 'GET',
       pattern: '/packages/:packageId/hierarchy',
@@ -828,10 +828,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const { submodel } = await findHierarchy(store, packageId);
         const entry = findEntryNode(submodel as never);
         if (!entry) return json(200, { entryNode: null, children: [] });
-        // 🔴 중첩 트리로 준다 — 회사>공정>장비를 한 파일 안에서 그리는 것이 목적이라
-        //    한 층만 주면 화면이 그 밑을 볼 수 없다. 그룹(중간 마디)은 globalAssetId가 없다
-        // 🔴 globalAssetId를 전 층에 빈 문자열로라도 채운다. 최상위만 채웠더니
-        //    그룹 속 그룹부터 키가 빠져 화면이 그룹을 설비로 착각했다(실측)
+        // Important: return a nested tree — the goal is drawing company > process > equipment within one file,
+        //    so returning a single level would hide everything below. Groups (intermediate nodes) have no globalAssetId
+        // Important: fill globalAssetId on every level, even if just an empty string. When only the top level was filled,
+        //    the key went missing from nested groups and the UI mistook groups for equipment (observed)
         const normalize = (
           nodes: ReturnType<typeof hierarchyTree>,
         ): { name: string; globalAssetId: string; bulkCount: number; line: boolean; children: unknown[] }[] =>
@@ -839,7 +839,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             name: node.name,
             globalAssetId: node.globalAssetId ?? '',
             bulkCount: node.bulkCount,
-            // 라인 층 — 회사 → 라인 → 공정 → 설비. 공정과 같은 그룹이지만 화면이 단추를 달리 단다
+            // Line level — company → line → process → equipment. A group like a process, but the UI shows different buttons
             line: node.line === true,
             children: normalize(node.children),
           }));
@@ -854,12 +854,12 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 설비 하나를 계층에 매단다.
+       * Attaches one piece of equipment to the hierarchy.
        *
-       * 두 가지로 부를 수 있다.
-       *  ① `sourcePackageId` — 이 도구에 이미 올려 둔 설비 파일을 고른다. **권장.**
-       *     이름과 Asset 주소를 그 파일에서 읽으므로 손으로 옮겨 적다 틀릴 일이 없다
-       *  ② `name` + `globalAssetId` — 아직 파일이 없는 설비를 미리 적어 둘 때
+       * Can be called in two ways.
+       *  ① `sourcePackageId` — pick an equipment file already uploaded to this tool. **Recommended.**
+       *     The name and Asset address are read from that file, so no transcription mistakes
+       *  ② `name` + `globalAssetId` — to record equipment that has no file yet
        */
       method: 'POST',
       pattern: '/packages/:packageId/hierarchy/nodes',
@@ -871,12 +871,12 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
 
         let name = String(body['name'] ?? '').trim();
         let globalAssetId = String(body['globalAssetId'] ?? '').trim();
-        // 어느 마디 밑에 넣을지 — 진입점부터의 이름 경로. 비우면 최상위
+        // Which node to insert under — name path from the entry node. Empty means top level
         const parentPath = Array.isArray(body['parentPath'])
           ? (body['parentPath'] as unknown[]).map(String)
           : [];
 
-        // 그룹(중간 마디) — 파일 없이 층만 만든다. 회사 파일 안의 「용접공정」 같은 것
+        // Group (intermediate node) — creates just a level, no file. Something like "Welding process" inside a company file
         if (body['group'] === true) {
           if (!name) throw new ApiError(400, 'BadRequest', tr('그룹 이름이 비었습니다.'));
           const line = body['line'] === true;
@@ -887,7 +887,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           } catch (error) {
             throw new ApiError(400, 'BadRequest', (error as Error).message);
           }
-          // 라인은 자체 IRI 를 쓰므로 용어(ConceptDescription)가 파일에 있어야 한다(KOSMO-SME-3) — 없을 때만 넣는다
+          // Lines use their own IRI, so the term (ConceptDescription) must be in the file (KOSMO-SME-3) — add only if missing
           if (line) {
             const concept = lineConceptDescription(iriBase);
             const concepts = await store.listIdentifiables(packageId, 'ConceptDescription');
@@ -904,9 +904,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           if (sourcePackageId === packageId) {
             throw new ApiError(400, 'BadRequest', tr('자기 자신을 매달 수 없습니다.'));
           }
-          // 🔴 순환 방지 — A가 B를 담고 B가 A를 담으면 트리가 무한이 된다.
-          //    계층이 재귀(회사→공정→설비)가 되면서 실제로 만들 수 있는 실수가 됐다.
-          //    넣으려는 파일의 계층을 따라 내려가며 지금 파일이 나오면 거부한다.
+          // Important: cycle prevention — if A contains B and B contains A, the tree becomes infinite.
+          //    Once the hierarchy became recursive (company→process→equipment), this became a mistake people can actually make.
+          //    Walk down the hierarchy of the file being inserted and refuse if the current file appears.
           await guardCycle(store, packageId, sourcePackageId);
           const shells = await store.listIdentifiables(sourcePackageId, 'AssetAdministrationShell');
           const shell = shells.items[0];
@@ -948,7 +948,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
     {
-      /** 매단 설비를 뺀다. 🔴 관계도 함께 뺀다 — 하나만 지우면 짝이 안 맞는 파일이 된다 */
+      /** Detaches attached equipment. Important: remove the relationship too — deleting only one leaves a mismatched file */
       method: 'DELETE',
       pattern: '/packages/:packageId/hierarchy/nodes/:name',
       success: [204],
@@ -970,15 +970,15 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 다른 패키지에서 서브모델을 가져온다 — 기획서 Phase 3 「IDTA 표준 템플릿 임포트」의 실질.
+       * Imports a submodel from another package — the substance of spec Phase 3 "IDTA standard template import".
        *
-       * IDTA 공식 템플릿 파일을 우리가 배포할 수는 없다(라이선스·오프라인). 대신 **검증을 통과한
-       * 기존 AASX에서 복사**한다 — 설비를 여러 종 만들 때 실제로 쓰던 방식이고, 그 원본이
-       * KOSMO Validator를 통과한 것이라는 점이 표준 템플릿보다 오히려 확실하다.
+       * We cannot distribute official IDTA template files (license, offline). Instead we **copy from an existing
+       * AASX that passed validation** — the approach actually used when building many kinds of equipment, and since
+       * that source passed the KOSMO Validator it is, if anything, more reliable than the standard template.
        *
-       * 두 가지를 함께 처리하지 않으면 가져오는 순간 파일이 깨진다.
-       *   ① id 재작성 — 장비가 다르면 Submodel id도 달라야 한다(KOSMO-SM-2)
-       *   ② ConceptDescription 동반 — 안 가져오면 KOSMO-SME-3이 전부 터진다
+       * Unless both of these are handled together, the file breaks the moment it is imported.
+       *   ① id rewrite — different equipment needs a different Submodel id (KOSMO-SM-2)
+       *   ② bring ConceptDescriptions along — otherwise KOSMO-SME-3 fails across the board
        */
       method: 'POST',
       pattern: '/packages/:packageId/import-submodel',
@@ -989,10 +989,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const submodelId = String(body['submodelId'] ?? '');
         const retarget = body['retarget'] !== false;
         /*
-         * 🔴 같은 idShort의 서브모델이 이미 있을 때. 전에는 판(version)이 다르면 id가 달라
-         *    말없이 둘째 DigitalNameplate가 생겼다(전문가 시연 실측) — AAS 하나에 같은 이름이
-         *    둘이면 Package Explorer도 KOSMO도 어느 것을 볼지 정해 주지 않는다.
-         *    기본은 거절(409)하고, 화면이 사람에게 물어 바꾸기/나란히 두기를 고르게 한다.
+         * Important: when a submodel with the same idShort already exists. Previously, a different version meant a different id,
+         *    so a second DigitalNameplate silently appeared (observed in an expert demo) — with two of the same name in one AAS,
+         *    neither Package Explorer nor KOSMO decides which one to look at.
+         *    Default is to refuse (409); the UI asks the person to choose replace or keep alongside.
          */
         const onDuplicate = String(body['onDuplicate'] ?? 'reject') as 'reject' | 'replace' | 'alongside';
 
@@ -1042,8 +1042,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           const newId = `${DEFAULT_POLICY.iriBase}/sm/${assetName}/${idShort}/${version}/${revision}`;
           content['id'] = newId;
           content['administration'] = { ...(admin ?? {}), version, revision };
-          // 원본이 자기 id를 semanticId로 쓰고 있었다면 새 id로 따라간다(KOSMO-SM-3).
-          // 바깥 IRI를 가리키고 있었다면 손대지 않는다 — 그건 판단이 필요한 일이라 린터에 맡긴다
+          // If the source used its own id as semanticId, follow the new id (KOSMO-SM-3).
+          // If it pointed to an external IRI, leave it — that needs judgment, so it is left to the linter
           if (firstKeyValue(content['semanticId']) === oldId) {
             content['semanticId'] = {
               type: 'ExternalReference',
@@ -1054,10 +1054,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
 
         const newId = String(content['id']);
 
-        // 바꾸기 — 같은 이름의 옛것을 지우고(AAS 참조도 함께) 새것을 넣는다
-        // 🔴 자리 보존(2026-09-07 실전 검증): 지우고 새로 넣으면 맨 뒤라 DigitalNameplate가 트리 끝으로
-        //    내려갔다 — 필수 4종의 순서가 깨져 보인다. 옛것의 자리(ordinal)와 AAS 참조 위치를 기억해
-        //    새것을 **그 자리에** 넣는다. 새로 만들기 뼈대 → 다른 파일에서 가져오기가 정확히 이 경우다
+        // Replace — delete the old one with the same name (and its AAS reference) and insert the new one
+        // Important: keep the position (2026-09-07 field validation): delete-then-insert puts it last, so DigitalNameplate dropped
+        //    to the end of the tree — the order of the 4 required submodels looks broken. Remember the old position (ordinal) and
+        //    AAS reference index and insert the new one **in that spot**. New-file scaffold → import from another file is exactly this case
         const replaced: string[] = [];
         let seatOrdinal: number | undefined;
         let seatRefIndex: number | undefined;
@@ -1090,7 +1090,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         }
         await store.createIdentifiable(targetId, content, seatOrdinal === undefined ? {} : { ordinal: seatOrdinal });
 
-        // 함께 가져와야 할 ConceptDescription — 없으면 KOSMO-SME-3이 전부 터진다
+        // ConceptDescriptions to bring along — without them KOSMO-SME-3 fails across the board
         const wanted = semanticIdsOf(content);
         let copied = 0;
         for (const semantic of wanted) {
@@ -1101,7 +1101,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           copied += 1;
         }
 
-        // AAS의 submodels[]에도 매단다 — 바꾸기였으면 옛 참조가 있던 자리에
+        // Also attach to the AAS's submodels[] — at the old reference's position if this was a replace
         const shells = await store.listIdentifiables(targetId, 'AssetAdministrationShell');
         const shell = shells.items[0];
         if (shell) {
@@ -1129,11 +1129,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 리비전 목록 (확장) — 낙관적 잠금에 쓴다.
+       * Revision list (extension) — used for optimistic locking.
        *
-       * Part 2의 목록 응답은 모델 그 자체라 리비전을 실을 자리가 없다(실으면 모델이 오염된다).
-       * 그렇다고 요소마다 GET을 한 번씩 더 하면 편집할 때마다 왕복이 늘어난다.
-       * 그래서 리비전만 따로 준다 — UI는 이 값을 If-Match로 되돌려 보낸다.
+       * Part 2 list responses are the model itself, so there is no place for revisions (adding them would pollute the model).
+       * Yet an extra GET per element would add round trips on every edit.
+       * So revisions are served separately — the UI sends this value back as If-Match.
        */
       method: 'GET',
       pattern: '/packages/:packageId/revisions',
@@ -1160,7 +1160,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
     {
-      /** AID가 기술한 인터페이스 — 무엇을 수집할 수 있는지(M8) */
+      /** Interfaces described by the AID — what can be collected (M8) */
       method: 'GET',
       pattern: '/packages/:packageId/interfaces',
       async handle({ params }) {
@@ -1168,14 +1168,14 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const environment = await store.getEnvironment(packageId);
         const interfaces = parseAid(environment);
         return json(200, {
-          // 자체 매핑이 아니라 **파일 안의 AID**가 출처다(IDTA-02017)
+          // The source is **the AID inside the file**, not our own mapping (IDTA-02017)
           source: 'AssetInterfacesDescription',
           interfaces,
         });
       },
     },
     {
-      /** 수집값 조회 — 모델이 아니라 시계열이다(A안) */
+      /** Query collected values — a time series, not the model (option A) */
       method: 'GET',
       pattern: '/packages/:packageId/values',
       async handle({ params, request }) {
@@ -1189,7 +1189,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         if (from) query.from = from;
         const to = request.query['to'];
         if (to) query.to = to;
-        // 기간을 수신 시각으로 — 값이 일정한 태그도 「그날 받은 값」으로 잡힌다(하루 상태 막대)
+        // Range by receive time — tags with constant values are still caught as "values received that day" (daily status bar)
         if (request.query['basis'] === 'received') query.basis = 'received';
         const limit = request.query['limit'];
         if (limit !== undefined) {
@@ -1205,8 +1205,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 한 번 수집한다(M8). 주기 실행은 수집기가 따로 돌리고, 이 경로는 **지금 확인**용이다.
-       * 어댑터가 주입되지 않은 배포에서는 501로 답한다 — 저작만 하는 서버도 있다.
+       * Collects once (M8). Periodic runs are handled by the collector separately; this route is for **checking right now**.
+       * Deployments without an injected adapter answer 501 — some servers are authoring-only.
        */
       method: 'POST',
       pattern: '/packages/:packageId/collect',
@@ -1245,10 +1245,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 규칙·규약 카탈로그 — **"무슨 근거로 통과라고 하는가"에 답한다.**
+       * Rule and convention catalog — **answers "on what grounds is this a pass?"**
        *
-       * 🔴 문서에 적힌 것이 아니라 **지금 도는 규칙**을 그대로 뽑는다.
-       *    문서와 코드가 어긋나면 이 화면이 먼저 드러낸다.
+       * Important: extracts **the rules actually running now**, not what the documentation says.
+       *    If docs and code diverge, this screen exposes it first.
        */
       method: 'GET',
       pattern: '/rules',
@@ -1259,8 +1259,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 파일 없이도 규약을 알아야 한다 — 첫 화면에서 「새 설비 만들기」를 그리려면 필요하다.
-       * 지식은 한 곳(린터 정책)에만 둔다.
+       * The conventions must be known even without a file — needed to render "Create new equipment" on the start screen.
+       * Knowledge lives in one place only (the linter policy).
        */
       method: 'GET',
       pattern: '/policy',
@@ -1270,11 +1270,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 가이던스에 붙일 UML 다이어그램(SVG).
+       * UML diagram (SVG) to attach to the guidance document.
        *
-       * KTL 규정 §13 주의사항 3이 **모든 서브모델에 UML Diagram 첨부**를 요구한다.
-       * 🔴 도구는 파일에 있는 사실만 그린다 — 문서 문장은 사람이 쓴다.
-       * `?submodel=` 없으면 AAS 전체 구성도.
+       * KTL regulation §13, note 3 requires **a UML diagram attached for every submodel**.
+       * Important: the tool draws only facts present in the file — people write the document prose.
+       * Without `?submodel=`, the overall AAS structure diagram.
        */
       method: 'GET',
       pattern: '/packages/:packageId/diagram.svg',
@@ -1303,11 +1303,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 서브모델 구성요소 상세 정보 테이블 — 가이던스 부속물(규정 §13 주의사항 5).
+       * Submodel element detail table — a guidance appendix (regulation §13, note 5).
        *
-       * 🔴 표를 **만들지 말아야 하는 서브모델**이 있다. IDTA 표준 템플릿은 규정이 "표는 생략"이라고
-       *    정했다 — 그 경우 표 대신 기재할 정보와 사람이 채울 항목을 돌려준다.
-       * `format=html`(붙여넣기용) · `csv`(엑셀) · 기본은 JSON(화면용).
+       * Important: some submodels **must not get a table.** For IDTA standard templates the regulation says "omit the table" —
+       *    in that case, return the information to state instead and the items a person must fill in.
+       * `format=html` (for pasting) · `csv` (Excel) · default JSON (for the UI).
        */
       method: 'GET',
       pattern: '/packages/:packageId/table',
@@ -1338,8 +1338,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const rows = submodelTable(pkg.environment, submodel);
         const tables = submodelTables(pkg.environment, submodel);
         if (format === 'html') {
-          // 🔴 화면에 보이는 것과 문서에 붙는 것이 **같아야** 한다 — 같은 HTML을 쓴다
-          // 표 번호는 문서 전체에서 이어져야 한다 — 시작값을 받는다
+          // Important: what the UI shows and what goes into the document **must be the same** — use the same HTML
+          // Table numbers must continue across the whole document — accept a starting value
           const from = Number(request.query['from']);
           return {
             status: 200,
@@ -1366,7 +1366,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
     {
-      /** 서브모델마다 어떤 자료를 만들어야 하는지 한눈에 (표인가 정보인가) */
+      /** At a glance, what material each submodel needs (a table or information) */
       method: 'GET',
       pattern: '/packages/:packageId/doc-plan',
       async handle({ params }) {
@@ -1378,10 +1378,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 설비를 훑어 태그 목록을 가져온다 — NodeId를 손으로 치지 않게 하는 자리.
+       * Browses a device to fetch its tag list — so nobody has to type NodeIds by hand.
        *
-       * 🔴 파일에 매이지 않는다. 아직 AID를 만들기 **전에** 쓰는 기능이라 packageId가 없다.
-       * 🔴 읽기만 한다. 설비에 아무것도 쓰지 않는다.
+       * Important: not tied to a file. It is used **before** an AID exists, so there is no packageId.
+       * Important: read-only. Nothing is written to the device.
        */
       method: 'POST',
       pattern: '/opcua/browse',
@@ -1399,19 +1399,19 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           return json(200, await options.browseDevice(endpoint));
         } catch (error) {
           /*
-           * 🔴 자기 자신(또는 같은 도구)을 가리킨 것은 **막는다.** 경고로 두면 안 된다:
-           *    담아서 만들면 `createMissing`이 모델에 항목 수십 개와 CD 수십 개를 세우는데,
-           *    「연결삭제」는 AID만 지운다 — 되돌릴 길이 없다.
+           * Important: pointing at itself (or the same tool) is **blocked.** A warning is not enough:
+           *    creating from it makes `createMissing` add dozens of elements and dozens of CDs to the model,
+           *    while "Delete connection" removes only the AID — there is no way back.
            */
-          // 🔴 `instanceof`를 쓰지 않는다 — 이 파일은 프로토콜을 몰라야 한다(browseDevice 주입 원칙).
-          //    이름으로 본다: @aas/opcua의 SelfBrowseError가 이 이름을 쓴다.
+          // Important: do not use `instanceof` — this file must not know the protocol (browseDevice injection principle).
+          //    Check by name: @aas/opcua's SelfBrowseError uses this name.
           if (error instanceof Error && error.name === 'OutboundBlockedError') {
             throw new ApiError(403, 'Forbidden', error.message);
           }
           if (error instanceof Error && error.name === 'SelfBrowseError') {
             throw new ApiError(409, 'Conflict', error.message);
           }
-          // 못 붙는 것은 우리 잘못이 아니다 — 사유를 그대로 전한다
+          // Failing to connect is not our fault — pass the reason through as is
           throw new ApiError(
             502,
             'BadGateway',
@@ -1422,13 +1422,13 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 수집 연결(AID) 만들기.
+       * Create a collection connection (AID).
        *
-       * AID 구조는 4~5단 중첩이라 「요소 추가」로 사람이 쌓을 수 없다 — 여기서 접속 주소와
-       * 태그 목록만 받아 IDTA-02017 규격대로 짓는다. 표준 semanticId까지 함께 붙는다.
+       * The AID structure is nested 4–5 levels deep, so people cannot build it with "Add element" — here we take just the endpoint
+       * and tag list and build it per the IDTA-02017 spec, standard semanticIds included.
        *
-       * 🔴 이미 AID가 있으면 **바꿔치운다**(replace). 수집 연결은 장비마다 하나가 정상이고,
-       *    두 개가 쌓이면 어느 쪽이 맞는지 알 수 없다.
+       * Important: an existing AID is **replaced**. One collection connection per device is normal;
+       *    if two pile up, there is no telling which one is right.
        */
       method: 'POST',
       pattern: '/packages/:packageId/aid',
@@ -1458,8 +1458,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         }
 
         const newId = String(submodel['id']);
-        // 🔴 자체 IRI 용어의 CD를 함께 넣는다 — 없으면 만든 순간 KOSMO-SME-3 13건으로
-        //    태어난다(전문가 시연에서 실측). 이미 있는 id는 건너뛴다
+        // Important: add CDs for our own IRI terms too — otherwise the file is born with 13 KOSMO-SME-3 findings
+        //    the moment it is created (observed in an expert demo). Existing ids are skipped
         for (const concept of aidConceptDescriptions({
           assetName: String(shell.idShort),
           iriBase: (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string,
@@ -1475,7 +1475,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           await store.updateIdentifiable(packageId, 'Submodel', newId, submodel);
         } else {
           await store.createIdentifiable(packageId, submodel);
-          // AAS의 submodels[]에도 매단다 — 빠뜨리면 어디에도 매달리지 않은 서브모델이 된다
+          // Also attach to the AAS's submodels[] — otherwise it becomes a submodel attached to nothing
           const shellContent = JSON.parse(JSON.stringify(shell.content)) as { submodels?: unknown[] };
           (shellContent.submodels ??= []).push({
             type: 'ModelReference',
@@ -1490,20 +1490,20 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         }
 
         /*
-         * 🔴 수집 연결의 **나머지 절반** — 태그가 얹힐 자리를 모델에 세운다.
+         * Important: **the other half** of a collection connection — create the places in the model where tag values land.
          *
-         * AID만 만들면 수집은 되지만, 모델에 같은 idShort가 없으면 값이 표준 API(live)로도
-         * OPC UA 노출로도 나가지 않는다. 지금까지는 그 사실을 경고로만 알렸다 —
-         * 태그가 수십 개면 사용자가 트리에서 손으로 다 만들어야 했고, 그건 곧 포기였다.
+         * With only the AID, collection works, but if the model lacks a matching idShort the values go out neither via the
+         * standard API (live) nor via OPC UA exposure. Until now that was only reported as a warning —
+         * with dozens of tags the user had to build them all by hand in the tree, which amounted to giving up.
          *
-         * 자리는 KTL 규칙을 따른다: OperationalData > 대분류 > 소분류 > Property.
-         * 요청이 `createMissing`을 **명시할 때만** 만든다 — 남의 모델을 조용히 늘리지 않는다.
+         * Placement follows the KTL rule: OperationalData > category > subcategory > Property.
+         * Created **only when the request explicitly sets** `createMissing` — never silently grow someone's model.
          */
         const createMissing = body['createMissing'] as
           | { group?: unknown; subgroup?: unknown }
           | undefined;
         let elementsAdded: string[] = [];
-        /** 다른 서브모델에 이미 있어 만들지 않은 이름 — 사용자가 알아야 한다 */
+        /** Names not created because they already exist in another submodel — the user needs to know */
         let elementsConflicted: string[] = [];
         if (createMissing) {
           const iriBase = (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string;
@@ -1511,9 +1511,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             (item) => item.idShort === 'OperationalData',
           );
           /*
-           * 🔴 없으면 만든다. OperationalData는 **KOSMO 필수 서브모델**이라(policy.requiredSubmodels)
-           *    없는 것 자체가 이미 위반이다. 여기서 400으로 막으면 부가 기능 하나 때문에
-           *    「수집 연결 만들기」 본 동작이 통째로 실패한다 — 그건 더 나쁘다.
+           * Important: create it if missing. OperationalData is **a KOSMO-required submodel** (policy.requiredSubmodels),
+           *    so its absence is already a violation. Refusing with 400 here would make the main action
+           *    "Create collection connection" fail entirely because of one add-on — that is worse.
            */
           if (!target) {
             const smId = `${iriBase}/sm/${shell.idShort}/OperationalData/1/0`;
@@ -1527,8 +1527,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
                 type: 'ExternalReference',
                 keys: [{ type: 'GlobalReference', value: smId }],
               },
-              // 🔴 submodelElements를 비워 두지 않는다 — V3.0 스키마가 빈 배열을 거부한다.
-              //    바로 아래 merge가 채운다
+              // Important: do not leave submodelElements empty — the V3.0 schema rejects empty arrays.
+              //    The merge right below fills it
             });
             const shellNow = await store.getIdentifiable(
               packageId,
@@ -1551,10 +1551,10 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             target = created;
           }
           /*
-           * 🔴 파일 **전체**에서 값이 얹힐 수 있는 이름을 모아 넘긴다. 대상 서브모델 안만 보면
-           *    DigitalNameplate의 `SerialNumber` 같은 이름을 여기 또 만들고,
-           *    그러면 수집값이 어느 쪽에 얹힐지 몰라 **둘 다** 못 얹는다(실측).
-           *    판정은 `valuedNames`가 한다 — 덧씌우기와 같은 규칙이어야 갈라지지 않는다.
+           * Important: collect names that can receive values across **the whole file** and pass them in. Looking only inside
+           *    the target submodel would create a name like DigitalNameplate's `SerialNumber` here again,
+           *    and then collected values cannot tell where to land, so **neither** gets them (observed).
+           *    `valuedNames` decides — it must use the same rule as the overlay so the two don't diverge.
            */
           const takenNames = valuedNames(await store.getEnvironment(packageId), target.id);
 
@@ -1575,11 +1575,11 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
                   continue;
                 }
                 /*
-                 * 🔴 CD 하나를 AID와 모델이 **함께 쓴다**(같은 태그 이름 = 같은 cd/{name}).
-                 *    AID 쪽이 먼저 STRING으로 만들어 두는데, 모델 Property가 xs:double이면
-                 *    KOSMO-SME-5로 걸린다(실측). 자료형을 아는 쪽은 **Property다** —
-                 *    AID의 그 요소는 SMC라 SME-5 검사 대상이 아니어서 바꿔도 탈이 없다.
-                 *    우리가 만든 자체 IRI CD일 때만 손댄다.
+                 * Important: one CD is **shared** by the AID and the model (same tag name = same cd/{name}).
+                 *    The AID side creates it first as STRING, but if the model Property is xs:double
+                 *    it trips KOSMO-SME-5 (observed). The side that knows the data type is **the Property** —
+                 *    that AID element is an SMC, not subject to SME-5, so changing it is harmless.
+                 *    Only touch CDs with our own IRI.
                  */
                 if (!cid.startsWith(iriBase)) continue;
                 await store.updateIdentifiable(packageId, 'ConceptDescription', cid, {
@@ -1598,7 +1598,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           }
         }
 
-        // 만들자마자 알려 준다: 태그 이름이 모델 요소와 맞는가 (live 내보내기의 조건)
+        // Report right after creation: do tag names match model elements (a condition for live export)
         const environment = await store.getEnvironment(packageId);
         const overlay = overlayEnvironment(
           environment,
@@ -1618,20 +1618,20 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           nameMisses: overlay.notes
             .filter((note) => note.outcome !== 'applied')
             .map((note) => note.propertyName),
-          /** createMissing으로 새로 세운 요소 */
+          /** Elements newly created via createMissing */
           elementsAdded,
-          /** 다른 서브모델에 같은 이름이 있어 만들지 않은 것 */
+          /** Ones not created because the same name exists in another submodel */
           elementsConflicted,
         });
       },
     },
     {
       /**
-       * 수집값이 모델의 어느 요소에 얹히는지 — **연결 상태 점검**.
+       * Which model element each collected value lands on — **connection health check**.
        *
-       * 🔴 이게 없으면 `live=true`로 읽어도 값이 안 바뀌는 이유를 알 수 없다.
-       *    실측 사례: 시연 파일의 AID는 `MotorSpeed`를 수집하는데 모델에는 그 이름이 없다
-       *    (모델은 `CurrentLineSpeed`). **AID 이름과 요소 idShort가 맞아야 얹힌다.**
+       * Important: without this, there is no way to tell why values don't change when reading with `live=true`.
+       *    Observed case: the demo file's AID collects `MotorSpeed`, but the model has no such name
+       *    (the model has `CurrentLineSpeed`). **Values land only when the AID name matches the element idShort.**
        */
       method: 'GET',
       pattern: '/packages/:packageId/live',
@@ -1653,8 +1653,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       async handle({ params }) {
         const record = await store.getPackage(params['packageId']!);
         if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
-        // 저작 UI가 새 id를 만들 때 쓴다. 규약(iriBase 등)을 UI에 복사해 두면
-        // 린터와 UI가 서로 다른 규칙을 갖게 된다 — 지식은 한 곳에만 둔다
+        // Used by the authoring UI when creating new ids. Copying conventions (iriBase etc.) into the UI
+        // would give the linter and UI different rules — knowledge lives in one place only
         return json(200, { ...DEFAULT_POLICY, ...options.policy });
       },
     },
@@ -1678,7 +1678,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
     {
-      /** 검증 결과서 — 브라우저에서 열어 그대로 인쇄하면 PDF가 된다(기획서 Phase 3 산출물) */
+      /** Validation report — open in a browser and print as is to get a PDF (spec Phase 3 deliverable) */
       method: 'GET',
       pattern: '/packages/:packageId/report',
       async handle({ params, request }) {
@@ -1686,9 +1686,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const record = await store.getPackage(packageId);
         if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
         const pkg = await snapshot(store, packageId);
-        // 🔴 /lint와 같은 정책으로 판정해야 한다. 한때 여기만 DEFAULT_POLICY로 고정돼
-        //    화면은 위반 10건인데 결과서는 합격으로 찍혔다(2026-09-03 검토에서 발견).
-        //    결과서는 제출 첨부물이라 화면과 다르면 어느 쪽도 못 믿는다
+        // Important: must judge with the same policy as /lint. Once only this route was pinned to DEFAULT_POLICY,
+        //    so the UI showed 10 violations while the report printed a pass (found in the 2026-09-03 review).
+        //    The report is a submission attachment, so if it differs from the UI, neither can be trusted
         const overrides = { ...options.policy, ...policyFromQuery(request) };
         const policy = { ...DEFAULT_POLICY, ...overrides };
         const result = lint(pkg.environment, ALL_RULES, {
@@ -1736,7 +1736,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
     {
-      /** 교정 미리보기 — 저장하지 않는다. 화면 팝업이 항목별 전/후를 보여 주고 체크한 것만 POST /fix로 보낸다 */
+      /** Fix preview — does not save. The UI popup shows per-item before/after and sends only the checked ones to POST /fix */
       method: 'GET',
       pattern: '/packages/:packageId/fix-preview',
       async handle({ params, request }) {
@@ -1756,7 +1756,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       },
     },
     {
-      /** IRI 이관 대장 — 새 IRI → 원본 IRI */
+      /** IRI relocation ledger — new IRI → original IRI */
       method: 'GET',
       pattern: '/packages/:packageId/relocations',
       async handle({ params }) {
@@ -1767,8 +1767,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
     },
     {
       /**
-       * 원본 IRI로 되돌리기 — 규정 해석이 뒤집혔을 때. body `{ iris?: string[] }` 없으면 전부.
-       * 되돌린 뒤 KOSMO 우선 정책이면 다시 위반으로 잡힌다 — 그게 맞다(사용자가 정책을 바꿔 판정한다)
+       * Revert to original IRIs — for when a rule interpretation is reversed. body `{ iris?: string[] }`; all if omitted.
+       * After reverting, a KOSMO-first policy flags them as violations again — that is correct (the user decides by changing the policy)
        */
       method: 'POST',
       pattern: '/packages/:packageId/relocations/revert',

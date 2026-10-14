@@ -1,7 +1,7 @@
 /**
- * 파일 동작 — 올리기 · 번들 열기 · 견본 · 트리용 가져오기 · 지우기(연결 경고) · 새로 만들기 · 내려받기.
- * App.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로이고,
- * 쓰는 상태·동작은 같은 이름으로 받는다(c 에서 꺼낸다).
+ * File actions — upload · open bundle · sample · import for tree · remove (link warning) · create new · download.
+ * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
+ * the state and actions it uses arrive under the same names (taken from c).
  */
 import { api, type HierarchyNode } from '../api.js';
 import { type DraftNode } from '../components/HierarchyTree.js';
@@ -11,8 +11,8 @@ import type { Core } from './context.js';
 export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPackage' | 'markStart' | 'openedRef' | 'packageId' | 'packages' | 'policy' | 'run' | 'setAdding' | 'setConcepts' | 'setFindings' | 'setFixReport' | 'setHierarchy' | 'setNotice' | 'setPackageId' | 'setPackages' | 'setPickedFiles' | 'setSampleLocked' | 'setShells' | 'setSubmodels'>) {
   const { demoLocked, errors, loadPackage, markStart, openedRef, packageId, packages, policy, run, setAdding, setConcepts, setFindings, setFixReport, setHierarchy, setNotice, setPackageId, setPackages, setPickedFiles, setSampleLocked, setShells, setSubmodels } = c;
   const onUpload = async (file: File): Promise<void> => {
-    // 같은 이름이 이미 있으면 알려 준다 — 막지는 않는다(다른 판을 나란히 볼 수도 있다).
-    // 안 알리면 목록에 같은 이름이 나란히 쌓여 어느 것이 어느 것인지 모른다(3전문가 시연 실측)
+    // If the same name already exists, say so — but do not block (one may view different versions side by side).
+    // Without the notice, same-named files pile up in the list and nobody can tell them apart (measured in a 3-expert demo)
     const duplicate = packages.some((item) => item.name === file.name);
     const created = await run(() => api.upload(file));
     if (!created) return;
@@ -25,13 +25,13 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
         tr('같은 이름의 파일이 이미 열려 있습니다 — 둘 다 유지됩니다. 정리하려면 「파일 목록」에서 지우십시오.'),
       );
     }
-    // 파일을 읽으며 서버가 알아챈 것(XML 판이었다 등)을 그대로 전한다 — 조용히 넘기지 않는다
+    // Pass on what the server noticed while reading the file (it was an XML version, etc.) — never skip it silently
     if (warnings.length > 0) setNotice(warnings.join(' · '));
     await loadPackage(created.packageId);
   };
   /**
-   * 레퍼런스 번들 열기 — ZIP 하나로 공정과 설비가 함께 올라온다.
-   * 🔴 해시가 manifest와 다르면 숨기지 않고 알린다. 「번들을 만든 뒤 파일이 바뀌었다」는 뜻이다.
+   * Open a reference bundle — one ZIP uploads the process and its equipment together.
+   * Important: if a hash differs from the manifest, report it rather than hide it. It means "a file changed after the bundle was made".
    */
   const onOpenBundle = async (file: File): Promise<void> => {
     const opened = await run(() => api.openBundle(file));
@@ -46,15 +46,15 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     if (opened.processPackageId) await loadPackage(opened.processPackageId);
   };
   /**
-   * 견본으로 시작하기 — AASX가 한 장도 없는 사람의 첫걸음.
+   * Start from a sample — the first step for someone with no AASX at all.
    *
-   * 🔴 처음 받은 사람에게 「AASX 파일 열기」는 막다른 길이다 — 열 파일이 없다. 「새로 만들기」는
-   *    빈 서브모델 여섯 개라 무엇을 채우는지 보이지 않는다. 다 채운 견본을 먼저 보여 준다.
-   *    화면에 함께 실린 정적 파일(public/samples — scripts/make-samples.mjs)을 번들로 연다.
-   *    같은 견본을 다시 눌러도 번들 열기가 해시로 알아보고 사본을 만들지 않는다.
+   * Important: for a newcomer, "Open AASX file" is a dead end — there is no file to open. "Create new" gives
+   *    six empty submodels, so it is unclear what to fill in. Show a filled-in sample first.
+   *    Opens the static files shipped with the screen (public/samples — scripts/make-samples.mjs) as a bundle.
+   *    Clicking the same sample again, bundle opening recognizes it by hash and makes no copy.
    */
   const onOpenSample = async (): Promise<void> => {
-    // 데모 계정은 견본을 열지 않는다 — 토큰을 묻는 대신 회원가입을 안내한다
+    // Demo accounts do not open the sample — instead of asking for a token, point them to sign-up
     if (demoLocked) {
       setSampleLocked(true);
       return;
@@ -72,15 +72,15 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     );
   };
   /**
-   * 구성 트리의 「PC에서 가져오기」 — 올리기만 하고 **화면은 그대로 둔다**.
+   * The composition tree's "Import from PC" — upload only, and **leave the screen as it is**.
    *
-   * 🔴 `onUpload`와 갈라 둔 이유: 저쪽은 올린 파일을 곧바로 연다(loadPackage). 트리를 짜던
-   *    중에 그러면 만들던 초안이 화면에서 사라진다. 여기서는 목록만 새로 읽어 후보에 넣고,
-   *    고른 상태로 만드는 일은 트리 편집기가 한다.
+   * Important: why this is separate from `onUpload`: that one opens the uploaded file immediately (loadPackage). Doing that
+   *    while building a tree would wipe the draft from the screen. Here we only re-read the list into the candidates;
+   *    putting it into the selected state is the tree editor's job.
    */
   const onImportForTree = async (file: File): Promise<string | undefined> => {
     const created = await run(() => api.upload(file));
-    if (!created) return undefined; // 실패 메시지는 run()이 이미 띄웠다
+    if (!created) return undefined; // run() has already shown the failure message
     const list = await api.listPackages();
     setPackages(list.result);
     const warnings = created.warnings ?? [];
@@ -88,9 +88,9 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     return created.packageId;
   };
   /**
-   * 파일을 목록에서 지운다 — 하나든 여럿이든 한 길(체크 박스 일괄 지우기, 사용자 2026-09-09).
-   * 🔴 지우는 것끼리는 "가리키고 있다"로 세지 않는다 — 공정과 그 설비를 한꺼번에 지우는 것이 보통이다.
-   *    가리키는 자리는 공정 층 밑까지 본다(전엔 맨 윗단만 봐서 층 밑 설비를 놓쳤다).
+   * Removes files from the list — one or many through a single path (checkbox bulk removal, user 2026-09-09).
+   * Important: files being removed together do not count as "pointed at" — removing a process with its equipment at once is normal.
+   *    References are checked below the process level too (before, only the top level was checked and equipment under a level was missed).
    */
   const deletePackages = async (ids: readonly string[]): Promise<void> => {
     const gone = new Set(ids);
@@ -111,7 +111,7 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
             users.push(other.assetName ?? other.name ?? other.packageId);
           }
         } catch {
-          // 계층이 없는 파일이다 — 가리킬 수가 없으므로 넘어간다
+          // A file without a hierarchy — it cannot point at anything, so skip it
         }
       }
       if (users.length > 0) {
@@ -127,7 +127,7 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     const warning = warnings.length > 0 ? fill(tr('\n\n주의: {0}. 지우면 그 연결이 끊어집니다.'), { 0: warnings.join('\n') }) : '';
     if (!window.confirm(fill(tr('{0} 되돌릴 수 없습니다.{1}'), { 0: head, 1: warning }))) return;
 
-    // 하나가 실패해도 그 앞까지는 지워졌다 — 목록은 반드시 다시 읽는다
+    // Even if one fails, everything before it was removed — always re-read the list
     const done = await run(async () => {
       for (const target of targets) await api.deletePackage(target.packageId);
       return true;
@@ -137,13 +137,13 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     setPickedFiles(new Set());
     if (!done) return;
     setNotice(targets.length === 1 ? fill(tr('{0}을(를) 지웠습니다.'), { 0: labels[0] }) : fill(tr('파일 {0}건을 지웠습니다.'), { 0: targets.length }));
-    // 보던 파일이 살아 있으면 그대로 둔다
+    // If the file being viewed survives, leave it as is
     if (!packageId || !gone.has(packageId)) return;
     const next = list.result[0];
     if (next) {
       await loadPackage(next.packageId);
     } else {
-      // 남은 것이 없다 — 첫 화면으로 돌아간다
+      // Nothing left — return to the start screen
       setPackageId(undefined);
       setSubmodels([]);
       setShells([]);
@@ -158,8 +158,8 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     return wanted ? deletePackages([wanted]) : Promise.resolve();
   };
   /**
-   * 새로 만들기(설비 한 대 또는 공정) — 뼈대는 서버가 만든다(규약은 린터 정책 한 곳에만 둔다).
-   * 만들자마자 규칙 위반 0건이어야 한다.
+   * Create new (one piece of equipment or a process) — the server builds the skeleton (conventions live only in the linter policy).
+   * It must have zero rule violations right after creation.
    */
   const onCreatePackage = async (
     assetName: string,
@@ -169,9 +169,9 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
   ): Promise<void> => {
     const created = await run(async () => {
       const made = await api.createPackage(assetName, extraSubmodels, unit);
-      // 🔴 그린 구성을 **만들면서 바로** 넣는다. 빈 공정을 먼저 보여 주면 "이제 뭘 해야 하나"에서 막힌다 —
-      //    공정은 구성이 곧 정체다. 하나가 실패해도 나머지는 넣고, 어느 것이 안 됐는지 아래에서 알려 준다.
-      //    부모 먼저 순서로 돌면 중첩(회사>공정>라인>설비)도 그대로 들어간다 — 서버는 어느 깊이든 parentPath를 받는다
+      // Important: insert the drawn composition **while creating**. Showing an empty process first stalls at "what now?" —
+      //    for a process, its composition is its identity. If one fails the rest still go in, and below we say which did not.
+      //    Iterating parents first means nesting (company > process > line > equipment) goes in as is — the server accepts parentPath at any depth
       const failed: string[] = [];
       let total = 0;
       const iri = policy?.iriBase ?? 'https://www.smart-factory.kr/ids';
@@ -189,8 +189,8 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
           } else if (node.kind === 'file' && node.packageId) {
             const item = packages.find((p) => p.packageId === node.packageId);
             if (node.split && node.count > 1) {
-              // 호기별 — ×n 대신 **원본을 복제한 파일**(이름_1…_n)을 각각 잇는다.
-              // 이름만 단 빈 마디를 넣으면 원본의 서브모델이 안 딸려온다(실측 제보 2026-08-27)
+              // Per unit — instead of ×n, link **a file cloned from the original** (name_1…_n) for each.
+              // Inserting an empty node with just a name does not bring the original's submodels along (field report 2026-08-27)
               const base = item?.assetName ?? item?.name?.replace(/\.aasx$/i, '') ?? 'Unit';
               for (let n = 1; n <= node.count; n += 1) {
                 const unitName = `${base}_${n}`;
@@ -214,8 +214,8 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
               failed.push(node.name);
             }
           } else {
-            // 아직 파일이 없는 설비 — 이름만 받고 Asset 주소는 규약으로 짓는다.
-            // 나중에 같은 이름으로 설비 파일을 만들면 주소가 일치해 끈이 저절로 이어진다
+            // Equipment without a file yet — take only the name and derive the Asset address by convention.
+            // Creating an equipment file with the same name later makes the addresses match and the link connects on its own
             try {
               await api.addHierarchyNode(made.packageId, {
                 name: node.name,
@@ -250,9 +250,9 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     await loadPackage(created.made.packageId);
   };
   /**
-   * 🔴 위반이 남은 채로 내려받으면 KOSMO Validator에서 떨어진다. 막지는 않는다 —
-   *    중간 저장도 내려받기다 — 다만 알고 받게 한다. 끝나면 어디로 갔는지 말해 준다
-   *    (브라우저가 조용히 받아 「눌렀는데 아무 일도 없다」는 문의가 있었다).
+   * Important: downloading with violations left fails in the KOSMO Validator. We do not block —
+   *    an intermediate save is a download too — but make sure the user knows. When done, say where the file went
+   *    (the browser downloaded silently and we got "I clicked and nothing happened" inquiries).
    */
   const onDownload = async (): Promise<void> => {
     if (!packageId) return;

@@ -1,6 +1,6 @@
 /**
- * 수집 연결 만들기 — 프로토콜별 차이(2026-10-14). 접속 주소로 프로토콜을 정하고(서버 aid-build 의 endpointProtocol 과 같은 규칙),
- * Modbus 는 레지스터 종류 · 자료형을 줄마다 고른다. 관례 주소(40001 · 30010 · 00005 · 10003)는 종류와 0 기준 주소로 바꿔 준다.
+ * Create collection connection — per-protocol differences (2026-10-14). The protocol is decided by the endpoint address (same rule as endpointProtocol in the server's aid-build),
+ * and for Modbus the register kind and data type are chosen per row. Conventional addresses (40001 · 30010 · 00005 · 10003) are converted to kind + zero-based address.
  */
 export type AidProtocolChoice = 'OPCUA' | 'MODBUS' | 'MQTT';
 
@@ -16,7 +16,7 @@ export type ModbusEntityChoice = 'HoldingRegister' | 'InputRegister' | 'Coil' | 
 export const MODBUS_ENTITIES: readonly ModbusEntityChoice[] = ['HoldingRegister', 'InputRegister', 'Coil', 'DiscreteInput'];
 export const MODBUS_TYPES = ['xsd:unsignedShort', 'xsd:short', 'xsd:unsignedInt', 'xsd:int', 'xsd:float', 'xsd:double', 'xsd:boolean'] as const;
 
-/** Modbus 자료형 → AID 의 type(float · integer · boolean) */
+/** Modbus data type → AID type (float · integer · boolean) */
 export function aidTypeOf(dataType: string): string {
   if (dataType === 'xsd:boolean') return 'boolean';
   if (dataType === 'xsd:float' || dataType === 'xsd:double') return 'float';
@@ -24,8 +24,8 @@ export function aidTypeOf(dataType: string): string {
 }
 
 /**
- * 관례 주소(Modicon 표기) → 종류 + 0 기준 주소. 5자리(40001)와 6자리(400001)만 — 앞자리가 종류다.
- * 0 = 코일 · 1 = 입력 비트 · 3 = 입력 레지스터 · 4 = 보유 레지스터. 그 밖은 바꾸지 않는다(undefined).
+ * Conventional address (Modicon notation) → kind + zero-based address. Only 5 digits (40001) and 6 digits (400001) — the leading digit is the kind.
+ * 0 = coil · 1 = discrete input · 3 = input register · 4 = holding register. Anything else is not converted (undefined).
  */
 export function fromModiconAddress(text: string): { entity: ModbusEntityChoice; address: number } | undefined {
   const match = /^([0134])(\d{4,5})$/.exec(text.trim());

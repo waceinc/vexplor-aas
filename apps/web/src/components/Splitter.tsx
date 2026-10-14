@@ -1,23 +1,23 @@
 /**
- * 칸 사이 손잡이 — 끌어서 너비를 바꾼다.
+ * Handle between panes — drag to change the width.
  *
- * 🔴 마우스만으로 되면 절반이다. **키보드로도 되어야** 한다 —
- *    ← → 로 10px, Shift와 함께면 50px, Home으로 기본값. 손목이 불편한 사람과
- *    트랙패드에서 잡기 어려운 사람이 실제로 있다.
- * 🔴 `setPointerCapture`를 쓴다. 안 쓰면 빠르게 끌 때 포인터가 손잡이를 벗어나면서
- *    드래그가 끊긴다(실측에서 흔한 증상).
+ * Important: mouse-only is only half the job. **It must work with the keyboard too** —
+ *    ← → for 10px, 50px with Shift, Home for the default. There really are people with sore wrists
+ *    and people who find it hard to grab on a trackpad.
+ * Important: uses `setPointerCapture`. Without it, a fast drag lets the pointer leave the handle
+ *    and the drag breaks off (a common symptom in measurements).
  */
 import { useRef } from 'react';
 import { tr, fill } from '../i18n.js';
 
 interface Props {
-  /** 무엇과 무엇 사이인지 — 읽어 주는 이름에 쓴다 */
+  /** Between what and what — used for the accessible name */
   label: string;
-  /** 지금 왼쪽 칸의 너비 — 보조기술이 값을 읽게 */
+  /** Current width of the left pane — so assistive technology can read the value */
   value: number;
   onMove: (deltaPx: number) => void;
   onReset: () => void;
-  /** 끌기가 끝났을 때 — 저장은 여기서 한 번만 한다 */
+  /** When dragging ends — saving happens here, once */
   onCommit: () => void;
 }
 
@@ -38,7 +38,7 @@ export function Splitter({ label, value, onMove, onReset, onCommit }: Props): Re
         onCommit();
       }}
       onPointerDown={(event) => {
-        // 왼쪽 단추만 — 오른쪽 눌러 메뉴 띄우다가 칸이 움직이면 당황스럽다
+        // Left button only — panes moving while right-clicking for a menu is confusing
         if (event.button !== 0) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         last.current = event.clientX;

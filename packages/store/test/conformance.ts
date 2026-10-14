@@ -1,8 +1,8 @@
 /**
- * 저장소 적합성 테스트 — InMemoryStore와 PostgresStore에 **같은 시나리오**를 돌린다.
+ * Store conformance tests — run the **same scenarios** against InMemoryStore and PostgresStore.
  *
- * 구현이 둘이라는 사실 자체가 위험이다(개발은 인메모리로 하고 운영은 Postgres로 도는 상황).
- * 여기서 갈리면 바로 깨지도록 한 벌만 쓴다.
+ * Having two implementations is itself the risk (development runs in memory, production on Postgres).
+ * A single shared suite makes any divergence fail immediately.
  */
 import { readAasx, writeAasx } from '@aas/aasx';
 import { canonicalJson } from '@aas/core';
@@ -19,21 +19,21 @@ import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const GOLDEN = '01-롤포밍기-공34.aasx';
+const GOLDEN = '01-roll-forming-machine.aasx';
 
 function loadGolden(): ReturnType<typeof readAasx> {
   return readAasx(new Uint8Array(readFileSync(root + GOLDEN)));
 }
 
-/** 구현 하나에 대한 전체 시나리오 */
+/** Full scenario set for one implementation */
 export function describeStore(name: string, create: () => Promise<AasStore>): void {
-  describe(`${name} — 저장소 적합성`, () => {
+  describe(`${name} — store conformance`, () => {
     let golden: ReturnType<typeof readAasx>;
     beforeAll(() => {
       golden = loadGolden();
     });
 
-    /** 골든 파일을 담은 새 저장소를 만든다 */
+    /** Creates a fresh store seeded with the golden file */
     async function seeded(): Promise<{ store: AasStore; packageId: string }> {
       const store = await create();
       await store.init();
@@ -41,14 +41,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       return { store, packageId: record.id };
     }
 
-    it('무손실 왕복 — import → export 후 원본 Environment와 의미적으로 같다', async () => {
+    it('lossless round trip — after import → export the Environment is semantically equal to the original', async () => {
       const { store, packageId } = await seeded();
       const exported = await store.exportPackage(packageId);
       expect(canonicalJson(exported.environment)).toBe(canonicalJson(golden.environment));
       expect(exported.specPart).toBe(golden.specPart);
     });
 
-    it('무손실 왕복 — 썸네일·첨부·기타 파트가 그대로 살아난다', async () => {
+    it('lossless round trip — thumbnail, attachments and other parts survive intact', async () => {
       const { store, packageId } = await seeded();
       const exported = await store.exportPackage(packageId);
 
@@ -61,7 +61,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect([...exported.extraParts.keys()].sort()).toEqual([...golden.extraParts.keys()].sort());
     });
 
-    it('Phase 2 검수 기준 — 저장소를 거쳐 다시 저장해도 위반 0건이다', async () => {
+    it('Phase 2 acceptance — re-saving through the store yields 0 violations', async () => {
       const { store, packageId } = await seeded();
       const exported = await store.exportPackage(packageId);
       const reread = readAasx(writeAasx(exported));
@@ -70,7 +70,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(canonicalJson(reread.environment)).toBe(canonicalJson(golden.environment));
     });
 
-    it('Identifiable 목록은 원본 배열 순서를 지킨다', async () => {
+    it('Identifiable lists preserve the original array order', async () => {
       const { store, packageId } = await seeded();
       const submodels = await store.listIdentifiables(packageId, 'Submodel');
       expect(submodels.items.map((r) => r.idShort)).toEqual(
@@ -78,7 +78,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       );
     });
 
-    it('조회용 컬럼을 파생해 둔다 (idShort · kind · semanticId · assetKind)', async () => {
+    it('derives lookup columns (idShort · kind · semanticId · assetKind)', async () => {
       const { store, packageId } = await seeded();
       const dn = await store.getIdentifiable(
         packageId,
@@ -93,7 +93,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(shells.items[0]?.assetKind).toBe('Type');
     });
 
-    it('페이지네이션 — cursor로 이어 받으면 전량이 한 번씩 나온다', async () => {
+    it('pagination — following the cursor yields every item exactly once', async () => {
       const { store, packageId } = await seeded();
       const seen: string[] = [];
       let cursor: string | undefined;
@@ -110,7 +110,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(new Set(seen).size).toBe(seen.length);
     });
 
-    it('자리를 지정해 넣을 수 있다 — 지운 자리에 새것을 놓아 순서를 지킨다(2026-09-07)', async () => {
+    it('can insert at a given position — placing a new item in a deleted slot preserves order (2026-09-07)', async () => {
       const { store, packageId } = await seeded();
       const first = (await store.listIdentifiables(packageId, 'Submodel')).items[0]!;
       const seat = first.ordinal;
@@ -123,12 +123,12 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(created.ordinal).toBe(seat);
       const after = await store.listIdentifiables(packageId, 'Submodel');
       expect(after.items[0]!.id).toBe(`${first.id}-again`);
-      // 자리를 안 주면 여전히 맨 뒤
+      // Without a position it still goes to the end
       const tail = await store.createIdentifiable(packageId, { ...first.content, id: `${first.id}-tail` });
       expect(tail.ordinal).toBeGreaterThan(Math.max(...after.items.map((r) => r.ordinal)));
     });
 
-    it('CRUD — 만들고 고치고 지운다', async () => {
+    it('CRUD — create, update, delete', async () => {
       const { store, packageId } = await seeded();
       const created = await store.createIdentifiable(packageId, {
         modelType: 'Submodel',
@@ -149,14 +149,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       );
       expect(updated.revision).toBe(2);
       expect(updated.idShort).toBe('ExtraRenamed');
-      // 파생 컬럼만이 아니라 원본 JSON도 함께 바뀐다
+      // Not only the derived columns but the source JSON changes too
       expect((updated.content as { idShort: string }).idShort).toBe('ExtraRenamed');
 
       await store.deleteIdentifiable(packageId, 'Submodel', created.id);
       expect(await store.getIdentifiable(packageId, 'Submodel', created.id)).toBeUndefined();
     });
 
-    it('버전 이력 — 변경 전 내용이 남고 최신이 앞에 온다', async () => {
+    it('version history — prior content is kept, newest first', async () => {
       const { store, packageId } = await seeded();
       const target = golden.environment.submodels![0]!;
       const current = (await store.getIdentifiable(packageId, 'Submodel', target.id))!;
@@ -175,26 +175,26 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect((history[0]!.content as { idShort: string }).idShort).toBe('1차수정');
       expect((history[1]!.content as { idShort: string }).idShort).toBe('DigitalNameplate');
       expect(history[0]!.operation).toBe('update');
-      // 「누가」를 안 준 변경은 **비어 있다** — 없는 사실을 지어내지 않는다
+      // A change without a "who" stays **empty** — never invent facts that do not exist
       expect(history[0]!.actorId).toBeUndefined();
       expect(history[0]!.actorName).toBeUndefined();
     });
 
-    it('패키지의 주인 — 안 주면 공용이고, 준 것은 그대로 돌아온다', async () => {
+    it('package owner — omitted means shared; a given owner comes back unchanged', async () => {
       const { store, packageId } = await seeded();
-      // 🔴 주인을 안 준 것은 키 자체가 없다 — 「공용」과 「주인이 빈 값」을 섞지 않는다
+      // Important: with no owner the key is absent altogether — do not conflate "shared" with "empty owner"
       expect((await store.getPackage(packageId))?.owner).toBeUndefined();
 
       const mine = await store.importPackage({ name: '내것.aasx', package: golden, owner: 'user:a' });
       expect(mine.owner).toBe('user:a');
       expect((await store.getPackage(mine.id))?.owner).toBe('user:a');
-      // null은 「일부러 공용」 — 공용 파일을 통째로 바꿀 때 공용으로 남기는 데 쓴다
+      // null means "deliberately shared" — used to keep a shared file shared when replacing it wholesale
       const shared = await store.importPackage({ name: '공용.aasx', package: golden, owner: null });
       expect(shared.owner).toBeUndefined();
     });
 
-    it('🔴 목록을 주인으로 거른다 — 내 것과 공용만, 남의 것은 안 나온다', async () => {
-      const { store, packageId } = await seeded(); // 공용 하나
+    it('filters the list by owner — only mine and shared, never others', async () => {
+      const { store, packageId } = await seeded(); // one shared
       const a = await store.importPackage({ name: 'a.aasx', package: golden, owner: 'user:a' });
       const b = await store.importPackage({ name: 'b.aasx', package: golden, owner: 'user:b' });
 
@@ -203,25 +203,25 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(seenByA).toContain(packageId);
       expect(seenByA).not.toContain(b.id);
 
-      // 범위를 안 주면 전부 — 서버 자신(수집·정리)이 이렇게 본다
+      // Without a scope, everything — this is how the server itself (collection, cleanup) sees it
       expect((await store.listPackages()).items).toHaveLength(3);
     });
 
-    it('🔴 거른 뒤에 쪽을 나눈다 — 밖에서 거르면 한 쪽이 덜 차고 다음 쪽 유무가 틀린다', async () => {
-      const { store } = await seeded(); // 공용 1
-      // 남의 것과 내 것을 번갈아 넣는다 — id 순서로 섞이게
+    it('paginates after filtering — filtering outside leaves pages short and gets the has-next-page flag wrong', async () => {
+      const { store } = await seeded(); // 1 shared
+      // Alternate others' and mine so they interleave in id order
       const mine: string[] = [];
       for (let n = 0; n < 4; n += 1) {
         await store.importPackage({ name: `남${n}.aasx`, package: golden, owner: 'user:b' });
         mine.push((await store.importPackage({ name: `내${n}.aasx`, package: golden, owner: 'user:a' })).id);
       }
-      // 내 것 4 + 공용 1 = 5건을 2건씩 받는다
+      // 4 mine + 1 shared = 5 items, fetched 2 at a time
       const seen: string[] = [];
       let cursor: string | undefined;
       let pages = 0;
       do {
         const page = await store.listPackages(cursor === undefined ? { limit: 2 } : { limit: 2, cursor }, { owner: 'user:a' });
-        // 마지막 쪽이 아니면 **꽉 차 있어야** 한다
+        // Every page but the last must be **full**
         if (page.cursor !== undefined) expect(page.items).toHaveLength(2);
         seen.push(...page.items.map((item) => item.id));
         cursor = page.cursor;
@@ -233,7 +233,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(pages).toBe(3);
     });
 
-    it('계정을 지운다(탈퇴) — 없는 것을 지우면 false', async () => {
+    it('deletes an account (withdrawal) — deleting a missing one returns false', async () => {
       const { store } = await seeded();
       const made = await store.createUser({
         login: 'hong', displayName: '홍길동', role: 'editor', passwordHash: 'h',
@@ -241,14 +241,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(await store.deleteUser(made.id)).toBe(true);
       expect(await store.getUser(made.id)).toBeUndefined();
       expect(await store.findUserByLogin('hong')).toBeUndefined();
-      // 같은 이름으로 다시 가입할 수 있어야 한다 — 지웠으니 자리가 비었다
+      // Re-registering with the same login must work — the slot is free after deletion
       expect((await store.createUser({
         login: 'hong', displayName: '다른 사람', role: 'viewer', passwordHash: 'h',
       })).login).toBe('hong');
       expect(await store.deleteUser('user_없음')).toBe(false);
     });
 
-    it('🔴 계정을 지워도 그 사람이 남긴 이력은 남는다 — 감사 기록이 소급해 사라지면 안 된다', async () => {
+    it('deleting an account keeps the history that user left — audit records must not vanish retroactively', async () => {
       const { store, packageId } = await seeded();
       const target = golden.environment.submodels![0]!;
       const current = (await store.getIdentifiable(packageId, 'Submodel', target.id))!;
@@ -269,12 +269,12 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(history[0]?.actorId).toBe(made.id);
     });
 
-    it('연락처는 선택이다 — 안 적으면 아예 없고, 빈 문자열로 지울 수 있다', async () => {
+    it('contact info is optional — absent when omitted, cleared by an empty string', async () => {
       const { store } = await seeded();
       const none = await store.createUser({
         login: 'a', displayName: 'A', role: 'editor', passwordHash: 'h',
       });
-      // 🔴 「안 적었다」와 「빈 값을 적었다」를 섞지 않는다
+      // Important: do not conflate "not provided" with "provided as empty"
       expect(none.email).toBeUndefined();
 
       const some = await store.createUser({
@@ -283,14 +283,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(some.email).toBe('b@example.com');
       expect((await store.findUserByLogin('b'))?.email).toBe('b@example.com');
 
-      // 빈 문자열은 「지우라」는 뜻 — 개인정보를 빼 달라는 요구에 쓰인다
+      // An empty string means "clear it" — used for requests to remove personal data
       expect((await store.updateUser(some.id, { email: '' }))?.email).toBeUndefined();
-      // 회사명도 고치고 지울 수 있다(2026-10-08 내 계정 설정) — 준 것만 바꾼다
+      // Company name can also be changed and cleared (2026-10-08 account settings) — only given fields change
       expect((await store.updateUser(some.id, { company: ' 와이스 ' }))?.company).toBe('와이스');
       expect((await store.updateUser(some.id, { displayName: 'B2' }))?.company).toBe('와이스');
       expect((await store.updateUser(some.id, { company: '' }))?.company).toBeUndefined();
 
-      // 7판 — 회사명과 동의 시각
+      // Revision 7 — company name and consent timestamp
       const at = '2026-10-06T07:00:00.000Z';
       const member = await store.createUser({
         login: 'c', displayName: '김철수', role: 'editor', passwordHash: 'h', email: 'c@example.com', company: ' WACE ', consentAt: at,
@@ -300,17 +300,17 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect((await store.getUser(member.id))?.company).toBe('WACE');
       expect((await store.getUser(member.id))?.consentAt).toBe(at);
       expect(none.company).toBeUndefined();
-      // 주지 않으면 그대로 둔다
+      // Fields not given are left as is
       const kept = await store.updateUser(none.id, { displayName: 'A2' });
       expect(kept?.email).toBeUndefined();
     });
 
-    it('감사 기록 — 누가 바꿨는지 남는다(명시·문맥 둘 다)', async () => {
+    it('audit trail — records who made the change (both explicit and contextual)', async () => {
       const { store, packageId } = await seeded();
       const target = golden.environment.submodels![0]!;
       const current = (await store.getIdentifiable(packageId, 'Submodel', target.id))!;
 
-      // ① 명시로 준 경우
+      // (1) Given explicitly
       await store.updateIdentifiable(
         packageId,
         'Submodel',
@@ -318,14 +318,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
         { ...current.content, idShort: '명시' },
         { actor: { id: 'u-1', name: '홍길동' } },
       );
-      // ② 요청 문맥으로 깐 경우 — 라우트가 매개변수를 넘기지 않아도 남아야 한다
+      // (2) Set via request context — must be recorded even if the route passes no parameter
       await runAsActor({ id: 'u-2', name: '김편집' }, async () => {
         await store.updateIdentifiable(packageId, 'Submodel', target.id, {
           ...current.content,
           idShort: '문맥',
         });
       });
-      // ③ 명시가 문맥을 이긴다 — 저장소를 직접 쓰는 쪽이 설명할 수 없는 기록을 남기면 안 된다
+      // (3) Explicit beats context — direct store callers must not leave records they cannot explain
       await runAsActor({ id: 'u-2', name: '김편집' }, async () => {
         await store.updateIdentifiable(
           packageId,
@@ -340,7 +340,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       });
 
       const history = await store.history(packageId, 'Submodel', target.id);
-      // 최신이 앞 — 지우기 · 명시우선 · 문맥 · 명시
+      // Newest first — delete · explicit-over-context · context · explicit
       expect(history.map((h) => [h.operation, h.actorId, h.actorName])).toEqual([
         ['delete', 'u-4', '박삭제'],
         ['update', 'u-3', '배치작업'],
@@ -349,13 +349,13 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       ]);
     });
 
-    it('감사 기록 — 문맥은 요청끼리 섞이지 않는다', async () => {
+    it('audit trail — context does not leak between requests', async () => {
       const { store, packageId } = await seeded();
       const target = golden.environment.submodels![0]!;
       const current = (await store.getIdentifiable(packageId, 'Submodel', target.id))!;
 
-      // 🔴 이것이 전역 변수 한 개가 아니라 AsyncLocalStorage여야 하는 이유다 —
-      //    요청 둘이 겹쳐 돌 때 서로의 「누가」를 보면 감사 기록이 거짓이 된다
+      // Important: this is why it must be AsyncLocalStorage rather than a single global —
+      //    if two overlapping requests saw each other's "who", the audit trail would lie
       const first = runAsActor({ id: 'a', name: '먼저' }, async () => {
         await new Promise((resolve) => setTimeout(resolve, 5));
         await store.updateIdentifiable(packageId, 'Submodel', target.id, {
@@ -376,7 +376,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(actors).toEqual(['나중', '먼저']);
     });
 
-    it('낙관적 잠금 — 리비전이 어긋나면 거부한다', async () => {
+    it('optimistic locking — rejects on revision mismatch', async () => {
       const { store, packageId } = await seeded();
       const target = golden.environment.submodels![0]!;
       const current = (await store.getIdentifiable(packageId, 'Submodel', target.id))!;
@@ -388,7 +388,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       ).rejects.toBeInstanceOf(ConflictError);
     });
 
-    it('경로와 본문의 id가 다르면 거부한다', async () => {
+    it('rejects when the path id and body id differ', async () => {
       const { store, packageId } = await seeded();
       const target = golden.environment.submodels![0]!;
       const current = (await store.getIdentifiable(packageId, 'Submodel', target.id))!;
@@ -401,7 +401,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       ).rejects.toBeInstanceOf(InvalidContentError);
     });
 
-    it('없는 것을 찾으면 NotFoundError', async () => {
+    it('looking up something missing throws NotFoundError', async () => {
       const { store, packageId } = await seeded();
       await expect(store.getEnvironment('없는패키지')).rejects.toBeInstanceOf(NotFoundError);
       await expect(
@@ -412,7 +412,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
-    it('결함 있는 파일도 손실 없이 받는다 — id 중복(KOSMO-CD-5)이 그대로 보존된다', async () => {
+    it('accepts defective files losslessly — duplicate ids (KOSMO-CD-5) are preserved as is', async () => {
       const store = await create();
       await store.init();
       const damaged = readAasx(new Uint8Array(readFileSync(root + GOLDEN)));
@@ -424,12 +424,12 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(env.conceptDescriptions).toHaveLength(
         damaged.environment.conceptDescriptions!.length,
       );
-      // 저장소는 통과시키고, 지적은 린터가 한다
+      // The store lets it through; the linter reports it
       const result = lint(env, ALL_RULES);
       expect(result.countByRule['KOSMO-CD-5']).toBeGreaterThan(0);
     });
 
-    it('🔴 번들 첨부(role bundle)는 보관만 하고 AASX로 내보내지 않는다 — 공정 파일 해시를 지킨다', async () => {
+    it('bundle attachments (role bundle) are stored but not exported to AASX — preserves the process file hash', async () => {
       const { store, packageId } = await seeded();
       const before = await store.exportPackage(packageId);
       await store.putPackageFile(packageId, {
@@ -449,7 +449,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       );
     });
 
-    it('담을 때 함께 보관할 파일(keep) — 리비전은 1 그대로, AASX로는 안 나간다', async () => {
+    it('files kept alongside on import (keep) — revision stays 1 and they are not exported to AASX', async () => {
       const store = await create();
       await store.init();
       const record = await store.importPackage({
@@ -464,7 +464,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect([...exported.extraParts.keys()]).not.toContain('/.original/source.aasx');
     });
 
-    it('파트 단위로 읽고 쓰고 지운다 — 썸네일 교체가 이 경로로 간다', async () => {
+    it('reads, writes and deletes per part — thumbnail replacement goes through this path', async () => {
       const { store, packageId } = await seeded();
 
       const files = await store.packageFiles(packageId);
@@ -480,10 +480,10 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       const after = await store.packageFiles(packageId);
       const thumbnail = after.find((f) => f.part === '/thumbnail.png')!;
       expect(thumbnail.data).toEqual(replacement);
-      // 통째로 다시 써도 파트 수는 그대로다(덮어쓰기)
+      // Rewriting wholesale keeps the part count (overwrite)
       expect(after).toHaveLength(files.length);
 
-      // 내보내면 바뀐 것이 그대로 나온다
+      // Export reflects the change
       const exported = await store.exportPackage(packageId);
       expect(exported.thumbnail?.data).toEqual(replacement);
 
@@ -496,7 +496,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       );
     });
 
-    it('수집값은 쌓이되 모델을 건드리지 않는다 (A안)', async () => {
+    it('collected values accumulate without touching the model (option A)', async () => {
       const { store, packageId } = await seeded();
       const before = await store.getEnvironment(packageId);
       const beforeRevision = (await store.getPackage(packageId))!.revision;
@@ -528,14 +528,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
         },
       ]);
 
-      // 🔴 모델은 그대로다 — 수집값이 모델로 되돌아가면 Type/Template 의미가 깨진다
+      // Important: the model is unchanged — writing collected values back into it would break Type/Template semantics
       expect(canonicalJson(await store.getEnvironment(packageId))).toBe(canonicalJson(before));
-      // 편집이 아니므로 리비전도 오르지 않는다
+      // Not an edit, so the revision does not increase
       expect((await store.getPackage(packageId))!.revision).toBe(beforeRevision);
 
       const all = await store.readValues(packageId);
       expect(all).toHaveLength(3);
-      // 최근 것이 앞
+      // Most recent first
       expect(all[0]!.propertyName).toBe('AlarmActive');
 
       const speed = await store.readValues(packageId, { propertyName: 'MotorSpeed' });
@@ -553,14 +553,14 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(await store.readValues(packageId, { limit: 1 })).toHaveLength(1);
     });
 
-    it('수신 시각(receivedAt)은 장비 시각과 따로 남는다 — 없으면 없는 대로(옛 기록)', async () => {
+    it('receivedAt is stored separately from the device time — absent stays absent (legacy records)', async () => {
       const { store, packageId } = await seeded();
       await store.appendValues(packageId, [
         {
           packageId,
           interfaceName: 'InterfaceTemplateForOPCUA',
           propertyName: 'Constant',
-          // 🔴 값이 일정한 태그 — 장비 시각은 옛날에 멈춰 있지만 방금 읽었다
+          // Important: a constant-value tag — its device time froze long ago, but it was just read
           observedAt: '2026-01-01T00:00:00.000Z',
           receivedAt: '2026-10-13T09:00:00.000Z',
           valueNumber: 7,
@@ -580,19 +580,19 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(old[0]!.receivedAt).toBeUndefined();
     });
 
-    it('기간을 수신 시각으로 고를 수 있다 — 값이 일정한 태그도 그날 받은 값으로 잡힌다', async () => {
+    it('time ranges can use receivedAt — constant-value tags are caught by values received that day', async () => {
       const { store, packageId } = await seeded();
       const base = { packageId, interfaceName: 'I', propertyName: 'State', valueText: 'run' };
       await store.appendValues(packageId, [
-        // 장비 시각은 어제에 멈춰 있고, 오늘 두 번 받았다
+        // Device time is frozen at yesterday; received twice today
         { ...base, observedAt: '2026-10-12T23:00:00.000Z', receivedAt: '2026-10-13T08:10:00.000Z' },
         { ...base, observedAt: '2026-10-12T23:00:00.000Z', receivedAt: '2026-10-13T08:20:00.000Z' },
-        // 옛 기록(수신 시각 없음) — 장비 시각으로 대신한다
+        // Legacy record (no receivedAt) — falls back to device time
         { ...base, observedAt: '2026-10-13T08:15:00.000Z' },
         { ...base, observedAt: '2026-10-12T22:00:00.000Z', receivedAt: '2026-10-12T22:00:01.000Z' },
       ]);
       const day = { propertyName: 'State', from: '2026-10-13T08:00:00.000Z', to: '2026-10-14T08:00:00.000Z' };
-      expect(await store.readValues(packageId, day)).toHaveLength(1); // 기본(장비 시각)은 옛 기록 하나만
+      expect(await store.readValues(packageId, day)).toHaveLength(1); // Default (device time) matches only the legacy record
       const received = await store.readValues(packageId, { ...day, basis: 'received' });
       expect(received.map((v) => v.receivedAt ?? v.observedAt)).toEqual([
         '2026-10-13T08:20:00.000Z',
@@ -601,7 +601,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       ]);
     });
 
-    it('보존 기간은 수신 시각으로 지운다 — 장비 시각이 오래 멈춘 태그의 방금 받은 값은 남는다', async () => {
+    it('retention prunes by receivedAt — freshly received values of tags with long-frozen device time survive', async () => {
       const { store, packageId } = await seeded();
       await store.appendValues(packageId, [
         { packageId, interfaceName: 'I', propertyName: 'Constant', observedAt: '2026-01-01T00:00:00.000Z', receivedAt: '2026-10-13T09:00:00.000Z', valueNumber: 7 },
@@ -611,7 +611,7 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect((await store.readValues(packageId)).map((v) => v.receivedAt)).toEqual(['2026-10-13T09:00:00.000Z']);
     });
 
-    it('보존 기간 — 기준 시각보다 오래된 수집값만 모든 패키지에서 지운다', async () => {
+    it('retention — prunes only values older than the cutoff, across all packages', async () => {
       const { store, packageId } = await seeded();
       const other = (await store.importPackage({ name: 'other.aasx', package: golden })).id;
       const sample = (observedAt: string, valueNumber: number) => ({
@@ -631,16 +631,16 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       ]);
 
       expect(await store.pruneValues('2026-06-01T00:00:00.000Z')).toBe(2);
-      // 기준 시각과 같은 것은 남는다(observedAt >= before)
+      // Values equal to the cutoff are kept (observedAt >= before)
       expect((await store.readValues(packageId)).map((v) => v.valueNumber)).toEqual([3, 2]);
       expect(await store.readValues(other)).toHaveLength(0);
-      // 모델·리비전은 그대로
+      // Model and revision unchanged
       expect((await store.getPackage(packageId))!.revision).toBe(1);
-      // 지울 것이 없으면 0
+      // 0 when nothing to prune
       expect(await store.pruneValues('2020-01-01T00:00:00.000Z')).toBe(0);
     });
 
-    it('패키지를 지우면 수집값도 함께 사라진다', async () => {
+    it('deleting a package also removes its collected values', async () => {
       const { store, packageId } = await seeded();
       await store.appendValues(packageId, [
         {
@@ -655,25 +655,25 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       await expect(store.readValues(packageId)).rejects.toBeInstanceOf(NotFoundError);
     });
 
-    it('패키지를 지우면 소속 Identifiable도 함께 사라진다', async () => {
+    it('deleting a package also removes its Identifiables', async () => {
       const { store, packageId } = await seeded();
       await store.deletePackage(packageId);
       expect(await store.getPackage(packageId)).toBeUndefined();
       await expect(store.getEnvironment(packageId)).rejects.toBeInstanceOf(NotFoundError);
     });
 
-    // ── 사용자 (2026-10-02) ─────────────────────────────────────────────────
-    describe('사용자', () => {
-      it('계정이 없으면 0 — 첫 관리자 만들기를 띄울 근거다', async () => {
+    // ── Users (2026-10-02) ──────────────────────────────────────────────────
+    describe('users', () => {
+      it('0 when there are no accounts — the basis for showing first-admin setup', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         expect(await store.countUsers()).toBe(0);
         expect(await store.listUsers()).toEqual([]);
       });
 
-      it('만들고 로그인 이름으로 찾는다', async () => {
+      it('creates and finds by login name', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         const made = await store.createUser({
           login: 'kim',
           displayName: '김기사',
@@ -690,9 +690,9 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
         expect((await store.getUser(made.id))?.displayName).toBe('김기사');
       });
 
-      it('🔴 로그인 이름은 대소문자를 가리지 않는다 — Kim과 kim은 같은 사람이다', async () => {
+      it('login names are case-insensitive — Kim and kim are the same person', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         await store.createUser({ login: 'Kim', displayName: 'K', role: 'admin', passwordHash: 'h' });
         expect((await store.findUserByLogin('kim'))?.login).toBe('kim');
         expect((await store.findUserByLogin('KIM'))?.login).toBe('kim');
@@ -702,40 +702,40 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
         expect(await store.countUsers()).toBe(1);
       });
 
-      it('이름이 비면 로그인 이름을 그대로 쓴다', async () => {
+      it('falls back to the login name when the display name is blank', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         const made = await store.createUser({ login: 'lee', displayName: '  ', role: 'viewer', passwordHash: 'h' });
         expect(made.displayName).toBe('lee');
       });
 
-      it('🔴 고칠 때 준 것만 바뀐다 — 안 준 값이 지워지면 안 된다', async () => {
+      it('updates change only given fields — omitted values must not be cleared', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         const made = await store.createUser({
           login: 'park', displayName: '박', role: 'viewer', passwordHash: 'old',
         });
         const after = await store.updateUser(made.id, { role: 'editor' });
         expect(after?.role).toBe('editor');
-        expect(after?.displayName).toBe('박');       // 그대로
-        expect(after?.passwordHash).toBe('old');     // 그대로
-        expect(after?.disabled).toBe(false);         // 그대로
+        expect(after?.displayName).toBe('박');       // unchanged
+        expect(after?.passwordHash).toBe('old');     // unchanged
+        expect(after?.disabled).toBe(false);         // unchanged
 
         const locked = await store.updateUser(made.id, { disabled: true });
         expect(locked?.disabled).toBe(true);
         expect(locked?.role).toBe('editor');
       });
 
-      it('없는 사람을 고치면 undefined', async () => {
+      it('updating a missing user returns undefined', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         expect(await store.updateUser('user_없음', { role: 'admin' })).toBeUndefined();
         expect(await store.getUser('user_없음')).toBeUndefined();
       });
 
-      it('로그인 시각이 찍힌다', async () => {
+      it('records the login time', async () => {
         const store = await create();
-        await store.init(); // 🔴 표가 있어야 한다 — PGlite는 init 전엔 빈 DB다
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
         const made = await store.createUser({ login: 'choi', displayName: '최', role: 'admin', passwordHash: 'h' });
         await store.touchUserLogin(made.id);
         expect((await store.getUser(made.id))?.lastLoginAt).toBeTruthy();
@@ -744,10 +744,10 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
   });
 }
 
-/** 필터는 두 구현이 같아야 한다 — Part 2의 idShort·semanticId 질의 인자가 여기 얹힌다 */
+/** Filters must match across both implementations — Part 2's idShort/semanticId query params build on this */
 export function describeStoreFilters(name: string, create: () => Promise<AasStore>): void {
-  describe(`${name} — 목록 필터`, () => {
-    it('idShort · semanticId · assetKind로 거른다', async () => {
+  describe(`${name} — list filters`, () => {
+    it('filters by idShort · semanticId · assetKind', async () => {
       const golden = loadGolden();
       const store = await create();
       await store.init();

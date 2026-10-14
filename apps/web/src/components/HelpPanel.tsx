@@ -1,9 +1,9 @@
 /**
- * 「? 도움말」 — 오른쪽에서 열리는 도움말(2026-10-08).
+ * "? Help" — help that opens from the right (2026-10-08).
  *
- * 🔴 **지금 화면에 맞는 주제를 먼저** 펼친다. 처음 쓰는 사람은 무엇을 찾아야 할지도 모른다 —
- *    목차부터 내밀면 매뉴얼을 펼친 것과 다르지 않다.
- * 🔴 화면을 가리지 않는다(배경을 어둡게 하지 않는다). 도움말을 보면서 그대로 따라 할 수 있어야 한다.
+ * Important: **the topic matching the current screen is expanded first.** A first-time user does not even know what to look for —
+ *    handing them a table of contents is no different from opening the manual.
+ * Important: it does not cover the screen (no dimmed backdrop). Users must be able to follow along while reading the help.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -13,9 +13,9 @@ import { tr } from '../i18n.js';
 interface Props {
   context: HelpContext;
   onClose: () => void;
-  /** 따라 하기 안내를 다시 — 지금 화면에 맞는 것으로 */
+  /** Replay the guided tour — the one for the current screen */
   onTour: () => void;
-  /** 시작하기 목록을 다시 보이기 */
+  /** Show the getting-started list again */
   onChecklist: () => void;
   t: (text: string) => string;
 }
@@ -27,12 +27,12 @@ export function HelpPanel({ context, onClose, onTour, onChecklist, t }: Props): 
   const [query, setQuery] = useState('');
   const panel = useRef<HTMLElement>(null);
 
-  // 열리면 패널로 포커스 — 키보드로 바로 읽고 Esc로 닫는다
+  // When opened, focus the panel — readable by keyboard right away, closed with Esc
   useEffect(() => {
     panel.current?.focus();
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
-        // 화면 전체의 Esc(선택 내려놓기 등)보다 먼저, 그리고 그것을 막는다
+        // Before the screen-wide Esc (dropping the selection, etc.), and blocking it
         event.stopImmediatePropagation();
         onClose();
       }
@@ -44,7 +44,7 @@ export function HelpPanel({ context, onClose, onTour, onChecklist, t }: Props): 
   const q = query.trim().toLowerCase();
   const shown = q
     ? topics.filter((topic) => [topic.title, topic.summary, topic.note ?? '', ...topic.steps].join(' ').toLowerCase().includes(q))
-    : // 지금 화면 주제를 맨 위로
+    : // Current screen topic at the top
       [...topics.filter((topic) => topic.id === first), ...topics.filter((topic) => topic.id !== first)];
 
   return (

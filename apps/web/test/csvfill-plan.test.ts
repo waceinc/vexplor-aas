@@ -1,5 +1,5 @@
 /**
- * CSV 로 값 채우기 — 계산부. 열 대응 추측 · 파일 찾기 · 바뀌는 값만 · 빈 칸은 지우지 않음.
+ * Fill values from CSV: the planning part. Guess column mapping, find files, only changed values, empty cells never clear.
  */
 import { describe, expect, it } from 'vitest';
 import { guessKeyColumn, leavesOf, planFill, suggestTarget, type FileTarget } from '../src/components/csvfill/plan.js';
@@ -21,8 +21,8 @@ const file = (packageId: string, names: string[], serial?: string): FileTarget =
   ...(serial !== undefined ? { submodel: { id: `sm-${packageId}`, content: nameplate(serial) } } : {}),
 });
 
-describe('CSV 로 값 채우기 — 계산부', () => {
-  it('값 항목은 컬렉션 안까지 경로로 나오고, 순번 목록은 건너뛴다', () => {
+describe('fill values from CSV: planning', () => {
+  it('value items are listed by path into collections, and ordered lists are skipped', () => {
     expect(leavesOf(nameplate('A')).map((leaf) => [leaf.path, leaf.current])).toEqual([
       ['SerialNumber', 'A'],
       ['ManufacturerName', '웨이스'],
@@ -31,7 +31,7 @@ describe('CSV 로 값 채우기 — 계산부', () => {
     ]);
   });
 
-  it('열 이름 대응은 같은 이름일 때만 — 대소문자·공백·밑줄은 무시하고, 비슷한 이름은 고르지 않는다', () => {
+  it('column mapping only on identical names (case, spaces and underscores ignored; similar names are not picked)', () => {
     const leaves = leavesOf(nameplate('A'));
     expect(suggestTarget('serial number', leaves)).toBe('SerialNumber');
     expect(suggestTarget('City_Town', leaves)).toBe('Address.CityTown');
@@ -40,7 +40,7 @@ describe('CSV 로 값 채우기 — 계산부', () => {
     expect(guessKeyColumn(['A', 'B'])).toBe(0);
   });
 
-  it('줄마다 파일을 찾아 바뀌는 값만 — 같은 값·빈 칸은 빼고, 못 찾음·서브모델 없음·중복을 가린다', () => {
+  it('finds the file per row and keeps only changed values (same values and empty cells dropped; flags not found, no submodel and duplicates)', () => {
     const plans = planFill({
       rows: [
         ['RFM_1', 'SN-1', 'Seoul'],
@@ -61,7 +61,7 @@ describe('CSV 로 값 채우기 — 계산부', () => {
         { path: 'Address.CityTown', before: '', after: 'Seoul' },
       ],
     });
-    expect(plans[1]).toEqual({ key: 'rfm_2', packageId: 'p2', changes: [] }); // 같은 값 · 빈 칸
+    expect(plans[1]).toEqual({ key: 'rfm_2', packageId: 'p2', changes: [] }); // same value / empty cell
     expect(plans[2]).toMatchObject({ key: 'Ghost', problem: 'no-file' });
     expect(plans[3]).toMatchObject({ key: 'Bare', problem: 'no-submodel' });
     expect(plans[4]).toMatchObject({ key: 'RFM_1', problem: 'duplicate' });

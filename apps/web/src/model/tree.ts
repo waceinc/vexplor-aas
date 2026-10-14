@@ -1,10 +1,10 @@
 /**
- * 모델 — 트리 만들기 · 펼친 줄 · 찾기 · 지적 자리까지 펼치기 · 값 표시 · 요소 세기.
- * src/model.ts 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드와 주석은 옮기기 전 글자 그대로다. 밖에서는 model.ts 로 쓴다.
+ * Model — tree building · expanded rows · search · expanding to a finding · value display · element counting.
+ * Split out of src/model.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via model.ts.
  */
 import { type AasNode, type Environment, type Submodel, type TreeNode } from './types.js';
 
-/** 자식을 담는 필드 — @aas/core의 traverse와 같은 규칙이어야 한다 */
+/** Fields holding children — must follow the same rule as traverse in @aas/core */
 function childrenOf(node: AasNode): { field: string; items: AasNode[] } | undefined {
   if (node.modelType === 'SubmodelElementCollection' || node.modelType === 'SubmodelElementList') {
     return Array.isArray(node.value) ? { field: 'value', items: node.value as AasNode[] } : undefined;
@@ -19,16 +19,16 @@ function childrenOf(node: AasNode): { field: string; items: AasNode[] } | undefi
 }
 
 /**
- * Environment 전체를 트리로 만든다 — AAS · Submodel · ConceptDescription 셋 다.
+ * Builds a tree from the whole Environment — all three: AAS · Submodel · ConceptDescription.
  *
- * 서브모델만 그리던 때는 **지적의 갈 곳이 없었다.** 실측 결함 중 `KOSMO-AAS-*`는 AAS에,
- * `KOSMO-CD-*`는 ConceptDescription에 붙는데, 트리에 그 노드가 없으니 눌러도 열리지 않았다
- * (화면으로 보고서야 드러났다 — 「위반 4건」인데 트리 배지는 2개뿐이었다).
+ * When only submodels were drawn, **findings had nowhere to go.** Of the measured defects, `KOSMO-AAS-*` attach to the AAS
+ * and `KOSMO-CD-*` to ConceptDescriptions, but with no such nodes in the tree, clicking them opened nothing
+ * (only seen on screen — "4 violations" while the tree showed just 2 badges).
  *
- * ConceptDescription은 137개까지 가므로 **그룹 노드 아래에 접어 둔다.** 트리를 오염시키지 않으면서
- * 지적이 갈 자리는 만들어 준다.
+ * ConceptDescriptions reach 137, so they are **folded under a group node.** This keeps the tree clean
+ * while still giving findings a place to land.
  *
- * 목록 순서가 곧 Environment 배열 순서다(저장소가 ordinal로 지킨다) — 그래야 pointer가 린터와 맞는다.
+ * List order is the Environment array order (the store preserves it by ordinal) — that is what keeps pointers aligned with the linter.
  */
 export const CONCEPT_GROUP_KEY = '/conceptDescriptions';
 
@@ -88,8 +88,8 @@ export function buildTree(environment: Environment): TreeNode[] {
   if (environment.conceptDescriptions.length > 0) {
     roots.push({
       key: CONCEPT_GROUP_KEY,
-      // 🔴 규격 용어를 그대로 쓴다(2026-09-01 사용자). 한글로 바꾸면 규격 문서·Validator
-      //    리포트와 이름이 어긋나 대조가 안 된다. 무엇인지는 종류 표시와 속성 칸이 말한다.
+      // Important: use the spec terms as is (user, 2026-09-01). Translating them into Korean breaks matching against spec documents and Validator
+      //    reports. What each one is, the kind label and the property pane explain.
       label: `ConceptDescriptions (${environment.conceptDescriptions.length})`,
       modelType: 'ConceptDescriptionGroup',
       pointer: CONCEPT_GROUP_KEY,
@@ -122,7 +122,7 @@ function buildElements(
 ): TreeNode[] {
   return items.map((node, index) => {
     const pointer = `${pointerBase}/${index}`;
-    // SubmodelElementList의 자식은 규격상 인덱스로 가리킨다(익명일 수 있다)
+    // Children of a SubmodelElementList are addressed by index per the spec (they can be anonymous)
     const inList = parent?.modelType === 'SubmodelElementList';
     const segment = inList ? `[${index}]` : (node.idShort ?? `[${index}]`);
     const idShortPath = inList
@@ -158,7 +158,7 @@ function buildElements(
   });
 }
 
-/** 펼쳐진 것만 위에서부터 늘어놓는다. 가상 스크롤이 이 배열을 창으로 잘라 쓴다 */
+/** Lists only expanded rows, top-down. Virtual scrolling windows this array */
 export function flatten(roots: readonly TreeNode[], expanded: ReadonlySet<string>): TreeNode[] {
   const out: TreeNode[] = [];
   const walk = (nodes: readonly TreeNode[]): void => {
@@ -172,13 +172,13 @@ export function flatten(roots: readonly TreeNode[], expanded: ReadonlySet<string
 }
 
 /**
- * 트리에서 찾기.
+ * Search in the tree.
  *
- * 한 파일에 요소가 200개를 넘는다. 눈으로 훑는 것은 무리라 **걸러서 보여 준다** —
- * 찾은 노드와 **거기까지 가는 길(조상)** 만 남긴다. 조상을 함께 남기는 이유는
- * 같은 이름이 여러 서브모델에 있을 때 어느 것인지 알아야 하기 때문이다.
+ * A single file has over 200 elements. Skimming by eye is impractical, so **results are filtered** —
+ * only matching nodes and **the path to them (ancestors)** are kept. Ancestors are kept because
+ * when the same name exists in several submodels you need to know which one it is.
  *
- * 무엇을 뒤지나: 이름(idShort) · 종류 · 값 · semanticId. 대소문자는 가리지 않는다.
+ * What is searched: name (idShort) · kind · value · semanticId. Case-insensitive.
  */
 export function searchTree(
   roots: readonly TreeNode[],
@@ -197,12 +197,12 @@ export function searchTree(
     const semantic = node.node['semanticId'] as { keys?: { value: string }[] } | undefined;
     const id = semantic?.keys?.[0]?.value;
     if (id && id.toLowerCase().includes(needle)) return true;
-    // 서브모델·CD는 id로도 찾을 수 있어야 한다 — 지적이 id로 말하기 때문이다
+    // Submodels and CDs must be findable by id too — findings refer to them by id
     const own = node.node['id'];
     return typeof own === 'string' && own.toLowerCase().includes(needle);
   };
 
-  /** 아래에 걸린 게 있으면 나도 남는다(길을 끊지 않는다) */
+  /** If something below matched, I stay too (do not break the path) */
   const walk = (node: TreeNode): boolean => {
     const self = hits(node);
     if (self) matched.add(node.key);
@@ -218,7 +218,7 @@ export function searchTree(
     for (const node of nodes) {
       if (!keep.has(node.key)) continue;
       rows.push(node);
-      // 걸린 노드의 자식까지 펼쳐 보여 주지는 않는다 — 결과가 다시 길어진다
+      // Do not expand the children of a matched node — the result would get long again
       if (!matched.has(node.key)) collect(node.children);
     }
   };
@@ -228,16 +228,16 @@ export function searchTree(
 }
 
 /**
- * 지적이 가리키는 노드와, 거기까지 가는 길에 있는 부모들.
+ * The node a finding points to, plus the parents on the way there.
  *
- * 문자열 규칙(숫자 세그먼트면 노드다)으로 짐작하지 않고 **실제 트리에서 찾는다** —
- * AAS의 `assetInformation`이나 ConceptDescription 그룹처럼 숫자로 끝나지 않는 노드가 있어서,
- * 규칙으로 맞히려 들면 그런 지적은 영영 열리지 않는다.
+ * Instead of guessing with a string rule (numeric segment means node), **look it up in the actual tree** —
+ * some nodes, such as the AAS `assetInformation` or the ConceptDescription group, do not end in a number,
+ * so a rule-based guess would never open those findings.
  */
 export interface RevealPath {
-  /** 펼쳐야 하는 노드들(대상 자신 포함) */
+  /** Nodes to expand (including the target itself) */
   keys: string[];
-  /** 선택할 노드. 트리에 없으면 undefined */
+  /** Node to select. undefined if not in the tree */
   target?: string;
 }
 
@@ -249,7 +249,7 @@ export function revealPath(roots: readonly TreeNode[], pointer: string): RevealP
       const covers = pointer === node.pointer || pointer.startsWith(`${node.pointer}/`);
       if (!covers) continue;
       const here = [...parents, node];
-      // 더 깊은 노드가 있으면 그쪽이 주인이다 (가장 길게 겹치는 노드)
+      // A deeper node, if any, owns it (longest overlapping node)
       if (!walk(node.children, here)) chain.push(...here);
       return true;
     }
@@ -262,7 +262,7 @@ export function revealPath(roots: readonly TreeNode[], pointer: string): RevealP
   return target === undefined ? { keys } : { keys, target };
 }
 
-/** 편집 가능한 값인지 — $value로 고칠 수 있는 종류만 화면에서 입력을 연다 */
+/** Whether the value is editable — the UI opens input only for kinds editable via $value */
 export const EDITABLE_VALUE_TYPES = new Set(['Property', 'File', 'Blob', 'MultiLanguageProperty', 'Range']);
 
 export function displayValue(node: AasNode): string {
@@ -277,7 +277,7 @@ export function displayValue(node: AasNode): string {
   return '';
 }
 
-/** 요소 총수 — 요약 타일에 쓴다. 펼친 행 수는 화면 상태라 파일의 크기를 말해 주지 못한다 */
+/** Total element count — used in the summary tile. Expanded row count is UI state and says nothing about file size */
 export function countElements(submodels: readonly Submodel[]): number {
   let total = 0;
   const walk = (nodes: readonly AasNode[]): void => {

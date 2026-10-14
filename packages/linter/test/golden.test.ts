@@ -1,6 +1,6 @@
 /**
- * 회귀 기준 — 골든 파일은 KOSMO Validator 전 항목 Passed 확인분이다.
- * 우리 린터가 여기서 위반을 내면 그것은 규칙 구현이 과한 것이지 파일 결함이 아니다.
+ * Regression baseline — the golden files were confirmed Passed on every KOSMO Validator item.
+ * If our linter reports a violation here, the rule implementation is too strict, not the file.
  */
 import { readAasx } from '@aas/aasx';
 import { ALL_RULES, L3_RULES, lint } from '@aas/linter';
@@ -9,19 +9,19 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const FIXTURES = ['01-롤포밍기-공34.aasx', '03-SPR장비-뿌80.aasx', '11-협동로봇6축.aasx'];
+const FIXTURES = ['01-roll-forming-machine.aasx', '03-spr-riveting-machine.aasx', '11-cobot-6-axis.aasx'];
 
 function load(name: string) {
   return readAasx(new Uint8Array(readFileSync(root + name)));
 }
 
-describe('골든 파일 회귀', () => {
+describe('golden file regression', () => {
   for (const name of FIXTURES) {
-    it(`${name} — 전 계층 규칙에서 위반 0건`, () => {
+    it(`${name} — 0 violations across all rule layers`, () => {
       const pkg = load(name);
       const result = lint(pkg.environment, ALL_RULES, { package: pkg.opc });
 
-      // 실패 시 무엇이 걸렸는지 바로 보이도록 요약을 붙인다
+      // Attach a summary so a failure shows immediately what was flagged
       const detail = result.findings
         .filter((f) => f.severity === 'error')
         .slice(0, 10)
@@ -31,25 +31,25 @@ describe('골든 파일 회귀', () => {
       expect(result.passed).toBe(true);
     });
 
-    it(`${name} — L3 KOSMO 규칙이 레퍼런스 구현과 같은 판정을 낸다`, () => {
+    it(`${name} — L3 KOSMO rules give the same verdict as the reference implementation`, () => {
       const pkg = load(name);
       const result = lint(pkg.environment, L3_RULES, { package: pkg.opc });
       expect(result.countBySeverity.error).toBe(0);
     });
   }
 
-  it('규칙 카탈로그가 세 계층을 모두 담고 있다', () => {
+  it('the rule catalog covers all three layers', () => {
     const layers = new Set(ALL_RULES.map((r) => r.layer));
     expect(layers).toEqual(new Set(['L1', 'L2', 'L3']));
-    // 🔴 2026-08-24 정정. 예전에는 "AASd-090·AASd-120은 V3에서 삭제됐다"고 적어 두고
-    // 구현하지 않았으나 **사실이 아니다** — 둘 다 V3.0 규격에 있다(aas-core-meta v3).
-    // KOSMO Validator가 검사하지 않을 뿐이고, 표준 도구(aas-test-engines·basyx)는 강제한다.
+    // Important: corrected 2026-08-24. We previously noted "AASd-090 and AASd-120 were removed in V3"
+    // and left them unimplemented, but **that is false** — both are in the V3.0 spec (aas-core-meta v3).
+    // KOSMO Validator just does not check them; standard tools (aas-test-engines, basyx) enforce them.
     const ids = ALL_RULES.map((r) => r.id);
     expect(ids).toContain('AASd-090');
     expect(ids).toContain('AASd-120');
   });
 
-  it('모든 규칙이 고유한 id와 근거 문서를 갖는다', () => {
+  it('every rule has a unique id and a source document', () => {
     const ids = ALL_RULES.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const rule of ALL_RULES) {
@@ -60,31 +60,31 @@ describe('골든 파일 회귀', () => {
 });
 
 /**
- * 🔴 **고칠 수 없는 것은 경고로 띄우지 않는다.**
+ * Important: **do not raise a warning for something that cannot be fixed.**
  *
- * 사용자 지적(2026-09-01): 「경고가 떠 있으면 보통 보완하려고 할 텐데, 사전은 고칠 수 없잖아?」
- * 맞는 말이다. 사람이 할 수 있는 일이 없는데 경고가 떠 있으면 고치려 들다가 못 고치고 만다 —
- * 그건 지적이 아니라 잡음이다.
+ * User feedback (2026-09-01): "If a warning is showing, people usually try to fix it — but the dictionary can't be fixed, can it?"
+ * Correct. If a warning shows when there is nothing a person can do, they try to fix it and fail —
+ * that is noise, not a finding.
  */
-describe('KOSMO-CD-5 — 표준 사전끼리의 이름 겹침', () => {
-  it('둘 다 외부 표준 사전(IRDI)이면 경고가 아니라 알림이다', () => {
-    const pkg = load('01-롤포밍기-공34.aasx');
+describe('KOSMO-CD-5 — name collisions between standard dictionaries', () => {
+  it('is info, not a warning, when both come from external standard dictionaries (IRDI)', () => {
+    const pkg = load('01-roll-forming-machine.aasx');
     const result = lint(pkg.environment, ALL_RULES, { package: pkg.opc });
     const cd5 = result.findings.filter((f) => f.ruleId === 'KOSMO-CD-5');
 
-    // 골든 파일에는 ManufacturerName·ManufacturerProductDesignation이 각각
-    // IEC CDD와 ECLASS 두 벌로 있고 **둘 다 실제로 참조된다**
+    // The golden file has ManufacturerName and ManufacturerProductDesignation each in two
+    // copies, IEC CDD and ECLASS, and **both are actually referenced**
     expect(cd5.length).toBeGreaterThan(0);
     expect(cd5.every((f) => f.severity === 'info')).toBe(true);
-    // 고치라고 하지 않는다 — 합치면 한쪽이 표준 사전을 못 가리키게 된다
+    // Do not ask for a fix — merging would leave one side unable to point to its standard dictionary
     expect(cd5.every((f) => f.remedy?.includes('고치지 마십시오'))).toBe(true);
     expect(cd5.every((f) => f.fixable === false)).toBe(true);
   });
 
-  it('자체 IRI가 섞여 있으면 여전히 경고다 — 그건 우리가 만든 중복이다', () => {
-    const pkg = load('01-롤포밍기-공34.aasx');
+  it('is still a warning when an in-house IRI is involved — that duplicate is ours', () => {
+    const pkg = load('01-roll-forming-machine.aasx');
     const env = structuredClone(pkg.environment);
-    // 우리가 만든 CD 하나에 표준 사전 항목과 같은 이름을 붙인다
+    // Give one of our own CDs the same name as a standard dictionary entry
     env.conceptDescriptions!.push({
       modelType: 'ConceptDescription',
       id: 'https://www.smart-factory.kr/ids/cd/ManufacturerName/1/0',

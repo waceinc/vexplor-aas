@@ -1,8 +1,8 @@
 /**
- * 용어 정의(ConceptDescription · IEC 61360) 입력 양식과 CD 사이의 변환.
- * components/Inspector.tsx 에서 떼어 냈다(2026-10-13 컴포넌트화) — 코드는 옮기기 전 글자 그대로다.
+ * Conversion between the concept description (ConceptDescription · IEC 61360) input form and the CD.
+ * Split out of components/Inspector.tsx (componentization, 2026-10-13) — code is verbatim from before the move.
  */
-/** IEC 61360 dataType — 규격 열거값 중 산출물에서 쓰인 것들 */
+/** IEC 61360 dataType — the spec's enumeration values that appear in deliverables */
 export const IEC61360_DATA_TYPES = [
   'STRING',
   'STRING_TRANSLATABLE',
@@ -61,7 +61,7 @@ export function readConcept(raw: Record<string, unknown>): ConceptForm {
   };
 }
 
-/** 폼 값을 CD에 되쓴다. 손대지 않은 언어·필드는 그대로 두고, 빈 값은 키를 지운다(빈 문자열을 남기지 않는다) */
+/** Write form values back to the CD. Untouched languages/fields stay as they are; empty values remove the key (no empty strings left behind) */
 export function writeConcept(raw: Record<string, unknown>, form: ConceptForm): Record<string, unknown> {
   const next = structuredClone(raw) as Record<string, unknown>;
   let specs = next['embeddedDataSpecifications'] as
@@ -82,7 +82,7 @@ export function writeConcept(raw: Record<string, unknown>, form: ConceptForm): R
     const rest = list.filter((e) => e.language !== language);
     const trimmed = text.trim();
     const merged = trimmed === '' ? rest : [...rest, { language, text: trimmed }];
-    // en을 앞에 — 표준 도구·문서 자료가 첫 항목을 대표로 읽는다
+    // en first — standard tools and documentation read the first entry as the representative one
     merged.sort((a, b) => (a.language === 'en' ? -1 : b.language === 'en' ? 1 : 0));
     if (merged.length === 0) delete content[key];
     else content[key] = merged;

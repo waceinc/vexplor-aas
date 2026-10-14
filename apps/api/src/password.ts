@@ -1,15 +1,15 @@
 /**
- * 비밀번호 해시 — Node 내장 `scrypt`.
+ * Password hashing — Node built-in `scrypt`.
  *
- * 🔴 **의존성을 늘리지 않는다.** bcrypt·argon2는 네이티브 빌드가 필요해 설치판(node.exe만 담는
- *    꾸러미)과 폐쇄망 반입을 깨뜨린다. scrypt는 Node에 들어 있고 RFC 7914 표준이며
- *    메모리를 많이 쓰도록 설계돼(GPU로 몰아쳐도 비싸다) 비밀번호 저장에 적합하다.
+ * Important: **no added dependencies.** bcrypt/argon2 need native builds, which breaks the installer bundle (which ships
+ *    only node.exe) and bringing it into air-gapped networks. scrypt is built into Node, is an RFC 7914 standard, and
+ *    is designed to be memory-hard (expensive even when hammered with GPUs), which makes it fit for password storage.
  *
- * 🔴 **원문은 어디에도 남기지 않는다.** 로그·오류 메시지·이력 어디에도.
+ * Important: **the plaintext is never kept anywhere** — not in logs, error messages or history.
  *
- * 저장 형태: `scrypt$N$r$p$<salt base64>$<hash base64>`
- * 매개변수를 함께 적는 이유 — 나중에 비용을 올려도 **옛 해시를 그대로 검증**할 수 있다.
- * 올린 뒤 로그인에 성공하면 그 자리에서 새 비용으로 다시 해시하면 된다.
+ * Stored form: `scrypt$N$r$p$<salt base64>$<hash base64>`
+ * Why the parameters are stored with it — even after raising the cost later, **old hashes still verify**.
+ * After raising it, rehash with the new cost on the spot when a login succeeds.
  */
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -23,10 +23,10 @@ const scrypt = promisify(scryptCb) as (
 ) => Promise<Buffer>;
 
 /**
- * 비용 매개변수.
- * N=2^15(32768) · r=8 · p=1 — 한 번에 약 32MB를 쓴다. 보통 PC에서 0.1초 안쪽이고,
- * 공격자가 초당 수백만 번 시도하는 것을 막을 만큼은 비싸다.
- * 🔴 maxmem을 넉넉히 줘야 한다 — Node 기본 상한(32MB)에 딱 걸려 터진다.
+ * Cost parameters.
+ * N=2^15 (32768) · r=8 · p=1 — uses about 32MB per hash. Under 0.1s on a typical PC,
+ * and expensive enough to stop attackers trying millions of times per second.
+ * Important: maxmem must be generous — otherwise it hits Node's default cap (32MB) exactly and blows up.
  */
 const N = 32768;
 const R = 8;
@@ -41,11 +41,11 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * 맞는지 본다.
- * 🔴 **시간이 일정하게** 비교한다(timingSafeEqual). 앞자리부터 틀리는 지점이 빠르면
- *    응답 시간으로 해시를 한 글자씩 알아낼 수 있다 — auth.ts의 토큰 비교와 같은 이유다.
- * 🔴 모양이 깨진 해시는 **조용히 false**다. 던지면 "그 계정은 해시가 이상하다"는 사실이
- *    로그인 화면에 드러난다.
+ * Check whether it matches.
+ * Important: compare in **constant time** (timingSafeEqual). If a mismatch at an early position returns faster,
+ *    the hash can be learned one character at a time from response times — the same reason as the token comparison in auth.ts.
+ * Important: a malformed hash is **silently false**. Throwing would reveal "that account has a broken hash"
+ *    on the login screen.
  */
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split('$');
@@ -54,7 +54,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const r = Number(parts[2]);
   const p = Number(parts[3]);
   if (!Number.isInteger(n) || !Number.isInteger(r) || !Number.isInteger(p)) return false;
-  // 터무니없는 값이 저장돼 있으면 계산하다 서버가 멎는다 — 거절한다
+  // If an absurd value is stored, the server stalls computing it — reject it
   if (n > 1 << 20 || r > 32 || p > 16) return false;
 
   let salt: Buffer;
@@ -73,10 +73,10 @@ export async function verifyPassword(password: string, stored: string): Promise<
 }
 
 /**
- * 비밀번호 규칙 — 어기면 사람 말로 된 이유를 돌려준다. 맞으면 undefined.
+ * Password rules — returns a human-readable reason on violation, undefined if valid.
  *
- * 🔴 복잡도(대문자·기호 섞기)를 강요하지 않는다. 사람들이 `Passw0rd!` 같은 뻔한 꼴로 맞출 뿐
- *    실제로는 더 약해진다는 것이 알려져 있다(NIST SP 800-63B). **길이**가 낫다.
+ * Important: do not force complexity (mixing uppercase/symbols). People just conform with obvious shapes like `Passw0rd!`,
+ *    which is known to actually make passwords weaker (NIST SP 800-63B). **Length** is better.
  */
 export function checkPasswordRule(password: string): string | undefined {
   if (password.length < 10) return tr('비밀번호는 10자 이상이어야 합니다.');
