@@ -113,8 +113,9 @@ describe('outcome policy', () => {
     expect(judgeAttempt({ attempts: 12, statusCode: 500 }, fixed).outcome).toBe('dead');
   });
 
-  it('Retry-After is honoured and capped at one hour', () => {
-    expect(judgeAttempt({ attempts: 1, statusCode: 429, retryAfterMs: 7000 }, fixed)).toEqual({ outcome: 'retry', delayMs: 7000 });
+  it('a longer Retry-After is honoured, capped at one hour; a shorter one keeps the schedule', () => {
+    expect(judgeAttempt({ attempts: 1, statusCode: 429, retryAfterMs: 70_000 }, fixed)).toEqual({ outcome: 'retry', delayMs: 70_000 });
+    expect(judgeAttempt({ attempts: 1, statusCode: 429, retryAfterMs: 7000 }, fixed)).toEqual({ outcome: 'retry', delayMs: 10_000 });
     expect(judgeAttempt({ attempts: 1, statusCode: 503, retryAfterMs: 99_999_000 }, fixed)).toEqual({ outcome: 'retry', delayMs: 3_600_000 });
   });
 

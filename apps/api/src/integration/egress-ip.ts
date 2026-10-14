@@ -103,33 +103,56 @@ const ALWAYS_BLOCKED = cidrs([
 const PRIVATE = cidrs(['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', 'fc00::/7', 'fec0::/10']);
 
 /**
- * IPv6 forms that carry an IPv4 address inside — they are judged by the IPv4 they carry.
+ * Special-purpose ranges (IANA registry) that are not ordinary internet hosts: IETF protocol assignments, benchmarking,
+ * documentation, discard, Teredo / IETF IPv6 assignments, the local-use NAT64 prefix and SIIT-translated addresses.
+ * Reachable only when the allowlist names them, like private ranges.
+ */
+const SPECIAL = cidrs([
+  '192.0.0.0/24',
+  '192.0.2.0/24',
+  '198.18.0.0/15',
+  '198.51.100.0/24',
+  '203.0.113.0/24',
+  '2001:db8::/32',
+  '100::/64',
+  '2001::/23',
+  '64:ff9b:1::/48',
+  '::ffff:0:0:0/96',
+]);
+
+/**
+ * IPv6 forms that carry an IPv4 address inside — they are judged by the IPv4 they carry (every candidate decoding).
  * Important: without this `64:ff9b::7f00:1` (NAT64) or `2002:7f00:1::` (6to4) would reach 127.0.0.1 on hosts with those
  *    translators while looking like ordinary public IPv6.
  */
-export function embeddedV4(address: IpBytes): IpBytes | undefined {
+export function embeddedV4(address: IpBytes): IpBytes[] {
   const isZero = (from: number, to: number): boolean => address.slice(from, to).every((byte) => byte === 0);
+  const last32 = (): IpBytes => mapped([...address.slice(12, 16)]);
+  const out: IpBytes[] = [];
   // IPv4-compatible ::a.b.c.d (deprecated) — but :: and ::1 are themselves
-  if (isZero(0, 12) && !(isZero(12, 15) && address[15]! <= 1)) return mapped([...address.slice(12, 16)]);
+  if (isZero(0, 12) && !(isZero(12, 15) && address[15]! <= 1)) out.push(last32());
+  // SIIT IPv4-translated ::ffff:0:a.b.c.d
+  if (isZero(0, 8) && address[8] === 0xff && address[9] === 0xff && isZero(10, 12)) out.push(last32());
   // NAT64 well-known prefix 64:ff9b::/96
-  if (address[0] === 0x00 && address[1] === 0x64 && address[2] === 0xff && address[3] === 0x9b && isZero(4, 12)) {
-    return mapped([...address.slice(12, 16)]);
+  if (address[0] === 0x00 && address[1] === 0x64 && address[2] === 0xff && address[3] === 0x9b && isZero(4, 12)) out.push(last32());
+  // Local-use NAT64 64:ff9b:1::/48 — the IPv4 sits after the /48 (RFC 6052: bytes 6-7 and 9-10) or in the last 32 bits
+  if (address[0] === 0x00 && address[1] === 0x64 && address[2] === 0xff && address[3] === 0x9b && address[4] === 0x00 && address[5] === 0x01) {
+    out.push(mapped([address[6]!, address[7]!, address[9]!, address[10]!]), last32());
   }
   // 6to4 2002:AABB:CCDD::/48
-  if (address[0] === 0x20 && address[1] === 0x02) return mapped([...address.slice(2, 6)]);
-  return undefined;
+  if (address[0] === 0x20 && address[1] === 0x02) out.push(mapped([...address.slice(2, 6)]));
+  return out;
 }
 
 export type AddressClass = 'blocked' | 'private' | 'public';
 
 export function classifyAddress(address: IpBytes): AddressClass {
-  const inner = embeddedV4(address);
-  if (inner) {
-    const innerClass = classifyAddress(inner);
-    if (innerClass !== 'public') return innerClass;
-  }
+  const inner = embeddedV4(address).map(classifyAddress);
+  if (inner.includes('blocked')) return 'blocked';
   if (ALWAYS_BLOCKED.some((range) => cidrContains(range, address))) return 'blocked';
+  if (inner.includes('private')) return 'private';
   if (PRIVATE.some((range) => cidrContains(range, address))) return 'private';
+  if (SPECIAL.some((range) => cidrContains(range, address))) return 'private';
   return 'public';
 }
 

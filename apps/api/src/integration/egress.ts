@@ -50,6 +50,26 @@ const SCHEMES: Record<SubscriptionKind, Record<string, { tls: boolean; port: num
   mqtt: { 'mqtts:': { tls: true, port: 8883 }, 'mqtt:': { tls: false, port: 1883 } },
 };
 
+/** A DNS answer that does not come in 5 s is a failure (retried by the schedule), never a hung delivery lane */
+export const RESOLVE_TIMEOUT_MS = 5_000;
+
+export function withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    (timer as { unref?: () => void }).unref?.();
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
 /** Every address the operating system would connect to — the same resolver the connection would use (hosts file included) */
 export function dnsResolveAll(host: string): Promise<string[]> {
   return new Promise((resolve, reject) => {
@@ -142,13 +162,17 @@ export async function checkTarget(url: string, kind: SubscriptionKind, policy: E
   if (host === 'localhost' || host.endsWith('.localhost')) {
     return { ok: false, reason: fill(tr('{0}은(는) 이 서버 자신입니다 — 연결하지 않습니다.'), { 0: host }) };
   }
+  // A trailing dot is the same name (`localhost.`) — judge the name without it
+  if (host.endsWith('.') && (host === 'localhost.' || host.endsWith('.localhost.'))) {
+    return { ok: false, reason: fill(tr('{0}은(는) 이 서버 자신입니다 — 연결하지 않습니다.'), { 0: host }) };
+  }
 
   let answers: string[];
   const literal = parseIp(host);
   if (literal) answers = [host];
   else {
     try {
-      answers = await policy.resolve(host);
+      answers = await withTimeout(policy.resolve(host), RESOLVE_TIMEOUT_MS, `DNS lookup timed out after ${RESOLVE_TIMEOUT_MS} ms`);
     } catch (error) {
       return { ok: false, reason: fill(tr('{0}의 주소를 찾지 못했습니다: {1}'), { 0: host, 1: error instanceof Error ? error.message : String(error) }) };
     }

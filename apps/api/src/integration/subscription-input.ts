@@ -55,6 +55,9 @@ export function parseSubscriptionInput(body: unknown, mode: 'create' | 'patch'):
   const allowed = mode === 'create' ? CREATE_KEYS : PATCH_KEYS;
   const input: SubscriptionInput = {};
   for (const [key, value] of Object.entries(body)) {
+    if (mode === 'patch' && key === 'kind') {
+      throw bad(tr('구독 종류(kind)는 바꿀 수 없습니다 — 다른 종류가 필요하면 새 구독을 만드십시오. 수정 요청에는 kind를 넣지 마십시오.'));
+    }
     if (!allowed.includes(key)) throw bad(fill(tr('알 수 없는 항목입니다: {0}'), { 0: key }));
     switch (key) {
       case 'name':

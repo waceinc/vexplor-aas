@@ -13,7 +13,7 @@
  * Important: secrets are never logged and never put in audit details or delivery rows.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { fill, tr } from '@aas/core';
@@ -59,6 +59,18 @@ export interface MasterKey {
   source: MasterKeySource;
   /** Where the key file is, when it came from one — the startup log warns that backups of that folder contain it */
   file?: string;
+  /** Set when the key file was readable by others and its mode was changed to 0600 */
+  warning?: string;
+}
+
+/** Makes the key file 0600 when group / others had access. Returns a warning line when it changed something */
+function tightenMode(file: string): string | undefined {
+  // Windows has no POSIX modes — the folder's ACL is what protects it there
+  if (process.platform === 'win32') return undefined;
+  const mode = statSync(file).mode & 0o777;
+  if ((mode & 0o077) === 0) return undefined;
+  chmodSync(file, 0o600);
+  return fill(tr('비밀 키 파일 {0}을(를) 다른 사용자도 읽을 수 있었습니다({1}) — 0600으로 바꿨습니다.'), { 0: file, 1: mode.toString(8) });
 }
 
 function keyFromBase64(text: string): Buffer {
@@ -80,13 +92,18 @@ export function loadMasterKey(options: { env: Record<string, string | undefined>
   if (fromEnv !== undefined && fromEnv.trim() !== '') return { box: new SecretBox(keyFromBase64(fromEnv)), source: 'env' };
   if (options.storeKind === 'folder' && options.dataDir !== undefined) {
     const file = join(options.dataDir, 'secret.key');
-    if (existsSync(file)) return { box: new SecretBox(keyFromBase64(readFileSync(file, 'utf8'))), source: 'file', file };
-    const key = randomBytes(KEY_BYTES);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, key.toString('base64') + '\n', { mode: 0o600, flag: 'wx' });
-    // Some file systems ignore the mode on create — set it again
-    chmodSync(file, 0o600);
-    return { box: new SecretBox(key), source: 'file', file };
+    if (!existsSync(file)) {
+      mkdirSync(dirname(file), { recursive: true });
+      try {
+        writeFileSync(file, randomBytes(KEY_BYTES).toString('base64') + '\n', { mode: 0o600, flag: 'wx' });
+      } catch (error) {
+        // Another process (a second server on the same folder) created it first — use the key it wrote
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      }
+    }
+    // Important: a key file others can read is a key everyone with a shell has. Tighten it, and say so
+    const warning = tightenMode(file);
+    return { box: new SecretBox(keyFromBase64(readFileSync(file, 'utf8'))), source: 'file', file, ...(warning ? { warning } : {}) };
   }
   // A folder store whose folder is unknown here (embedded use) is treated like memory: the key lives as long as the process
   if (options.storeKind !== 'postgres') return { box: new SecretBox(randomBytes(KEY_BYTES)), source: 'ephemeral' };

@@ -1,6 +1,8 @@
 /**
  * Subscriptions, deliveries, test delivery and status — admin session only (docs/design/integration-v1.md §4.2, D11).
  *
+ * Important: subscriptions are server-wide (D18) — an admin's subscription receives events from ALL workspaces, also
+ *    in a server with private workspaces. Only admins manage them for that reason.
  * The signing secret is shown **once** (create, rotate) and never again: listings carry only `secretHint`, delivery rows
  * and audit events never contain it. Every URL is checked against the egress policy here (422) and again before each
  * attempt in the dispatcher.
@@ -8,11 +10,11 @@
 import { fill, tr } from '@aas/core';
 import type { AasStore, DeliveryStatus, SubscriptionPatch } from '@aas/store';
 
-import { ApiError, json, noContent } from '../http.js';
+import { ApiError, json, noContent, type ApiResponse } from '../http.js';
 import type { Route } from '../router.js';
 import type { IntegrationRouteDeps, IntegrationServices } from './deps.js';
 import { checkTarget } from './egress.js';
-import { audit, errorWith, integerParam, requireAdmin, requireRuntime, servicesOf } from './route-helpers.js';
+import { audit, errorWith, integerParam, maskUrlQuery, requireAdmin, requireRuntime, servicesOf } from './route-helpers.js';
 import { replay, statusReport } from './subscription-ops.js';
 import { parseSubscriptionInput, splitCredentials } from './subscription-input.js';
 import { newSigningSecret, secretHint } from './secrets.js';
@@ -31,17 +33,33 @@ async function egressOrThrow(url: string, kind: 'webhook' | 'mqtt', services: In
   if (!target.ok) throw new TargetNotAllowed(target.reason);
 }
 
+/** Same scheme, host and port — credentials stay valid only for the target they were given for */
+function sameTarget(a: string, b: string): boolean {
+  try {
+    const left = new URL(a);
+    const right = new URL(b);
+    const DEFAULT_PORTS: Record<string, string> = { 'mqtt:': '1883', 'mqtts:': '8883', 'http:': '80', 'https:': '443' };
+    const port = (url: URL): string => url.port || (DEFAULT_PORTS[url.protocol] ?? '');
+    return left.protocol === right.protocol && left.hostname.toLowerCase() === right.hostname.toLowerCase() && port(left) === port(right);
+  } catch {
+    return false;
+  }
+}
+
 /** 422 with the reason — the admin needs to know whether to fix the URL or the allowlist */
 class TargetNotAllowed extends Error {}
 
 export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDeps): Route[] {
   const guarded = (handle: Route['handle']): Route['handle'] => async (ctx) => {
     requireAdmin(ctx.request);
+    // Important: create and rotate answers carry the signing secret, the others full target URLs — never cached
+    //    by a browser or a proxy
+    const noStore = (response: ApiResponse): ApiResponse => ({ ...response, headers: { ...response.headers, 'cache-control': 'no-store' } });
     try {
-      return await handle(ctx);
+      return noStore(await handle(ctx));
     } catch (error) {
       if (error instanceof TargetNotAllowed) {
-        return errorWith(422, 'TargetNotAllowed', fill(tr('연결할 수 없는 대상입니다: {0}'), { 0: error.message }), { reason: error.message });
+        return noStore(errorWith(422, 'TargetNotAllowed', fill(tr('연결할 수 없는 대상입니다: {0}'), { 0: error.message }), { reason: error.message }));
       }
       throw error;
     }
@@ -77,7 +95,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
             ...(credentials === undefined ? {} : { credentialsSealed: box.seal(credentials) }),
           },
         });
-        await audit(deps.auditStore ?? store, request, 'subscription.created', subscription.id, { name: subscription.name, kind, url, types: subscription.types, packageIds: subscription.packageIds }, services.now());
+        await audit(deps.auditStore ?? store, request, 'subscription.created', subscription.id, { name: subscription.name, kind, url: maskUrlQuery(url), types: subscription.types, packageIds: subscription.packageIds }, services.now());
         deps.runtime?.wakeDispatcher?.();
         return json(201, { subscription, secret });
       }),
@@ -120,12 +138,21 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         if (input.types !== undefined) patch.types = input.types;
         if (input.packageIds !== undefined) patch.packageIds = input.packageIds;
         if (input.options !== undefined) patch.options = input.options;
+        let credentialsDropped = false;
         if (input.url !== undefined) {
           const { url, credentials } = splitCredentials(input.url, current.kind);
           await egressOrThrow(url, current.kind, services);
           patch.url = url;
-          // New credentials in the URL replace the sealed ones; a URL without userinfo keeps them
-          if (credentials !== undefined) patch.secrets = { ...current.secrets, credentialsSealed: requireBox(services).seal(credentials) };
+          if (credentials !== undefined) {
+            // New credentials in the URL replace the sealed ones
+            patch.secrets = { ...current.secrets, credentialsSealed: requireBox(services).seal(credentials) };
+          } else if (current.secrets.credentialsSealed !== undefined && !sameTarget(current.url, url)) {
+            // Important: broker credentials belong to the broker they were given for. Moving the subscription to another
+            //    scheme, host or port without new credentials must not hand the old ones to the new target
+            const { credentialsSealed: _dropped, ...rest } = current.secrets;
+            patch.secrets = rest;
+            credentialsDropped = true;
+          }
         }
         if (input.enabled !== undefined) {
           patch.enabled = input.enabled;
@@ -133,7 +160,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         }
         const updated = await store.updateSubscription(id, patch);
         if (!updated) throw notFound(id);
-        await audit(deps.auditStore ?? store, request, 'subscription.updated', id, { changed: Object.keys(input).sort(), url: updated.url }, services.now());
+        await audit(deps.auditStore ?? store, request, 'subscription.updated', id, { changed: Object.keys(input).sort(), url: maskUrlQuery(updated.url), ...(credentialsDropped ? { credentialsCleared: true } : {}) }, services.now());
         deps.runtime?.subscriptionChanged?.(id);
         deps.runtime?.wakeDispatcher?.();
         return json(200, updated);
@@ -147,7 +174,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         const id = params['id']!;
         const current = await store.getSubscription(id);
         if (!current || !(await store.deleteSubscription(id))) throw notFound(id);
-        await audit(deps.auditStore ?? store, request, 'subscription.deleted', id, { name: current.name, url: current.url }, servicesOf(deps).now());
+        await audit(deps.auditStore ?? store, request, 'subscription.deleted', id, { name: current.name, url: maskUrlQuery(current.url) }, servicesOf(deps).now());
         deps.runtime?.subscriptionChanged?.(id);
         return noContent();
       }),
@@ -162,6 +189,14 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         const id = params['id']!;
         const current = await store.getSubscription(id);
         if (!current) throw notFound(id);
+        // Important: a second rotation inside the overlap would drop the secret the receiver may still verify with
+        if (current.secrets.previousUntil && Date.parse(current.secrets.previousUntil) > services.now()) {
+          throw new ApiError(
+            409,
+            'RotationInProgress',
+            fill(tr('이전 비밀값이 {0}까지 아직 유효합니다 — 수신 측이 새 비밀값으로 바꿀 시간을 주려고, 그때까지는 다시 바꿀 수 없습니다.'), { 0: current.secrets.previousUntil }),
+          );
+        }
         const secret = newSigningSecret();
         const previousValidUntil = new Date(services.now() + ROTATION_OVERLAP_MS).toISOString();
         await store.updateSubscription(id, {
@@ -232,8 +267,14 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
         const store = integrationStore(rawStore);
         const services = servicesOf(deps);
         const id = params['id']!;
+        const before = await store.getDelivery(id);
+        if (!before) throw new ApiError(404, 'NotFound', fill(tr('전송 기록을 찾을 수 없습니다: {0}'), { 0: id }));
+        // Important: a waiting or in-flight row is already going to be sent — resetting it would send it twice at once
+        if (before.status !== 'succeeded' && before.status !== 'dead') {
+          throw new ApiError(409, 'DeliveryBusy', fill(tr('전송이 끝난 기록(성공·실패)만 다시 보낼 수 있습니다. 지금 상태: {0}'), { 0: before.status }));
+        }
         if (!(await store.redeliver(id, new Date(services.now()).toISOString()))) {
-          throw new ApiError(404, 'NotFound', fill(tr('전송 기록을 찾을 수 없습니다: {0}'), { 0: id }));
+          throw new ApiError(409, 'DeliveryBusy', fill(tr('전송이 끝난 기록(성공·실패)만 다시 보낼 수 있습니다. 지금 상태: {0}'), { 0: 'in-flight' }));
         }
         const delivery = (await store.getDelivery(id))!;
         await audit(deps.auditStore ?? store, request, 'delivery.redelivered', id, { subscriptionId: delivery.subscriptionId, eventId: delivery.eventId }, services.now());

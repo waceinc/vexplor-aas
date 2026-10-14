@@ -12,7 +12,7 @@
  *    = 40 s stays inside the 60 s lease).
  */
 import type { CloudEvent } from '@aas/core';
-import type { DeliveryRecord, StoredEvent, SubscriptionRecord } from '@aas/store';
+import type { DeliveryRecord, DeliveryResult, StoredEvent, SubscriptionRecord } from '@aas/store';
 
 import { cloudEventBody, toCloudEvent } from './cloudevents.js';
 import { judgeAttempt, shouldAutoDisable, subscriptionMatches } from './delivery-policy.js';
@@ -21,7 +21,10 @@ import type { EgressPolicy } from './egress.js';
 import { settledPrefix } from './ids.js';
 import type { MqttSink } from './mqtt-sink.js';
 import type { SecretBox, StoreKind } from './secrets.js';
-import { Transport, type SendResult } from './transport.js';
+import { claimFor, completeGuarded } from './delivery-store.js';
+import { RESOLVE_TIMEOUT_MS } from './egress.js';
+import { MQTT_ATTEMPT_MS, Transport, type SendResult } from './transport.js';
+import { DEFAULT_TIMEOUT_MS } from './webhook.js';
 import type { WebhookAttempt, WebhookOutcome } from './webhook.js';
 
 export interface TimerHost {
@@ -47,11 +50,19 @@ export interface DispatcherOptions {
 }
 
 export const CURSOR_KEY = 'dispatcher:cursor';
+/** Lower bound of the claim lease; the real lease also covers the longest attempt twice (`leaseFor`) */
 export const LEASE_MS = 60_000;
 const FANOUT_BATCH = 500;
-const CLAIM_BATCH = 32;
 const GLOBAL_LANES = 16;
 const LANES_PER_SUBSCRIPTION = 4;
+
+/**
+ * The lease must outlive one attempt with margin — otherwise a row still being sent is claimed again and sent twice.
+ * One attempt = DNS (≤ 5 s) + the webhook deadline or the MQTT attempt cap, whichever is longer.
+ */
+export function leaseFor(timeoutMs: number): number {
+  return Math.max(LEASE_MS, 2 * (Math.max(timeoutMs, MQTT_ATTEMPT_MS) + RESOLVE_TIMEOUT_MS));
+}
 
 export class Dispatcher {
   private readonly now: () => number;
@@ -62,11 +73,15 @@ export class Dispatcher {
   private running = false;
   private stopped = true;
   private ticking = false;
-  /** Rows claimed and not yet completed — they hold global slots */
+  /** Rows being sent — they hold global slots */
   private claimed = 0;
   private readonly lanes = new Map<string, number>();
-  private readonly waiting = new Map<string, DeliveryRecord[]>();
+  /** Delivery id → the attempt number the completion must carry (a re-claim of a row still in progress bumps it) */
+  private readonly inProgress = new Map<string, number>();
   private readonly active = new Set<Promise<void>>();
+  /** Round-robin start, so the first subscription in the list is not always served first */
+  private turn = 0;
+  private readonly leaseMs: number;
   private lastFanoutAt: string | undefined;
   private cursor: number | undefined;
 
@@ -74,6 +89,7 @@ export class Dispatcher {
     this.now = options.now ?? Date.now;
     this.random = options.random ?? Math.random;
     this.timers = options.timers ?? (globalThis as unknown as TimerHost);
+    this.leaseMs = leaseFor(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     this.transport = new Transport({
       egress: options.egress,
       secrets: options.secrets,
@@ -141,7 +157,7 @@ export class Dispatcher {
     let full = false;
     try {
       await this.fanOut();
-      full = (await this.claimAndStart()) >= CLAIM_BATCH;
+      full = (await this.claimAndStart()) > 0 && this.claimed < GLOBAL_LANES;
     } catch {
       // A store hiccup must not kill the loop; the next tick tries again
     } finally {
@@ -189,19 +205,59 @@ export class Dispatcher {
     return inserted;
   }
 
-  /** Claims due rows into free slots and starts sending them. Returns how many were claimed */
+  /**
+   * Claims due rows **per subscription**, round-robin, never more than that subscription's free lanes — so one slow
+   * receiver with a backlog holds at most 4 of the 16 slots and the others keep flowing, and no claimed row waits in
+   * memory while its lease runs out. Returns how many rows were started.
+   */
   async claimAndStart(): Promise<number> {
-    const free = Math.min(CLAIM_BATCH, GLOBAL_LANES - this.claimed);
-    if (free <= 0) return 0;
-    const rows = await this.options.store.claimDeliveries(this.iso(), free, LEASE_MS);
-    this.claimed += rows.length;
-    for (const row of rows) {
-      const queue = this.waiting.get(row.subscriptionId) ?? [];
-      queue.push(row);
-      this.waiting.set(row.subscriptionId, queue);
+    const { store } = this.options;
+    const subscriptions = (await store.listSubscriptions()).filter((subscription) => subscription.enabled);
+    if (subscriptions.length === 0) return 0;
+    const offset = this.turn++ % subscriptions.length;
+    const order = [...subscriptions.slice(offset), ...subscriptions.slice(0, offset)];
+    let started = 0;
+    for (const subscription of order) {
+      const free = Math.min(LANES_PER_SUBSCRIPTION - (this.lanes.get(subscription.id) ?? 0), GLOBAL_LANES - this.claimed);
+      if (free <= 0) continue;
+      for (const row of await claimFor(store, this.iso(), free, this.leaseMs, subscription.id)) {
+        if (this.launch(row)) started++;
+      }
     }
-    for (const subscriptionId of new Set(rows.map((row) => row.subscriptionId))) this.pump(subscriptionId);
-    return rows.length;
+    return started;
+  }
+
+  /** Starts sending one claimed row when it has a lane; a row already in progress here is not sent a second time */
+  private launch(row: DeliveryRecord): boolean {
+    const id = row.id;
+    if (this.inProgress.has(id)) {
+      // The lease ran out while we were still sending and we claimed it again: keep the one send, complete it with the
+      // newer attempt number so the completion still applies
+      this.inProgress.set(id, row.attempts);
+      return false;
+    }
+    if ((this.lanes.get(row.subscriptionId) ?? 0) >= LANES_PER_SUBSCRIPTION || this.claimed >= GLOBAL_LANES) {
+      // Only with a store that ignores the subscription filter: leave it, the lease brings it back
+      return false;
+    }
+    this.inProgress.set(id, row.attempts);
+    this.claimed++;
+    this.lanes.set(row.subscriptionId, (this.lanes.get(row.subscriptionId) ?? 0) + 1);
+    const work = this.attempt(row)
+      .catch(() => undefined)
+      .finally(() => {
+        this.active.delete(work);
+        this.inProgress.delete(id);
+        this.claimed--;
+        this.lanes.set(row.subscriptionId, (this.lanes.get(row.subscriptionId) ?? 1) - 1);
+      });
+    this.active.add(work);
+    return true;
+  }
+
+  /** Completes a row with the attempt guard; true when the store applied it (a newer claim wins otherwise) */
+  private async complete(row: DeliveryRecord, result: DeliveryResult): Promise<boolean> {
+    return completeGuarded(this.options.store, row.id, result, this.inProgress.get(row.id) ?? row.attempts);
   }
 
   /** Delivers everything due now and waits for it — for tests and for draining */
@@ -214,24 +270,6 @@ export class Dispatcher {
   /** Resolves when no send is in flight */
   async idle(): Promise<void> {
     while (this.active.size > 0) await Promise.allSettled([...this.active]);
-  }
-
-  private pump(subscriptionId: string): void {
-    const queue = this.waiting.get(subscriptionId) ?? [];
-    while (queue.length > 0 && (this.lanes.get(subscriptionId) ?? 0) < LANES_PER_SUBSCRIPTION) {
-      const row = queue.shift()!;
-      this.lanes.set(subscriptionId, (this.lanes.get(subscriptionId) ?? 0) + 1);
-      const work = this.attempt(row)
-        .catch(() => undefined)
-        .finally(() => {
-          this.active.delete(work);
-          this.claimed--;
-          this.lanes.set(subscriptionId, (this.lanes.get(subscriptionId) ?? 1) - 1);
-          this.pump(subscriptionId);
-        });
-      this.active.add(work);
-    }
-    if (queue.length === 0) this.waiting.delete(subscriptionId);
   }
 
   private async eventAt(seq: number): Promise<StoredEvent | undefined> {
@@ -254,12 +292,12 @@ export class Dispatcher {
     const subscription = await store.getSubscription(row.subscriptionId);
     if (!subscription) return; // deleted meanwhile — completion would be a no-op anyway
     if (!subscription.enabled) {
-      await store.completeDelivery(row.id, { outcome: 'dead', at, error: 'subscription disabled' });
+      await this.complete(row, { outcome: 'dead', at, error: 'subscription disabled' });
       return;
     }
     const stored = await this.eventAt(row.eventSeq);
     if (!stored) {
-      await store.completeDelivery(row.id, { outcome: 'dead', at, error: 'event no longer retained' });
+      await this.complete(row, { outcome: 'dead', at, error: 'event no longer retained' });
       return;
     }
     const event = this.render(stored);
@@ -286,17 +324,21 @@ export class Dispatcher {
       ...(result.error === undefined ? {} : { error: result.error }),
       ...(result.address === undefined ? {} : { address: result.address }),
     };
+    // Important: the subscription counters change only when the store applied this completion — a late result of an
+    //    attempt that was overtaken by a newer claim must not reset or count anything
     if (verdict.outcome === 'succeeded') {
-      await store.completeDelivery(row.id, { outcome: 'succeeded', ...facts });
-      await store.updateSubscription(subscription.id, { consecutiveDead: 0, lastSuccessAt: at });
+      if (await this.complete(row, { outcome: 'succeeded', ...facts })) {
+        await store.updateSubscription(subscription.id, { consecutiveDead: 0, lastSuccessAt: at });
+      }
       return;
     }
     if (verdict.outcome === 'retry') {
-      await store.completeDelivery(row.id, { outcome: 'retry', ...facts, nextAttemptAt: new Date(this.now() + verdict.delayMs).toISOString() });
+      await this.complete(row, { outcome: 'retry', ...facts, nextAttemptAt: new Date(this.now() + verdict.delayMs).toISOString() });
       return;
     }
-    await store.completeDelivery(row.id, { outcome: 'dead', ...facts });
-    const counted = { ...subscription, consecutiveDead: subscription.consecutiveDead + 1 };
+    if (!(await this.complete(row, { outcome: 'dead', ...facts }))) return;
+    const fresh = (await store.getSubscription(subscription.id)) ?? subscription;
+    const counted = { ...fresh, consecutiveDead: fresh.consecutiveDead + 1 };
     const reason = verdict.disableReason ?? (shouldAutoDisable(counted, this.now()) ? `${counted.consecutiveDead} dead deliveries in a row, no success for 72 h` : undefined);
     await store.updateSubscription(subscription.id, {
       consecutiveDead: counted.consecutiveDead,

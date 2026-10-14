@@ -69,6 +69,11 @@ function positiveNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+/** `INTEGRATION_TIMEOUT_MS`, clamped to 1–60 s — the claim lease is derived from it (dispatcher `leaseFor`) */
+export function timeoutFromEnv(env: Record<string, string | undefined>): number {
+  return Math.min(60_000, Math.max(1_000, positiveNumber(env['INTEGRATION_TIMEOUT_MS'], DEFAULT_TIMEOUT_MS)));
+}
+
 function opcuaFromEnv(env: Record<string, string | undefined>, demo: boolean): ReturnType<IntegrationServices['opcua']> {
   if (env['OPCUA_SERVER'] !== 'on' || demo) return { security: 'off' };
   return { security: env['OPCUA_ALLOW_INSECURE'] === 'on' ? 'insecure' : 'secure' };
@@ -127,6 +132,7 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
     status,
     opcua: () => opcuaFromEnv(options.env, options.demo),
   };
+  if (masterKey.warning) log(masterKey.warning);
   if (masterKey.file) log(fill(tr('웹훅 비밀값을 잠그는 키: {0} — 데이터 폴더 백업에 이 키도 들어갑니다.'), { 0: masterKey.file }));
 
   if (supported) {
@@ -157,7 +163,7 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
       secrets: masterKey.box,
       storeKind: options.storeKind,
       ...(mqtt ? { mqtt } : {}),
-      timeoutMs: positiveNumber(options.env['INTEGRATION_TIMEOUT_MS'], DEFAULT_TIMEOUT_MS),
+      timeoutMs: timeoutFromEnv(options.env),
       now,
       ...(options.random ? { random: options.random } : {}),
       ...(options.timers ? { timers: options.timers } : {}),

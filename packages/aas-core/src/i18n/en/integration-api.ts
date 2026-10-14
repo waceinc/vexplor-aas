@@ -84,6 +84,15 @@ export const EN_INTEGRATION_API: Record<string, string> = {
   '이 포트에는 인증이 없습니다(OPCUA_ALLOW_INSECURE=on). 사내망 밖으로 열지 마십시오.':
     'This port has no authentication (OPCUA_ALLOW_INSECURE=on). Do not expose it outside the plant network.',
 
+  // Security review hardening
+  '이전 비밀값이 {0}까지 아직 유효합니다 — 수신 측이 새 비밀값으로 바꿀 시간을 주려고, 그때까지는 다시 바꿀 수 없습니다.':
+    'The previous secret stays valid until {0} so the receiver has time to switch — the secret cannot be rotated again before then.',
+  '전송이 끝난 기록(성공·실패)만 다시 보낼 수 있습니다. 지금 상태: {0}': 'Only finished deliveries (succeeded or dead) can be sent again. Current status: {0}',
+  '비밀 키 파일 {0}을(를) 다른 사용자도 읽을 수 있었습니다({1}) — 0600으로 바꿨습니다.':
+    'The secret key file {0} was readable by other users ({1}) — its mode was changed to 0600.',
+  '구독 종류(kind)는 바꿀 수 없습니다 — 다른 종류가 필요하면 새 구독을 만드십시오. 수정 요청에는 kind를 넣지 마십시오.':
+    'The subscription kind cannot be changed — create a new subscription for another kind. Leave kind out of edit requests.',
+
   // Discovery fix (routes/registry.ts)
   'SpecificAssetId.name이 필요합니다.': 'SpecificAssetId.name is required.',
 };

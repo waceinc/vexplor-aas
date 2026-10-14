@@ -36,6 +36,11 @@ export interface MqttPublisherOptions {
   lookup?: LookupFunction;
   /** TLS server name (SNI and certificate check) when connecting to a pinned address */
   servername?: string;
+  /**
+   * Host, port and TLS exactly as the caller's egress check judged them — used instead of re-parsing `url`, so the
+   * connection goes to the port that was checked (integration delivery).
+   */
+  target?: BrokerAddress;
 }
 
 interface Pending {
@@ -66,7 +71,7 @@ export class MqttPublisher {
   }
 
   static async connect(options: MqttPublisherOptions): Promise<MqttPublisher> {
-    const parsed = parseBrokerUrl(options.url);
+    const parsed = options.target ?? parseBrokerUrl(options.url);
     const timeoutMs = options.connectTimeoutMs ?? 5000;
     const keepAlive = options.keepAliveSec ?? 30;
     const socket = await openSocket(parsed, options, timeoutMs);
@@ -203,7 +208,7 @@ export class MqttPublisher {
   }
 }
 
-interface BrokerAddress {
+export interface BrokerAddress {
   host: string;
   port: number;
   tls: boolean;
@@ -214,7 +219,9 @@ export function parseBrokerUrl(url: string): BrokerAddress {
   const match = /^(mqtts?):\/\//i.exec(url);
   if (!match) throw new Error(fill(tr('MQTT 주소는 mqtt:// 또는 mqtts:// 로 시작해야 합니다: {0}'), { 0: url }));
   const tls = match[1]!.toLowerCase() === 'mqtts';
-  const parsed = new URL(url.replace(/^mqtt(s?):/i, 'http$1:'));
+  // Important: parsed under a scheme without a default port. As http(s) the URL parser drops :80 / :443 as defaults, and
+  //    mqtts://host:443 then connected to 8883 — a different port than the one written (and checked)
+  const parsed = new URL(url.replace(/^mqtts?:/i, 'mqtt-address:'));
   if (parsed.username || parsed.password) throw new Error(tr('MQTT 주소에 사용자 정보를 넣지 마십시오. 사용자 이름과 비밀번호는 따로 줍니다.'));
   const host = parsed.hostname.replace(/^\[(.*)\]$/, '$1');
   return { host, port: parsed.port ? Number(parsed.port) : tls ? 8883 : 1883, tls };
