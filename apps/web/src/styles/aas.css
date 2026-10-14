@@ -1812,3 +1812,55 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 /* One step between description paragraphs in a bundle section — mixing with the default paragraph margin (12px) opened 26px */
 .bundle-body h3 ~ p.small { margin-block: 0 calc(var(--spacing) * 2); }
 
+
+/* ── Integrations window (components/integrations, design §9) ──────────────────────────────
+   Colours only from theme tokens, so light and dark both follow drive.css. Spacing only from tokens and the scale */
+.modal.integrations-modal { width: min(1180px, 100%); max-height: 88vh; }
+.integrations .integration-tabs { display: flex; flex-wrap: wrap; gap: var(--space-gap); padding-bottom: var(--space-gap); border-bottom: 1px solid var(--border); margin-bottom: var(--space-stack); }
+.integrations .integration-tabs button.active { border-color: var(--cb); color: var(--cb); background: var(--aas-accent-soft); }
+.integrations .integration-tab { display: flex; flex-direction: column; gap: var(--space-stack); }
+.integrations .integration-tab > section > h3:first-child { margin-top: 0; }
+.integrations .integration-picker { display: inline-flex; align-items: center; gap: var(--space-gap); font-size: var(--text-sm); }
+.integrations .copy-box { display: flex; gap: var(--space-gap); }
+.integrations .copy-box input { flex: 1; min-width: 0; font-family: var(--aas-mono); font-size: var(--text-xs); }
+.integrations .integration-facts { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); font-size: var(--text-sm); }
+.integrations .integration-facts dt { color: var(--muted-foreground); }
+.integrations .integration-facts dd { margin: 0; word-break: break-word; }
+.integrations .integration-facts dd.warn { color: var(--warn); }
+.integrations .table-scroll { overflow-x: auto; }
+.integrations .integration-table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+.integrations .integration-table th, .integrations .integration-table td { text-align: left; vertical-align: top; padding: var(--pad-cell); border-bottom: 1px solid var(--border); }
+.integrations .integration-table th { color: var(--muted-foreground); font-weight: 500; }
+.integrations .integration-table td.wrap { word-break: break-all; max-width: 280px; }
+.integrations .integration-table tr.dead td { background: var(--failbg); }
+.integrations .integration-table input:not([type='checkbox']), .integrations .integration-table select { min-width: 96px; width: 100%; }
+.integrations .row-buttons.wrap { flex-wrap: wrap; align-items: center; }
+.integrations .integration-form { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.integrations .integration-form h3 { margin: 0; }
+.integrations .integration-form > label, .integrations .integration-form .row-buttons > label, .integrations fieldset > label:not(.check) { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); font-size: var(--text-sm); }
+.integrations label.check { display: flex; flex-direction: row; align-items: center; gap: var(--space-gap); font-size: var(--text-sm); }
+.integrations fieldset { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); border-radius: var(--radius); }
+.integrations legend { padding: 0 calc(var(--spacing) * 1); font-weight: 600; font-size: var(--text-sm); }
+.integrations .type-group { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); }
+.integrations .type-group > b { flex-basis: 100%; font-size: var(--text-xs); color: var(--muted-foreground); }
+.integrations .secret-once { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); padding: var(--pad-card); border: 1px solid var(--warn); border-radius: var(--radius); background: var(--warnbg); }
+.integrations .secret-once h3 { margin: 0; }
+.integrations .secret-once > button { align-self: flex-start; }
+.integrations pre.snippet { margin: calc(var(--spacing) * 1) 0 0; padding: var(--pad-compact); max-height: 120px; overflow: auto; font-family: var(--aas-mono); font-size: var(--text-xs); background: var(--muted); border-radius: var(--radius); white-space: pre-wrap; }
+.integrations .export-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
+.integrations .export-list li { display: flex; align-items: center; gap: calc(var(--spacing) * 3); flex-wrap: wrap; }
+.integrations .export-list .hint { font-size: var(--text-xs); }
+.integrations .readiness-list { margin: 0; padding-inline-start: 0; list-style: none; display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); font-size: var(--text-sm); }
+.integrations .state-chip { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); padding: var(--pad-chip); border-radius: var(--radius); font-size: var(--text-xs); border: 1px solid var(--border); }
+.integrations .state-chip.severity-error { color: var(--fail); border-color: var(--fail); background: var(--failbg); }
+.integrations .state-chip.severity-warning { color: var(--warn); border-color: var(--warn); background: var(--warnbg); }
+.integrations .state-chip.state-run { color: var(--teal); }
+.integrations .state-chip.state-stop { color: var(--warn); }
+.integrations .state-chip.state-alarm { color: var(--fail); }
+.integrations .state-chip.state-off { color: var(--muted-foreground); }
+.integrations .state-rules { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); font-size: var(--text-xs); }
+.integrations .state-rules label { display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: calc(var(--spacing) * 2); }
+.integrations ul.note { margin: 0; padding-inline-start: calc(var(--spacing) * 4); }
+.integrations .import-result ul { margin: calc(var(--spacing) * 2) 0 0; font-size: var(--text-xs); }
+.integrations textarea { width: 100%; font-family: var(--aas-mono); font-size: var(--text-xs); margin-top: calc(var(--spacing) * 2); }
+.daily-states .state-move { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-gap); margin: calc(var(--spacing) * 2) 0; padding: var(--pad-compact); background: var(--warnbg); border-radius: var(--radius); }

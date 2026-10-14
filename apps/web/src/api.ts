@@ -14,9 +14,11 @@ import { collectionApi } from './api/collection.js';
 import { derivationApi } from './api/derivation.js';
 import { docsApi } from './api/docs.js';
 import { documentApi } from './api/document.js';
+import { integrationApi } from './api/integration.js';
 import { modelApi } from './api/model.js';
 
 export * from './api/types.js';
+export { IntegrationError, isMissingRoute, isStale } from './api/integration.js';
 export { ApiError, ConflictError, ForbiddenError, UnauthorizedError, currentToken, encodeIdentifier, setToken } from './api/http.js';
 
 export const api = {
@@ -28,4 +30,6 @@ export const api = {
   ...collectionApi,
   ...bundleApi,
   ...derivationApi,
+  /** MES / ERP / CMMS integration — kept in its own namespace: its names (status, events, …) are too generic to spread */
+  integration: integrationApi,
 };
