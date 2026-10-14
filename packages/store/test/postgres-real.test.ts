@@ -11,7 +11,7 @@
  *     -p 55432:5432 timescale/timescaledb:latest-pg17
  *   DATABASE_URL=postgres://postgres:aas@localhost:55432/aas npx vitest run packages/store
  */
-import { PostgresStore, type SqlClient } from '@aas/store';
+import { ConflictError, PostgresStore, type SqlClient } from '@aas/store';
 import pg from 'pg';
 import { settledPrefix } from '../../../apps/api/src/integration/ids.js';
 import { describe, expect, it } from 'vitest';
@@ -124,6 +124,38 @@ if (!url) {
       expect(new Set(ids).size).toBe(ids.length);
       expect(ids.length).toBe(50);
       await pool.end();
+    });
+  });
+
+  describe('integration — review fixes that need concurrent connections', () => {
+    it('two first writes of one package\'s refs race: with revision 0 one wins and the other gets ConflictError, never a raw 23505', async () => {
+      const pool = await freshPool();
+      const store = new PostgresStore(poolClient(pool));
+      await store.init();
+      const doc = (id: string) => ({ schema: 'vexplor.externalRefs/1' as const, subjects: [{ subject: { kind: 'asset' as const, globalAssetId: 'urn:g' }, refs: [{ system: 's', type: 't', id }] }] });
+      for (let round = 0; round < 5; round++) {
+        const target = (await store.importPackage({ name: `r${round}.aasx`, package: { environment: {}, specPart: '/aasx/data.json', supplementaryFiles: [], extraParts: new Map() } })).id;
+        const results = await Promise.allSettled([store.putExternalRefs(target, doc(`a${round}`), 0), store.putExternalRefs(target, doc(`b${round}`), 0)]);
+        const ok = results.filter((result) => result.status === 'fulfilled');
+        const failed = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+        expect(ok).toHaveLength(1);
+        expect(failed).toHaveLength(1);
+        expect(failed[0]!.reason).toBeInstanceOf(ConflictError);
+        // Without an expected revision both succeed, one after the other
+        const both = await Promise.all([store.putExternalRefs(target, doc(`c${round}`)), store.putExternalRefs(target, doc(`d${round}`))]);
+        expect(both.map((item) => item.revision).sort()).toEqual([2, 3]);
+      }
+      await pool.end();
+    });
+
+    it('a duplicate append leaves no gap in seq on real PostgreSQL either', async () => {
+      const store = await freshStore();
+      const event = (id: string) => ({ id, type: 'kr.vexplor.aas.equipment.state.changed.v1', time: '2026-10-14T00:00:00.000Z', data: {} });
+      const [a] = await store.appendEvents([event('a')]);
+      await store.appendEvents([event('a')]);
+      await Promise.all([store.appendEvents([event('a')]), store.appendEvents([event('a')])]);
+      const [b] = await store.appendEvents([event('b')]);
+      expect(b!.seq).toBe(a!.seq + 1);
     });
   });
 

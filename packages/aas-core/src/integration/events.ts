@@ -26,6 +26,7 @@ export const EVENT_TYPES = {
   modelConceptDescriptionCreated: 'kr.vexplor.aas.model.conceptdescription.created.v1',
   modelConceptDescriptionUpdated: 'kr.vexplor.aas.model.conceptdescription.updated.v1',
   modelConceptDescriptionDeleted: 'kr.vexplor.aas.model.conceptdescription.deleted.v1',
+  modelExternalRefsUpdated: 'kr.vexplor.aas.model.externalrefs.updated.v1',
   equipmentMasterChanged: 'kr.vexplor.aas.equipment.master.changed.v1',
   equipmentBomChanged: 'kr.vexplor.aas.equipment.bom.changed.v1',
   equipmentMaintenanceChanged: 'kr.vexplor.aas.equipment.maintenance.changed.v1',
@@ -189,6 +190,16 @@ export type ModelIdentifiableData = {
   links?: { self: string };
 };
 
+/**
+ * The package's external-references sidecar was saved (revision = the sidecar's revision, not the package's).
+ * Thin on purpose: refs can be sensitive or cost centres, so the event only says "re-read" — the projector picks the
+ * change up from the log after a crash, consumers re-read the refs or the exports.
+ */
+export type ModelExternalRefsUpdatedData = {
+  packageId: string;
+  revision: number;
+};
+
 // ── Projection payloads ───────────────────────────────────────────────────────
 
 export type ProjectionOperation = 'created' | 'updated' | 'removed';
@@ -341,6 +352,7 @@ export type EventDataMap = {
   [EVENT_TYPES.modelConceptDescriptionCreated]: ModelIdentifiableData;
   [EVENT_TYPES.modelConceptDescriptionUpdated]: ModelIdentifiableData;
   [EVENT_TYPES.modelConceptDescriptionDeleted]: ModelIdentifiableData;
+  [EVENT_TYPES.modelExternalRefsUpdated]: ModelExternalRefsUpdatedData;
   [EVENT_TYPES.equipmentMasterChanged]: EquipmentMasterChangedData;
   [EVENT_TYPES.equipmentBomChanged]: EquipmentProjectionChangedData;
   [EVENT_TYPES.equipmentMaintenanceChanged]: EquipmentProjectionChangedData;

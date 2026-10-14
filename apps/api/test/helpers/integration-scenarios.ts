@@ -197,6 +197,7 @@ export const SAMPLE_DATA: Record<EventType, Record<string, unknown>> = {
   [EVENT_TYPES.modelConceptDescriptionCreated]: modelData('ConceptDescription', 'create'),
   [EVENT_TYPES.modelConceptDescriptionUpdated]: modelData('ConceptDescription', 'update'),
   [EVENT_TYPES.modelConceptDescriptionDeleted]: modelData('ConceptDescription', 'delete'),
+  [EVENT_TYPES.modelExternalRefsUpdated]: { packageId: 'pkg_12', revision: 3 },
   [EVENT_TYPES.equipmentMasterChanged]: { asset: ASSET, operation: 'updated', changedKeys: ['nameplate.serialNumber'], revision: 37, projectionHash: 'sha256:00', href: '/integrations/exports/equipment?format=json&packageId=pkg_12' },
   [EVENT_TYPES.equipmentBomChanged]: { asset: ASSET, operation: 'created', revision: 37, projectionHash: 'sha256:00', href: '/integrations/exports/bom?format=json&packageId=pkg_12' },
   [EVENT_TYPES.equipmentMaintenanceChanged]: { asset: ASSET, operation: 'updated', revision: 37, projectionHash: 'sha256:00', href: '/integrations/exports/maintenance?packageId=pkg_12' },

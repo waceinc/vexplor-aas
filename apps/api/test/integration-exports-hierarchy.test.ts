@@ -86,6 +86,16 @@ describe('hierarchy export', () => {
     expect((placed[0]!['location'] as Json)['isa95']).toEqual({ site: 'Changwon', area: 'PressLine', workCenter: 'Forming' });
   });
 
+  it('exports an equipment file\'s BOM tree too, without INT-4 on its part quantities (D2)', async () => {
+    const store = createIntegrationStore();
+    const pkg = await store.importPackage({ name: 'unit.aasx', package: unitCopy(1) });
+    const response = await harness(store).call('GET', '/integrations/exports/hierarchy', { query: { packageId: pkg.id } });
+    expect(response.status).toBe(200);
+    const stand = items(response.body).find((item) => item.name === 'RollStandUnit')!;
+    expect(stand.quantity).toBe(12);
+    expect(stand.warnings.filter((warning) => warning.startsWith('INT-4'))).toEqual([]);
+  });
+
   it('answers 422 for a package without a hierarchy', async () => {
     const store = createIntegrationStore();
     const { environment } = unitCopy(1);

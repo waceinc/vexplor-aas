@@ -35,6 +35,7 @@ import { FolderIntegrationFiles, type RenameFn } from './folder-integration.js';
 import type {
   DeliveryRecord,
   DeliveryResult,
+  ExternalRefsBatchItem,
   ExternalRefsDoc,
   NewEvent,
   NewSubscription,
@@ -43,7 +44,6 @@ import type {
   SubscriptionRecord,
   Versioned,
 } from './integration-types.js';
-import type { ModelEvent } from './model-events.js';
 import type {
   CollectedValue,
   IdentifiableModelType,
@@ -223,11 +223,9 @@ export class FolderStore extends InMemoryStore {
     await this.rename(temp, target);
   }
 
-  /** Queues the event line; `persistChange` appends it before writing the model (crash protocol, folder-integration.ts) */
-  protected override recordModelEvent(event: ModelEvent): StoredEvent | undefined {
-    const row = super.recordModelEvent(event);
-    if (row) this.files.queueEvent(row);
-    return row;
+  /** Queues the event line of every recorded row; `persistChange` appends it before the model (crash protocol) */
+  protected override eventRecorded(row: StoredEvent): void {
+    this.files.queueEvent(row);
   }
 
   /** Event line first, then the model — never the other way round, or a crash could leave a change without its event */
@@ -328,7 +326,6 @@ export class FolderStore extends InMemoryStore {
 
   override async appendEvents(events: readonly NewEvent[]): Promise<StoredEvent[]> {
     const rows = await super.appendEvents(events);
-    for (const row of rows) this.files.queueEvent(row);
     await this.files.flushEvents();
     return rows;
   }
@@ -366,16 +363,24 @@ export class FolderStore extends InMemoryStore {
     return inserted;
   }
 
-  override async claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> {
-    const claimed = await super.claimDeliveries(now, limit, leaseMs);
+  override async claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
+    const claimed = await super.claimDeliveries(now, limit, leaseMs, subscriptionId);
     await this.files.appendDeliveries(claimed);
     return claimed;
   }
 
-  override async completeDelivery(id: string, result: DeliveryResult): Promise<void> {
-    await super.completeDelivery(id, result);
-    const row = await super.getDelivery(id);
+  override async completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
+    const applied = await super.completeDelivery(id, result);
+    const row = applied ? await super.getDelivery(id) : undefined;
     if (row) await this.files.appendDeliveries([row]);
+    return applied;
+  }
+
+  override async extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    const extended = await super.extendLease(id, attempt, leaseUntil);
+    const row = extended ? await super.getDelivery(id) : undefined;
+    if (row) await this.files.appendDeliveries([row]);
+    return extended;
   }
 
   override async redeliver(id: string, now: string): Promise<boolean> {
@@ -403,8 +408,17 @@ export class FolderStore extends InMemoryStore {
     return saved;
   }
 
+  /** Event line first, then integration.json: a crash in between leaves a harmless "re-read" event, never a silent change */
   override async putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> {
     const saved = await super.putExternalRefs(packageId, doc, expectedRevision);
+    await this.files.flushEvents();
+    await this.files.writeConfig();
+    return saved;
+  }
+
+  override async putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> {
+    const saved = await super.putExternalRefsBatch(items);
+    await this.files.flushEvents();
     await this.files.writeConfig();
     return saved;
   }

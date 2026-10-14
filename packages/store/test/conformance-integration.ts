@@ -11,6 +11,7 @@ import {
   ConflictError,
   ExternalRefConflictError,
   NotFoundError,
+  ORPHAN_OWNER,
   runAsActor,
   runWithChange,
   type AasStore,
@@ -414,28 +415,36 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       await store.enqueueDeliveries([1, 2, 3, 4].map((n) => ({ subscriptionId: sub.id, eventSeq: n, eventId: `e${n}` })), T0);
       const [a, b, c] = await store.claimDeliveries(T0, 3, 60_000);
 
-      await store.completeDelivery(a!.id, { outcome: 'retry', at: at(1), nextAttemptAt: at(10), statusCode: 500, error: 'boom', durationMs: 40, address: '10.0.0.5' });
+      expect(await store.completeDelivery(a!.id, { outcome: 'retry', at: at(1), nextAttemptAt: at(10), statusCode: 500, error: 'boom', durationMs: 40, address: '10.0.0.5', attempt: 1 })).toBe(true);
       expect(await store.getDelivery(a!.id)).toMatchObject({ status: 'pending', nextAttemptAt: at(10), lastStatusCode: 500, lastError: 'boom', lastDurationMs: 40, lastAddress: '10.0.0.5', updatedAt: at(1) });
       expect(await store.getDelivery(a!.id)).not.toHaveProperty('leaseUntil');
-      await store.completeDelivery(a!.id, { outcome: 'succeeded', at: at(2), statusCode: 204 });
+      // The row is no longer in flight — a second result for that claim is refused
+      expect(await store.completeDelivery(a!.id, { outcome: 'succeeded', at: at(2), attempt: 1 })).toBe(false);
+
+      // a (attempt 2) and the never-claimed d (attempt 1) are due at 10 s
+      const [d, a2] = await store.claimDeliveries(at(10), 2, 60_000);
+      expect([d!.eventSeq, a2!.eventSeq, a2!.attempts]).toEqual([4, 1, 2]);
+      expect(await store.completeDelivery(a!.id, { outcome: 'succeeded', at: at(2), statusCode: 204, attempt: 2 })).toBe(true);
       const ok = await store.getDelivery(a!.id);
       expect(ok).toMatchObject({ status: 'succeeded', lastStatusCode: 204, updatedAt: at(2) });
       // "last" describes the last attempt only — fields it did not produce are cleared
       for (const key of ['lastError', 'lastDurationMs', 'lastAddress']) expect(ok).not.toHaveProperty(key);
-      await store.completeDelivery(b!.id, { outcome: 'dead', at: at(3), error: 'gone' });
-      await store.completeDelivery(c!.id, { outcome: 'retry', at: at(4) });
+      expect(await store.completeDelivery(d!.id, { outcome: 'dead', at: at(7), error: 'gone again', attempt: 1 })).toBe(true);
+      expect(await store.completeDelivery(b!.id, { outcome: 'dead', at: at(3), error: 'gone', attempt: 1 })).toBe(true);
+      expect(await store.completeDelivery(c!.id, { outcome: 'retry', at: at(4), attempt: 1 })).toBe(true);
       expect((await store.getDelivery(c!.id))?.nextAttemptAt).toBe(at(4));
 
       // Unknown ids are no-ops
-      await store.completeDelivery('999999', { outcome: 'succeeded', at: at(5) });
-      await store.completeDelivery('not-a-number', { outcome: 'succeeded', at: at(5) });
+      expect(await store.completeDelivery('999999', { outcome: 'succeeded', at: at(5) })).toBe(false);
+      expect(await store.completeDelivery('not-a-number', { outcome: 'succeeded', at: at(5) })).toBe(false);
       expect(await store.getDelivery('999999')).toBeUndefined();
       expect(await store.getDelivery('not-a-number')).toBeUndefined();
       expect(await store.redeliver('999999', at(5))).toBe(false);
 
+      // Redelivery only re-queues finished rows — c is pending already
+      expect(await store.redeliver(c!.id, at(6))).toBe(false);
       expect(await store.redeliver(b!.id, at(6))).toBe(true);
       expect(await store.getDelivery(b!.id)).toMatchObject({ status: 'pending', nextAttemptAt: at(6), attempts: 1, lastError: 'gone' });
-      await store.completeDelivery(b!.id, { outcome: 'dead', at: at(7), error: 'gone again' });
 
       const stats = await store.deliveryStats();
       expect(stats.find((s) => s.subscriptionId === sub.id)).toEqual({ subscriptionId: sub.id, pending: 2, inFlight: 0, dead: 1, succeeded: 1, oldestPendingAt: T0 });
@@ -447,18 +456,59 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       const page2 = await store.listDeliveries(sub.id, { limit: 3, cursor: page1.cursor! });
       expect(page2.items.map((row) => row.eventSeq)).toEqual([1]);
       expect(page2.cursor).toBeUndefined();
-      expect((await store.listDeliveries(sub.id, { status: 'dead' })).items.map((row) => row.eventSeq)).toEqual([2]);
+      expect((await store.listDeliveries(sub.id, { status: 'dead' })).items.map((row) => row.eventSeq)).toEqual([4]);
 
       // Succeeded rows before at(5) and dead rows before at(7) — the dead row was updated at at(7), so it stays
       expect(await store.pruneDeliveries(at(5), at(7))).toBe(1);
       expect(await store.getDelivery(a!.id)).toBeUndefined();
-      expect(await store.getDelivery(b!.id)).toBeDefined();
+      expect(await store.getDelivery(d!.id)).toBeDefined();
       expect(await store.pruneDeliveries(at(5), at(8))).toBe(1);
 
       expect(await store.deleteSubscription(sub.id)).toBe(true);
       expect(await store.getDelivery(c!.id)).toBeUndefined();
       expect((await store.listDeliveries(sub.id)).items).toEqual([]);
       expect((await store.deliveryStats()).map((s) => s.subscriptionId)).toEqual([idle.id]);
+    });
+
+    it('delivery guards — a stale claim cannot finish a reclaimed row, redeliver never touches queued rows, leases extend', async () => {
+      const store = await fresh();
+      const sub = await store.createSubscription(subscription());
+      const other = await store.createSubscription(subscription({ name: 'other' }));
+      await store.enqueueDeliveries([{ subscriptionId: sub.id, eventSeq: 1, eventId: 'e1' }, { subscriptionId: other.id, eventSeq: 1, eventId: 'e1' }], T0);
+
+      // Per-subscription claim leaves the other subscription's row alone
+      const [first] = await store.claimDeliveries(T0, 10, 60_000, sub.id);
+      expect(first).toMatchObject({ subscriptionId: sub.id, attempts: 1 });
+      expect((await store.getDelivery((await store.listDeliveries(other.id)).items[0]!.id))?.status).toBe('pending');
+
+      // Worker A holds attempt 1 and stalls; its lease expires and worker B reclaims (attempt 2)
+      const [second] = await store.claimDeliveries(at(61), 10, 60_000, sub.id);
+      expect(second).toMatchObject({ id: first!.id, attempts: 2 });
+      expect(await store.extendLease(first!.id, 1, at(500))).toBe(false);
+      expect(await store.extendLease(first!.id, 2, at(500))).toBe(true);
+      expect((await store.getDelivery(first!.id))?.leaseUntil).toBe(at(500));
+      // The extended lease holds: nobody reclaims at 200 s
+      expect(await store.claimDeliveries(at(200), 10, 60_000, sub.id)).toEqual([]);
+      // A's late result arrives while B still holds the row — refused, B's claim stays intact
+      expect(await store.completeDelivery(first!.id, { outcome: 'dead', at: at(62), error: 'late', attempt: 1 })).toBe(false);
+      expect(await store.getDelivery(first!.id)).toMatchObject({ status: 'in-flight', attempts: 2, leaseUntil: at(500) });
+      expect(await store.getDelivery(first!.id)).not.toHaveProperty('lastError');
+      // Redeliver must not double-send a row in flight
+      expect(await store.redeliver(first!.id, at(62))).toBe(false);
+      expect((await store.getDelivery(first!.id))?.status).toBe('in-flight');
+
+      // B succeeds; A's late failure for attempt 1 must not flip it back to pending
+      expect(await store.completeDelivery(first!.id, { outcome: 'succeeded', at: at(63), statusCode: 200, attempt: 2 })).toBe(true);
+      expect(await store.completeDelivery(first!.id, { outcome: 'retry', at: at(64), nextAttemptAt: at(65), error: 'late', attempt: 1 })).toBe(false);
+      // Even without an attempt a finished row is never overwritten
+      expect(await store.completeDelivery(first!.id, { outcome: 'dead', at: at(64) })).toBe(false);
+      expect(await store.getDelivery(first!.id)).toMatchObject({ status: 'succeeded', lastStatusCode: 200, updatedAt: at(63) });
+      expect(await store.extendLease(first!.id, 2, at(900))).toBe(false);
+      expect(await store.extendLease('999999', 1, at(900))).toBe(false);
+
+      // Finished rows may be redelivered
+      expect(await store.redeliver(first!.id, at(70))).toBe(true);
+      expect(await store.getDelivery(first!.id)).toMatchObject({ status: 'pending', attempts: 2, nextAttemptAt: at(70) });
     });
 
     // ── 9 · configuration and external references ──
@@ -533,6 +583,119 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       expect(await store.findExternalRef('sap-s4:PRD:100', 'equipment', '10001')).toEqual([{ packageId: p2, subject: 'asset|urn:example:asset:b' }]);
       expect((await store.listExternalRefs()).map((entry) => [entry.packageId, entry.refs.revision])).toEqual([[p1, 3], [p2, 1]].sort((x, y) => String(x[0]).localeCompare(String(y[0]))));
       await expect(store.putExternalRefs('pkg_missing', doc1)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    // ── review fixes: orphan owner (H1), gap-free dedupe (L2), refs events (M3), refs batch (M4) ──
+
+    it('appendEvents owner — package owner, explicit owner, explicit null, and ORPHAN_OWNER for a package that is gone', async () => {
+      const store = await fresh();
+      const kept = (await store.importPackage({ name: 'a', package: tinyPackage('a'), owner: 'ws1' })).id;
+      const gone = (await store.importPackage({ name: 'b', package: tinyPackage('b'), owner: 'ws2' })).id;
+      await store.deletePackage(gone);
+      const rows = await store.appendEvents([
+        ev('o1', { packageId: kept }),
+        ev('o2', { packageId: gone }),
+        ev('o3', { packageId: gone, owner: 'ws2' }),
+        ev('o4', { packageId: gone, owner: null }),
+        ev('o5', { packageId: kept, owner: 'ws9' }),
+        ev('o6'),
+      ]);
+      expect(rows.map((row) => [row.id, row.owner ?? 'shared'])).toEqual([
+        ['o1', 'ws1'],
+        ['o2', ORPHAN_OWNER],
+        ['o3', 'ws2'],
+        ['o4', 'shared'],
+        ['o5', 'ws9'],
+        ['o6', 'shared'],
+      ]);
+      // The input's owner is an instruction, never a stored null
+      for (const row of rows) expect(row.owner).not.toBeNull();
+      // A workspace reader never gets the orphan row
+      const ws1 = (await store.readEvents({ after: 0, limit: 100 }, { owner: 'ws1' })).items.map((row) => row.id);
+      expect(ws1).toEqual(expect.arrayContaining(['o1', 'o4', 'o6']));
+      expect(ws1).not.toContain('o2');
+      expect(ws1).not.toContain('o3');
+    });
+
+    it('a deduplicated append takes no seq — the next row follows without a gap', async () => {
+      const store = await fresh();
+      const [a] = await store.appendEvents([ev('g1')]);
+      expect(await store.appendEvents([ev('g1')])).toEqual([]);
+      expect(await store.appendEvents([ev('g1'), ev('g1')])).toEqual([]);
+      const [b] = await store.appendEvents([ev('g1'), ev('g2')]);
+      expect(b!.seq).toBe(a!.seq + 1);
+    });
+
+    it('putExternalRefs records model.externalrefs.updated in the same write; failed writes record nothing', async () => {
+      const { store, packageId } = await withPackage('ws1');
+      const event = await onlyEvent(store, () =>
+        runAsActor({ id: 'user_1', name: 'Kim' }, () =>
+          runWithChange({ cause: 'external-refs', changeSetId: 'chg_r' }, () =>
+            store.putExternalRefs(packageId, refsDoc('urn:example:asset:1', [{ system: 's', type: 't', id: '1' }]), 0),
+          ),
+        ),
+      );
+      expect(event).toMatchObject({
+        type: EVENT_TYPES.modelExternalRefsUpdated,
+        packageId,
+        subject: `packages/${packageId}`,
+        owner: 'ws1',
+        actorId: 'user_1',
+        cause: 'external-refs',
+        changeSetId: 'chg_r',
+      });
+      // No packageRevision: the package did not change, and receivers skip revisions they already applied
+      expect(event).not.toHaveProperty('packageRevision');
+      expect(event.data).toEqual({ packageId, revision: 1 });
+
+      const other = (await store.importPackage({ name: 'o', package: tinyPackage('o') })).id;
+      const before = await lastSeq(store);
+      await expect(store.putExternalRefs(packageId, refsDoc('urn:x', []), 0)).rejects.toBeInstanceOf(ConflictError);
+      await expect(store.putExternalRefs(other, refsDoc('urn:o', [{ system: 's', type: 't', id: '1' }]))).rejects.toBeInstanceOf(ExternalRefConflictError);
+      await expect(store.putExternalRefs('pkg_missing', refsDoc('urn:x', []))).rejects.toBeInstanceOf(NotFoundError);
+      expect(await eventsAfter(store, before)).toEqual([]);
+    });
+
+    it('putExternalRefsBatch — applied in order (a key may move), all or nothing, one event per item', async () => {
+      const store = await fresh();
+      const p1 = (await store.importPackage({ name: 'a', package: tinyPackage('a') })).id;
+      const p2 = (await store.importPackage({ name: 'b', package: tinyPackage('b') })).id;
+      await store.putExternalRefs(p1, refsDoc('urn:a', [{ system: 's', type: 't', id: 'K' }]));
+
+      // Failure on the second item: neither item is written, no event is recorded
+      const before = await lastSeq(store);
+      await expect(
+        store.putExternalRefsBatch([
+          { packageId: p1, doc: refsDoc('urn:a', [{ system: 's', type: 't', id: 'K2' }]), expectedRevision: 1 },
+          { packageId: p2, doc: refsDoc('urn:b', []), expectedRevision: 5 },
+        ]),
+      ).rejects.toBeInstanceOf(ConflictError);
+      await expect(
+        store.putExternalRefsBatch([
+          { packageId: p2, doc: refsDoc('urn:b', [{ system: 's', type: 't', id: 'NEW' }]) },
+          { packageId: p2, doc: refsDoc('urn:b', [{ system: 's', type: 't', id: 'K' }]) },
+        ]),
+      ).rejects.toBeInstanceOf(ExternalRefConflictError);
+      await expect(store.putExternalRefsBatch([{ packageId: p2, doc: refsDoc('urn:b', []) }, { packageId: 'pkg_missing', doc: refsDoc('urn:x', []) }])).rejects.toBeInstanceOf(NotFoundError);
+      expect((await store.getExternalRefs(p1))?.revision).toBe(1);
+      expect(await store.getExternalRefs(p2)).toBeUndefined();
+      expect(await store.findExternalRef('s', 't', 'K')).toEqual([{ packageId: p1, subject: 'asset|urn:a' }]);
+      expect(await store.findExternalRef('s', 't', 'NEW')).toEqual([]);
+      expect(await eventsAfter(store, before)).toEqual([]);
+
+      // Success: p1 releases K, p2 takes it — in one batch, because items apply in order
+      const saved = await store.putExternalRefsBatch([
+        { packageId: p1, doc: refsDoc('urn:a', [{ system: 's', type: 't', id: 'K2' }]), expectedRevision: 1 },
+        { packageId: p2, doc: refsDoc('urn:b', [{ system: 's', type: 't', id: 'K' }]), expectedRevision: 0 },
+      ]);
+      expect(saved.map((item) => item.revision)).toEqual([2, 1]);
+      expect(await store.findExternalRef('s', 't', 'K')).toEqual([{ packageId: p2, subject: 'asset|urn:b' }]);
+      const events = await eventsAfter(store, before);
+      expect(events.map((row) => [row.type, row.data])).toEqual([
+        [EVENT_TYPES.modelExternalRefsUpdated, { packageId: p1, revision: 2 }],
+        [EVENT_TYPES.modelExternalRefsUpdated, { packageId: p2, revision: 1 }],
+      ]);
+      expect(await store.putExternalRefsBatch([])).toEqual([]);
     });
 
     // ── 10 · runtime state and package deletion ──

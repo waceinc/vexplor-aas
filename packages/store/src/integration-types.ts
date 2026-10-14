@@ -48,8 +48,23 @@ export interface NewEvent {
   actorName?: string;
   cause?: string;
   changeSetId?: string;
+  /**
+   * Workspace owner of the row. Absent = copied from the package at append time; a string = that owner; `null` =
+   * deliberately shared (visible to every workspace). Pass it when the package may already be gone — a projector
+   * "removed" event or a detector cycle racing a deletion — because a lookup then finds nothing (see ORPHAN_OWNER).
+   */
+  owner?: string | null;
   data: Record<string, unknown>;
 }
+
+/**
+ * Owner given to an appended event whose package does not exist (any more) and whose caller passed no owner.
+ *
+ * Important: such an event must **not** fall back to "ownerless" — ownerless rows are visible to every workspace, and
+ *    the event of a deleted private package carries its serial number and globalAssetId. No workspace key starts with
+ *    `~`, so only see-all readers (admins, the server) get these rows.
+ */
+export const ORPHAN_OWNER = '~orphan';
 
 export interface EventQuery {
   /** Exclusive */
@@ -143,6 +158,11 @@ export interface DeliveryRecord {
 export interface DeliveryResult {
   outcome: 'succeeded' | 'retry' | 'dead';
   at: string;
+  /**
+   * The `attempts` value of the row claimDeliveries handed out. Always pass it: it is what stops a late result of a
+   * worker whose lease expired from overwriting the worker that reclaimed the row (attempts + 1).
+   */
+  attempt?: number;
   /** retry only; defaults to `at` */
   nextAttemptAt?: string;
   statusCode?: number;
@@ -228,6 +248,13 @@ export class ExternalRefConflictError extends Error {
   }
 }
 
+export interface ExternalRefsBatchItem {
+  packageId: string;
+  doc: ExternalRefsDoc;
+  /** Same meaning as putExternalRefs' expectedRevision (0 = "never saved") */
+  expectedRevision?: number;
+}
+
 export interface IntegrationStore {
   // ── events (model events are written internally by the mutating methods, never through appendEvents) ──
   /** Returns the inserted rows only — an id that already exists (or repeats in the batch) is skipped */
@@ -250,13 +277,22 @@ export interface IntegrationStore {
   /** Idempotent on (subscriptionId, eventSeq); rows of an unknown subscription are skipped. Returns the inserted count */
   enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number>;
   /** Due pending + expired in-flight, oldest `nextAttemptAt` first; sets in-flight, leaseUntil = now + leaseMs, attempts + 1 */
-  claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]>;
-  /** Unknown id (e.g. the subscription was deleted meanwhile) is a no-op. Only the delivery row changes */
-  completeDelivery(id: string, result: DeliveryResult): Promise<void>;
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]>;
+  /**
+   * Applies the result only to a row that is still `in-flight` and — when `result.attempt` is given — still at that
+   * attempt; returns whether it was applied. A missing row (subscription deleted meanwhile), a row another worker
+   * finished, and a row reclaimed after the lease expired are all left alone (false). Only the delivery row changes.
+   */
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean>;
+  /** Moves the lease of an in-flight row at `attempt` to `leaseUntil` (absolute); false if the row is not that claim any more */
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean>;
   getDelivery(id: string): Promise<DeliveryRecord | undefined>;
   /** Newest first; the cursor is the id of the last returned row */
   listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>>;
-  /** -> pending, nextAttemptAt = now, lease cleared, attempts kept */
+  /**
+   * -> pending, nextAttemptAt = now, lease cleared, attempts kept. Only for a `succeeded` or `dead` row — a pending row is already queued and an in-flight one would be sent twice at
+   * once. Returns false for those and for a missing row (the API tells them apart with getDelivery: 409 vs 404).
+   */
   redeliver(id: string, now: string): Promise<boolean>;
   /** One entry per subscription, including subscriptions without deliveries */
   deliveryStats(): Promise<DeliveryStats[]>;
@@ -275,6 +311,13 @@ export interface IntegrationStore {
   getExternalRefs(packageId: string): Promise<Versioned<ExternalRefsDoc> | undefined>;
   /** ConflictError | ExternalRefConflictError | NotFoundError (unknown package) */
   putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>>;
+  /**
+   * Several packages' docs in one all-or-nothing write, applied in order (a key dropped by an earlier item may be taken
+   * by a later one). The first ConflictError / ExternalRefConflictError / NotFoundError aborts the whole batch and
+   * nothing is written. Each saved item records its own `model.externalrefs.updated` event. Results are in item order.
+   */
+  putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]>;
+  /** Every holder of the key. Inside a workspace, holders in other workspaces are returned masked (scoped.ts) */
   findExternalRef(system: string, type: string, id: string): Promise<{ packageId: string; subject: string }[]>;
   /** Ordered by packageId */
   listExternalRefs(): Promise<{ packageId: string; refs: Versioned<ExternalRefsDoc> }[]>;

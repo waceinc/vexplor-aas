@@ -459,7 +459,7 @@ paths:
   /integrations/exports/hierarchy:
     get:
       tags: [exports]
-      summary: Process hierarchy (kr.vexplor.aas.hierarchy.v1) of a process file
+      summary: Hierarchy (kr.vexplor.aas.hierarchy.v1) of any file with HierarchicalStructures — the plant structure of a process file or the BOM tree of an equipment file
       parameters:
         - $ref: '#/components/parameters/RequiredPackageId'
         - $ref: '#/components/parameters/Format'
@@ -470,7 +470,7 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Export' }
         '422':
-          description: NoHierarchy — the file is not a process file with a hierarchy
+          description: NoHierarchy — the file has no HierarchicalStructures
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Result' }

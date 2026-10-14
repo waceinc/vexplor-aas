@@ -49,6 +49,7 @@ import type {
   DeliveryStatus,
   EventPage,
   EventQuery,
+  ExternalRefsBatchItem,
   ExternalRefsDoc,
   IntegrationStore,
   NewEvent,
@@ -723,8 +724,9 @@ export class PostgresStore implements AasStore, IntegrationStore {
   updateSubscription(id: string, patch: SubscriptionPatch): Promise<SubscriptionRecord | undefined> { return this.integration.updateSubscription(id, patch); }
   deleteSubscription(id: string): Promise<boolean> { return this.integration.deleteSubscription(id); }
   enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number> { return this.integration.enqueueDeliveries(rows, now); }
-  claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> { return this.integration.claimDeliveries(now, limit, leaseMs); }
-  completeDelivery(id: string, result: DeliveryResult): Promise<void> { return this.integration.completeDelivery(id, result); }
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> { return this.integration.claimDeliveries(now, limit, leaseMs, subscriptionId); }
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean> { return this.integration.completeDelivery(id, result); }
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> { return this.integration.extendLease(id, attempt, leaseUntil); }
   getDelivery(id: string): Promise<DeliveryRecord | undefined> { return this.integration.getDelivery(id); }
   listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>> { return this.integration.listDeliveries(subscriptionId, query); }
   redeliver(id: string, now: string): Promise<boolean> { return this.integration.redeliver(id, now); }
@@ -736,6 +738,7 @@ export class PostgresStore implements AasStore, IntegrationStore {
   putPackageIntegrationConfig(packageId: string, value: unknown, expectedRevision?: number): Promise<Versioned<unknown>> { return this.integration.putPackageIntegrationConfig(packageId, value, expectedRevision); }
   getExternalRefs(packageId: string): Promise<Versioned<ExternalRefsDoc> | undefined> { return this.integration.getExternalRefs(packageId); }
   putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> { return this.integration.putExternalRefs(packageId, doc, expectedRevision); }
+  putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> { return this.integration.putExternalRefsBatch(items); }
   findExternalRef(system: string, type: string, id: string): Promise<{ packageId: string; subject: string }[]> { return this.integration.findExternalRef(system, type, id); }
   listExternalRefs(): Promise<{ packageId: string; refs: Versioned<ExternalRefsDoc> }[]> { return this.integration.listExternalRefs(); }
   getRuntimeState(key: string): Promise<unknown | undefined> { return this.integration.getRuntimeState(key); }
