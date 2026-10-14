@@ -248,6 +248,9 @@
   --okbg: #e6f4f0;
   --warnbg: #fff3e8;
   --failbg: #fbecec;
+  /* 강조색(cb · teal · warn · fail · 회색 배지) 위에 얹는 글자. 밝은 화면은 강조색이 진해 흰 글자, 어두운 화면은
+     강조색이 밝아져 흰 글자 대비가 2.3~3.3:1로 떨어진다 — 거의 검은 글자로 바꾸면 6.0~8.5:1 (2026-10-14 실측) */
+  --on-accent: #ffffff;
 }
 
 :root.dark {
@@ -259,6 +262,7 @@
   --okbg: #17302a;
   --warnbg: #2a2118;
   --failbg: #2a1c1b;
+  --on-accent: #0a0a0a;
 }
 
 @theme inline {

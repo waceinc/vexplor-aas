@@ -169,12 +169,12 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 /* 값은 링크가 아니다 — 파랑 계열이면 눌러 보게 된다(디자인 점검). 호박색 = 데이터 */
 .value { color: var(--foreground); opacity: 0.85; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 .badge { margin-left: auto; margin-right: calc(var(--spacing) * 2); padding: 0 calc(var(--spacing) * 1.5); border-radius: var(--radius); font-size: var(--text-xs); }
-.badge.error { background: var(--fail); color: #fff; }
-.badge.warning { background: var(--warn); color: #fff; }
+.badge.error { background: var(--fail); color: var(--on-accent); }
+.badge.warning { background: var(--warn); color: var(--on-accent); }
 /* 색만으로 위반/경고를 가르면 색약·흑백 인쇄에서 못 가른다 — 글자 접두를 같이 둔다 */
 .badge.error::before { content: '✕ '; }
 .badge.warning::before { content: '⚠ '; }
-.badge.info { background: var(--muted-foreground); color: #fff; }
+.badge.info { background: var(--muted-foreground); color: var(--on-accent); }
 
 .inspector { padding: calc(var(--spacing) * 3); overflow: auto; border-right: 1px solid var(--border); }
 .inspector.empty, .hint { color: var(--muted-foreground); }
@@ -483,7 +483,7 @@ header select { max-width: 260px; }
 .add-aid .step h4 { display: flex; align-items: center; gap: calc(var(--spacing) * 1.5); margin: 0 0 calc(var(--spacing) * 1.5); font-size: var(--text-sm); }
 /* 걸음 번호 — 몇 개를 어떤 차례로 하는지가 한눈에 보여야 한다 */
 .add-aid .step .num { display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border-radius: 50%; background: var(--cb); color: #fff; font-size: var(--text-xs); }
+  width: 18px; height: 18px; border-radius: 50%; background: var(--cb); color: var(--on-accent); font-size: var(--text-xs); }
 .add-aid .step .count { color: var(--teal); font-weight: normal; font-size: var(--text-xs); }
 .add-aid .step .count.dim { color: var(--muted-foreground); }
 /* 방향 그림 — 초보에게는 글보다 이쪽이 빠르다 */
@@ -919,7 +919,7 @@ p.pick-title {
 }
 /* 줄 안의 동작 글자는 꺾이지 않는다 — 「＋ 설비」가 두 줄로 부러졌다(실측 2026-09-08) */
 .hier-row button, .hier-row .hier-target { white-space: nowrap; }
-.hier-modes button.on { background: var(--cb); border-color: var(--cb); color: #fff; }
+.hier-modes button.on { background: var(--cb); border-color: var(--cb); color: var(--on-accent); }
 
 /* 다른 파일을 고치는 중 — 모르게 두면 안 된다 */
 .linked-banner {
@@ -1465,7 +1465,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .gs-item:hover:not(:disabled) { background: color-mix(in oklab, var(--cb) 8%, transparent); }
 .gs-item:disabled { cursor: default; }
 .gs-mark { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: var(--text-xs); font-weight: 800; border: 1.5px solid var(--aas-line-strong); color: var(--muted-foreground); }
-.gs-list li.done .gs-mark { background: var(--teal); border-color: var(--teal); color: #fff; }
+.gs-list li.done .gs-mark { background: var(--teal); border-color: var(--teal); color: var(--on-accent); }
 .gs-list li.done .gs-text { color: var(--muted-foreground); text-decoration: line-through; }
 .gs-text small { display: block; color: var(--muted-foreground); font-size: var(--text-xs); margin-top: calc(var(--spacing) * 0.25); }
 
@@ -1535,7 +1535,7 @@ table.matrix thead .item-col { background: var(--navy); }
 .tree .row.selected { background: var(--sidebar-accent); box-shadow: inset 2px 0 0 var(--primary); }
 .tree .row .more:hover { background: var(--background); }
 .tree .row[data-model-type='Submodel'] .label, .tree .row[data-model-type='Submodel'] .type { color: var(--cb); }
-.badge.error, .badge.warning, .badge.info { color: #fff; }
+.badge.error, .badge.warning, .badge.info { color: var(--on-accent); }
 
 /* 칸 사이 손잡이 — 보이는 선은 구분선 색, 잡으면 진하게 */
 .splitter:hover, .splitter:focus-visible { background: var(--aas-line-strong); }
@@ -1674,7 +1674,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .bulk-values .need-summary .check-line { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); margin: 0 0 0 calc(var(--spacing) * 2); }
 .bulk-values .need { display: inline-block; padding: 0 calc(var(--spacing) * 1.5); border-radius: var(--radius); border: 1px solid transparent; font-size: var(--text-xs); white-space: nowrap; }
 .bulk-values .need.required { background: var(--failbg); color: var(--fail); border-color: color-mix(in oklab, var(--fail) 30%, transparent); }
-.bulk-values .need.missing { background: var(--fail); color: #fff; }
+.bulk-values .need.missing { background: var(--fail); color: var(--on-accent); }
 .bulk-values .need.collected { background: var(--okbg); color: var(--teal); border-color: color-mix(in oklab, var(--teal) 30%, transparent); }
 .bulk-values .need.optional { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
 .bulk-values td.bulk-need { width: 1%; white-space: nowrap; padding-right: calc(var(--spacing) * 2); }

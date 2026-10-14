@@ -426,6 +426,9 @@ export function currentLang(): Lang {
 // 🔴 서버 패키지 코드(@aas/linter의 CSV 읽기 등)도 화면 안에서 돈다 — 그 글도 같은 언어로
 setLangSource(() => current);
 
+// 문서 언어도 맞춘다 — 화면 낭독기 · 브라우저 번역 제안 · 맞춤법 검사가 이 값을 본다(index.html 기본은 ko)
+if (typeof document !== 'undefined') document.documentElement.lang = current;
+
 /**
  * 글자 하나를 지금 언어로. 사전에 없으면 받은 한국어를 그대로 돌려준다.
  *

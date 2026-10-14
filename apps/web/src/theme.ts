@@ -18,6 +18,10 @@ const readDark = (): boolean => {
   }
 };
 
+// 🔴 첫 화면을 그리기 **전에** 고른 테마를 깐다. 효과(useEffect)에만 맡기면 어두운 화면을 고른 사람도
+//    새로고침마다 밝은 화면이 한 번 번쩍인다. 인라인 스크립트는 CSP(script-src 'self')가 막아 이 모듈에서 한다
+if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', readDark());
+
 export function useTheme(): { dark: boolean; toggle: () => void } {
   const [dark, setDark] = useState(readDark);
   useEffect(() => {
