@@ -1834,6 +1834,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .integrations .integration-table td.wrap { word-break: break-all; max-width: 280px; }
 .integrations .integration-table tr.dead td { background: var(--failbg); }
 .integrations .integration-table input:not([type='checkbox']), .integrations .integration-table select { min-width: 96px; width: 100%; }
+.integrations .hint.warn { color: var(--warn); }
 .integrations .row-buttons.wrap { flex-wrap: wrap; align-items: center; }
 .integrations .integration-form { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); }
 .integrations .integration-form h3 { margin: 0; }

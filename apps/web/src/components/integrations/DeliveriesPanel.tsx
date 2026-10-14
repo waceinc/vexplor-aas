@@ -7,7 +7,7 @@
  */
 import { shortEventType } from '@aas/core';
 import { useEffect, useState } from 'react';
-import { integrationApi, type DeliveryStatus, type DeliveryView, type SubscriptionView } from '../../api/integration.js';
+import { explainConflict, integrationApi, type DeliveryStatus, type DeliveryView, type SubscriptionView } from '../../api/integration.js';
 import { fill, tr } from '../../i18n.js';
 import { ErrorNote, when } from './common.js';
 
@@ -55,7 +55,7 @@ export function DeliveriesPanel({ subscription, onBack }: Props): React.JSX.Elem
       setItems((current) => current?.map((item) => (item.id === delivery.id ? { ...item, ...next } : item)));
       setNotice(fill(tr('{0}번 사건을 다시 보낼 차례에 넣었습니다.'), { 0: String(delivery.eventSeq) }));
     } catch (caught) {
-      setError(caught);
+      setError(explainConflict(caught, tr('지금 보내는 중인 건은 다시 보낼 차례에 넣을 수 없습니다 — 이번 시도가 끝난 뒤 다시 하십시오.')));
     }
   };
 
