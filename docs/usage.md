@@ -661,7 +661,7 @@ The machines in a bundle are types, so they have no values. Values accumulate on
 2. Give the unit a collection link (a real PLC or "Connect a virtual PLC (simulation)") and collect for a few minutes to a few tens of minutes — automatic with `COLLECT_INTERVAL=5`
 3. When section **③** of the bundle shows a count, choose the **evidence level** (A field / B reproduction / C simulation) and **evidence period** (all, last N minutes), then export
 
-![Collection record](images/12-수집기록서.png)
+![Collection record](images/12-collection-record.png)
 
 - `06_검증결과/수집기록.html` — collection link, period, count, statistics and trend per item, status distribution (RUNNING 85% etc.). Print it for a PDF
 - **Real PLC addresses are masked** (`opc.tcp://(비공개):4840/…`). Bundles are published on GitHub

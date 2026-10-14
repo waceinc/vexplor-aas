@@ -1,16 +1,16 @@
 ---
-name: 제안 (Feature request)
-about: 이런 것이 있으면 좋겠습니다
+name: Feature request
+about: Something you wish this tool could do (한국어로 적어도 됩니다)
 labels: enhancement
 ---
 
-## 지금 불편한 것
+## What is in your way today
 
-<!-- 어떤 일을 하다가 막혔는지. 해법보다 **겪은 일**이 먼저입니다. -->
+<!-- What were you trying to do when you got stuck? The experience comes before the solution. -->
 
-## 바라는 것
+## What you would like
 
-## 다른 방법을 써 봤다면
+## Workarounds you tried
 
-<!-- 이 도구의 범위는 「한 설비의 AAS 한 벌」을 열고·고치고·검증하고·내려받는 것입니다.
-     여러 파일을 모아 관리하는 화면(대시보드·진척 관리·파일 간 비교)은 범위 밖입니다. -->
+<!-- The scope of this tool is opening, editing, validating and downloading the AAS of one piece of equipment.
+     Screens that manage many files together (dashboards, progress tracking, cross-file comparison) are out of scope. -->

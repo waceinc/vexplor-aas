@@ -1,60 +1,64 @@
-# 보안 정책
+**English** · [한국어](SECURITY.ko.md)
 
-## 취약점을 찾았다면
+# Security policy
 
-🔴 **공개 이슈로 올리지 마십시오.** 고쳐지기 전에 알려지면 쓰고 있는 사람들이 위험해집니다.
+## If you found a vulnerability
 
-이 저장소의 **Security → Report a vulnerability**(GitHub 비공개 취약점 신고)로 알려 주십시오.
-아래를 함께 적어 주시면 빨리 확인할 수 있습니다.
+**Do not open a public issue.** Until it is fixed, publishing it puts the people running this software at risk.
 
-- 무엇을 했을 때 무엇이 일어나는지 (재현 순서)
-- 어느 판인지 (화면 헤더의 판 번호, 또는 커밋)
-- 어떻게 띄웠는지 (Docker / 소스, 관련 환경변수)
+Report it through this repository's **Security → Report a vulnerability** (GitHub private vulnerability reporting).
+These details help us confirm it quickly:
 
-받으면 가능한 한 빨리 확인해 답합니다. 고친 뒤에는 신고해 주신 분을 밝혀 적습니다(원치 않으면 빼 드립니다).
+- what you did and what happened (steps to reproduce)
+- which version (the version number in the app header, or the commit)
+- how it was started (Docker / from source, relevant environment variables)
 
-## 지원하는 판
+We confirm and reply as soon as possible. After the fix we credit the reporter (or leave the name out if you prefer).
 
-가장 최근 판만 보안 수정을 받습니다. 옛 판은 최신으로 올려 주십시오.
+## Supported versions
 
-## 띄울 때 지킬 것
+Only the latest version receives security fixes. Please upgrade older versions.
 
-기본 설정은 **혼자 쓰는 것**에 맞춰져 있습니다. 여럿이 쓰거나 밖으로 열 때는 아래를 확인하십시오.
+## When you run it
+
+The defaults assume **a single user on one computer**. Check the following before sharing it or opening it to a network.
 
 | | |
 |---|---|
-| **인증을 켜십시오** | 계정도 API 키도 없으면 서버는 스스로 그 컴퓨터(127.0.0.1)에서만 엽니다. `AAS_ALLOW_OPEN=1`로 이 안전장치를 풀면 **주소를 아는 누구나** 읽고 지웁니다 |
-| **HTTPS를 앞에 두십시오** | 평문(http)으로 로그인하면 비밀번호와 로그인 쿠키가 그대로 지나갑니다. [`Caddyfile.example`](Caddyfile.example) |
-| **첫 관리자 설치 코드** | 밖으로 열린 서버에서는 첫 관리자를 만들 때 기동 로그에 찍힌 코드를 묻습니다. 이것이 없으면 같은 망의 아무나 먼저 관리자가 됩니다 |
-| **API 키는 길게** | 영문·숫자·기호 20자 이상. `Authorization: Bearer` 헤더로만 받습니다 |
-| **DB 비밀번호** | `.env`의 `POSTGRES_PASSWORD`는 반드시 바꾸십시오. 비우면 뜨지 않습니다 |
+| **Turn authentication on** | With neither accounts nor an API key, the server listens on that computer only (127.0.0.1). If you lift that safeguard with `AAS_ALLOW_OPEN=1`, **anyone who knows the address** can read and delete |
+| **Put HTTPS in front** | Over plain http, passwords and login cookies travel in clear text. See [`Caddyfile.example`](Caddyfile.example) |
+| **First-administrator setup code** | On a server open to the network, creating the first administrator asks for the code printed in the startup log. Without it, anyone on the same network could become the administrator first |
+| **Long API keys** | At least 20 characters of letters, digits and symbols. Accepted only in the `Authorization: Bearer` header |
+| **Database password** | Always change `POSTGRES_PASSWORD` in `.env`. The stack does not start if it is empty |
 
-## 알려진 한계 — 설계로 남겨 둔 것
+## Known limitations — left by design
 
-숨기지 않고 적어 둡니다. 띄우기 전에 읽어 주십시오.
+Please read these before you deploy.
 
-1. 🔴 **OPC UA 내주는 포트(기본 4840)에는 인증이 없습니다.** 기본은 꺼져 있습니다(`OPCUA_SERVER=on`으로 켭니다).
-   켠다면 믿을 수 있는 망 안에서만 쓰십시오. 체험판(`DEMO_MODE=on`)에서는 켜지지 않습니다.
-2. **기본은 팀 공용입니다.** 들어온 사람은 같은 파일들을 봅니다. 역할(관리자·편집자·열람자)로 「고칠 수 있나」는
-   가르지만 「누구 것인가」는 가르지 않습니다 — 서로 믿는 팀이 쓰는 것이 기본 쓰임새입니다.
-   나누려면 `AAS_WORKSPACE=private` — 저마다 자기가 올린 것만 보고, 남의 것은 **없는 것처럼** 보입니다.
-   그때도 **관리자와 API 키는 전부 봅니다**(운영·기계 연동). 운영자에게서 숨기는 기능이 아닙니다.
-3. **체험판의 작업 공간은 로그인마다 따로입니다.** 체험 계정은 여럿이 같이 쓰는 한 계정이지만, 같은 계정으로
-   들어와도 서로의 파일을 보지 못합니다. 다만 **로그인을 새로 하면 빈 칸에서 시작**하고(먼저 올린 것은 다시
-   보이지 않습니다), 한동안 쓰지 않은 방문자의 파일은 지웁니다. 운영자는 볼 수 있습니다 —
-   남에게 보이면 안 되는 자료는 자기 서버에서 쓰십시오 — [배포_호스팅.md](docs/배포_호스팅.md).
-4. **로그인 상태는 서버 메모리에 있습니다.** 서버를 다시 띄우면 모두 다시 로그인합니다. 서버 한 대를 전제로 합니다.
-5. **메일을 보내지 않습니다.** 비밀번호를 잊으면 관리자가 초기화해 줍니다. 가입할 때 적는 연락처는 확인하지 않습니다.
+1. **The OPC UA publishing port (default 4840) has no authentication.** It is off by default (`OPCUA_SERVER=on` turns it on).
+   If you enable it, use it only inside a trusted network. It never starts on the public demo (`DEMO_MODE=on`).
+2. **Shared by default.** Everyone who signs in sees the same files. Roles (admin, editor, viewer) decide *who may edit*,
+   not *whose file it is* — the intended use is a team that trusts each other.
+   To separate users, set `AAS_WORKSPACE=private` — each person sees only what they uploaded, and other people's files
+   look as if they do not exist. **Administrators and API keys still see everything** (operations and machine
+   integration). It is not a way to hide data from the operator.
+3. **On the demo, every sign-in gets its own workspace.** The demo account is shared, but people signed in with it do
+   not see each other's files. A **new sign-in starts empty** (earlier uploads are not shown again), and files of
+   visitors who have been idle for a while are deleted. The operator can see them — keep confidential data on your own
+   server; see [deployment.md](docs/deployment.md).
+4. **Sessions live in server memory.** Restarting the server signs everyone out. One server instance is assumed.
+5. **No e-mail is sent.** If someone forgets a password, an administrator resets it. Contact details entered at sign-up
+   are not verified.
 
-## 이미 막아 둔 것
+## Already mitigated
 
-| 위험 | 대응 |
+| Risk | Mitigation |
 |---|---|
-| Zip Slip · Zip Bomb | 압축을 **풀기 전에** 경로와 크기를 검사합니다 |
-| XXE | 외부 엔티티를 해석하지 않고, 내부 엔티티 폭발도 막습니다 |
-| 비밀번호 | scrypt 해시만 저장합니다. 원문은 어디에도 남기지 않습니다 |
-| 세션 | HttpOnly · SameSite=Strict 쿠키. HTTPS일 때 Secure. 로그인마다 새 열쇠를 냅니다 |
-| CSRF | 쿠키로 들어온 쓰기는 요청이 온 곳(Origin)을 따집니다 |
-| 비밀번호 대입 | 5번 틀리면 5분 막습니다 |
-| 화면 끼워넣기 · 스크립트 주입 | CSP · `frame-ancestors 'none'` · `nosniff` |
-| 동시에 고치기 | ETag로 충돌을 잡아 덮어쓰지 않습니다 |
+| Zip Slip · Zip Bomb | Paths and sizes are checked **before** extraction |
+| XXE | External entities are not resolved, and internal entity expansion is limited |
+| Passwords | Only scrypt hashes are stored; plain text is kept nowhere |
+| Sessions | HttpOnly, SameSite=Strict cookies; Secure over HTTPS; a new key on every sign-in |
+| CSRF | Writes that arrive with a cookie are checked against the request Origin |
+| Password guessing | Five failures lock the account for five minutes |
+| Framing · script injection | CSP · `frame-ancestors 'none'` · `nosniff` |
+| Concurrent edits | ETags detect conflicts instead of overwriting |
