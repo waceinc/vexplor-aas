@@ -672,6 +672,8 @@ paths:
                         state: { type: string, enum: [run, stop, alarm, off, unknown, none] }
                   totals: { type: object, additionalProperties: { type: integer } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/TooMany' }
+        '503': { $ref: '#/components/responses/Busy' }
         '409':
           description: NoStateTag — the package config names no state property
           content:
@@ -718,6 +720,8 @@ paths:
                   reject: { $ref: '#/components/schemas/CounterDelta' }
                   ruleSetHash: { type: string }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/TooMany' }
+        '503': { $ref: '#/components/responses/Busy' }
   /integrations/meters:
     get:
       tags: [runtime]
@@ -763,6 +767,8 @@ paths:
                         source: { type: object }
                         evidence: { type: string }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/TooMany' }
+        '503': { $ref: '#/components/responses/Busy' }
   /integrations/opcua/certificates:
     get:
       tags: [opcua]
@@ -892,6 +898,18 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Result' }
+    TooMany:
+      description: TooManyValues (one request would read more than 200 000 values — shorten the window) or TooManyPeriods (meters, more than 1 000 periods)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    Busy:
+      description: Busy — more than two heavy reads at once; retry after the given seconds
+      headers:
+        Retry-After: { schema: { type: integer, example: 5 } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
     Unavailable:
       description: IntegrationsOff (set INTEGRATIONS=on) or MasterKeyMissing (set AAS_SECRET_KEY)
       content:
@@ -970,6 +988,7 @@ components:
           type: object
           properties:
             security: { type: string, enum: [secure, insecure, 'off'] }
+            running: { type: boolean, description: Whether it actually started (secure mode without any account does not start) }
             pki: { type: string }
     SubscriptionInput:
       type: object

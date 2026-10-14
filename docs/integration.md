@@ -188,9 +188,9 @@ All types are `kr.vexplor.aas.<name>.v1`. A payload shape never changes inside `
 | `equipment.master.changed` | master data | The equipment-master projection changed (`changedKeys` lists the export columns) |
 | `equipment.bom.changed` / `.maintenance.changed` / `.documents.changed` | master data | That projection changed; re-read `href` |
 | `equipment.state.changed` | runtime | The judged state changed (`run`, `stop`, `alarm`, `off`, `unknown`) |
-| `equipment.alarm.raised` / `.cleared` | runtime | A configured alarm rule raised / cleared |
+| `equipment.alarm.raised` / `.cleared` | runtime | A configured alarm rule raised / cleared. A cleared event sent because the rule was deleted while open carries `reason: "rule-removed"` (`clearedAt` = the cycle that noticed); an ordinary clear has no `reason` |
 | `equipment.counter.advanced` | runtime | A configured counter advanced in a collection cycle |
-| `equipment.threshold.crossed` / `.returned` | runtime | A configured threshold crossed / returned with hysteresis |
+| `equipment.threshold.crossed` / `.returned` | runtime | A configured threshold crossed / returned with hysteresis. Closed because the rule was deleted while open: `reason: "rule-removed"`, `value` / `observedAt` = the last value seen while open |
 | `collection.connection.lost` / `.restored` | runtime | A collection interface failed N cycles in a row / recovered |
 | `integration.audit` | audit | Subscription and configuration changes — in the feed for admins only, never delivered |
 | `integration.ping` | test | Sent by "Send test"; never stored |
@@ -526,8 +526,14 @@ stops, ideal cycle time) that belong to the MES.
 **State segments** — `GET /integrations/equipment/segments?packageId=…&from=…&to=…` (≤ 31 days).
 
 **Meters for CMMS** — `GET /integrations/meters?packageId=…&counter=<id|runtime>&period=day` returns one reading per
-period with a deterministic `readingId` (safe to re-import) and an `evidence` link to the raw values. `counter=runtime`
-gives computed run time with running / stopped / alarm / off / unknown seconds.
+period with a deterministic `readingId` (safe to re-import) and an `evidence` link to the raw values. The id is built from
+the **receive time** of the sample read, so a counter whose device clock is stuck still gets a new id each period.
+`counter=runtime` gives computed run time with running / stopped / alarm / off / unknown seconds.
+
+**Limits of these three reads** — they read stored values, so they are bounded: **422 `TooManyValues`** when one request
+would read more than 200 000 values (shorten the window), **422 `TooManyPeriods`** when meters would return more than
+1 000 periods, and **503 `Busy`** with `Retry-After: 5` when more than two such reads run at once — wait the given seconds
+and ask again. Results are never silently cut short.
 
 ## 9. OPC UA security
 
@@ -535,7 +541,8 @@ gives computed run time with running / stopped / alarm / off / unknown seconds.
 
 - Security policies `Basic256Sha256`, `Aes128_Sha256_RsaOaep`, `Aes256_Sha256_RsaPss`; modes `Sign` and
   `SignAndEncrypt`. No `None` endpoint.
-- **No anonymous sessions.** Users sign in with the tool's **web accounts** (any role — the server is read-only).
+- **No anonymous sessions.** Users sign in with the tool's **web accounts** (any role — the server is read-only), as a
+  **UserName** token only — X.509 user certificates are not accepted as a user identity.
   Locked accounts are refused; repeated wrong passwords are throttled like web login.
 - If no account exists yet, the OPC UA server **does not start** and the startup log says why — create the first
   administrator first.

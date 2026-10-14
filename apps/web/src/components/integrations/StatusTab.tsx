@@ -113,6 +113,9 @@ export function StatusTab({ admin, feed }: Props): React.JSX.Element {
             <dt>{tr('OPC UA 서버')}</dt>
             <dd>
               {opcuaText(status.opcua?.security)}
+              {status.opcua && status.opcua.security !== 'off' && status.opcua.running === false && (
+                <span className="warn"> — {tr('설정은 켜져 있지만 서버가 뜨지 않았습니다. 보안 모드는 계정이 하나 이상 있어야 시작합니다.')}</span>
+              )}
               {status.opcua?.pki ? <span className="dim mono"> · {status.opcua.pki}</span> : null}
             </dd>
           </dl>
