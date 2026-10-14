@@ -13,6 +13,7 @@
  *    (`header.open` 같은) 코드에서 무슨 글자인지 안 보이고, 사전에 없을 때 빈칸이 뜬다.
  *    한국어를 열쇠로 두면 **못 찾아도 한국어가 그대로 나온다** — 최악이 "안 번역됨"이다.
  */
+import { setLangSource } from '@aas/core';
 import { EN_MORE } from './en.js';
 
 export type Lang = 'ko' | 'en';
@@ -416,6 +417,14 @@ export function fill(text: string, values: Record<string, string | number | unde
  *    반쪽만 바뀐다. 언어는 하루에 몇 번씩 바꾸는 것이 아니므로 새로 읽는 쪽이 확실하다.
  */
 const current: Lang = readLang();
+
+/** 지금 언어 — 서버에 싣는 값(api/http.ts) */
+export function currentLang(): Lang {
+  return current;
+}
+
+// 🔴 서버 패키지 코드(@aas/linter의 CSV 읽기 등)도 화면 안에서 돈다 — 그 글도 같은 언어로
+setLangSource(() => current);
 
 /**
  * 글자 하나를 지금 언어로. 사전에 없으면 받은 한국어를 그대로 돌려준다.

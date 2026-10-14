@@ -9,3 +9,4 @@ export * from './json/deserialize.js';
 export * from './json/serialize.js';
 export * from './traverse.js';
 export * from './pointer.js';
+export * from './i18n/index.js';

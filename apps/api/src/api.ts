@@ -4,7 +4,7 @@
  * 저장소 오류(NotFound·Conflict·InvalidContent)를 HTTP 상태로 옮기는 곳이 여기 한 곳뿐이도록
  * 모아 뒀다. 핸들러는 도메인 오류를 그냥 던지면 된다.
  */
-import { PRODUCT_VERSION } from '@aas/core';
+import { fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
   ConflictError,
   ForbiddenError,
@@ -33,6 +33,7 @@ import { requirementRoutes } from './routes/requirements.js';
 import { DERIVATION_PART, derivationRoutes } from './routes/derivation.js';
 import { AASX_FILE_SERVER_PROFILES, descriptionRoute, part2Routes } from './routes/part2.js';
 import { describeChange, UndoStack } from './undo.js';
+import { langOf, runInLang } from './lang.js';
 
 export type { ApiOptions } from './api-options.js';
 import type { ApiOptions } from './api-options.js';
@@ -127,7 +128,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     return accountsExist;
   };
 
-  return async function handle(request: ApiRequest): Promise<ApiResponse> {
+  // 🔴 언어를 맨 바깥에서 깐다 — 인증 거절 · 없는 경로 오류까지 그 요청의 언어로 나간다(lang.ts)
+  return (request: ApiRequest): Promise<ApiResponse> => runInLang(langOf(request), () => handle(request));
+
+  async function handle(request: ApiRequest): Promise<ApiResponse> {
     // 🔴 로그인한 사람이 먼저, 기계용 API 키가 나중이다(auth.ts의 순서 설계).
     //    세션이 없으면 undefined가 가고, 그러면 예전처럼 토큰을 본다.
     const principal = await principalOf(store, sessions, request);
@@ -146,7 +150,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
 
     const found = match(routes, inbound.method, inbound.path);
     if (found === undefined) {
-      return errorResponse(404, 'NotFound', `경로가 없습니다: ${request.method} ${request.path}`);
+      return errorResponse(404, 'NotFound', fill(tr('경로가 없습니다: {0} {1}'), { 0: request.method, 1: request.path }));
     }
     if (found === 'method-not-allowed') {
       return errorResponse(405, 'MethodNotAllowed', `허용되지 않는 메서드입니다: ${request.method}`);
@@ -193,7 +197,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
         return toErrorResponse(error);
       }
     }));
-  };
+  }
 }
 
 /**
@@ -263,7 +267,7 @@ function undoRoutes(undo: UndoStack): Route[] {
       async handle({ params }) {
         const packageId = params['packageId']!;
         const undone = await undo.undo(packageId);
-        if (undone === undefined) throw new ApiError(409, 'Conflict', '되돌릴 변경이 없습니다.');
+        if (undone === undefined) throw new ApiError(409, 'Conflict', tr('되돌릴 변경이 없습니다.'));
         return json(200, { undone, ...undo.status(packageId) });
       },
     },
@@ -274,7 +278,7 @@ function undoRoutes(undo: UndoStack): Route[] {
       async handle({ params }) {
         const packageId = params['packageId']!;
         const redone = await undo.redo(packageId);
-        if (redone === undefined) throw new ApiError(409, 'Conflict', '다시 할 변경이 없습니다.');
+        if (redone === undefined) throw new ApiError(409, 'Conflict', tr('다시 할 변경이 없습니다.'));
         return json(200, { redone, ...undo.status(packageId) });
       },
     },
