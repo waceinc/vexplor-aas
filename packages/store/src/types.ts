@@ -14,6 +14,8 @@ import type { AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
 import { fill, tr } from '@aas/core';
 
+import type { IntegrationStore } from './integration-types.js';
+
 export type IdentifiableModelType =
   | 'AssetAdministrationShell'
   | 'Submodel'
@@ -311,10 +313,16 @@ export interface NewUser {
 /**
  * Store port.
  *
- * There are two implementations — InMemoryStore (development/testing) and PostgresStore (production).
- * The same conformance tests (test/conformance.ts) run against both implementations to prevent behavioral differences.
+ * Three implementations — InMemoryStore (development/testing), FolderStore (single-user installs, extends the memory
+ * store) and PostgresStore (production). The same conformance tests (test/conformance.ts, including
+ * test/conformance-integration.ts) run against all of them to prevent behavioral differences.
+ *
+ * The integration part (`IntegrationStore`, docs/design/integration-v1.md §3) is in the port, not beside it: every
+ * mutating model method below also records a **model event** in the same commit (outbox) — with the actor
+ * (`runAsActor`), the change context (`runWithChange`), the package owner and the package revision after the change.
+ * A failed write (e.g. `ConflictError`) records nothing.
  */
-export interface AasStore {
+export interface AasStore extends IntegrationStore {
   /** One-time initialization such as preparing the schema. The in-memory store does nothing */
   init(): Promise<void>;
 

@@ -17,6 +17,7 @@ import {
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { describeStoreIntegration } from './conformance-integration.js';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
 const GOLDEN = '01-roll-forming-machine.aasx';
@@ -742,6 +743,9 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       });
     });
   });
+
+  // Integration part of the port (events, subscriptions, deliveries, configs, refs, state) — same stores, same rules
+  describeStoreIntegration(name, create);
 }
 
 /** Filters must match across both implementations — Part 2's idShort/semanticId query params build on this */
