@@ -1,0 +1,55 @@
+{
+  "schema": "vexplor.equipmentMaster/1",
+  "exportedAt": "2026-10-14T00:00:00.000Z",
+  "source": {
+    "tool": "VEXPLOR AAS Studio",
+    "version": "<version>",
+    "instanceId": null
+  },
+  "language": "ko",
+  "items": [
+    {
+      "key": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "aasId": "https://www.smart-factory.kr/ids/aas/RollFormingMachine_1/1/0",
+      "assetKind": "Instance",
+      "typeAasId": null,
+      "packageId": "pkg_1",
+      "revision": 1,
+      "nameplate": {
+        "manufacturer": "Example Manufacturer Co., Ltd.",
+        "productDesignation": "Roll Forming Line - Automotive Body",
+        "productFamily": "Automotive Body RFL",
+        "modelNumber": "RF-AUTO-BODY-12ST",
+        "orderCode": "RF-AUTO-BODY-12ST",
+        "serialNumber": "EXM-RFL-2026-00127",
+        "yearOfConstruction": "2026",
+        "dateOfManufacture": "2026-03-18",
+        "productUri": "https://www.smart-factory.kr/ids/asset/RollFormingMachine/1/0",
+        "markings": [
+          "CE 2006/42/EC, KCs S-인증, KOSHA M-29 프레스 위험방지"
+        ]
+      },
+      "physical": {
+        "weight": {
+          "value": 8500,
+          "unit": null
+        }
+      },
+      "location": {
+        "path": [],
+        "isa95": {
+          "site": null,
+          "area": null,
+          "workCenter": null
+        }
+      },
+      "specificAssetIds": [],
+      "externalRefs": [],
+      "missing": [
+        "physical.weight.unit"
+      ],
+      "warnings": []
+    }
+  ],
+  "excluded": []
+}
