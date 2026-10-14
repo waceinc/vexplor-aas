@@ -144,26 +144,29 @@ export function Collection({
         <h3 title={tr('설비(PLC) → 이 도구')}>{t('← 수집 — 설비에서 받아 오기')}</h3>
         {/* 동작 단추는 오른쪽 끝으로 — 제목과 붙어 있으면 답답하다 */}
         <span className="spacer" />
-        <button
-          className="primary"
-          disabled={busy}
-          title={tr('지금 한 번 접속해 값을 읽어 옵니다 — 주기 수집은 COLLECT_INTERVAL로 켭니다')}
-          onClick={onCollect}
-        >
-          {tr('수집')}
-        </button>
-        <button
-          onClick={exportAddresses}
-          title={tr('이 설비에서 읽을 주소를 표 한 장으로 뽑습니다 — 시운전·검수에 넘기는 목록입니다')}
-        >
-          {tr('주소목록')}
-        </button>
-        <button disabled={busy} onClick={onCreateAid} title={tr('접속 주소·태그를 고칩니다')}>
-          {tr('연결수정')}
-        </button>
-        <button className="danger" disabled={busy} onClick={onDeleteAid} title={tr('수집 연결(AID)을 지웁니다')}>
-          {tr('연결삭제')}
-        </button>
+        {/* 단추 넷은 한 묶음 — 칸이 좁으면 묶음째 다음 줄로(하나만 떨어지지 않게) */}
+        <div className="row-buttons">
+          <button
+            className="primary"
+            disabled={busy}
+            title={tr('지금 한 번 접속해 값을 읽어 옵니다 — 주기 수집은 COLLECT_INTERVAL로 켭니다')}
+            onClick={onCollect}
+          >
+            {tr('수집')}
+          </button>
+          <button
+            onClick={exportAddresses}
+            title={tr('이 설비에서 읽을 주소를 표 한 장으로 뽑습니다 — 시운전·검수에 넘기는 목록입니다')}
+          >
+            {tr('주소목록')}
+          </button>
+          <button disabled={busy} onClick={onCreateAid} title={tr('접속 주소·태그를 고칩니다')}>
+            {tr('연결수정')}
+          </button>
+          <button className="danger" disabled={busy} onClick={onDeleteAid} title={tr('수집 연결(AID)을 지웁니다')}>
+            {tr('연결삭제')}
+          </button>
+        </div>
       </div>
 
       {/* 자동 수집이 돌고 있으면 그 사실을 — 사람이 안 눌러도 쌓이고 있다는 것 */}

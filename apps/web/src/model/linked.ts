@@ -83,7 +83,8 @@ export function buildLinkedAsset(
   opts: { part?: boolean } = {},
 ): TreeNode {
   const key = `${keyPrefix}/${info.name}`;
-  const depth = key.split('/').length - 1; // /linked/a → 1, /linked/a/b → 2
+  // 맨 앞 빈 조각('')과 'linked' 를 빼고 센다 — 예전에는 하나 더 세어 이 가지만 한 단계 더 들어가 있었다(2026-10-14)
+  const depth = key.split('/').length - 2; // /linked/a → 1, /linked/a/b → 2
   const root: TreeNode = {
     key,
     label: info.bulkCount > 1 ? fill(tr('{0} ×{1}대'), { 0: info.name, 1: info.bulkCount }) : info.name,

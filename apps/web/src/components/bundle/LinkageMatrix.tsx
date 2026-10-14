@@ -80,11 +80,11 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
       </h3>
       <p className="dim small"><T k={'OperationalData의 항목을 <b>semanticId</b>로 묶었습니다. 공정 KPI(OEE·에너지 원단위 등)는 여러 설비의 같은 항목을 모아야 나옵니다. 칸에 마우스를 올리면 그 설비 안의 경로가 보입니다.'} /></p>
       {columns.length === 0 ? (
-        <p className="dim">{tr('열린 설비 파일이 없어 분석할 수 없습니다.')}</p>
+        <p className="dim small">{tr('열린 설비 파일이 없어 분석할 수 없습니다.')}</p>
       ) : rows.length === 0 && columns.length === 1 ? (
-        <p className="dim"><T k={'설비가 <b>1대</b>라 「공통」 항목이 생길 수 없습니다 — 연계는 설비 2대 이상부터 봅니다(계획서: 공정당 3~5대). 「전부」로 이 설비의 운전 데이터 {0}개를 보십시오.'} v={[view?.linkage.items.length ?? 0]} /></p>
+        <p className="dim small"><T k={'설비가 <b>1대</b>라 「공통」 항목이 생길 수 없습니다 — 연계는 설비 2대 이상부터 봅니다(계획서: 공정당 3~5대). 「전부」로 이 설비의 운전 데이터 {0}개를 보십시오.'} v={[view?.linkage.items.length ?? 0]} /></p>
       ) : rows.length === 0 ? (
-        <p className="dim">{tr('2대 이상이 함께 가진 항목이 없습니다 — 「전부」로 설비별 항목을 보십시오.')}</p>
+        <p className="dim small">{tr('2대 이상이 함께 가진 항목이 없습니다 — 「전부」로 설비별 항목을 보십시오.')}</p>
       ) : (
         <div className="matrix-wrap">
           <table className="matrix">

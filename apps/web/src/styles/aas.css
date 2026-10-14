@@ -248,7 +248,10 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
    가운데 칸은 통째로 스크롤하는 곳 — 각 구역은 제 높이를 지킨다 */
 .middle > * { flex-shrink: 0; }
 .middle .inspector { border-right: none; }
-.add-form { padding: var(--pad-card); border-bottom: 1px solid var(--border); background: var(--muted); display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
+.add-form { padding: var(--pad-card); border-bottom: 1px solid var(--border); background: var(--muted); display: flex; flex-direction: column; gap: var(--space-stack); }
+/* 양식 안 블록 사이는 gap 하나 — 문단의 기본 margin 이 더해지면 문단 앞뒤만 43px 로 벌어진다 */
+.add-form > * { margin-block: 0; }
+.add-form > .row-buttons { margin-top: 0; }
 .add-form h3 { margin: 0; font-size: var(--text-sm); }
 /* 🔴 80px 고정 격자는 긴 한글 라벨을 꺾어 뒤죽박죽으로 만들었다(사용자 제보).
    라벨 위·입력 아래로 쌓아 전부 좌측 한 줄기로 정렬한다 */
@@ -605,7 +608,6 @@ header .brand .version { color: var(--muted-foreground); font-size: var(--text-x
 .unit-choice {
   display: flex;
   gap: calc(var(--spacing) * 2);
-  margin-bottom: calc(var(--spacing) * 2);
 }
 .unit-choice button {
   flex: 1;
@@ -613,7 +615,6 @@ header .brand .version { color: var(--muted-foreground); font-size: var(--text-x
 .hierarchy {
   margin-top: calc(var(--spacing) * 4);
 }
-.summary .add-row + .hierarchy { margin: 0; }
 .hier-add { scroll-margin-top: calc(var(--spacing) * 3); }
 .hierarchy .hint.steps { padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2.5); border-left: 3px solid var(--cb); background: var(--background); border-radius: var(--radius); }
 .hierarchy {
@@ -1112,7 +1113,9 @@ header .group { display: inline-flex; align-items: center; gap: calc(var(--spaci
 .tree .row .type.note { color: var(--teal); opacity: 1; font-size: var(--text-xs); font-weight: 500; white-space: nowrap; }
 
 /* 수집 머리 — 오른쪽 칸이 400px이면 「수집」이 「수 집」으로 꺾였다(2026-09-10 실측). 단추는 통째로 다음 줄로 */
-.collection-head { flex-wrap: wrap; row-gap: calc(var(--spacing) * 2); }
+.collection-head { flex-wrap: wrap; row-gap: var(--space-gap); }
+/* 단추 묶음은 한 덩어리로 줄을 바꾼다 — 하나만 둘째 줄로 떨어지지 않게 */
+.collection-head > .row-buttons, .collection-head > .actions { flex-wrap: nowrap; }
 .collection-head button { white-space: nowrap; }
 
 /* ── 자동 고치기 미리보기 팝업 ─────────────────────────────────── */
@@ -1713,7 +1716,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 
 /* 형식 파일 카드(components/derivation) — 판정 줄 아래 한 줄. 반영할 것이 있으면 왼쪽 선을 푸른색으로 */
 .summary .derivation-card { display: flex; align-items: center; flex-wrap: wrap; gap: calc(var(--spacing) * 2); margin-top: calc(var(--spacing) * 3); padding: var(--pad-card); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--text-sm); }
-.summary .derivation-card.off { border-style: dashed; padding-block: calc(var(--spacing) * 1.5); }
+.summary .derivation-card.off { border-style: dashed; padding: var(--pad-compact); }
 .summary .derivation-card.pending { border-left: 3px solid var(--cb); }
 .summary .derivation-card.missing { border-left: 3px solid var(--warn); }
 .summary .derivation-card .state { color: var(--muted-foreground); }
@@ -1800,10 +1803,12 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 
 /* 라디오 · 체크박스가 든 label 은 어디서나 「단추 옆에 글자」. 세로 label 기본값이 단추와 글자를 두 줄로 갈랐다(가져오기 창) */
 :where(.app) label:has(> input[type='radio'], > input[type='checkbox']):not(.sm-plan label) { display: flex; flex-direction: row; align-items: baseline; gap: var(--space-gap); }
-/* 양식 안 단추 줄은 위 블록과 한 단계 띄운다 — 바로 붙으면(7px) 양식의 끝이 안 보인다 */
-.add-form > .row-buttons { margin-top: calc(var(--spacing) * 2); }
 /* 지표 타일이 두 줄(공정 파일)이면 줄 사이도 타일 사이와 같게 */
 .middle .summary > .tiles + .tiles { margin-top: calc(var(--spacing) * 2); }
 /* 판정 주체 목록 줄도 표 칸과 같은 여백 — 한 창의 두 목록이 첫 열 시작점이 달랐다 */
 .rules .verdict-list > div { padding: var(--pad-cell); }
+/* 설정 — 언어 단추 아래 설명은 한 단계 띄운다(6px 로 붙어 있었다) */
+.settings .row-buttons + .note { margin-top: calc(var(--spacing) * 3); }
+/* 번들 절 안 설명 문단 사이는 한 단계 — 기본 문단 margin(12px)과 섞여 26px 로 벌어졌다 */
+.bundle-body h3 ~ p.small { margin-block: 0 calc(var(--spacing) * 2); }
 
