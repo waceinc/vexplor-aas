@@ -30,8 +30,6 @@ export interface OeeInputs {
   good: CounterTotal | null;
   reject: CounterTotal | null;
   ruleSetHash: string;
-  /** More stored values than one read may hold — the totals cover only the newest part */
-  truncated?: true;
 }
 
 /**
@@ -46,8 +44,8 @@ export async function counterTotal(
   start: number,
   end: number,
   holdMs: number,
-): Promise<{ total: CounterTotal; truncated: boolean }> {
-  const { values, truncated } = await readWindow(store, packageId, { propertyName: rule.property }, new Date(start - holdMs).toISOString(), new Date(end).toISOString());
+): Promise<CounterTotal> {
+  const values = await readWindow(store, packageId, { propertyName: rule.property }, new Date(start - holdMs).toISOString(), new Date(end).toISOString());
   const { readings } = counterReadings(values);
   const before = readings.filter((reading) => Date.parse(reading.at) < start);
   const inside = readings.filter((reading) => Date.parse(reading.at) >= start);
@@ -55,7 +53,7 @@ export async function counterTotal(
   const summary = summarizeSteps(counterSteps(inside, rule, holdMs, baseline));
   // No good reading in the window: the change is unknown — an empty sum is not a measured zero
   const delta = inside.length === 0 ? null : summary.delta;
-  return { total: { delta, resets: summary.resets, counterId: rule.id }, truncated };
+  return { delta, resets: summary.resets, counterId: rule.id };
 }
 
 const KIND_SLOTS: readonly [keyof Pick<OeeInputs, 'produced' | 'good' | 'reject'>, CounterKind][] = [
@@ -74,7 +72,7 @@ export async function computeOeeInputs(
   resolutionMs: number | null,
 ): Promise<OeeInputs> {
   const state = config.state!;
-  const { totals, truncated } = await computeSegments(store, packageId, state, rules, window.start, window.end, holdMs);
+  const { totals } = await computeSegments(store, packageId, state, rules, window.start, window.end, holdMs);
   const windowMs = window.end - window.start;
   const result: OeeInputs = {
     window: { from: new Date(window.start).toISOString(), to: new Date(window.end).toISOString(), timezone: window.timezone },
@@ -91,15 +89,11 @@ export async function computeOeeInputs(
     reject: null,
     ruleSetHash: ruleSetHash(rules),
   };
-  let anyTruncated = truncated;
   for (const [slot, kind] of KIND_SLOTS) {
     // The first counter of a kind — a second one of the same kind is a configuration choice the MES does not see here
     const rule = config.counters.find((counter) => counter.kind === kind);
     if (!rule) continue;
-    const { total, truncated: cut } = await counterTotal(store, packageId, rule, window.start, window.end, holdMs);
-    result[slot] = total;
-    anyTruncated ||= cut;
+    result[slot] = await counterTotal(store, packageId, rule, window.start, window.end, holdMs);
   }
-  if (anyTruncated) result.truncated = true;
   return result;
 }

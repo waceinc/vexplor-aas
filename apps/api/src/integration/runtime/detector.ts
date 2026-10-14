@@ -6,9 +6,12 @@
  * the store's runtime state (`detector:<packageId>`), so a restart continues where it stopped instead of announcing
  * every machine's state again.
  *
- * Important: crash safety comes from deterministic event ids, not from transactions. Events are appended first, the
- *    state second. If the process dies in between, the next run processes the same samples from the old state, produces
- *    the same ids, and the store skips them — the receiver sees each event once.
+ * Important: crash consistency (review M1). The supervisor never replays a cycle, so the state and the events of a cycle
+ *    must never part. Order: (1) write the new state **with the cycle's events as `pending`** and make it durable,
+ *    (2) append the events, (3) clear `pending`. A crash or failure after (1) leaves `pending`, which the next cycle
+ *    appends first — the ids are deterministic, so events that did reach the log are skipped. A failure in (1) leaves
+ *    the old state and no events, so the next cycle simply measures from the old state (no double count, no re-raise
+ *    under a new id).
  * Important: never put the processing time into an event id or a time field that feeds one — only sample times and the
  *    cycle start, which are the same when a cycle is processed again.
  */
@@ -36,15 +39,19 @@ import { alarmInstanceIdFor, canonicalJson, eventIdFor } from '../ids.js';
 import { isAlarmActive, stepAlarm, type AlarmTrack } from './alarms.js';
 import { detectConnections } from './connection.js';
 import { counterReadings, counterSteps, numericValue, sampleTime, textValue, type RuntimeSample } from './counters.js';
-import { asDetectorState, detectorStateKey, keepOnly, latestGood, type DetectorState } from './detector-state.js';
+import { asDetectorState, detectorStateKey, keepOnly, latestGood, type DetectContext } from './detector-state.js';
 export { detectorStateKey, type DetectorState } from './detector-state.js';
 import { elementSourceFor, isVirtualPlc } from './element-ref.js';
+import { closeRemovedRules } from './removed-rules.js';
 import { ruleSetHash } from './segments.js';
-import { stepThreshold } from './thresholds.js';
+import { detectThresholds } from './thresholds.js';
 
-/** What the detector needs from the store — `AasStore` satisfies it once the integration port is merged into it */
+/**
+ * What the detector needs from the store. `flush` (folder store) writes coalesced runtime state to disk now — the
+ * detector calls it so the state with `pending` is durable before any event of the cycle becomes visible.
+ */
 export type DetectorStore = Pick<AasStore, 'getEnvironment'> &
-  Pick<IntegrationStore, 'appendEvents' | 'getRuntimeState' | 'putRuntimeState' | 'getPackageIntegrationConfig'>;
+  Pick<IntegrationStore, 'appendEvents' | 'getRuntimeState' | 'putRuntimeState' | 'getPackageIntegrationConfig'> & { flush?: () => Promise<void> };
 
 export interface EquipmentDetectorDeps {
   store: DetectorStore;
@@ -54,20 +61,6 @@ export interface EquipmentDetectorDeps {
   serverConfig: () => Promise<ServerIntegrationConfig>;
   /** Clock for `lastCycleAt` only — never for event content */
   now?: () => string;
-}
-
-/** Everything one detection step needs about the cycle being processed */
-interface DetectContext {
-  config: PackageIntegrationConfig;
-  rules: ReturnType<typeof effectiveStateRules>;
-  hash: string;
-  state: DetectorState;
-  cycle: PackageCycle;
-  asset: AssetJoin;
-  subject: string;
-  suppressed: boolean;
-  push: (type: string, key: string, time: string, value: unknown, data: Record<string, unknown>) => void;
-  sourceOf: (sample: RuntimeSample) => ElementSource;
 }
 
 export class EquipmentDetector {
@@ -98,6 +91,10 @@ export class EquipmentDetector {
     const key = detectorStateKey(packageId);
     const before = await store.getRuntimeState(key);
     const state = asDetectorState(before, hash);
+    // Events of an earlier cycle that may not have reached the log (crash or failure after the state write)
+    const replayed = state.pending && state.pending.length > 0 ? await store.appendEvents(state.pending) : [];
+    const hadPending = state.pending !== undefined;
+    delete state.pending;
     const subject = asset.globalAssetId ?? packageId;
     const isSimulated = this.deps.isSimulated ?? isVirtualPlc;
     const ifaceByName = new Map(cycle.interfaces.map((iface) => [iface.name, iface]));
@@ -122,18 +119,40 @@ export class EquipmentDetector {
       detectThresholds(context);
       detectCounters(context);
     } else state.ruleSetHash = hash;
+    closeRemovedRules({
+      state,
+      alarmIds: config?.alarms.map((rule) => rule.id) ?? [],
+      thresholdIds: config?.thresholds.map((rule) => rule.id) ?? [],
+      at: cycle.cycle.startedAt,
+      asset,
+      resolution: cycle.intervalMs,
+      suppressed: state.suppressed,
+      push,
+      sourceForProperty: (property) => {
+        const iface = cycle.interfaces.find((candidate) => candidate.properties.some((p) => p.name === property));
+        return elementSourceFor(cycle.environment, iface, iface?.name ?? '', property, undefined, iface ? isSimulated(iface) : false);
+      },
+    });
     detectConnections(config, state, cycle, asset, isSimulated, push);
 
-    const inserted = events.length > 0 ? await store.appendEvents(events) : [];
-    if (before === undefined || canonicalJson(before) !== canonicalJson(state)) await store.putRuntimeState(key, state, packageId);
+    let inserted: StoredEvent[] = [];
+    if (events.length > 0) {
+      await store.putRuntimeState(key, { ...state, pending: events }, packageId);
+      await store.flush?.();
+      inserted = await store.appendEvents(events);
+      // Clearing pending need not be durable at once: if it is lost, the next cycle re-appends and the log skips them
+      await store.putRuntimeState(key, state, packageId);
+    } else if (hadPending || before === undefined || canonicalJson(before) !== canonicalJson(state)) {
+      await store.putRuntimeState(key, state, packageId);
+    }
     this.lastCycle = this.deps.now?.() ?? new Date().toISOString();
-    return inserted;
+    return [...replayed, ...inserted];
   }
 }
 
 function detectState(ctx: DetectContext): void {
-const { config, rules, hash, state, cycle, asset, suppressed, push, sourceOf } = ctx;
-const resolution = cycle.intervalMs;
+  const { config, rules, hash, state, cycle, asset, suppressed, push, sourceOf } = ctx;
+  const resolution = cycle.intervalMs;
   if (!config.state) {
     state.ruleSetHash = hash;
     return;
@@ -178,9 +197,8 @@ const resolution = cycle.intervalMs;
 }
 
 function detectAlarms(ctx: DetectContext): void {
-const { config, state, cycle, asset, subject, suppressed, push, sourceOf } = ctx;
-const resolution = cycle.intervalMs;
-  state.alarms = keepOnly(state.alarms, config.alarms.map((rule) => rule.id));
+  const { config, state, cycle, asset, subject, suppressed, push, sourceOf } = ctx;
+  const resolution = cycle.intervalMs;
   for (const rule of config.alarms) {
     const sample = latestGood(cycle.samples, rule.property);
     if (!sample) continue;
@@ -195,7 +213,7 @@ const resolution = cycle.intervalMs;
       code: detail(rule.codeProperty),
       text: detail(rule.textProperty),
     });
-    state.alarms[rule.id] = result.track;
+    state.alarms[rule.id] = result.track.open ? { ...result.track, rule: { property: rule.property, severity: rule.severity, maintenanceIds: [...rule.maintenanceIds] } } : result.track;
     const base = { asset, source: sourceOf(sample), alarmRuleId: rule.id, severity: rule.severity, maintenanceIds: [...rule.maintenanceIds], detectionResolutionMs: resolution, suppressed };
     if (result.raised) {
       const data: EquipmentAlarmData = {
@@ -229,38 +247,9 @@ const resolution = cycle.intervalMs;
   }
 }
 
-function detectThresholds(ctx: DetectContext): void {
-const { config, state, cycle, asset, suppressed, push, sourceOf } = ctx;
-  state.thresholds = keepOnly(state.thresholds, config.thresholds.map((rule) => rule.id));
-  for (const rule of config.thresholds) {
-    const sample = latestGood(cycle.samples, rule.property);
-    const value = sample ? numericValue(sample) : undefined;
-    if (!sample || value === undefined) continue;
-    const at = sampleTime(sample);
-    const result = stepThreshold(state.thresholds[rule.id] ?? { open: false, pendingCount: 0 }, value, at, rule);
-    state.thresholds[rule.id] = result.track;
-    const data = (): EquipmentThresholdData => ({
-      asset,
-      source: sourceOf(sample),
-      thresholdId: rule.id,
-      direction: rule.direction,
-      limit: rule.limit,
-      hysteresis: rule.hysteresis,
-      value,
-      unit: rule.unit,
-      severity: rule.severity,
-      observedAt: sample.observedAt,
-      detectedAt: at,
-      suppressed,
-    });
-    if (result.crossed) push(EVENT_TYPES.equipmentThresholdCrossed, rule.id, result.crossed.since, 'crossed', data());
-    if (result.returned) push(EVENT_TYPES.equipmentThresholdReturned, rule.id, result.returned.returnedAt, 'returned', data());
-  }
-}
-
 function detectCounters(ctx: DetectContext): void {
-const { config, state, cycle, asset, push, sourceOf } = ctx;
-const freshMs = freshWindowMs(cycle.intervalMs);
+  const { config, state, cycle, asset, push, sourceOf } = ctx;
+  const freshMs = freshWindowMs(cycle.intervalMs);
   state.counters = keepOnly(state.counters, config.counters.map((rule) => rule.id));
   for (const rule of config.counters) {
     const own = cycle.samples.filter((sample) => sample.propertyName === rule.property);

@@ -38,4 +38,9 @@ export const EN_INTEGRATION_RUNTIME: Record<string, string> = {
     'There is no certificate store: the OPC UA server is off or runs without security.',
   '지문은 SHA-1 16진수 40자여야 합니다.': 'A thumbprint must be 40 hexadecimal characters (SHA-1).',
   '거부된 인증서 중에 지문 {0}인 것이 없습니다.': 'No rejected certificate has the thumbprint {0}.',
+  // Bounded heavy reads
+  '설비 데이터 조회가 이미 여러 건 진행 중입니다. 잠시 뒤 다시 시도하십시오.': 'Several equipment data queries are already running. Try again shortly.',
+  '이 기간에 저장된 값이 {0}개를 넘습니다. 기간을 줄여 다시 조회하십시오.': 'More than {0} values are stored in this period. Query a shorter period.',
+  '한 번에 {0}개가 넘는 기간은 조회할 수 없습니다. 기간을 줄이거나 더 긴 단위를 고르십시오.':
+    'More than {0} periods cannot be queried at once. Shorten the window or choose a longer period.',
 };

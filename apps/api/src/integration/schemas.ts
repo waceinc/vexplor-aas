@@ -115,7 +115,8 @@ const alarm = object({
   maintenanceIds: list(str),
   detectionResolutionMs: num,
   suppressed: bool,
-});
+  reason: { type: 'string', enum: ['rule-removed'] },
+}, ['reason']);
 
 const threshold = object({
   asset: ref('asset'),
@@ -130,7 +131,8 @@ const threshold = object({
   observedAt: str,
   detectedAt: str,
   suppressed: bool,
-});
+  reason: { type: 'string', enum: ['rule-removed'] },
+}, ['reason']);
 
 const connection = object({
   asset: ref('asset'),

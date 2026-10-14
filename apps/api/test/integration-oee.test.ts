@@ -8,7 +8,7 @@ import { DEFAULT_STATE_RULES, normalizeState, parsePackageIntegrationConfig, sta
 import type { CollectedValue } from '@aas/store';
 import { describe, expect, it } from 'vitest';
 import { computeOeeInputs } from '../src/integration/runtime/oee.js';
-import { computeSegments, readWindow, ruleSetHash } from '../src/integration/runtime/segments.js';
+import { computeSegments, MAX_VALUES, readWindow, ruleSetHash, ValueLimitError } from '../src/integration/runtime/segments.js';
 import { addDays, dayWindow, periodsBetween, productionDayOf, shiftWindow, zonedInstant } from '../src/integration/runtime/zoned.js';
 import { runtimeStore, seededPackage } from './helpers/integration-runtime.js';
 
@@ -160,9 +160,12 @@ describe('segments and OEE inputs', () => {
     // A store that returns at most 400 rows per read, whatever the limit — forces several pages
     const limited = { readValues: (id: string, query?: Parameters<typeof store.readValues>[1]) => store.readValues(id, { ...query, limit: Math.min(400, query?.limit ?? 400) }) };
     const pageSized = await readWindowWithPage(limited, record.id, iso(start), iso(start + 1500 * 1000));
-    expect(pageSized.values).toHaveLength(1500);
-    expect(pageSized.values[0]!.receivedAt).toBe(iso(start));
-    expect(pageSized.values.at(-1)!.receivedAt).toBe(iso(start + 1499 * 1000));
+    expect(pageSized).toHaveLength(1500);
+    expect(pageSized[0]!.receivedAt).toBe(iso(start));
+    expect(pageSized.at(-1)!.receivedAt).toBe(iso(start + 1499 * 1000));
+    // Over the value cap the read stops with a ValueLimitError instead of loading everything
+    await expect(readWindow(limited, record.id, { propertyName: 'MachineState' }, iso(start), iso(start + 1500 * 1000), 400, 1000)).rejects.toBeInstanceOf(ValueLimitError);
+    expect(MAX_VALUES).toBeLessThanOrEqual(200_000);
   });
 });
 
