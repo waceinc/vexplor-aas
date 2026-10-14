@@ -61,6 +61,12 @@ export class IntegrationProjector {
   private readCursor: number | undefined;
   private timer: unknown;
   private running: Promise<unknown> | undefined;
+  /**
+   * Every entry point (timer pass, route-triggered flushNow) runs through this chain, one at a time. Two passes side by
+   * side shared the dirty map and the cursor: one deleted a package another had just re-marked, and saved the cursor
+   * past that newer event — the edit was lost for good (review M2).
+   */
+  private chain: Promise<unknown> = Promise.resolve();
   private stopped = true;
   lastRunAt: string | undefined;
 
@@ -95,8 +101,18 @@ export class IntegrationProjector {
     }, this.pollMs);
   }
 
+  private exclusive<T>(run: () => Promise<T>): Promise<T> {
+    const next = this.chain.then(run, run);
+    this.chain = next.catch(() => undefined);
+    return next;
+  }
+
   /** One loop pass: read new model events, project the packages whose debounce ran out */
-  async runOnce(): Promise<StoredEvent[]> {
+  runOnce(): Promise<StoredEvent[]> {
+    return this.exclusive(() => this.pass());
+  }
+
+  private async pass(): Promise<StoredEvent[]> {
     await this.poll();
     const now = this.now();
     const due = [...this.dirty].filter(([, entry]) => entry.due <= now || entry.deadline <= now).map(([id]) => id);
@@ -104,7 +120,11 @@ export class IntegrationProjector {
   }
 
   /** Project now, without waiting for the debounce — all waiting packages, or one package even if nothing changed in the log */
-  async flushNow(packageId?: string): Promise<StoredEvent[]> {
+  flushNow(packageId?: string): Promise<StoredEvent[]> {
+    return this.exclusive(() => this.flush(packageId));
+  }
+
+  private async flush(packageId?: string): Promise<StoredEvent[]> {
     await this.poll();
     if (packageId === undefined) return this.flushPackages([...this.dirty.keys()]);
     // Called after a change outside the model (external refs) — the cached join block is stale too
@@ -177,11 +197,14 @@ export class IntegrationProjector {
       const [packageId, occurredAt] = queue.shift()!;
       if (done.has(packageId)) continue;
       done.add(packageId);
+      // Only the entry seen now may be cleared — a newer change re-marks the package with a new object
+      const taken = this.dirty.get(packageId);
       const { events, state, placed } = await this.project(packageId, locations, occurredAt);
       if (events.length > 0) appended.push(...(await this.store.appendEvents(events)));
-      // The digest is written after the events: a crash in between re-projects and the ids dedupe
-      await this.store.putRuntimeState(stateKey(packageId), state ?? null);
-      this.dirty.delete(packageId);
+      // The digest is written after the events: a crash in between re-projects and the ids dedupe.
+      // A removed package leaves no row behind — written only after its removal events are in the log (review L8)
+      await this.store.putRuntimeState(stateKey(packageId), state);
+      if (this.dirty.get(packageId) === taken) this.dirty.delete(packageId);
       // A company / process file moved, added or removed equipment: their location (path, ISA-95) changed with it
       if (placed.length > 0) {
         directory ??= await buildAssetDirectory(this.store);

@@ -92,6 +92,68 @@ describe('IntegrationProjector', () => {
     expect(removed).toHaveLength(4);
   });
 
+  it('does not lose an edit that lands while a pass is appending, even with a flushNow in between (M2)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    const other = await store.importPackage({ name: 'unit-2.aasx', package: unitCopy(2) });
+    await editSerial(store, packageId, 'SN-1');
+    await projector.runOnce();
+    time.advance(5_000);
+    // Hold the first append of the next pass
+    const realAppend = store.appendEvents.bind(store);
+    let release!: () => void;
+    let entered!: () => void;
+    const inside = new Promise<void>((resolve) => (entered = resolve));
+    let held = false;
+    (store as unknown as { appendEvents: typeof realAppend }).appendEvents = async (events) => {
+      // Hold the append of this package's SN-1 event, wherever it falls in the pass
+      if (!held && events.some((event) => event.packageId === packageId)) {
+        held = true;
+        entered();
+        await new Promise<void>((resolve) => (release = resolve));
+      }
+      return realAppend(events);
+    };
+    const pass = projector.runOnce();
+    await inside;
+    await editSerial(store, packageId, 'SN-2');
+    const flush = projector.flushNow(other.id);
+    release();
+    await Promise.all([pass, flush]);
+    for (let i = 0; i < 3; i += 1) {
+      time.advance(60_000);
+      await projector.runOnce();
+    }
+    const serials = (await store.readEvents({ after: 0, limit: 1000, types: [MASTER] })).items
+      .filter((event) => event.packageId === packageId)
+      .map((event) => ((event.data as Json)['asset'] as Json)['serialNumber']);
+    expect(serials).toEqual(['SN-1', 'SN-2']);
+  });
+
+  it('removes the digest row once the removal events are out (L8)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    expect(await store.getRuntimeState(`projector:${packageId}`)).toBeTruthy();
+    await store.deletePackage(packageId);
+    const removed = await settle(projector, time);
+    expect(removed.length).toBeGreaterThan(0);
+    expect(await store.getRuntimeState(`projector:${packageId}`)).toBeUndefined();
+  });
+
+  it('keeps the digest when the removal append fails, so a retry still announces it (L8)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    await store.deletePackage(packageId);
+    expect(await projector.runOnce()).toEqual([]);
+    time.advance(5_000);
+    const realAppend = store.appendEvents.bind(store);
+    (store as unknown as { appendEvents: unknown }).appendEvents = async () => {
+      throw new Error('disk full');
+    };
+    await expect(projector.runOnce()).rejects.toThrow('disk full');
+    expect(await store.getRuntimeState(`projector:${packageId}`)).toBeTruthy();
+    (store as unknown as { appendEvents: typeof realAppend }).appendEvents = realAppend;
+    const retried = await projector.runOnce();
+    expect(retried.some((event) => (event.data as Json)['operation'] === 'removed')).toBe(true);
+  });
+
   it('re-projects after a crash with the same ids, so nothing is announced twice', async () => {
     const { store, time, projector, packageId } = await setup();
     const cursor = await store.getRuntimeState(PROJECTOR_CURSOR_KEY);

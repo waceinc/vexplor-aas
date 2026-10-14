@@ -113,7 +113,7 @@ export async function planImport(store: AasStore, rows: readonly ImportRow[], no
       error(tr('publish·sensitive는 true, false, 1, 0 또는 빈 칸이어야 합니다.'));
       continue;
     }
-    const ref: ExternalRef = {
+    const raw: ExternalRef = {
       system: values['system'] ?? '',
       type: values['type'] ?? '',
       id: values['id'] ?? '',
@@ -122,11 +122,13 @@ export async function planImport(store: AasStore, rows: readonly ImportRow[], no
       ...(values['externalSubjectId'] ? { externalSubjectId: values['externalSubjectId'] } : {}),
     };
     // One ref through the strict document parser — the same rules as PUT, reported per row
-    const check = parseExternalRefsDoc({ schema: emptyExternalRefs().schema, subjects: [{ subject, refs: [ref] }] });
+    const check = parseExternalRefsDoc({ schema: emptyExternalRefs().schema, subjects: [{ subject, refs: [raw] }] });
     if (!check.ok) {
       for (const item of check.errors) error(`${item.path.replace(/^\/subjects\/0/, '')}: ${item.message}`);
       continue;
     }
+    // The parsed ref — with the type in its canonical spelling (CostCenter → costCenter)
+    const ref = check.value.subjects[0]!.refs[0]!;
     const subjectString = externalRefSubjectString(subject);
     const identity = `${packageId}#${subjectString}#${ref.system}|${ref.type}`;
     if (seen.has(identity)) {

@@ -81,6 +81,49 @@ describe('external refs document', () => {
   });
 });
 
+describe('cost centre and sensitive types regardless of spelling (L7)', () => {
+  it('normalises the type case at parse time and keeps CostCenter out of the shell, exports and join', async () => {
+    const { store, call, ids } = await setup();
+    const packageId = ids[0]!;
+    expect((await call('PUT', `/packages/${packageId}/external-refs`, { body: doc(1, [{ system: SAP, type: 'CostCenter', id: 'CC-9', publish: true }]), headers: { 'if-match': '0' } })).status).toBe(400);
+    const put = await call('PUT', `/packages/${packageId}/external-refs`, { body: doc(1, [{ system: SAP, type: 'COSTCENTER', id: 'CC-9' }, { system: SAP, type: 'Equipment', id: 'EQ-1' }]), headers: { 'if-match': '0' } });
+    expect(put.status).toBe(200);
+    const stored = (await store.getExternalRefs(packageId))!.value.subjects[0]!.refs.map((ref) => ref.type);
+    expect(stored).toEqual(['costCenter', 'equipment']);
+    const item = ((await call('GET', '/integrations/exports/equipment')).body as { items: Json[] }).items[0]!;
+    expect(item['externalRefs']).toEqual([{ system: SAP, type: 'equipment', id: 'EQ-1' }]);
+    // The import goes through the same parser
+    const imported = await call('POST', '/integrations/external-refs/import', {
+      query: { dryRun: '1' },
+      body: { rows: [{ globalAssetId: unitAsset(1), system: SAP, type: 'costcenter', id: 'CC-10', publish: true }] },
+    });
+    expect((imported.body as { errors: unknown[] }).errors).toHaveLength(1);
+  });
+
+  it('keeps a differently spelled cost centre out even when the store holds it unnormalised', async () => {
+    const { store, call, ids } = await setup();
+    // Written past the API (an older import, a hand-edited backup): the read side must still filter it
+    await store.putExternalRefs(ids[0]!, { schema: 'vexplor.externalRefs/1', subjects: [{ subject: { kind: 'asset', globalAssetId: unitAsset(1) }, refs: [{ system: SAP, type: 'CostCenter', id: 'CC-9' }] }] }, 0);
+    const item = ((await call('GET', '/integrations/exports/equipment')).body as { items: Json[] }).items[0]!;
+    expect(item['externalRefs']).toEqual([]);
+  });
+});
+
+describe('undo and external refs (L9)', () => {
+  it('does not offer undo for a refs change, and drops older snapshots that would revert its projection', async () => {
+    const { call, ids } = await setup();
+    const packageId = ids[0]!;
+    // An ordinary edit first — its snapshot predates the projection and must not survive the refs change
+    const serial = `/packages/${packageId}/api/v3.0/submodels/${encodeIdentifier('https://www.smart-factory.kr/ids/sm/RollFormingMachine/DigitalNameplate/3/1')}/submodel-elements/SerialNumber/$value`;
+    expect((await call('PATCH', serial, { body: 'SN-EDIT' })).status).toBeLessThan(300);
+    expect(((await call('GET', `/packages/${packageId}/undo`)).body as { undo: string[] }).undo).toHaveLength(1);
+    const put = await call('PUT', `/packages/${packageId}/external-refs`, { body: doc(1, [equipmentRef(true)]), headers: { 'if-match': '0' } });
+    expect(put.status).toBe(200);
+    expect(((await call('GET', `/packages/${packageId}/undo`)).body as { undo: string[] }).undo).toEqual([]);
+    expect((await call('POST', `/packages/${packageId}/undo`)).status).toBe(409);
+  });
+});
+
 describe('projection into specificAssetIds', () => {
   it('publishes into the shell so discovery finds it; unpublishing removes it; cost centre never (E-17)', async () => {
     const { store, call, ids } = await setup();

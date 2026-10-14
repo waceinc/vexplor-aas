@@ -18,6 +18,15 @@ export const EXTERNAL_REFS_SCHEMA = 'vexplor.externalRefs/1';
 const SUBJECT_KINDS = ['asset', 'bomChild', 'consumable', 'tool'] as const;
 const REF_KEYS = ['system', 'type', 'id', 'publish', 'sensitive', 'externalSubjectId', 'syncedAt', 'source'] as const;
 const MAX_TEXT = 200;
+/**
+ * Reference types with a fixed spelling. A type matching one of them in another case is stored in this spelling, so
+ * `CostCenter` cannot slip past the cost-centre rules (review L7). Other types are free text and kept as given.
+ */
+export const KNOWN_REF_TYPES = ['equipment', 'plant', 'functionalLocation', 'workCenter', 'costCenter', 'material', 'equipmentCode'] as const;
+
+export function canonicalRefType(type: string): string {
+  return KNOWN_REF_TYPES.find((known) => known.toLowerCase() === type.toLowerCase()) ?? type;
+}
 
 export function emptyExternalRefs(): ExternalRefsDoc {
   return { schema: EXTERNAL_REFS_SCHEMA, subjects: [] };
@@ -78,7 +87,8 @@ export function parseExternalRefsDoc(input: unknown): ParseResult<ExternalRefsDo
       if (!ref) return;
       const system = text(ref['system'], `${path}/system`);
       if (system?.includes('|')) fail(`${path}/system`, tr('system에는 |를 쓸 수 없습니다.'));
-      const type = text(ref['type'], `${path}/type`);
+      const rawType = text(ref['type'], `${path}/type`);
+      const type = rawType === undefined ? undefined : canonicalRefType(rawType);
       const id = text(ref['id'], `${path}/id`);
       const publish = flag(ref['publish'], `${path}/publish`);
       const sensitive = flag(ref['sensitive'], `${path}/sensitive`);
