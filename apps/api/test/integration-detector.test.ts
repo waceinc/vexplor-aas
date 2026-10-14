@@ -23,8 +23,9 @@ async function setup(config: Partial<PackageIntegrationConfig> | null, options: 
   return { store, record, clock, detector, run };
 }
 
+/** Runtime events only — seeding a package also records model events (package created), which are not the detector's */
 async function allEvents(store: RuntimeStore): Promise<StoredEvent[]> {
-  return (await store.readEvents({ after: 0, limit: 1000 })).items;
+  return (await store.readEvents({ after: 0, limit: 1000 })).items.filter((event) => !event.type.startsWith('kr.vexplor.aas.model.'));
 }
 
 const ofType = (events: readonly StoredEvent[], type: string): StoredEvent[] => events.filter((event) => event.type === type);
