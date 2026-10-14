@@ -1,0 +1,82 @@
+{
+  "schema": "kr.vexplor.aas.hierarchy.v1",
+  "exportedAt": "2026-10-14T00:00:00.000Z",
+  "source": {
+    "tool": "VEXPLOR AAS Studio",
+    "version": "<version>",
+    "instanceId": null
+  },
+  "packageId": "pkg_3",
+  "revision": 1,
+  "site": null,
+  "items": [
+    {
+      "id": "SampleFactory",
+      "parentId": null,
+      "equipmentLevel": "Enterprise",
+      "name": "SampleFactory",
+      "globalAssetId": "https://www.smart-factory.kr/ids/asset/SampleFactory/1/0",
+      "aasId": "https://www.smart-factory.kr/ids/aas/SampleFactory/1/0",
+      "packageId": "pkg_3",
+      "serialNumber": null,
+      "quantity": 1,
+      "specificAssetIds": [],
+      "warnings": []
+    },
+    {
+      "id": "SampleFactory/PressLine",
+      "parentId": "SampleFactory",
+      "equipmentLevel": "Area",
+      "name": "PressLine",
+      "globalAssetId": null,
+      "aasId": null,
+      "packageId": null,
+      "serialNumber": null,
+      "quantity": 1,
+      "specificAssetIds": [],
+      "warnings": []
+    },
+    {
+      "id": "SampleFactory/PressLine/Forming",
+      "parentId": "SampleFactory/PressLine",
+      "equipmentLevel": "WorkCenter",
+      "name": "Forming",
+      "globalAssetId": null,
+      "aasId": null,
+      "packageId": null,
+      "serialNumber": null,
+      "quantity": 1,
+      "specificAssetIds": [],
+      "warnings": []
+    },
+    {
+      "id": "SampleFactory/PressLine/Forming/RollForming_1",
+      "parentId": "SampleFactory/PressLine/Forming",
+      "equipmentLevel": "WorkUnit",
+      "name": "RollForming_1",
+      "globalAssetId": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "aasId": "https://www.smart-factory.kr/ids/aas/RollFormingMachine_1/1/0",
+      "packageId": "pkg_1",
+      "serialNumber": "EXM-RFL-2026-00127",
+      "quantity": 1,
+      "specificAssetIds": [],
+      "warnings": []
+    },
+    {
+      "id": "SampleFactory/PressLine/Forming/RollForming_2",
+      "parentId": "SampleFactory/PressLine/Forming",
+      "equipmentLevel": "WorkUnit",
+      "name": "RollForming_2",
+      "globalAssetId": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_2/1/0",
+      "aasId": "https://www.smart-factory.kr/ids/aas/RollFormingMachine_2/1/0",
+      "packageId": "pkg_2",
+      "serialNumber": "EXM-RFL-2026-00128",
+      "quantity": 3,
+      "specificAssetIds": [],
+      "warnings": [
+        "INT-4: 수량이 1보다 큰 계층 노드가 globalAssetId 하나를 가리킵니다 — 설비 행으로 늘리지 않습니다. (SampleFactory/PressLine/Forming/RollForming_2 ×3)"
+      ]
+    }
+  ],
+  "warnings": []
+}

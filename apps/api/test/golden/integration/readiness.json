@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "packageId": "pkg_1",
+      "checks": [
+        {
+          "id": "INT-1",
+          "severity": "warning",
+          "message": "INT-1: 형식(Type) 셸에 제조번호(SerialNumber)가 있습니다 — 설비 대장으로 내보내기 전에 실물 단위 파일로 나누십시오.",
+          "pointer": "DigitalNameplate/SerialNumber"
+        },
+        {
+          "id": "INT-2",
+          "severity": "error",
+          "message": "INT-2: BOM 진입 노드의 globalAssetId(https://www.smart-factory.kr/ids/asset/RollFormingLine/1/0)가 셸의 globalAssetId(https://www.smart-factory.kr/ids/asset/RollFormingMachine/1/0)와 다릅니다.",
+          "pointer": "HierarchicalStructures"
+        },
+        {
+          "id": "INT-3",
+          "severity": "warning",
+          "message": "INT-3: 정비 계획에 명시적인 주기 값과 단위가 없습니다.",
+          "pointer": "MaintenanceInstructions/MaintenanceInstructionsForSpecificInterval_0"
+        }
+      ]
+    }
+  ]
+}
