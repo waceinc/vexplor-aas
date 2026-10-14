@@ -75,8 +75,8 @@ describe('admin-only routes', () => {
     const routes = ADMIN_ROUTES(id, deliveryId).sort(([a], [b]) => Number(a === 'DELETE') - Number(b === 'DELETE'));
     for (const [method, path, body] of routes) {
       const reply = await call(method, path, { principal: ADMIN, ...(body === undefined ? {} : { body }) });
-      // test → 503 (workers off) is a pass of the permission check
-      expect([200, 201, 204, 503], `${method} ${path}`).toContain(reply.status);
+      // test → 503 (workers off) and redeliver of a still pending row → 409 are passes of the permission check
+      expect([200, 201, 204, 409, 503], `${method} ${path}`).toContain(reply.status);
     }
   });
 });

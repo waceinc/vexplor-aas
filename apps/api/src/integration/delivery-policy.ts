@@ -47,7 +47,7 @@ function retryable(statusCode: number): boolean {
 
 /**
  * 2xx → succeeded · 410 → dead and the subscription is disabled (the receiver said "gone for good") ·
- * 408 / 425 / 429 / 5xx / no response → retry by schedule (`Retry-After` honoured, capped at 1 h) ·
+ * 408 / 425 / 429 / 5xx / no response → retry by schedule (a longer `Retry-After` wins, capped at 1 h) ·
  * 3xx (redirects are not followed) and other 4xx → dead (retrying the same request cannot fix it) ·
  * the 12th failed attempt → dead.
  */
@@ -58,7 +58,8 @@ export function judgeAttempt(facts: AttemptFacts, random: () => number): Attempt
   if (statusCode !== undefined && !retryable(statusCode)) return { outcome: 'dead' };
   const scheduled = retryDelayMs(facts.attempts, random);
   if (scheduled === undefined) return { outcome: 'dead' };
-  const delayMs = facts.retryAfterMs === undefined ? scheduled : Math.min(RETRY_AFTER_CAP_MS, facts.retryAfterMs);
+  // Retry-After can only lengthen the wait: `Retry-After: 0` must not let a receiver burn all 12 attempts at once
+  const delayMs = facts.retryAfterMs === undefined ? scheduled : Math.max(scheduled, Math.min(RETRY_AFTER_CAP_MS, facts.retryAfterMs));
   return { outcome: 'retry', delayMs };
 }
 

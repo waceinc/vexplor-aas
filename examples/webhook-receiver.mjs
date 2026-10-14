@@ -19,6 +19,9 @@ import { pathToFileURL } from 'node:url';
 
 const TOLERANCE_SECONDS = 5 * 60;
 const DEDUPE_MS = 48 * 3600 * 1000;
+// Bounds: events are small (thin) — anything bigger is not ours; the dedupe memory must not grow without end
+const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_REMEMBERED = 100_000;
 
 function sign(secret, id, timestamp, body) {
   const key = Buffer.from(secret.startsWith('whsec_') ? secret.slice(6) : secret, 'base64');
@@ -36,12 +39,24 @@ export function verify({ secrets, id, timestamp, signatures, body, nowSeconds })
 }
 
 /** A request handler; `onEvent(event)` gets each verified, first-seen CloudEvent */
-export function createReceiver({ secrets, onEvent = () => {}, now = Date.now }) {
+export function createReceiver({ secrets, onEvent = () => {}, now = Date.now, maxBodyBytes = MAX_BODY_BYTES, maxRemembered = MAX_REMEMBERED }) {
   const seen = new Map(); // webhook-id -> first seen (ms)
   return (request, response) => {
     const chunks = [];
-    request.on('data', (chunk) => chunks.push(chunk));
+    let size = 0;
+    let tooBig = false;
+    request.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBodyBytes) {
+        if (!tooBig) response.writeHead(413).end('body too large');
+        tooBig = true;
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
     request.on('end', () => {
+      if (tooBig) return;
       const body = Buffer.concat(chunks);
       const id = request.headers['webhook-id'];
       const ok = verify({
@@ -56,14 +71,25 @@ export function createReceiver({ secrets, onEvent = () => {}, now = Date.now }) 
         response.writeHead(401).end('bad signature');
         return;
       }
-      for (const [key, at] of seen) if (now() - at > DEDUPE_MS) seen.delete(key);
+      let event;
+      try {
+        event = JSON.parse(body.toString('utf8'));
+      } catch {
+        response.writeHead(400).end('not JSON');
+        return;
+      }
+      // Map keeps insertion order: the oldest entries come first, so pruning stops at the first fresh one
+      for (const [key, at] of seen) {
+        if (now() - at <= DEDUPE_MS && seen.size < maxRemembered) break;
+        seen.delete(key);
+      }
       if (seen.has(id)) {
         response.writeHead(200).end('duplicate');
         return;
       }
       seen.set(id, now());
       response.writeHead(204).end();
-      onEvent(JSON.parse(body.toString('utf8')));
+      onEvent(event);
     });
   };
 }

@@ -25,6 +25,24 @@ export function requireAdmin(request: ApiRequest): void {
   throw new ApiError(403, 'Forbidden', tr('연동 구독은 관리자 계정으로 로그인해야 다룰 수 있습니다.'));
 }
 
+/**
+ * A URL for audit details and logs: every query value replaced by `***`. Receivers often authenticate with
+ * `?token=…`; the audit log is read by more people than the subscription itself. The full URL stays visible to admins in
+ * the subscription GET only.
+ */
+export function maskUrlQuery(url: string): string {
+  const at = url.indexOf('?');
+  if (at < 0) return url;
+  const hash = url.indexOf('#', at);
+  const query = url.slice(at + 1, hash < 0 ? undefined : hash);
+  const masked = query
+    .split('&')
+    // A bare `?abc123` may itself be the token
+    .map((pair) => (pair === '' ? pair : pair.includes('=') ? `${pair.slice(0, pair.indexOf('='))}=***` : '***'))
+    .join('&');
+  return `${url.slice(0, at)}?${masked}`;
+}
+
 export function isAdminSession(request: ApiRequest): boolean {
   return request.principal?.role === 'admin';
 }

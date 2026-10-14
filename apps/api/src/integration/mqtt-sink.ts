@@ -39,6 +39,8 @@ export interface MqttSinkConnectOptions {
   ackTimeoutMs?: number;
   lookup?: LookupFunction;
   servername?: string;
+  /** Host, port and TLS as the egress check judged them (WP2 `MqttPublisherOptions.target`) */
+  target?: { host: string; port: number; tls: boolean };
 }
 
 export type MqttConnect = (options: MqttSinkConnectOptions) => Promise<MqttSinkClient>;
@@ -51,6 +53,8 @@ export interface MqttTarget {
   password?: string;
   topicPrefix?: string;
   retainState?: boolean;
+  /** Host, port and TLS from the egress check — the publisher connects exactly there */
+  address?: { host: string; port: number; tls: boolean };
   /** Pinned address and the host name for TLS */
   lookup: LookupFunction;
   servername: string;
@@ -65,8 +69,15 @@ export function defaultTopicPrefix(instanceId: string): string {
   return `vexplor/aas/${instanceId}`;
 }
 
+/** One connection per subscription; `ready` is shared, so concurrent first deliveries open one connection, not four */
+interface Held {
+  key: string;
+  prefix: string;
+  ready: Promise<MqttSinkClient>;
+}
+
 export class MqttSink {
-  private readonly clients = new Map<string, { client: MqttSinkClient; key: string; prefix: string }>();
+  private readonly clients = new Map<string, Held>();
 
   constructor(
     private readonly connect: MqttConnect,
@@ -78,39 +89,61 @@ export class MqttSink {
     return target.topicPrefix ?? defaultTopicPrefix(this.instanceId());
   }
 
-  private async clientFor(target: MqttTarget): Promise<MqttSinkClient> {
-    // Reconnect when the target changed (URL, credentials, prefix) or the old connection broke
-    const key = JSON.stringify([target.url, target.username, target.password, this.prefixOf(target)]);
-    const held = this.clients.get(target.subscriptionId);
-    if (held && held.key === key && held.client.connected) return held.client;
-    if (held) {
-      this.clients.delete(target.subscriptionId);
-      await held.client.close().catch(() => undefined);
-    }
-    const prefix = this.prefixOf(target);
-    const client = await this.connect({
-      url: target.url,
-      ...(target.username === undefined ? {} : { username: target.username }),
-      ...(target.password === undefined ? {} : { password: target.password }),
-      clientId: `vexplor-aas-${this.instanceId()}-${target.subscriptionId}`.slice(0, 64),
-      lookup: target.lookup,
-      servername: target.servername,
-      will: { topic: `${prefix}/status`, payload: Buffer.from(JSON.stringify({ online: false })), retain: true, qos: 1 },
+  private open(target: MqttTarget, key: string, prefix: string): Held {
+    const ready = (async () => {
+      const client = await this.connect({
+        url: target.url,
+        ...(target.address ? { target: target.address } : {}),
+        ...(target.username === undefined ? {} : { username: target.username }),
+        ...(target.password === undefined ? {} : { password: target.password }),
+        clientId: `vexplor-aas-${this.instanceId()}-${target.subscriptionId}`.slice(0, 64),
+        lookup: target.lookup,
+        servername: target.servername,
+        will: { topic: `${prefix}/status`, payload: Buffer.from(JSON.stringify({ online: false })), retain: true, qos: 1 },
+      });
+      try {
+        await client.publish(`${prefix}/status`, Buffer.from(JSON.stringify({ online: true, since: this.now() })), { qos: 1, retain: true });
+      } catch (error) {
+        await client.close().catch(() => undefined);
+        throw error;
+      }
+      return client;
+    })();
+    const held = { key, prefix, ready };
+    // A failed connect is forgotten at once, so the next delivery tries again
+    ready.catch(() => {
+      if (this.clients.get(target.subscriptionId) === held) this.clients.delete(target.subscriptionId);
     });
-    await client.publish(`${prefix}/status`, Buffer.from(JSON.stringify({ online: true, since: this.now() })), { qos: 1, retain: true });
-    this.clients.set(target.subscriptionId, { client, key, prefix });
-    return client;
+    return held;
+  }
+
+  private async clientFor(target: MqttTarget): Promise<MqttSinkClient> {
+    // Reconnect when the target changed (URL, address, credentials, prefix) or the old connection broke
+    const prefix = this.prefixOf(target);
+    const key = JSON.stringify([target.url, target.address, target.username, target.password, prefix]);
+    let held = this.clients.get(target.subscriptionId);
+    if (held && held.key !== key) {
+      this.clients.delete(target.subscriptionId);
+      void held.ready.then(goOfflineWith(held.prefix), () => undefined);
+      held = undefined;
+    }
+    if (held) {
+      const client = await held.ready;
+      if (client.connected) return client;
+      if (this.clients.get(target.subscriptionId) === held) this.clients.delete(target.subscriptionId);
+      await client.close().catch(() => undefined);
+    }
+    let current = this.clients.get(target.subscriptionId);
+    if (!current) {
+      current = this.open(target, key, prefix);
+      this.clients.set(target.subscriptionId, current);
+    }
+    return current.ready;
   }
 
   /** Publishes one event; resolves when the broker acknowledged it (PUBACK), rejects otherwise */
   async deliver(target: MqttTarget, event: CloudEvent, body: Buffer): Promise<void> {
-    let client: MqttSinkClient;
-    try {
-      client = await this.clientFor(target);
-    } catch (error) {
-      this.clients.delete(target.subscriptionId);
-      throw error;
-    }
+    const client = await this.clientFor(target);
     const prefix = this.prefixOf(target);
     try {
       await client.publish(`${prefix}/events/${shortEventType(event.type)}`, body, { qos: 1, retain: false });
@@ -124,7 +157,8 @@ export class MqttSink {
       }
     } catch (error) {
       // A failed publish leaves the connection in an unknown state — start clean next time
-      this.clients.delete(target.subscriptionId);
+      const held = this.clients.get(target.subscriptionId);
+      if (held && (await held.ready.catch(() => undefined)) === client) this.clients.delete(target.subscriptionId);
       await client.close().catch(() => undefined);
       throw error;
     }
@@ -134,15 +168,19 @@ export class MqttSink {
   async forget(subscriptionId: string): Promise<void> {
     const held = this.clients.get(subscriptionId);
     this.clients.delete(subscriptionId);
-    if (held) await goOffline(held);
+    if (held) await held.ready.then(goOfflineWith(held.prefix), () => undefined);
   }
 
   /** Closes every connection with DISCONNECT (shutdown) */
   async close(): Promise<void> {
     const all = [...this.clients.values()];
     this.clients.clear();
-    await Promise.all(all.map(goOffline));
+    await Promise.all(all.map((held) => held.ready.then(goOfflineWith(held.prefix), () => undefined)));
   }
+}
+
+function goOfflineWith(prefix: string): (client: MqttSinkClient) => Promise<void> {
+  return (client) => goOffline({ client, prefix });
 }
 
 /**

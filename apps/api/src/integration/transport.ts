@@ -10,7 +10,7 @@ import type { SubscriptionRecord, SubscriptionSecrets } from '@aas/store';
 
 import { cloudEventBody, sequenceText } from './cloudevents.js';
 import type { TestDeliveryResult } from './deps.js';
-import { checkTarget, pinnedLookup, type EgressPolicy } from './egress.js';
+import { checkTarget, pinnedLookup, withTimeout, type EgressPolicy } from './egress.js';
 import { base32Encode } from './ids.js';
 import type { MqttSink } from './mqtt-sink.js';
 import type { SecretBox } from './secrets.js';
@@ -18,6 +18,12 @@ import { signatureHeaders } from './signing.js';
 import { cleanError, sendWebhook, type WebhookAttempt, type WebhookOutcome } from './webhook.js';
 
 const PING_MESSAGE = 'VEXPLOR AAS Studio test delivery';
+
+/**
+ * Cap of one MQTT attempt (connect 5 s + status and event PUBACKs). Below the claim lease (dispatcher `leaseFor`), so a
+ * slow broker can never keep a row past its lease and get it sent twice.
+ */
+export const MQTT_ATTEMPT_MS = 30_000;
 
 export type SubscriptionWithSecrets = SubscriptionRecord & { secrets: SubscriptionSecrets };
 
@@ -55,7 +61,13 @@ export class Transport {
     if (!box) throw new Error('no master key (AAS_SECRET_KEY)');
     const out = [box.open(secrets.secretSealed)];
     if (secrets.previousSealed && secrets.previousUntil && Date.parse(secrets.previousUntil) > this.options.now()) {
-      out.push(box.open(secrets.previousSealed));
+      // A previous secret sealed with an older master key cannot be opened — sign with the current one only rather
+      // than failing every delivery for the rest of the overlap (the status page reports the key mismatch)
+      try {
+        out.push(box.open(secrets.previousSealed));
+      } catch {
+        // skipped on purpose
+      }
     }
     return out;
   }
@@ -80,7 +92,7 @@ export class Transport {
         const sealed = subscription.secrets.credentialsSealed;
         const credentials = sealed === undefined ? undefined : this.options.secrets?.open(sealed);
         const colon = credentials?.indexOf(':') ?? -1;
-        await mqtt.deliver(
+        await withTimeout(mqtt.deliver(
           {
             subscriptionId: subscription.id,
             url: subscription.url,
@@ -88,12 +100,13 @@ export class Transport {
             ...(credentials === undefined || colon < 0 ? {} : { password: credentials.slice(colon + 1) }),
             ...(subscription.options.topicPrefix ? { topicPrefix: subscription.options.topicPrefix } : {}),
             ...(subscription.options.retainState ? { retainState: true } : {}),
+            address: { host: target.host, port: target.port, tls: target.tls },
             lookup: pinnedLookup(target.address),
             servername: target.host,
           },
           event,
           body,
-        );
+        ), MQTT_ATTEMPT_MS, `MQTT delivery did not finish within ${MQTT_ATTEMPT_MS} ms`);
         return { statusCode: 200, durationMs: Math.max(0, now() - started), address: target.address, snippet: '' };
       }
       return await this.send({

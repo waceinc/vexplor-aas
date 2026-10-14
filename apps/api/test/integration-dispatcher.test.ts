@@ -171,12 +171,12 @@ describe('retries and dead-letter', () => {
     expect(new Set(receiver.requests.map((request) => request.headers['webhook-id'])).size).toBe(1);
   });
 
-  it('429 Retry-After 7 is honoured', async () => {
-    const { store, dispatcher, subscribe, time } = await setup({ respond: () => ({ status: 429, headers: { 'retry-after': '7' } }) });
+  it('429 Retry-After longer than the schedule is honoured', async () => {
+    const { store, dispatcher, subscribe, time } = await setup({ respond: () => ({ status: 429, headers: { 'retry-after': '70' } }) });
     const { subscription } = await subscribe();
     await store.appendEvents([stateEvent()]);
     await dispatcher.runOnce();
-    expect(Date.parse((await deliveries(store, subscription.id))[0]!.nextAttemptAt) - time.now()).toBe(7000);
+    expect(Date.parse((await deliveries(store, subscription.id))[0]!.nextAttemptAt) - time.now()).toBe(70_000);
   });
 
   it('other 4xx → dead at once, counted on the subscription', async () => {
@@ -297,22 +297,21 @@ describe('lease and crash safety', () => {
       claimSizes.push(limit);
       return claim(now, limit, leaseMs);
     };
+    // (the claim takes only the subscription's free lanes — nothing waits in memory with a running lease)
     await subscribe();
     await store.appendEvents(Array.from({ length: 10_000 }, () => stateEvent()));
     let enqueued = 0;
     for (let batch = await dispatcher.fanOut(); batch > 0; batch = await dispatcher.fanOut()) enqueued += batch;
     expect(enqueued).toBe(10_000);
-    expect(await dispatcher.claimAndStart()).toBe(16);
+    expect(await dispatcher.claimAndStart()).toBe(4);
     await settle();
     expect(state.peak).toBe(4);
-    expect(Math.max(...claimSizes)).toBeLessThanOrEqual(32);
-    // All 16 global slots are held (4 sending, 12 waiting) — another claim takes nothing
+    expect(Math.max(...claimSizes)).toBeLessThanOrEqual(4);
+    // The subscription's 4 lanes are busy — another claim takes nothing for it
     expect(await dispatcher.claimAndStart()).toBe(0);
-    while (state.releases.length > 0) {
-      state.releases.shift()!();
-      await settle();
-    }
-    expect(state.peak).toBe(4);
+    expect(Math.max(...claimSizes)).toBeLessThanOrEqual(4);
+    while (state.releases.length > 0) state.releases.shift()!();
+    await dispatcher.idle();
   });
 
   it('≤ 16 sends overall across subscriptions', async () => {
@@ -399,5 +398,160 @@ describe('commit then crash (folder store, platform 7.2)', () => {
     await dispatcher.runOnce();
     const created = receiver.requests.filter((request) => JSON.parse(request.body.toString()).type === EVENT_TYPES.modelPackageCreated);
     expect(created).toHaveLength(1);
+  });
+});
+
+// ── Security review (2026-10-14): lease, stale completion, fairness ───────────────────────────────────────────────
+
+/** Whether the store filters claims by subscription and guards completions (WP1 store change) — probed on a scratch store */
+async function storeGuards(): Promise<{ filter: boolean; complete: boolean }> {
+  const store = await memoryStore();
+  const box = new SecretBox(KEY);
+  const sub = await store.createSubscription({
+    name: 'p', kind: 'webhook', url: 'https://x.example.com/', types: ['*'], packageIds: [], enabled: true, options: {}, secretHint: 'x',
+    secrets: { keyId: box.keyId, secretSealed: box.seal('whsec_x') },
+  });
+  const now = new Date().toISOString();
+  await store.enqueueDeliveries([{ subscriptionId: sub.id, eventSeq: 1, eventId: 'e1' }], now);
+  const claim = store.claimDeliveries.bind(store) as (n: string, l: number, ms: number, s?: string) => Promise<unknown[]>;
+  const filter = (await claim(now, 1, 60_000, 'sub_none')).length === 0;
+  const [row] = await store.claimDeliveries(now, 1, 60_000);
+  const complete = store.completeDelivery.bind(store) as (id: string, r: object) => Promise<boolean | void>;
+  const stale = row ? await complete((row as { id: string }).id, { outcome: 'succeeded', at: now, attempt: 99 }) : undefined;
+  return { filter, complete: stale === false };
+}
+const guards = await storeGuards();
+
+describe('security review — lease, stale completions, fairness', () => {
+  it('item 1: the lease outlives the longest attempt; the timeout setting is clamped', async () => {
+    const { leaseFor } = await import('../src/integration/dispatcher.js');
+    const { timeoutFromEnv } = await import('../src/integration/boot.js');
+    const { RESOLVE_TIMEOUT_MS } = await import('../src/integration/egress.js');
+    const { MQTT_ATTEMPT_MS } = await import('../src/integration/transport.js');
+    for (const timeout of [1_000, 10_000, 60_000]) {
+      expect(leaseFor(timeout)).toBeGreaterThan(Math.max(timeout, MQTT_ATTEMPT_MS) + RESOLVE_TIMEOUT_MS);
+    }
+    expect(timeoutFromEnv({ INTEGRATION_TIMEOUT_MS: '500' })).toBe(1_000);
+    expect(timeoutFromEnv({ INTEGRATION_TIMEOUT_MS: '999999' })).toBe(60_000);
+    expect(timeoutFromEnv({ INTEGRATION_TIMEOUT_MS: '' })).toBe(10_000);
+  });
+
+  it('item 1: 16 rows through 4 lanes with slow sends — every row is sent exactly once', async () => {
+    const sent: string[] = [];
+    const releases: (() => void)[] = [];
+    const send = (attempt: WebhookAttempt): Promise<WebhookOutcome> => {
+      sent.push(attempt.headers['webhook-id']!);
+      return new Promise((resolve) => releases.push(() => resolve({ statusCode: 200, durationMs: 1, address: attempt.address, snippet: '' })));
+    };
+    const { store, dispatcher, subscribe, time } = await setup({ send });
+    await subscribe();
+    await store.appendEvents(Array.from({ length: 16 }, () => stateEvent()));
+    await dispatcher.fanOut();
+    const flush = async () => {
+      for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+    };
+    // The review's sequence: every send takes 16 s; after 61 s the first claim's lease (60 s) has run out
+    await dispatcher.claimAndStart();
+    await flush();
+    for (let round = 0; round < 3; round++) {
+      time.advance(16_000);
+      releases.splice(0).forEach((release) => release());
+      await flush();
+      await dispatcher.claimAndStart();
+      await flush();
+    }
+    time.advance(13_000);
+    await dispatcher.claimAndStart();
+    await flush();
+    for (let round = 0; round < 4; round++) {
+      releases.splice(0).forEach((release) => release());
+      await flush();
+      time.advance(16_000);
+      await dispatcher.claimAndStart();
+      await flush();
+    }
+    await dispatcher.idle();
+    expect(sent).toHaveLength(16);
+    expect(new Set(sent).size).toBe(16);
+  });
+
+  it('item 1: a row whose lease ran out while it was still being sent is not sent a second time', async () => {
+    const sent: string[] = [];
+    const releases: (() => void)[] = [];
+    const send = (attempt: WebhookAttempt): Promise<WebhookOutcome> => {
+      sent.push(attempt.headers['webhook-id']!);
+      return new Promise((resolve) => releases.push(() => resolve({ statusCode: 200, durationMs: 1, address: attempt.address, snippet: '' })));
+    };
+    const { store, dispatcher, subscribe, time } = await setup({ send });
+    const { subscription } = await subscribe();
+    await store.appendEvents([stateEvent()]);
+    await dispatcher.fanOut();
+    await dispatcher.claimAndStart();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const { leaseFor } = await import('../src/integration/dispatcher.js');
+    time.advance(leaseFor(300) + 1);
+    await dispatcher.claimAndStart();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(sent).toHaveLength(1);
+    releases.splice(0).forEach((release) => release());
+    await dispatcher.idle();
+    // The completion carries the newer attempt number, so a guarding store still applies it
+    expect((await deliveries(store, subscription.id))[0]).toMatchObject({ status: 'succeeded', attempts: 2 });
+  });
+
+  it('item 2: a completion the store did not apply changes no subscription counter', async () => {
+    const time = clock();
+    const store = await memoryStore(time.iso);
+    // The store answers "not applied" — what a guarded store says to an overtaken attempt
+    store.completeDelivery = (async () => false) as unknown as typeof store.completeDelivery;
+    const { dispatcher, subscribe } = await setup({ store, time, respond: (_r, index) => ({ status: index === 0 ? 200 : 400 }) });
+    const { subscription } = await subscribe();
+    await store.appendEvents([stateEvent()]);
+    await dispatcher.runOnce();
+    const after = (await store.getSubscription(subscription.id))!;
+    expect(after.lastSuccessAt).toBeUndefined();
+    await store.appendEvents([stateEvent()]);
+    await dispatcher.fanOut();
+    await dispatcher.claimAndStart();
+    await dispatcher.idle();
+    expect((await store.getSubscription(subscription.id))!.consecutiveDead).toBe(0);
+  });
+
+  it.runIf(guards.complete)('item 2 (store): a stale completion does not overwrite a newer outcome', async () => {
+    const time = clock();
+    const store = await memoryStore(time.iso);
+    const { subscribe } = await setup({ store, time });
+    const { subscription } = await subscribe();
+    await store.enqueueDeliveries([{ subscriptionId: subscription.id, eventSeq: 1, eventId: 'e1' }], time.iso());
+    const [first] = await store.claimDeliveries(time.iso(), 1, 60_000);
+    time.advance(61_000);
+    const [second] = await store.claimDeliveries(time.iso(), 1, 60_000);
+    const complete = store.completeDelivery.bind(store) as (id: string, r: object) => Promise<boolean | void>;
+    expect(await complete(second!.id, { outcome: 'succeeded', at: time.iso(), attempt: second!.attempts })).toBe(true);
+    expect(await complete(first!.id, { outcome: 'retry', at: time.iso(), attempt: first!.attempts })).toBe(false);
+    expect((await store.getDelivery(first!.id))!.status).toBe('succeeded');
+  });
+
+  it.runIf(guards.filter)('item 4: one slow receiver with a backlog does not starve a healthy subscription', async () => {
+    const bySub: Record<string, number> = {};
+    const send = (attempt: WebhookAttempt): Promise<WebhookOutcome> => {
+      const which = attempt.url.endsWith('/slow') ? 'slow' : 'healthy';
+      bySub[which] = (bySub[which] ?? 0) + 1;
+      if (which === 'slow') return new Promise(() => undefined); // a black hole
+      return Promise.resolve({ statusCode: 200, durationMs: 1, address: attempt.address, snippet: '' });
+    };
+    const { store, dispatcher, subscribe } = await setup({ send });
+    const slow = (await subscribe()).subscription;
+    await store.updateSubscription(slow.id, { url: `http://${HOST}:1000/slow` });
+    await store.appendEvents(Array.from({ length: 40 }, () => stateEvent()));
+    await dispatcher.fanOut();
+    const healthy = (await subscribe()).subscription;
+    await store.updateSubscription(healthy.id, { url: `http://${HOST}:1000/healthy` });
+    await store.appendEvents([stateEvent()]);
+    await dispatcher.fanOut();
+    await dispatcher.claimAndStart();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(bySub['slow']).toBe(4);
+    expect(bySub['healthy']).toBe(1);
   });
 });

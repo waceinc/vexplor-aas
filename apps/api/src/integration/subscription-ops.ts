@@ -80,6 +80,13 @@ export async function replay(store: IntegrationAasStore, subscription: Subscript
 export async function statusReport(store: IntegrationAasStore, deps: IntegrationRouteDeps, services: IntegrationServices): Promise<Record<string, unknown>> {
   const status = services.status();
   const stats = await store.deliveryStats();
+  // Subscriptions whose secrets were sealed with another master key (AAS_SECRET_KEY changed) cannot sign
+  const keyId = services.secrets?.keyId;
+  const mismatch: string[] = [];
+  for (const subscription of await store.listSubscriptions()) {
+    const full = await store.getSubscription(subscription.id);
+    if (full && keyId !== undefined && !full.secrets.secretSealed.startsWith(`${keyId}:`)) mismatch.push(subscription.id);
+  }
   const oldest = stats.map((entry) => entry.oldestPendingAt).filter((at): at is string => at !== undefined).sort()[0];
   return {
     enabled: status.enabled,
@@ -96,6 +103,7 @@ export async function statusReport(store: IntegrationAasStore, deps: Integration
     },
     egress: { allow: services.egress.allow.map((entry) => entry.text), blockedPorts: [...BLOCKED_PORTS] },
     masterKey: services.masterKey,
+    ...(mismatch.length > 0 ? { masterKeyMismatch: mismatch } : {}),
     opcua: services.opcua(),
   };
 }
