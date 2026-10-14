@@ -19,6 +19,7 @@ import { actorFields } from './actor.js';
 import {
   ExternalRefConflictError,
   externalRefSubjectString,
+  ORPHAN_OWNER,
   type DeliveryRecord,
   type DeliveryResult,
   type DeliveryStats,
@@ -26,6 +27,7 @@ import {
   type EventPage,
   type EventQuery,
   type ExternalRefClaim,
+  type ExternalRefsBatchItem,
   type ExternalRefsDoc,
   type IntegrationStore,
   type NewEvent,
@@ -36,6 +38,7 @@ import {
   type SubscriptionSecrets,
   type Versioned,
 } from './integration-types.js';
+import { externalRefsUpdatedEvent } from './model-events.js';
 import { ConflictError, NotFoundError, type PackageScope, type PageQuery, type PageResult } from './types.js';
 
 /** owner string = exists with that owner; undefined = exists without owner; null = no such package */
@@ -48,6 +51,11 @@ export interface MemoryIntegrationLogOptions {
   now?: () => string;
   /** Random id source for subscriptions. Default: crypto.randomUUID */
   newId?: () => string;
+  /**
+   * Called synchronously with every row the log inserts (model, appended and external-ref events). The folder store
+   * queues the events.jsonl line here — one hook, so no path that records an event can forget the file.
+   */
+  onEvent?: (row: StoredEvent) => void;
 }
 
 export const AUDIT_EVENT_TYPE = 'kr.vexplor.aas.integration.audit.v1';
@@ -109,6 +117,7 @@ export class MemoryIntegrationLog implements IntegrationStore {
   private readonly maxEvents: number;
   private readonly now: () => string;
   private readonly newId: () => string;
+  private readonly onEvent: ((row: StoredEvent) => void) | undefined;
 
   constructor(
     private readonly ownerOf: OwnerLookup,
@@ -117,30 +126,44 @@ export class MemoryIntegrationLog implements IntegrationStore {
     this.maxEvents = options.maxEvents ?? DEFAULT_MAX_EVENTS;
     this.now = options.now ?? (() => new Date().toISOString());
     this.newId = options.newId ?? (() => randomUUID());
+    this.onEvent = options.onEvent;
   }
 
   // ── events ──────────────────────────────────────────────────────────────────
 
-  /** Records a model event with an owner the calling store already knows. Returns undefined for a duplicate id */
-  recordModelEvent(event: NewEvent & { owner?: string }): StoredEvent | undefined {
+  /**
+   * Records a model event with the owner the calling store already knows (absent or null = shared — no lookup, the
+   * store read it in the same step as the change). Returns undefined for a duplicate id.
+   */
+  recordModelEvent(event: NewEvent): StoredEvent | undefined {
     const { owner, ...rest } = event;
-    return this.insert(rest, owner);
+    return this.insert(rest, owner ?? undefined);
   }
 
   async appendEvents(events: readonly NewEvent[]): Promise<StoredEvent[]> {
     const inserted: StoredEvent[] = [];
     for (const event of events) {
-      const owner = event.packageId === undefined ? undefined : (this.ownerOf(event.packageId) ?? undefined);
-      const row = this.insert(event, owner);
+      const row = this.insert(event, this.ownerFor(event));
       if (row) inserted.push(row);
     }
     return inserted;
   }
 
+  /** Explicit owner (null = shared) → the package's owner → ORPHAN_OWNER when the package is gone (never "shared") */
+  private ownerFor(event: NewEvent): string | undefined {
+    if (event.owner !== undefined) return event.owner ?? undefined;
+    if (event.packageId === undefined) return undefined;
+    const owner = this.ownerOf(event.packageId);
+    return owner === null ? ORPHAN_OWNER : owner;
+  }
+
   private insert(event: NewEvent, owner: string | undefined): StoredEvent | undefined {
     if (this.eventIds.has(event.id)) return undefined;
-    const row: StoredEvent = { ...copy(event), seq: ++this.lastSeq, recordedAt: this.now() };
+    // `owner` of the input is an instruction, not a column — the resolved owner is set below
+    const { owner: _instruction, ...fields } = event;
+    const row: StoredEvent = { ...copy(fields), seq: ++this.lastSeq, recordedAt: this.now() };
     if (owner !== undefined) row.owner = owner;
+    this.onEvent?.(copy(row));
     this.events.push(row);
     this.eventIds.add(row.id);
     while (this.events.length > this.maxEvents) {
@@ -368,6 +391,36 @@ export class MemoryIntegrationLog implements IntegrationStore {
   }
 
   async putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> {
+    return this.putExternalRefsBatchSync([{ packageId, doc, ...(expectedRevision === undefined ? {} : { expectedRevision }) }])[0]!;
+  }
+
+  async putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> {
+    return this.putExternalRefsBatchSync(items);
+  }
+
+  /**
+   * Important: synchronous from start to end — no other call can interleave, so restoring the two maps on failure
+   *    cannot wipe a concurrent write. The events are recorded only after every item passed.
+   */
+  private putExternalRefsBatchSync(items: readonly ExternalRefsBatchItem[]): Versioned<ExternalRefsDoc>[] {
+    const refs = new Map(this.refs);
+    const refKeys = new Map(this.refKeys);
+    const saved: Versioned<ExternalRefsDoc>[] = [];
+    try {
+      for (const item of items) saved.push(this.putRefs(item.packageId, item.doc, item.expectedRevision));
+    } catch (error) {
+      this.refs = refs;
+      this.refKeys = refKeys;
+      throw error;
+    }
+    items.forEach((item, index) => {
+      const owner = this.ownerOf(item.packageId);
+      this.insert(externalRefsUpdatedEvent(item.packageId, saved[index]!.revision, this.now()), owner ?? undefined);
+    });
+    return saved;
+  }
+
+  private putRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Versioned<ExternalRefsDoc> {
     this.requirePackage(packageId);
     const current = this.refs.get(packageId);
     // Revision first: a stale writer must re-read before it learns anything about other packages' claims

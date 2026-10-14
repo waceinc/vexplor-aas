@@ -22,6 +22,8 @@ import { actorFields } from './actor.js';
 import {
   ExternalRefConflictError,
   externalRefSubjectString,
+  ORPHAN_OWNER,
+  type ExternalRefsBatchItem,
   type DeliveryRecord,
   type DeliveryResult,
   type DeliveryStats,
@@ -39,7 +41,7 @@ import {
   type SubscriptionSecrets,
   type Versioned,
 } from './integration-types.js';
-import { firstShellFacts, type ModelEvent, type PackageFacts } from './model-events.js';
+import { externalRefsUpdatedEvent, firstShellFacts, type ModelEvent, type PackageFacts } from './model-events.js';
 import type { SqlClient } from './postgres.js';
 import { ConflictError, NotFoundError, type PackageScope, type PageQuery, type PageResult } from './types.js';
 
@@ -148,10 +150,31 @@ function toStoredEvent(row: EventRow): StoredEvent {
 
 /**
  * Inserts one event; returns the row, or undefined when the id already exists.
- * `owner: 'lookup'` copies the owner from the package (appendEvents); otherwise the caller's value is used.
+ *
+ * Owner: a model event passes the owner it read inside its own transaction (`{ value }`). An appended event uses its
+ * explicit `owner` (null = shared) if it has one, else the package's owner, else ORPHAN_OWNER when the package is gone —
+ * never "shared", which every workspace could read (integration-types.ts ORPHAN_OWNER).
+ *
+ * Important: `INSERT … SELECT … WHERE NOT EXISTS`, not a bare `ON CONFLICT DO NOTHING`. The conflict clause runs after
+ *    the bigserial default has taken a sequence value, so every deduplicated append left a gap in `seq`, and a pull-feed
+ *    reader holds at a young gap for the settle time (settledPrefix). With zero selected rows no value is taken. The
+ *    conflict clause stays for the rare race of two concurrent appends of one id.
  */
 async function insertEvent(client: SqlClient, event: NewEvent, owner: { value: string | undefined } | 'lookup'): Promise<StoredEvent | undefined> {
-  const ownerSql = owner === 'lookup' ? '(SELECT owner FROM aas_package WHERE id = $4)' : '$12::text';
+  let ownerSql: string;
+  let ownerParam: string | null;
+  if (owner !== 'lookup') {
+    ownerSql = '$12::text';
+    ownerParam = owner.value ?? null;
+  } else if (event.owner !== undefined) {
+    ownerSql = '$12::text';
+    ownerParam = event.owner;
+  } else {
+    ownerSql = `CASE WHEN $4::text IS NULL THEN NULL
+                     WHEN EXISTS (SELECT 1 FROM aas_package WHERE id = $4::text) THEN (SELECT owner FROM aas_package WHERE id = $4::text)
+                     ELSE $12::text END`;
+    ownerParam = ORPHAN_OWNER;
+  }
   const params: unknown[] = [
     event.id,
     event.type,
@@ -164,13 +187,14 @@ async function insertEvent(client: SqlClient, event: NewEvent, owner: { value: s
     event.cause ?? null,
     event.changeSetId ?? null,
     JSON.stringify(event.data),
+    ownerParam,
   ];
-  if (owner !== 'lookup') params.push(owner.value ?? null);
   const { rows } = await client.query<EventRow>(
     `INSERT INTO integration_event
        (id, type, occurred_at, recorded_at, package_id, subject, package_revision, owner, actor_id, actor_name, cause, change_set_id, data)
-     VALUES ($1, $2, $3::timestamptz, date_trunc('milliseconds', clock_timestamp()),
-             $4, $5, $6::integer, ${ownerSql}, $7, $8, $9, $10, $11::jsonb)
+     SELECT $1::text, $2::text, $3::timestamptz, date_trunc('milliseconds', clock_timestamp()),
+            $4::text, $5::text, $6::integer, ${ownerSql}, $7::text, $8::text, $9::text, $10::text, $11::jsonb
+      WHERE NOT EXISTS (SELECT 1 FROM integration_event WHERE id = $1::text)
      ON CONFLICT (id) DO NOTHING
      RETURNING ${EVENT_COLUMNS}`,
     params,
@@ -700,51 +724,84 @@ export class PostgresIntegration implements IntegrationStore {
     return rows[0] ? toVersioned<ExternalRefsDoc>(rows[0]) : undefined;
   }
 
-  /**
-   * Same order of checks as the memory log: package, revision, then uniqueness — a stale writer learns nothing about
-   * other packages' claims. Conflicts are found with a query before writing; a concurrent writer that slips in between
-   * makes the key insert fail (23505), which aborts the transaction, so its claims are read again afterwards.
-   */
   async putExternalRefs(packageId: string, doc: ExternalRefsDoc, expectedRevision?: number): Promise<Versioned<ExternalRefsDoc>> {
+    const item: ExternalRefsBatchItem = { packageId, doc, ...(expectedRevision === undefined ? {} : { expectedRevision }) };
+    return (await this.putExternalRefsBatch([item]))[0]!;
+  }
+
+  /**
+   * One transaction for every item, in order; the first failure rolls all of them back.
+   * Per item, the same order of checks as the memory log: package, revision, then uniqueness — a stale writer learns
+   * nothing about other packages' claims. Each saved item writes its `model.externalrefs.updated` event in the same
+   * transaction, so the projector can find the change in the log after a crash.
+   *
+   * Important: the **package row** is locked first (FOR NO KEY UPDATE — enough to serialize writers of one sidecar,
+   *    and it does not block foreign-key checks of unrelated writes). Locking the sidecar row alone locks nothing on
+   *    the first write, when that row does not exist yet: two first writers both read revision 0 and the slower one
+   *    failed on the primary key with a raw 23505 (a 500).
+   * Uniqueness against other packages is checked with a query before writing; a writer of another package that slips
+   *    in between makes the key insert fail with 23505, which aborts the transaction, so its claims are read again
+   *    afterwards and reported as ExternalRefConflictError — or, when no claim is found, as a ConflictError (retry).
+   */
+  async putExternalRefsBatch(items: readonly ExternalRefsBatchItem[]): Promise<Versioned<ExternalRefsDoc>[]> {
+    if (items.length === 0) return [];
+    let current: ExternalRefsBatchItem | undefined;
     try {
       return await withTransaction(this.client, async (tx) => {
-        await this.packageExists(packageId, tx);
-        const current = await tx.query<{ revision: number }>('SELECT revision FROM external_ref_doc WHERE package_id = $1 FOR UPDATE', [packageId]);
-        const actual = current.rows[0] ? Number(current.rows[0].revision) : 0;
-        if (expectedRevision !== undefined && expectedRevision !== actual) throw new ConflictError(expectedRevision, actual);
-
-        const claims = await this.conflictsFor(tx, packageId, doc);
-        if (claims.conflicts.length > 0) throw new ExternalRefConflictError(claims.conflicts);
-
-        await tx.query('DELETE FROM external_ref_key WHERE package_id = $1', [packageId]);
-        for (const claim of claims.keys) {
-          await tx.query('INSERT INTO external_ref_key (system, type, ref_id, package_id, subject) VALUES ($1, $2, $3, $4, $5)', [
-            claim.system,
-            claim.type,
-            claim.id,
-            packageId,
-            claim.subject,
-          ]);
+        const saved: Versioned<ExternalRefsDoc>[] = [];
+        for (const item of items) {
+          current = item;
+          saved.push(await this.putOne(tx, item));
         }
-        const actor = actorFields();
-        const { rows } = await tx.query<VersionedRow>(
-          `INSERT INTO external_ref_doc (package_id, doc, revision, updated_at, actor_id, actor_name)
-           VALUES ($1, $2::jsonb, $3::integer, $4::timestamptz, $5, $6)
-           ON CONFLICT (package_id) DO UPDATE SET doc = EXCLUDED.doc, revision = EXCLUDED.revision,
-             updated_at = EXCLUDED.updated_at, actor_id = EXCLUDED.actor_id, actor_name = EXCLUDED.actor_name
-           RETURNING doc::text AS value, revision, updated_at, actor_id, actor_name`,
-          [packageId, JSON.stringify(doc), actual + 1, new Date().toISOString(), actor.actorId ?? null, actor.actorName ?? null],
-        );
-        return toVersioned<ExternalRefsDoc>(rows[0]!);
+        return saved;
       });
     } catch (error) {
-      if (sqlState(error) === '23503') throw new NotFoundError(packageId);
+      const failed = current;
+      if (failed === undefined) throw error;
+      if (sqlState(error) === '23503') throw new NotFoundError(failed.packageId);
       if (sqlState(error) === '23505') {
-        const { conflicts } = await this.conflictsFor(this.client, packageId, doc);
+        const { conflicts } = await this.conflictsFor(this.client, failed.packageId, failed.doc);
         if (conflicts.length > 0) throw new ExternalRefConflictError(conflicts);
+        const latest = await this.getExternalRefs(failed.packageId);
+        throw new ConflictError(failed.expectedRevision ?? 0, latest?.revision ?? 0);
       }
       throw error;
     }
+  }
+
+  private async putOne(tx: SqlClient, item: ExternalRefsBatchItem): Promise<Versioned<ExternalRefsDoc>> {
+    const { packageId, doc, expectedRevision } = item;
+    const pkg = await tx.query<{ owner: string | null }>('SELECT owner FROM aas_package WHERE id = $1 FOR NO KEY UPDATE', [packageId]);
+    if (pkg.rows.length === 0) throw new NotFoundError(packageId);
+    const current = await tx.query<{ revision: number }>('SELECT revision FROM external_ref_doc WHERE package_id = $1', [packageId]);
+    const actual = current.rows[0] ? Number(current.rows[0].revision) : 0;
+    if (expectedRevision !== undefined && expectedRevision !== actual) throw new ConflictError(expectedRevision, actual);
+
+    const claims = await this.conflictsFor(tx, packageId, doc);
+    if (claims.conflicts.length > 0) throw new ExternalRefConflictError(claims.conflicts);
+
+    await tx.query('DELETE FROM external_ref_key WHERE package_id = $1', [packageId]);
+    for (const claim of claims.keys) {
+      await tx.query('INSERT INTO external_ref_key (system, type, ref_id, package_id, subject) VALUES ($1, $2, $3, $4, $5)', [
+        claim.system,
+        claim.type,
+        claim.id,
+        packageId,
+        claim.subject,
+      ]);
+    }
+    const actor = actorFields();
+    const at = new Date().toISOString();
+    const { rows } = await tx.query<VersionedRow>(
+      `INSERT INTO external_ref_doc (package_id, doc, revision, updated_at, actor_id, actor_name)
+       VALUES ($1, $2::jsonb, $3::integer, $4::timestamptz, $5, $6)
+       ON CONFLICT (package_id) DO UPDATE SET doc = EXCLUDED.doc, revision = EXCLUDED.revision,
+         updated_at = EXCLUDED.updated_at, actor_id = EXCLUDED.actor_id, actor_name = EXCLUDED.actor_name
+       RETURNING doc::text AS value, revision, updated_at, actor_id, actor_name`,
+      [packageId, JSON.stringify(doc), actual + 1, at, actor.actorId ?? null, actor.actorName ?? null],
+    );
+    await recordModelEvent(tx, externalRefsUpdatedEvent(packageId, actual + 1, at, pkg.rows[0]!.owner ?? undefined));
+    return toVersioned<ExternalRefsDoc>(rows[0]!);
   }
 
   /** The doc's distinct claims, and conflicts (existing claim then new claim) in doc order — mirrors the memory log */
