@@ -114,10 +114,10 @@ export function parsePolicy(text: string): ParsedPolicy {
 /** 지금 쓰이는 값이 어디서 왔는지 — 규칙 화면이 보여 준다 */
 export function policySources(
   policy: Partial<LinterPolicy>,
-): { key: keyof LinterPolicy; from: '기본값' | '정책 파일' }[] {
+): { key: keyof LinterPolicy; from: 'default' | 'policy-file' }[] {
   return (Object.keys(DEFAULT_POLICY) as (keyof LinterPolicy)[]).map((key) => ({
     key,
-    // i18n-ignore — 화면(Rules.tsx)이 '기본값'과 견주는 표지라 한국어 그대로 둔다. 보여 주지 않는 값이다
-    from: key in policy && JSON.stringify(policy[key]) !== JSON.stringify(DEFAULT_POLICY[key]) ? '정책 파일' : '기본값',
+    // 언어와 상관없는 표지 — 화면(Rules.tsx)이 견주는 값이고 보여 주지 않는다(API 를 영어로 쓰는 쪽에 한국어가 새지 않게)
+    from: key in policy && JSON.stringify(policy[key]) !== JSON.stringify(DEFAULT_POLICY[key]) ? 'policy-file' : 'default',
   }));
 }

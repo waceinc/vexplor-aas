@@ -63,7 +63,7 @@ describe('정책 파일 읽기', () => {
 
   it('값이 어디서 왔는지 알려 준다 — 화면이 그대로 보여 준다', () => {
     const sources = policySources({ iriBase: 'https://example.com/ids' });
-    expect(sources.find((entry) => entry.key === 'iriBase')?.from).toBe('정책 파일');
-    expect(sources.find((entry) => entry.key === 'requiredSubmodels')?.from).toBe('기본값');
+    expect(sources.find((entry) => entry.key === 'iriBase')?.from).toBe('policy-file');
+    expect(sources.find((entry) => entry.key === 'requiredSubmodels')?.from).toBe('default');
   });
 });
