@@ -14,7 +14,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 
 const root = resolve(process.argv[2] ?? 'out/public');
 if (!existsSync(root)) {
-  console.error(`🔴 폴더가 없습니다: ${root}`);
+  console.error(`[FAIL] Folder not found: ${root}`);
   process.exit(1);
 }
 
@@ -38,15 +38,15 @@ const FORBIDDEN_PATHS = [
 /** File types that must not exist — source documents and design files are usually third-party or business material */
 const FORBIDDEN_EXTENSIONS = new Set(['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.hwp', '.hwpx', '.ai', '.psd']);
 
-/** Text checks — [what it is, regex] */
+/** Text checks — [what it is, regex]. Some patterns are Korean on purpose: they match Korean business terms */
 const FORBIDDEN_TEXT = [
-  ['사내 저장소 주소', /g\.wace\.me|[a-z0-9.-]*wace\.me/i],
-  ['사내 서버·PC 주소', /192\.168\.0\.(236|119)\b/],
-  ['사내 경로', /AAS 백업|basyx-setup|aas_research|C:\\ORCA|C:\\Users\\|\/c\/Users\//],
-  ['개인 계정', /myyh\d*|lyh100\d*/i],
-  ['사업 맥락', /중기부|70종|데이터표준화 사업|사업계획서/],
-  ['실제 회사·제품', /SIMPAC|Samick|두산로보틱스|Doosan Robotics|Atlas ?Copco|Henrob|A0509s/],
-  ['비밀값', /-----BEGIN [A-Z ]*PRIVATE KEY-----|\bghp_[A-Za-z0-9]{20,}|\bAKIA[0-9A-Z]{16}\b|\bxox[bp]-[A-Za-z0-9-]{10,}/],
+  ['internal repository address', /g\.wace\.me|[a-z0-9.-]*wace\.me/i],
+  ['internal server/PC address', /192\.168\.0\.(236|119)\b/],
+  ['internal path', /AAS 백업|basyx-setup|aas_research|C:\\ORCA|C:\\Users\\|\/c\/Users\//],
+  ['personal account', /myyh\d*|lyh100\d*/i],
+  ['business context', /중기부|70종|데이터표준화 사업|사업계획서/],
+  ['real company/product', /SIMPAC|Samick|두산로보틱스|Doosan Robotics|Atlas ?Copco|Henrob|A0509s/],
+  ['secret', /-----BEGIN [A-Z ]*PRIVATE KEY-----|\bghp_[A-Za-z0-9]{20,}|\bAKIA[0-9A-Z]{16}\b|\bxox[bp]-[A-Za-z0-9-]{10,}/],
 ];
 
 /**
@@ -79,7 +79,7 @@ const rel = (full) => relative(root, full).split('\\').join('/');
 
 // (1) Paths that must not exist
 for (const path of FORBIDDEN_PATHS) {
-  if (existsSync(join(root, path))) problems.push(`있으면 안 되는 길: ${path}`);
+  if (existsSync(join(root, path))) problems.push(`forbidden path: ${path}`);
 }
 
 for (const full of files) {
@@ -88,7 +88,7 @@ for (const full of files) {
 
   // (2) File types that must not exist
   if (FORBIDDEN_EXTENSIONS.has(extension)) {
-    problems.push(`있으면 안 되는 종류(${extension}): ${path}`);
+    problems.push(`forbidden file type (${extension}): ${path}`);
     continue;
   }
 
@@ -122,20 +122,20 @@ for (const full of files) {
       }
       const resolved = resolve(dirname(full), decoded);
       if (!resolved.startsWith(root)) continue; // GitHub path pointing outside the repository
-      if (!existsSync(resolved)) problems.push(`죽은 링크: ${path} → ${target}`);
+      if (!existsSync(resolved)) problems.push(`dead link: ${path} → ${target}`);
     }
   }
 }
 
 // (5) Required files — without them the public repository is not valid
 for (const path of ['LICENSE', 'NOTICE', 'README.md', 'SECURITY.md', 'CONTRIBUTING.md', 'THIRD-PARTY-NOTICES.md', 'package.json']) {
-  if (!existsSync(join(root, path))) problems.push(`있어야 하는데 없다: ${path}`);
+  if (!existsSync(join(root, path))) problems.push(`required file missing: ${path}`);
 }
 
-console.log(`검사한 파일 ${files.length}개 — ${root}`);
+console.log(`Checked ${files.length} files — ${root}`);
 if (problems.length > 0) {
-  console.error(`\n🔴 ${problems.length}건이 걸렸습니다 — 이대로 공개하면 안 됩니다:\n`);
+  console.error(`\n[FAIL] ${problems.length} problems found — do not publish as is:\n`);
   for (const problem of problems) console.error(`  ${problem}`);
   process.exit(1);
 }
-console.log('✅ 나가면 안 되는 것이 없습니다.');
+console.log('[PASS] Nothing that must not go out was found.');

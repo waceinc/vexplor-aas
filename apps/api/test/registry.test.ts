@@ -13,7 +13,7 @@ import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 const encode = (text: string): string => Buffer.from(text).toString('base64url');
 
 const AAS_ID = 'https://www.smart-factory.kr/ids/aas/RollFormingMachine/1/0';

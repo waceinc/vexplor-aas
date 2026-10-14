@@ -101,7 +101,7 @@ function withAid(environment: Environment, endpoint: string): Environment {
 
 describe('M8 end to end (AID -> OPC UA -> time series)', () => {
   it('actually reads the addresses the AID names and stores them in the time series', async () => {
-    const pkg = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+    const pkg = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
     const environment = withAid(pkg.environment, server.endpoint);
 
     const store = new InMemoryStore();

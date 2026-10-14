@@ -25,7 +25,7 @@ interface Plan {
   counts?: { apply: number; skip: number };
 }
 
-const fixtureBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const fixtureBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 
 function harness(store: AasStore = new InMemoryStore()) {
   const handle = createApi(store);

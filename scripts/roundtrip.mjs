@@ -19,8 +19,8 @@ for (const name of readdirSync(inDir).filter((n) => n.endsWith('.aasx'))) {
   console.log(
     `  ${name}  SM=${env.submodels?.length ?? 0} CD=${env.conceptDescriptions?.length ?? 0}` +
     `  ${src.byteLength} → ${out.byteLength} bytes` +
-    (pkg.warnings.length ? `  ⚠ ${pkg.warnings.length}건` : ''),
+    (pkg.warnings.length ? `  [WARN] ${pkg.warnings.length} warnings` : ''),
   );
   count++;
 }
-console.log(`\n${count}개 재저장 완료 → ${outDir}`);
+console.log(`\nRe-saved ${count} files → ${outDir}`);

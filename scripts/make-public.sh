@@ -20,7 +20,7 @@ VERIFY=0
 for arg in "$@"; do
   case "$arg" in
     --verify) VERIFY=1 ;;
-    *) echo "모르는 인자: $arg" >&2; exit 2 ;;
+    *) echo "Unknown argument: $arg" >&2; exit 2 ;;
   esac
 done
 
@@ -47,12 +47,12 @@ ALLOW=(
 )
 
 if [ -n "$(git status --porcelain)" ]; then
-  echo "🔴 커밋하지 않은 변경이 있습니다 — 그것은 나가지 않습니다. 먼저 커밋하십시오." >&2
+  echo "[FAIL] There are uncommitted changes — they will not go out. Commit first." >&2
   git status --short | head -10 >&2
   exit 1
 fi
 
-echo "▶ 1/4 뽑기 — HEAD에서 허용한 것만"
+echo "▶ 1/4 Extract — only what is allowed, from HEAD"
 # Important: **keep** the public repository's history (.git) and only swap the contents. Deleting it wholesale breaks
 #    history from the second publish on, so every publish becomes a "first publish". All content is cleared and re-extracted —
 #    files deleted in this repository must not linger on the public side (git add -A then also picks up deletions).
@@ -65,47 +65,47 @@ mkdir -p "$OUT"
 find "$OUT" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 # Important: git archive exports **committed content** only. Copying the working folder drags ignored files along
 git -c core.quotepath=off archive --format=tar HEAD -- "${ALLOW[@]}" | tar -x -C "$OUT"
-echo "   파일 $(find "$OUT" -type f -not -path "$OUT/.git/*" | wc -l)개"
+echo "   Files: $(find "$OUT" -type f -not -path "$OUT/.git/*" | wc -l)"
 
-echo "▶ 2/4 나가면 안 되는 것이 섞였는가"
+echo "▶ 2/4 Did anything that must not go out slip in?"
 node scripts/check-public-tree.mjs "$OUT"
 
-echo "▶ 3/4 시험 파일에 실제 회사·제품 이름이 없는가"
+echo "▶ 3/4 No real company or product names in test files?"
 if command -v python3 >/dev/null 2>&1 && python3 -c "" >/dev/null 2>&1; then PY=python3; else PY=python; fi
 "$PY" scripts/scan-fixture-names.py "$OUT/tests/fixtures" | tail -1
 
 if [ "$VERIFY" = "1" ]; then
-  echo "▶ 4/4 뽑은 폴더가 **혼자 서는가** — 설치·빌드·시험"
+  echo "▶ 4/4 Does the extracted folder **stand on its own**? — install, build, test"
   # Important: "it works here" is not verification. If it relied on an excluded file, it breaks only in the extracted folder.
   #    We once shipped a bundle that only ran where it had been built before — it is verified only after running it elsewhere
   ( cd "$OUT" && npm ci --no-audit --no-fund >/dev/null && bash scripts/ci.sh )
 else
-  echo "▶ 4/4 (건너뜀) 혼자 서는지 보려면 --verify"
+  echo "▶ 4/4 (skipped) use --verify to check that it stands on its own"
 fi
 
 if [ -d "$OUT/.git" ]; then
   cat <<EOF
 
-✅ 공개할 폴더를 갈아 끼웠습니다: $OUT  (공개 저장소의 이력은 그대로입니다)
+[OK] Replaced the contents of the folder to publish: $OUT  (the public repository history is kept)
 
-   올리는 것은 사람이 합니다 — 한 번 나가면 되돌릴 수 없습니다.
+   A person does the push — once it is out it cannot be taken back.
      cd $OUT
-     git status --short            # 무엇이 바뀌었는지 먼저 본다
-     git add -A && git commit -m "<무엇을 왜 바꿨는지>"
+     git status --short            # look at what changed first
+     git add -A && git commit -m "<what changed and why>"
      git push
 EOF
 else
   cat <<EOF
 
-✅ 공개할 폴더가 준비됐습니다: $OUT
+[OK] The folder to publish is ready: $OUT
 
-   올리는 것은 사람이 합니다 — 한 번 나가면 되돌릴 수 없습니다.
+   A person does the push — once it is out it cannot be taken back.
      cd $OUT
-     git init -b main && git add -A && git commit -m "첫 공개"
-     git remote add origin <새 저장소 주소>
+     git init -b main && git add -A && git commit -m "Initial public release"
+     git remote add origin <new repository URL>
      git push -u origin main
 
-   🔴 올리기 전에: 사내에서 쓰던 토큰은 **전부 새로 바꾸십시오.**
-      이 폴더에는 이력이 없지만, 예전에 쓰던 값이 어디선가 살아 있을 수 있습니다.
+   [WARN] Before pushing: **rotate every token** that was used internally.
+      This folder has no history, but old values may still be alive somewhere.
 EOF
 fi

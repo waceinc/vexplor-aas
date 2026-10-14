@@ -9,7 +9,7 @@
  * Why a tool: the English UI was stuck at "skeleton only" for a long time. Fixing by eye only fixes what you
  * happen to see, and every new screen leaks again. A **counting tool** gives the work an end and keeps it done.
  *
- * What is counted (comments are not — Korean is fine in comments)
+ * What is counted (comments are not scanned — they must be in English anyway, CONTRIBUTING rule 5)
  *   - JSX text                     <p>저장했습니다</p>
  *   - text attributes              title="…" placeholder="…" aria-label="…"
  *   - strings/templates in exprs   setError('…') · `위반 ${n}건`
@@ -204,11 +204,11 @@ if (process.argv[1]?.endsWith('i18n-scan.mjs')) {
     if (list) for (const item of row.untranslated) console.log(`         ${item.line}  [${item.kind}] ${item.text.slice(0, 110)}`);
   }
   console.log(`
-번역기를 거치지 않는 한국어: ${total}곳`);
-  console.log(`번역기를 거치지만 영어 사전에 없는 것: ${missing.size}개 (사전 ${dict.size}항목)`);
-  console.log(`번역문의 표시({0} · <b>)가 원문과 다른 것: ${broken.length}개`);
+Korean text bypassing the translator: ${total}`);
+  console.log(`Routed through the translator but missing from the English dictionary: ${missing.size} (dictionary has ${dict.size} entries)`);
+  console.log(`Translations whose markers ({0} · <b>) differ from the source: ${broken.length}`);
   if (showKeys) for (const [text, where] of missing) console.log(`   ${where}  ${text.slice(0, 120)}`);
-  for (const item of broken.slice(0, 20)) console.log(`   🔴 ${item.key.slice(0, 70)}
+  for (const item of broken.slice(0, 20)) console.log(`   [FAIL] ${item.key.slice(0, 70)}
       → ${String(item.value).slice(0, 70)}`);
 
   // List handed to translators — records which screen each text belongs to
@@ -217,7 +217,7 @@ if (process.argv[1]?.endsWith('i18n-scan.mjs')) {
     for (const [text, where] of missing) (grouped[where.split(':')[0]] ??= []).push(text);
     writeFileSync(process.argv[dump + 1], JSON.stringify(grouped, null, 1));
     console.log(`
-${process.argv[dump + 1]}에 ${missing.size}개를 적었다.`);
+Wrote ${missing.size} entries to ${process.argv[dump + 1]}.`);
   }
 
   if (check && (total > 0 || missing.size > 0 || broken.length > 0)) process.exit(1);

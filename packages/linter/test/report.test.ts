@@ -11,10 +11,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const golden = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+const golden = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
 
 const options = {
-  title: '01-롤포밍기-공34.aasx',
+  title: '01-roll-forming-machine.aasx',
   generatedAt: '2026-08-21T00:00:00.000Z',
   policy: DEFAULT_POLICY,
 };
@@ -24,7 +24,7 @@ describe('HTML validation report', () => {
     const result = lint(golden.environment, ALL_RULES, { package: golden.opc });
     const html = formatHtmlReport(result, options);
     expect(html).toContain('>PASS<');
-    expect(html).toContain('01-롤포밍기-공34.aasx');
+    expect(html).toContain('01-roll-forming-machine.aasx');
     expect(html).toContain(`검사 규칙</th><td>${result.rulesRun}종`);
   });
 

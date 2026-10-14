@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 const fixtures = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const golden = () => readAasx(new Uint8Array(readFileSync(`${fixtures}01-롤포밍기-공34.aasx`)));
+const golden = () => readAasx(new Uint8Array(readFileSync(`${fixtures}01-roll-forming-machine.aasx`)));
 
 const ALICE: Workspace = { key: 'visitor:alice', seesAll: false };
 const BOB: Workspace = { key: 'visitor:bob', seesAll: false };

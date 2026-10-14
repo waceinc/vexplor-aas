@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { retentionDaysFromEnv, startRetention } from '../src/retention.js';
 
 const golden = () =>
-  readAasx(readFileSync(fileURLToPath(new URL('../../../tests/fixtures/01-롤포밍기-공34.aasx', import.meta.url))));
+  readAasx(readFileSync(fileURLToPath(new URL('../../../tests/fixtures/01-roll-forming-machine.aasx', import.meta.url))));
 
 describe('COLLECT_RETENTION_DAYS', () => {
   it('missing, 0, negative, or text means off (0); positive is used as is — decimals accepted', () => {

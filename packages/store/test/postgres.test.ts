@@ -82,18 +82,18 @@ describe('schema version number (schema_version)', () => {
     // v3 — users table
     .replace(/CREATE TABLE IF NOT EXISTS app_user \([^;]*\);/, '')
     // v6 — workspaces (package owner)
-    .replace(/^ *-- *주인\(작업 공간 열쇠\).*$/m, '')
+    .replace(/^ *-- *Owner \(workspace key\).*$/m, '')
     .replace(/^ *owner +text$/m, '')
     .replace(/^CREATE INDEX IF NOT EXISTS aas_package_owner_idx.*$/m, '')
     // v5 — sign-up contact info
-    .replace(/^ *-- *연락처\(선택\).*$/m, '')
-    .replace(/^ *-- *UNIQUE도 걸지 않는다.*$/m, '')
+    .replace(/^ *-- *Contact address \(optional\).*$/m, '')
+    .replace(/^ *-- *No UNIQUE either.*$/m, '')
     .replace(/^ *email +text$/m, '')
     // v8 — receivedAt of collected values
     .replace(/^ *received_at +timestamptz$/m, '')
     // v4 — the audit trail's "who"; strip its comments too
     .replace(/^ *--.*app_user.*$/m, '')
-    .replace(/^ *--.*그때의 것을 베껴.*$/m, '')
+    .replace(/^ *--.*copied as it was at the time.*$/m, '')
     .replace(/^ *actor_id +text,$/m, '')
     .replace(/^ *actor_name +text$/m, '')
     // The above leaves blank lines and a trailing comma — restore what follows `changed_at ...,`

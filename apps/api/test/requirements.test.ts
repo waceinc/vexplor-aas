@@ -7,7 +7,7 @@ import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const fixture = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')));
+const fixture = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
 
 type Json = Record<string, unknown>;
 interface Entry {

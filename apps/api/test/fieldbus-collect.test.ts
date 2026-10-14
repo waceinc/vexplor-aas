@@ -10,7 +10,7 @@ import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')));
+const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
 
 const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
   if (descriptor.protocol === 'MODBUS') return ModbusReader.connect(descriptor, { timeoutMs: 1000 });

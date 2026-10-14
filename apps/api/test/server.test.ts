@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const goldenBytes = readFileSync(root + '01-롤포밍기-공34.aasx');
+const goldenBytes = readFileSync(root + '01-roll-forming-machine.aasx');
 
 let baseUrl: string;
 let server: ReturnType<typeof createHttpServer>;
@@ -30,7 +30,7 @@ afterAll(async () => {
 
 describe('HTTP server', () => {
   it('upload -> query -> download works as is over a socket', async () => {
-    const upload = await fetch(`${baseUrl}/packages?name=${encodeURIComponent('01-롤포밍기-공34.aasx')}`, {
+    const upload = await fetch(`${baseUrl}/packages?name=${encodeURIComponent('01-roll-forming-machine.aasx')}`, {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
       body: goldenBytes,

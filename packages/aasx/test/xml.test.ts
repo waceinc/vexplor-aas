@@ -5,14 +5,14 @@
  * Silently reading it differently is worse than failing to read it (lesson measured with basyx on this project).
  *
  * The comparison file is the same content rewritten as XML by basyx-python-sdk
- * (`tests/fixtures/01-롤포밍기-XML판.aasx`).
+ * (`tests/fixtures/01-roll-forming-machine-xml.aasx`).
  */
 import { readAasx, parseEnvironmentXml, AasxXmlError, writeAasx } from '@aas/aasx';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const xmlBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-XML판.aasx'));
-const jsonBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const xmlBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine-xml.aasx'));
+const jsonBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 
 /** Compare ignoring key order — XML is written in the order the spec defines, so key order differs from JSON */
 function normalize(value: unknown): unknown {
@@ -90,7 +90,7 @@ describe('XML AASX reading', () => {
     // The same document, pretty-printed with indentation
     const raw = new TextDecoder().decode(
       // Instead of extracting and re-inserting the body inside the package, indent the body string directly
-      new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-XML판.aasx')),
+      new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine-xml.aasx')),
     );
     expect(raw.length).toBeGreaterThan(0); // only confirm the file exists, then
     const indented = parseEnvironmentXml(

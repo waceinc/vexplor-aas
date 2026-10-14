@@ -32,24 +32,24 @@ build_one() {
 
   # Important: turn off provenance and sbom. When on, the image becomes a manifest list and `docker save`
   #    drags in the other CPU's image too (measured: the bundle grew from 576MB → 1.0GB)
-  echo "▶ 앱 이미지 빌드"
+  echo "▶ Build the app image"
   docker buildx build --platform "${platform}" --provenance=false --sbom=false \
     -t "${app_image}" --load . >/dev/null
 
   # Important: pin the DB to a **CPU-specific tag** too. Using the shared tag (timescale/…:latest-pg17) as-is
   #    mixes in the other CPU's copy pulled just before (caught by measurement)
   local db_image="aas-db:${VERSION}-${kind}"
-  echo "▶ DB 이미지 확보"
+  echo "▶ Fetch the DB image"
   docker pull --quiet --platform "${platform}" "${DB_IMAGE}" >/dev/null
   docker tag "${DB_IMAGE}" "${db_image}"
 
   # Important: both images in one file — splitting into two leads to accidents where only one gets carried in
-  echo "▶ 이미지를 파일로 저장 (몇 분 걸립니다)"
+  echo "▶ Save the images to a file (takes a few minutes)"
   # Important: pass `--platform`. Docker Desktop's image store holds several CPU variants together,
   #    so a plain save pulls the other CPU's image along (measured: arm64 got mixed into the Windows bundle)
   docker save --platform "${platform}" "${app_image}" "${db_image}" | gzip > "${stage}/images.tar.gz"
 
-  echo "▶ 실행 파일 모으기"
+  echo "▶ Collect the run files"
   sed -e "s|build: \.|image: ${app_image}|" \
       -e "s|image: timescale/timescaledb:latest-pg17|image: ${db_image}|" \
       docker-compose.yml > "${stage}/docker-compose.yml"
@@ -58,6 +58,7 @@ build_one() {
   cp docs/사용법.md "${stage}/사용법.md"
   cp docs/install.md "${stage}/install.md"
   cp docs/usage.md "${stage}/usage.md"
+  # Important: the file and folder names inside the bundle stay Korean — they are what the Korean customer sees
   cp out/VEXPLOR_AAS_Studio_매뉴얼.pptx "${stage}/매뉴얼.pptx" 2>/dev/null || true
   mkdir -p "${stage}/문서"; cp -r docs/images "${stage}/문서/images" 2>/dev/null || true
 
@@ -90,24 +91,24 @@ build_one() {
   images_mb=$(( $(wc -c < "${stage}/images.tar.gz") / 1024 / 1024 ))
   total_mb=$(du -sm "${stage}" | cut -f1)
   if [ $(( total_mb - images_mb )) -gt 50 ]; then
-    echo "🔴 꾸러미가 예상보다 큽니다 — 이미지 ${images_mb}MB인데 전체 ${total_mb}MB입니다."
-    echo "   딸려 들어간 것이 없는지 보십시오:"
+    echo "[FAIL] The bundle is larger than expected — images are ${images_mb}MB but the total is ${total_mb}MB."
+    echo "   Check whether something slipped in:"
     du -sh "${stage}"/* | sort -rh | head -5
     exit 1
   fi
 
   (cd out/release && tar --exclude '.DS_Store' -czf "VEXPLOR-AAS-Studio-${VERSION}-${kind}.tar.gz" "VEXPLOR-AAS-Studio-${VERSION}-${kind}")
-  echo "✅ out/release/VEXPLOR-AAS-Studio-${VERSION}-${kind}.tar.gz  ($(du -h "out/release/VEXPLOR-AAS-Studio-${VERSION}-${kind}.tar.gz" | cut -f1))"
+  echo "[OK] out/release/VEXPLOR-AAS-Studio-${VERSION}-${kind}.tar.gz  ($(du -h "out/release/VEXPLOR-AAS-Studio-${VERSION}-${kind}.tar.gz" | cut -f1))"
 }
 
 case "${TARGET}" in
   windows) build_one windows linux/amd64 ;;
   mac)     build_one mac     linux/arm64 ;;
   all)     build_one windows linux/amd64; build_one mac linux/arm64 ;;
-  *) echo "두 번째 인자는 windows · mac · all 중 하나입니다."; exit 1 ;;
+  *) echo "The second argument must be one of windows · mac · all."; exit 1 ;;
 esac
 
 echo
-echo "받는 쪽이 할 일:"
-echo "  윈도우: 압축 풀고 → 설치.bat 두 번 클릭"
-echo "  맥:     압축 풀고 → 설치.command 두 번 클릭"
+echo "What the receiving side does:"
+echo "  Windows: unpack → double-click 설치.bat"
+echo "  Mac:     unpack → double-click 설치.command"

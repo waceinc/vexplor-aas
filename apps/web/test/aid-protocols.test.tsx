@@ -36,7 +36,7 @@ describe('create collection connection: Modbus', () => {
   it('import from equipment is locked, and the type and data type of manually entered rows go into the AID form fields', async () => {
     const store = new InMemoryStore();
     await store.init();
-    await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });
+    await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'))) });
     wireFetch(store);
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: '수집 연결 만들기' }));
@@ -84,7 +84,7 @@ describe('tag pattern', () => {
   it('adding by pattern in the dialog creates that many rows', async () => {
     const store = new InMemoryStore();
     await store.init();
-    await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });
+    await store.importPackage({ name: 'm.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'))) });
     wireFetch(store);
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: '수집 연결 만들기' }));

@@ -1,7 +1,7 @@
 /**
  * Reference-bundle demo kit — uses one roll-forming machine to show both the "submission bundle" and the "on-site demo".
  *
- *   node scripts/make-bundle-demo.mjs                       -> out/시연/레퍼런스번들/
+ *   node scripts/make-bundle-demo.mjs                       -> out/demo/reference-bundle/
  *   node scripts/make-bundle-demo.mjs --source <roll-forming.aasx>  to build from the project submission copy (v0.0.1).
  *     The default is the repository's golden file (tests/fixtures) — an old version, so 10 AASd-120 warnings appear
  *
@@ -14,6 +14,8 @@
  * Important: why split in two — a bundle is a Type, so having no endpoint address is correct; values flow from
  *    each individual physical machine (Instance). Mixing both in one file would leak the demo address into the submission.
  * Important: every value in (2) is **simulated**. The interface name says so explicitly.
+ * Important: the kit itself (file names, the virtual PLC title, the presenter script) stays Korean on purpose — it is
+ *    run in front of Korean customers and quotes the Korean UI labels; 02_참조모델 is a folder name fixed by the bundle format.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -23,8 +25,8 @@ import { simulationPlan } from '@aas/opcua';
 import { InMemoryStore } from '@aas/store';
 
 const sourceAt = process.argv.indexOf('--source');
-const GOLDEN = sourceAt > 0 ? process.argv[sourceAt + 1] : 'tests/fixtures/01-롤포밍기-공34.aasx';
-const OUT = resolve('out/시연/레퍼런스번들');
+const GOLDEN = sourceAt > 0 ? process.argv[sourceAt + 1] : 'tests/fixtures/01-roll-forming-machine.aasx';
+const OUT = resolve('out/demo/reference-bundle');
 const SIM_PORT = 14850;
 const ENDPOINT = `opc.tcp://127.0.0.1:${SIM_PORT}/UA/Simulator`;
 
@@ -44,7 +46,7 @@ async function session() {
     if (response.status >= 400) throw new Error(`${method} ${path} → ${response.status} ${JSON.stringify(response.body)}`);
     return response;
   };
-  const machine = (await store.importPackage({ name: '01-롤포밍기-공34.aasx', package: readAasx(new Uint8Array(readFileSync(GOLDEN))) })).id;
+  const machine = (await store.importPackage({ name: '01-roll-forming-machine.aasx', package: readAasx(new Uint8Array(readFileSync(GOLDEN))) })).id;
   return { store, call, machine };
 }
 
@@ -97,7 +99,7 @@ mkdirSync(`${OUT}/가상PLC`, { recursive: true });
   for (const [path, data] of Object.entries(unzipArchive(zip.body))) {
     if (path.includes('/02_참조모델/')) writeFileSync(`${OUT}/가상PLC/${path.split('/').pop()}`, data);
   }
-  console.log(`호기 ${units.map((u) => `${u.name}(태그 ${u.tags})`).join(' · ')}`);
+  console.log(`Units ${units.map((u) => `${u.name} (${u.tags} tags)`).join(' · ')}`);
 }
 
 const repo = resolve('.');
@@ -118,7 +120,7 @@ writeFileSync(
   `${OUT}/시연순서.md`,
   `# 레퍼런스 번들 시연 — 롤포밍기 (약 5분)
 
-> 🔴 ② 의 값은 **시뮬레이션**입니다. 화면·캡처에 그렇게 말하고 적으십시오.
+> [주의] ② 의 값은 **시뮬레이션**입니다. 화면·캡처에 그렇게 말하고 적으십시오.
 
 ## 준비
 1. 저작 도구를 띄웁니다(개발판이면 http://localhost:5173).
@@ -156,4 +158,4 @@ writeFileSync(
 `,
 );
 
-console.log(`만들었습니다: ${OUT}`);
+console.log(`Created: ${OUT}`);

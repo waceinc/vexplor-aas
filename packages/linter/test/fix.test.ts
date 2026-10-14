@@ -24,7 +24,7 @@ const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url))
 let golden: ReturnType<typeof readAasx>;
 
 beforeAll(() => {
-  golden = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+  golden = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
 });
 
 /** Clones the golden Environment, injects a defect, then lint → fix → re-lint */

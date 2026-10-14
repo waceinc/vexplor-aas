@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const FIXTURES = ['01-롤포밍기-공34.aasx', '03-SPR장비-뿌80.aasx', '11-협동로봇6축.aasx'];
+const FIXTURES = ['01-roll-forming-machine.aasx', '03-spr-riveting-machine.aasx', '11-cobot-6-axis.aasx'];
 
 function load(name: string) {
   return readAasx(new Uint8Array(readFileSync(root + name)));
@@ -68,7 +68,7 @@ describe('golden file regression', () => {
  */
 describe('KOSMO-CD-5 — name collisions between standard dictionaries', () => {
   it('is info, not a warning, when both come from external standard dictionaries (IRDI)', () => {
-    const pkg = load('01-롤포밍기-공34.aasx');
+    const pkg = load('01-roll-forming-machine.aasx');
     const result = lint(pkg.environment, ALL_RULES, { package: pkg.opc });
     const cd5 = result.findings.filter((f) => f.ruleId === 'KOSMO-CD-5');
 
@@ -82,7 +82,7 @@ describe('KOSMO-CD-5 — name collisions between standard dictionaries', () => {
   });
 
   it('is still a warning when an in-house IRI is involved — that duplicate is ours', () => {
-    const pkg = load('01-롤포밍기-공34.aasx');
+    const pkg = load('01-roll-forming-machine.aasx');
     const env = structuredClone(pkg.environment);
     // Give one of our own CDs the same name as a standard dictionary entry
     env.conceptDescriptions!.push({

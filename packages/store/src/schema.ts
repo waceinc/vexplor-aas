@@ -18,12 +18,13 @@ CREATE TABLE IF NOT EXISTS aas_package (
   revision    integer NOT NULL DEFAULT 1,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
-  -- 주인(작업 공간 열쇠). NULL = 공용. 팀이 같이 쓰는 서버에서는 전부 NULL이다
+  -- Owner (workspace key). NULL = shared. On a server a team uses together, all rows are NULL
   owner       text
 );
--- 🔴 owner의 색인은 **여기 두지 않는다**(MIGRATIONS 6판에 있다). 판 번호를 쓰기 전의 옛 DB는
---    이 문장들이 마이그레이션보다 먼저 도는데, 표는 이미 있어 건너뛰고 색인만 만들려다
---    「그런 열이 없다」로 기동이 터진다. 새 열을 가리키는 색인은 열을 더하는 자리에 함께 둔다.
+-- Important: the index on owner is **not here** (it is in MIGRATIONS version 6). On an old DB from before
+--    version numbers, these statements run before the migrations - the table already exists and is skipped,
+--    so creating only the index fails startup with "column does not exist". An index on a new column
+--    goes in the same place that adds the column.
 
 CREATE TABLE IF NOT EXISTS aas_package_file (
   package_id   text NOT NULL REFERENCES aas_package(id) ON DELETE CASCADE,
@@ -43,10 +44,10 @@ CREATE TABLE IF NOT EXISTS app_user (
   disabled      boolean NOT NULL DEFAULT false,
   created_at    timestamptz NOT NULL DEFAULT now(),
   last_login_at timestamptz,
-  -- 연락처(선택). 🔴 확인하지 않는다 — 메일 서버가 없고, 흉내만 내면 더 나쁘다.
-  --    UNIQUE도 걸지 않는다: 한 사람이 계정을 둘 가질 수 있고, 막을 이유가 없다
+  -- Contact address (optional). Important: it is not verified - there is no mail server, and faking it is worse.
+  --    No UNIQUE either: one person may hold two accounts, and there is no reason to forbid it
   email         text,
-  -- 회사명 · 개인정보 수집 동의 시각(7판). 처리방침을 올린 서버의 가입에서만 채워진다
+  -- Company name and personal-data consent time (version 7). Filled only by sign-ups on servers that publish a privacy policy
   company       text,
   consent_at    timestamptz
 );
@@ -81,8 +82,8 @@ CREATE TABLE IF NOT EXISTS identifiable_history (
   content     jsonb NOT NULL,
   operation   text NOT NULL CHECK (operation IN ('update', 'delete')),
   changed_at  timestamptz NOT NULL DEFAULT now(),
-  -- 🔴 app_user를 참조하지 **않는다.** 계정을 지워도 감사 기록은 남아야 하고,
-  --    이름도 그때의 것을 베껴 둔다(사람 이름이 바뀌어도 과거 기록은 안 바뀐다)
+  -- Important: does **not** reference app_user. The audit record must survive account deletion,
+  --    and the name is copied as it was at the time (renaming a person does not rewrite past records)
   actor_id    text,
   actor_name  text
 );
@@ -161,8 +162,8 @@ CREATE TABLE IF NOT EXISTS app_user (
   disabled      boolean NOT NULL DEFAULT false,
   created_at    timestamptz NOT NULL DEFAULT now(),
   last_login_at timestamptz,
-  -- 연락처(선택). 🔴 확인하지 않는다 — 메일 서버가 없고, 흉내만 내면 더 나쁘다.
-  --    UNIQUE도 걸지 않는다: 한 사람이 계정을 둘 가질 수 있고, 막을 이유가 없다
+  -- Contact address (optional). Important: it is not verified - there is no mail server, and faking it is worse.
+  --    No UNIQUE either: one person may hold two accounts, and there is no reason to forbid it
   email         text
 );
 `,

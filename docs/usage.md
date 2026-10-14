@@ -755,7 +755,7 @@ You can go all the way without hardware.
 
 ```bash
 node scripts/plc-simulator.mjs                                   # terminal ③ — virtual PLC (14840)
-node scripts/make-demo-aasx.mjs                                  # → out/demo/롤포밍기-수집시연.aasx
+node scripts/make-demo-aasx.mjs                                  # → out/demo/roll-forming-machine-collection-demo.aasx
 COLLECT=on LINT_STANDARD_TERMS=preserve node apps/api/dist/server.js
 ```
 

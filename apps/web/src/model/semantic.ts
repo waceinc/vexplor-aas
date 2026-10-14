@@ -36,7 +36,7 @@ const ONE_IRDI = `(?:${ECLASS_IRDI}|${IEC_CDD_IRDI})`;
  *
  * Important — evidence: all 4 golden files use this form **6 times each** (Documents · DocumentIds ·
  * DocumentClassifications · DocumentVersions… items), and CDs with the same ids are included.
- * Of those, `01-롤포밍기-공34.aasx` **passes every KOSMO Validator item**. The server linter
+ * Of those, `01-roll-forming-machine.aasx` **passes every KOSMO Validator item**. The server linter
  * also checks only the prefix (`0173-`/`0112/`) and lets it through — only the UI warned "format differs from the standard",
  * flagging perfectly valid standard values.
  */

@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../src/App.js';
 import { useScreenHarness, wireFetch } from './harness.js';
 
-const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 type Json = Record<string, unknown>;
 
 /** Two files: unit (pkg_1) and type (pkg_2). When linked, the unit is linked to the type */

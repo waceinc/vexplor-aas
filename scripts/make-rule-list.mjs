@@ -140,14 +140,14 @@ if (process.argv.includes('--check')) {
       /* missing counts as a mismatch */
     }
     if (current !== text) {
-      console.error(`[FAIL] ${target}가 코드와 다릅니다 — node scripts/make-rule-list.mjs 로 다시 만드십시오.`);
+      console.error(`[FAIL] ${target} differs from the code — regenerate it with node scripts/make-rule-list.mjs.`);
       failed = true;
-    } else console.log(`✅ ${target} — 코드와 같습니다 (규칙 ${ALL_RULES.length}종)`);
+    } else console.log(`[PASS] ${target} — matches the code (${ALL_RULES.length} rules)`);
   }
   if (failed) process.exit(1);
 } else {
   for (const { target, text } of outputs) {
     writeFileSync(target, text);
-    console.log(`${target}를 썼습니다 — 규칙 ${ALL_RULES.length}종`);
+    console.log(`Wrote ${target} — ${ALL_RULES.length} rules`);
   }
 }

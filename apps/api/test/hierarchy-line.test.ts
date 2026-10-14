@@ -19,7 +19,7 @@ interface Lint {
   findings: { ruleId: string }[];
 }
 
-const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')));
+const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
 
 function harness() {
   const store = new InMemoryStore();

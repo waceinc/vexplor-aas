@@ -46,4 +46,4 @@ for (const item of keep) {
 const code = readFileSync(TARGET, 'utf8');
 const at = code.lastIndexOf('};');
 writeFileSync(TARGET, `${code.slice(0, at).replace(/\s+$/, '\n')}${out}\n};\n`);
-console.log(`${keep.length}개를 붙였다${skipped > 0 ? ` · 이미 있어서 건너뜀 ${skipped}개` : ''}.`);
+console.log(`Appended ${keep.length}${skipped > 0 ? ` · skipped ${skipped} already present` : ''}.`);

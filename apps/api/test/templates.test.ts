@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { seedTemplates } from '../src/templates.js';
 
 const GOLDEN_AASX = readFileSync(
-  fileURLToPath(new URL('../../../tests/fixtures/01-롤포밍기-공34.aasx', import.meta.url)),
+  fileURLToPath(new URL('../../../tests/fixtures/01-roll-forming-machine.aasx', import.meta.url)),
 );
 
 describe('template folder (AAS_TEMPLATES_DIR)', () => {

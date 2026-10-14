@@ -61,7 +61,7 @@ describe('line level screen', () => {
   it('new (draft) mode also creates line -> process -> name-only equipment as is', async () => {
     const store = new InMemoryStore();
     await store.init();
-    await store.importPackage({ name: '01-롤포밍기.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))) });
+    await store.importPackage({ name: '01-롤포밍기.aasx', package: readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'))) });
     wireFetch(store);
     render(<App />);
     await screen.findByText('DigitalNameplate');

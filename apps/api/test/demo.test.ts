@@ -16,7 +16,7 @@ import { hashPassword, verifyPassword } from '../src/password.js';
 import type { ApiRequest } from '../src/http.js';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const GOLDEN = '01-롤포밍기-공34.aasx';
+const GOLDEN = '01-roll-forming-machine.aasx';
 const goldenBytes = new Uint8Array(readFileSync(root + GOLDEN));
 const submodelId = readAasx(goldenBytes).environment.submodels![0]!.id;
 const encoded = Buffer.from(submodelId, 'utf8').toString('base64url');

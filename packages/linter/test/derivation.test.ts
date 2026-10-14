@@ -134,7 +134,7 @@ describe('type → unit propagation', () => {
   });
 
   it('real file — right after per-unit cloning nothing needs propagating; editing one type value makes only that one a candidate', () => {
-    const type = readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'))).environment;
+    const type = readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'))).environment;
     const base = snapshotOf(type);
     const instance = renameEnvironment(clone(type), 'RollFormingMachine_1', 'https://www.smart-factory.kr/ids');
     expect(planDerivation(base, type, instance).filter((c) => c.action === 'apply')).toEqual([]);

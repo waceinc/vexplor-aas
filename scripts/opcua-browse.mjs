@@ -16,10 +16,10 @@ const watch = args.includes('--watch');
 const endpoint = args.find((a) => a.startsWith('opc.tcp://')) ?? 'opc.tcp://127.0.0.1:4840/UA/AAS';
 
 const client = OPCUAClient.create({ endpointMustExist: false });
-console.log(`붙는 중: ${endpoint}`);
+console.log(`Connecting: ${endpoint}`);
 await client.connect(endpoint);
 const session = await client.createSession();
-console.log('연결됨.\n');
+console.log('Connected.\n');
 
 const browse = async (nodeId) =>
   (await session.browse(nodeId)).references?.map((ref) => ({
@@ -44,21 +44,21 @@ async function walk(nodeId, depth) {
       continue;
     }
     const children = await browse(child.id);
-    console.log(`${'  '.repeat(depth)}▸ ${child.name}${children.length === 0 ? '  (비어 있음)' : ''}`);
+    console.log(`${'  '.repeat(depth)}▸ ${child.name}${children.length === 0 ? '  (empty)' : ''}`);
     await walk(child.id, depth + 1);
   }
 }
 
 const roots = await browse('ns=1;s=AAS');
 if (roots.length === 0) {
-  console.log('내주고 있는 파일이 없습니다. 저작도구에 AASX를 올렸는지, OPCUA_SERVER=on인지 보십시오.');
+  console.log('No files are being served. Check that an AASX is loaded in the authoring tool and that OPCUA_SERVER=on.');
 } else {
   await walk('ns=1;s=AAS', 0);
-  console.log(`\n변수 ${variables.length}개.`);
+  console.log(`\n${variables.length} variables.`);
 }
 
 if (watch && variables.length > 0) {
-  console.log('\n구독을 겁니다 — 값이 바뀌면 여기에 찍힙니다 (30초). Ctrl+C로 끝냅니다.\n');
+  console.log('\nSubscribing — value changes are printed here (30 s). Press Ctrl+C to stop.\n');
   const subscription = await session.createSubscription2({
     requestedPublishingInterval: 500,
     requestedLifetimeCount: 200,
@@ -85,4 +85,4 @@ if (watch && variables.length > 0) {
 
 await session.close();
 await client.disconnect();
-console.log('\n끝.');
+console.log('\nDone.');

@@ -190,7 +190,7 @@ const brokenProfiles = [];
 for (const profile of claimed) {
   const suffix = Object.keys(profileFiles).find((k) => profile.endsWith(k));
   if (!suffix) {
-    brokenProfiles.push({ profile, missing: ['규격 원문이 저장소에 없다'] });
+    brokenProfiles.push({ profile, missing: ['spec source file is not in the repository'] });
     continue;
   }
   const ops = readSpec(join(SPEC_DIR, profileFiles[suffix]));
@@ -209,52 +209,52 @@ const extras = [...ours.entries()].filter(([key, value]) => {
 const showAll = process.argv.includes('--all');
 const pct = ((implemented.length / spec.size) * 100).toFixed(0);
 
-console.log(`IDTA Part 2 (v3.0.4) 대조 — 규격 연산 ${spec.size}종 중 ${implemented.length}종 구현 (${pct}%)\n`);
+console.log(`IDTA Part 2 (v3.0.4) cross-check — ${implemented.length} of ${spec.size} spec operations implemented (${pct}%)\n`);
 
-console.log(`■ 구현함 (${implemented.length})`);
-for (const { key } of implemented) console.log(`   ✅ ${key}`);
+console.log(`■ Implemented (${implemented.length})`);
+for (const { key } of implemented) console.log(`   [OK] ${key}`);
 
-console.log(`\n■ 미구현 (${missing.length})`);
+console.log(`\n■ Not implemented (${missing.length})`);
 const byFile = new Map();
 for (const { key, entry } of missing) {
   const group = entry.file.replace(/ServiceSpecification.*|_V3.*/g, '');
   byFile.set(group, [...(byFile.get(group) ?? []), key]);
 }
 for (const [group, keys] of byFile) {
-  console.log(`   ${group}: ${keys.length}종`);
-  if (showAll) for (const key of keys) console.log(`      ⬜ ${key}`);
+  console.log(`   ${group}: ${keys.length}`);
+  if (showAll) for (const key of keys) console.log(`      [ ] ${key}`);
 }
-if (!showAll) console.log('   (--all로 전체 목록)');
+if (!showAll) console.log('   (--all for the full list)');
 
-console.log(`\n■ 성공 상태코드 불일치 (${wrongCode.length})`);
-for (const w of wrongCode) console.log(`   ❌ ${w.key} — 규격 ${w.expected}, 우리 ${w.actual}`);
-if (wrongCode.length === 0) console.log('   없음');
+console.log(`\n■ Success status code mismatches (${wrongCode.length})`);
+for (const w of wrongCode) console.log(`   [FAIL] ${w.key} — spec ${w.expected}, ours ${w.actual}`);
+if (wrongCode.length === 0) console.log('   none');
 
-console.log(`\n■ 규격에 없는 경로 (${extras.length})`);
-for (const [key, value] of extras) console.log(`   ⚠️  ${key}  ← ${value.pattern}`);
-if (extras.length === 0) console.log('   없음 — 표준 경로를 우리 뜻대로 바꿔 쓴 곳이 없다');
+console.log(`\n■ Paths not in the spec (${extras.length})`);
+for (const [key, value] of extras) console.log(`   [WARN] ${key}  ← ${value.pattern}`);
+if (extras.length === 0) console.log('   none — no standard path has been repurposed with our own meaning');
 
 // Coverage per profile — shows what is still needed to complete each profile
-console.log('\n■ 프로필별 충족도');
+console.log('\n■ Coverage per profile');
 for (const file of specFiles) {
   const ops = readSpec(join(SPEC_DIR, file));
   if (ops.length === 0) continue;
   const done = ops.filter((op) => ours.has(`${op.method} ${normalize(op.path)}`));
   const name = file.replace(/ServiceSpecification|_V3.*|\.yaml/g, '');
   const missingHere = ops.length - done.length;
-  const mark = missingHere === 0 ? '✅' : '  ';
+  const mark = missingHere === 0 ? '[OK]' : '    ';
   console.log(
     `   ${mark} ${name.padEnd(42)} ${String(done.length).padStart(3)}/${String(ops.length).padEnd(3)}` +
-      (missingHere > 0 ? `  (남은 ${missingHere}종)` : ''),
+      (missingHere > 0 ? `  (${missingHere} remaining)` : ''),
   );
 }
 
-console.log(`\n■ /description이 광고하는 프로필 (${claimed.length})`);
+console.log(`\n■ Profiles advertised by /description (${claimed.length})`);
 for (const profile of claimed) {
   const broken = brokenProfiles.find((b) => b.profile === profile);
   const name = profile.replace('https://admin-shell.io/aas/API/3/0/', '');
-  if (!broken) console.log(`   ✅ ${name} — 연산 전부 구현`);
-  else console.log(`   ❌ ${name} — 미구현 ${broken.missing.length}종: ${broken.missing.join(', ')}`);
+  if (!broken) console.log(`   [OK] ${name} — all operations implemented`);
+  else console.log(`   [FAIL] ${name} — ${broken.missing.length} not implemented: ${broken.missing.join(', ')}`);
 }
 
 const failed = extras.length + wrongCode.length + brokenProfiles.length;

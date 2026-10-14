@@ -18,7 +18,7 @@ let goldenEnv: Environment;
 let goldenPackage: { parts: string[]; contentTypeOverrides: string[]; relationshipTargets: string[] };
 
 beforeAll(() => {
-  const pkg = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+  const pkg = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
   goldenEnv = pkg.environment;
   goldenPackage = pkg.opc;
 });

@@ -35,7 +35,7 @@ describeStore('FolderStore', async () => open(freshDir()));
 describeStoreFilters('FolderStore', async () => open(freshDir()));
 
 const fixtures = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const golden = () => readAasx(new Uint8Array(readFileSync(`${fixtures}01-롤포밍기-공34.aasx`)));
+const golden = () => readAasx(new Uint8Array(readFileSync(`${fixtures}01-roll-forming-machine.aasx`)));
 
 describe('FolderStore — survives a restart', () => {
   let dir: string;

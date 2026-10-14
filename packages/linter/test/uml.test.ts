@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const environment = readAasx(
-  new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')),
+  new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')),
 ).environment;
 const find = (idShort: string) => environment.submodels!.find((s) => s.idShort === idShort)!;
 

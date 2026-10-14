@@ -7,7 +7,7 @@ import { simulationPlan, valueRule } from '@aas/opcua';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const spr = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/03-SPR장비-뿌80.aasx'))).environment;
+const spr = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/03-spr-riveting-machine.aasx'))).environment;
 
 describe('simulationPlan', () => {
   it('creates an object named after the device and a tag per Property of OperationalData', () => {

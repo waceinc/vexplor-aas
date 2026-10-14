@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
 const HANGUL = /[가-힣]/;
 
-const golden = readAasx(new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx')));
+const golden = readAasx(new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx')));
 
 /** Breaks the golden Environment so that most rules fire */
 function broken(): Environment {

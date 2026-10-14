@@ -40,10 +40,10 @@ for (const file of files) {
   } else {
     console.log(formatSummary(result, file));
     for (const [ruleId, count] of Object.entries(result.countByRule)) {
-      console.log(`     ${ruleId.padEnd(22)} ${count}건`);
+      console.log(`     ${ruleId.padEnd(22)} ${count}`);
     }
   }
 }
 
-console.log(`\n총 위반 ${totalErrors}건`);
+console.log(`\nTotal violations: ${totalErrors}`);
 process.exit(totalErrors > 0 ? 1 : 0);

@@ -18,7 +18,7 @@ import { readAasx } from '@aas/aasx';
 import { createApi } from '@aas/api';
 import { InMemoryStore } from '@aas/store';
 
-const SOURCE = 'tests/fixtures/01-롤포밍기-공34.aasx';
+const SOURCE = 'tests/fixtures/01-roll-forming-machine.aasx';
 const OUT = 'apps/web/public/samples';
 const MACHINE = 'RollFormingMachine_sample.aasx';
 const PROCESS = 'RB01_OptimizationQuality_sample.aasx';
@@ -45,7 +45,7 @@ const machine = (await store.importPackage({ name: MACHINE, package: readAasx(ne
 const fixed = (await call('POST', `/packages/${machine}/fix`, {}, { includeWarnings: '1' })).body;
 const after = fixed.after.countBySeverity;
 if (after.error > 0 || after.warning > 0) {
-  throw new Error(`고친 뒤에도 남았다 — 위반 ${after.error} · 경고 ${after.warning}. 견본으로 내지 않는다`);
+  throw new Error(`Findings remain after fixing — ${after.error} violations · ${after.warning} warnings. Not shipping this as a sample`);
 }
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/${MACHINE}`, (await call('GET', `/packages/${machine}`)).body);
@@ -59,6 +59,6 @@ await store.deletePackage(made);
 const zip = await call('GET', `/packages/${proc}/bundle`, undefined, { code: 'RB01', version: '1.0.0' });
 writeFileSync(`${OUT}/${BUNDLE}`, zip.body);
 
-console.log(`견본을 만들었습니다 → ${OUT}`);
-console.log(`  ${MACHINE}  (교정 ${fixed.applied.length}건 · 위반 0 · 경고 0)`);
-console.log(`  ${BUNDLE}  (${zip.body.length.toLocaleString()} 바이트)`);
+console.log(`Samples created → ${OUT}`);
+console.log(`  ${MACHINE}  (${fixed.applied.length} fixes · 0 violations · 0 warnings)`);
+console.log(`  ${BUNDLE}  (${zip.body.length.toLocaleString()} bytes)`);

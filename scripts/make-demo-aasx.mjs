@@ -6,7 +6,7 @@
  * (a pitfall hit in practice — see docs/rules/README.md).
  *
  * Usage: node scripts/make-demo-aasx.mjs [opc.tcp address]
- * Output: out/demo/롤포밍기-수집시연.aasx
+ * Output: out/demo/roll-forming-machine-collection-demo.aasx
  */
 import { readAasx, writeAasx } from '@aas/aasx';
 import { ALL_RULES, lint } from '@aas/linter';
@@ -59,7 +59,7 @@ const TAGS = [
   { name: 'BrokenSensor', key: 'D199', type: 'float', unit: 'Cel', node: 'ns=1;s=Machine.BrokenSensor' },
 ];
 
-const pkg = readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')));
+const pkg = readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
 const shell = pkg.environment.assetAdministrationShells[0];
 const assetName = shell.idShort;
 const id = `https://www.smart-factory.kr/ids/sm/${assetName}/AssetInterfacesDescription/1/0`;
@@ -71,11 +71,11 @@ const aid = {
   kind: 'Template',
   administration: { version: '1', revision: '0' },
   // Important: KOSMO rejects admin-shell.io IRIs, so the submodel's own id is used (rule conflict (1)).
-  // The comment below stands in for the original value — the same role as the relocation ledger
+  // The official IRI is AID.submodel in the table above — kept there for reference, deliberately not written into the file
   semanticId: ref(id),
   submodelElements: [
     smc('InterfaceTemplateForOPCUA', AID.interface, [
-      prop('title', AID.title, `${assetName} 제어반 (OPC UA)`),
+      prop('title', AID.title, `${assetName} control panel (OPC UA)`),
       smc('EndpointMetadata', AID.endpointMetadata, [
         prop('base', AID.base, endpoint),
         prop('contentType', AID.contentType, 'application/json'),
@@ -105,14 +105,14 @@ pkg.environment.submodels.push(aid);
 shell.submodels.push({ type: 'ModelReference', keys: [{ type: 'Submodel', value: id }] });
 
 mkdirSync('out/demo', { recursive: true });
-const out = 'out/demo/롤포밍기-수집시연.aasx';
+const out = 'out/demo/roll-forming-machine-collection-demo.aasx';
 writeFileSync(out, writeAasx(pkg));
 
 const result = lint(pkg.environment, ALL_RULES, { package: pkg.opc });
-console.log(`만들었습니다: ${out}`);
-console.log(`  접속 주소: ${endpoint}`);
-console.log(`  수집 태그: ${TAGS.length}개 (그중 BrokenSensor는 일부러 고장 낸 것)`);
-console.log(`  규칙 검사: 위반 ${result.countBySeverity.error}건 · 경고 ${result.countBySeverity.warning}건`);
+console.log(`Created: ${out}`);
+console.log(`  Endpoint: ${endpoint}`);
+console.log(`  Collected tags: ${TAGS.length} (BrokenSensor is deliberately faulty)`);
+console.log(`  Rule check: ${result.countBySeverity.error} violations · ${result.countBySeverity.warning} warnings`);
 for (const finding of result.findings.filter((f) => f.severity === 'error').slice(0, 5)) {
   console.log(`    - ${finding.ruleId} ${finding.key}: ${finding.message.slice(0, 70)}`);
 }

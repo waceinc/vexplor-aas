@@ -22,7 +22,7 @@ const files = [
 for (const file of files) {
   const manifest = JSON.parse(readFileSync(file, 'utf8'));
   if (manifest.license === LICENSE) {
-    console.log(`그대로  ${file}`);
+    console.log(`unchanged  ${file}`);
     continue;
   }
   const ordered = {};
@@ -37,5 +37,5 @@ for (const file of files) {
   }
   if (!placed) ordered.license = LICENSE;
   writeFileSync(file, `${JSON.stringify(ordered, null, 2)}\n`);
-  console.log(`적음    ${file}`);
+  console.log(`written    ${file}`);
 }

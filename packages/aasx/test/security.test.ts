@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
-const golden = new Uint8Array(readFileSync(root + '01-롤포밍기-공34.aasx'));
+const golden = new Uint8Array(readFileSync(root + '01-roll-forming-machine.aasx'));
 
 /** Highly compressible data (= the kind used in bombs) */
 function zeros(size: number): Uint8Array {

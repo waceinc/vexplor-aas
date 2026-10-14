@@ -44,16 +44,16 @@ export function scanCss(file) {
       const [, prop, value] = match;
       for (const factor of value.matchAll(/var\(--spacing\)\s*\*\s*(-?[\d.]+)/g)) {
         const n = String(Math.abs(Number(factor[1])));
-        if (!SCALE.has(n)) problems.push({ line: index + 1, kind: '단계 밖', text: `${prop}: ${value.trim()}` });
+        if (!SCALE.has(n)) problems.push({ line: index + 1, kind: 'off scale', text: `${prop}: ${value.trim()}` });
       }
       // Vertical margins and gaps use a narrower scale — 4/8/12/16/24/32px rhythm (no 1.5x, 2.5x or 5x)
       if (/^(margin|gap|row-gap|column-gap)/.test(prop) && /var\(--spacing\)\s*\*\s*-?(1\.5|2\.5|5)\b/.test(value)) {
-        problems.push({ line: index + 1, kind: '세로 리듬 밖', text: `${prop}: ${value.trim()}` });
+        problems.push({ line: index + 1, kind: 'off vertical rhythm', text: `${prop}: ${value.trim()}` });
       }
       // A non-zero length left after removing calc(var(--spacing) …) and var(--…) means a raw number was written
       const rest = value.replace(/var\([^)]*\)/g, '').replace(/\*\s*-?[\d.]+/g, '');
       if (/(?<![\w.#-])-?(?:\d*\.)?\d+(px|rem|em)\b/.test(rest) && !/(?<![\w.#-])-?0(px|rem|em)?\b/.test(rest.trim())) {
-        problems.push({ line: index + 1, kind: '숫자 간격', text: `${prop}: ${value.trim()}` });
+        problems.push({ line: index + 1, kind: 'raw spacing number', text: `${prop}: ${value.trim()}` });
       }
     }
   });
@@ -63,7 +63,7 @@ export function scanCss(file) {
     for (const match of line.replace(/\/\*.*?\*\//g, '').matchAll(/line-height\s*:\s*([^;{}]+)/g)) {
       const value = match[1].trim();
       if (!/^var\(--leading-[a-z]+\)$/.test(value) && value !== '1' && value !== 'inherit' && value !== 'normal') {
-        problems.push({ line: index + 1, kind: '줄 간격 숫자', text: `line-height: ${value}` });
+        problems.push({ line: index + 1, kind: 'raw line-height number', text: `line-height: ${value}` });
       }
     }
   });
@@ -76,11 +76,11 @@ export function scanTsx(file) {
     if (line.includes('spacing-ignore')) return;
     // style={{ paddingLeft: 8 … }} · margin: '12px' — spacing as raw numbers in UI code
     for (const match of line.matchAll(/\b(padding|margin|gap|rowGap|columnGap)[A-Za-z]*\s*:\s*([^,}]+)/g)) {
-      if (/(^|[^\w.])\d/.test(match[2]) && !/var\(/.test(match[2])) problems.push({ line: index + 1, kind: '코드 여백', text: match[0].trim() });
+      if (/(^|[^\w.])\d/.test(match[2]) && !/var\(/.test(match[2])) problems.push({ line: index + 1, kind: 'raw inline spacing', text: match[0].trim() });
     }
     // Tailwind arbitrary-value spacing p-[13px] · gap-[6px]
     for (const match of line.matchAll(/\b-?(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap|gap-x|gap-y|space-x|space-y|top|left|right|bottom|inset)-\[[^\]]+\]/g)) {
-      problems.push({ line: index + 1, kind: '임의값 클래스', text: match[0] });
+      problems.push({ line: index + 1, kind: 'arbitrary-value class', text: match[0] });
     }
   });
   return problems;
@@ -95,6 +95,6 @@ if (process.argv[1]?.endsWith('spacing-scan.mjs')) {
     for (const p of scanTsx(file)) rows.push({ file, ...p });
   }
   for (const row of rows) console.log(`   [FAIL] ${row.file}:${row.line} [${row.kind}] ${row.text.slice(0, 110)}`);
-  console.log(`간격 검사: 숫자 · 단계 밖 간격 ${rows.length}곳`);
+  console.log(`Spacing check: raw or off-scale spacing at ${rows.length} places`);
   if (process.argv.includes('--check') && rows.length > 0) process.exit(1);
 }

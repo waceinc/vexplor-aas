@@ -60,8 +60,8 @@ describe('reference bundle', () => {
   beforeEach(async () => {
     h = harness();
     await h.store.init();
-    machineId = (await h.store.importPackage({ name: '01-롤포밍기-공34.aasx', package: fixture('01-롤포밍기-공34.aasx') })).id;
-    const spr = (await h.store.importPackage({ name: '03-SPR장비-뿌80.aasx', package: fixture('03-SPR장비-뿌80.aasx') })).id;
+    machineId = (await h.store.importPackage({ name: '01-roll-forming-machine.aasx', package: fixture('01-roll-forming-machine.aasx') })).id;
+    const spr = (await h.store.importPackage({ name: '03-spr-riveting-machine.aasx', package: fixture('03-spr-riveting-machine.aasx') })).id;
     processId = (await h.call('POST', '/packages/new', { assetName: 'BodyJoiningLine', unit: 'composite' })).body.packageId;
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { group: true, name: 'JoiningProcess' });
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machineId, parentPath: ['JoiningProcess'], bulkCount: 2 });
@@ -179,7 +179,7 @@ describe('reference bundle', () => {
       // Important: the type model in the bundle has no collection connection — and no demo-copy flag either
       const machine = manifest.models.find((m: any) => m.assetName === 'RollFormingMachine');
       expect(machine.demo).toBeUndefined();
-      expect(find('02_참조모델/01-롤포밍기-공34.aasx')).toBeDefined();
+      expect(find('02_참조모델/01-roll-forming-machine.aasx')).toBeDefined();
     });
 
     it('Important: field PLC addresses are masked in a public bundle — only the local PC address stays as is', async () => {
@@ -315,13 +315,13 @@ describe('reference bundle', () => {
   });
 
   describe('Important: original as is — the reference model hash in the bundle must match the copy submitted to the operating agency', () => {
-    const raw = () => new Uint8Array(readFileSync('tests/fixtures/03-SPR장비-뿌80.aasx'));
+    const raw = () => new Uint8Array(readFileSync('tests/fixtures/03-spr-riveting-machine.aasx'));
     const manifestOf = (entries: Record<string, Uint8Array>) =>
       JSON.parse(new TextDecoder().decode(Object.entries(entries).find(([p]) => p.endsWith('bundle-manifest.json'))![1]));
 
     /** Build a new process from equipment uploaded via the API (original retained) */
     const setup = async () => {
-      const uploaded = await h.call('POST', `/packages?name=${encodeURIComponent('03-SPR장비-뿌80.aasx')}`, raw());
+      const uploaded = await h.call('POST', `/packages?name=${encodeURIComponent('03-spr-riveting-machine.aasx')}`, raw());
       const id = uploaded.body.packageId;
       const proc = (await h.call('POST', '/packages/new', { assetName: 'SprLine', unit: 'composite' })).body.packageId;
       await h.call('POST', `/packages/${proc}/hierarchy/nodes`, { sourcePackageId: id });
@@ -435,7 +435,7 @@ describe('reference bundle', () => {
     const entries = unzipArchive(zip);
     const target = Object.keys(entries).find((p) => p.includes('/02_참조모델/'))!;
     // Swap in a different equipment file
-    entries[target] = new Uint8Array(readFileSync('tests/fixtures/11-협동로봇6축.aasx'));
+    entries[target] = new Uint8Array(readFileSync('tests/fixtures/11-cobot-6-axis.aasx'));
     const fresh = harness();
     await fresh.store.init();
     const opened = await fresh.call('POST', '/bundles', zipArchive(entries));

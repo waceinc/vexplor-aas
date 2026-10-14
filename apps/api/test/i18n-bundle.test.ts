@@ -68,8 +68,8 @@ describe('reference bundle — an English request gives human-readable text in E
   beforeEach(async () => {
     h = harness();
     await h.store.init();
-    const machine = (await h.store.importPackage({ name: '01-롤포밍기-공34.aasx', package: fixture('01-롤포밍기-공34.aasx') })).id;
-    const spr = (await h.store.importPackage({ name: '03-SPR장비-뿌80.aasx', package: fixture('03-SPR장비-뿌80.aasx') })).id;
+    const machine = (await h.store.importPackage({ name: '01-roll-forming-machine.aasx', package: fixture('01-roll-forming-machine.aasx') })).id;
+    const spr = (await h.store.importPackage({ name: '03-spr-riveting-machine.aasx', package: fixture('03-spr-riveting-machine.aasx') })).id;
     processId = (await h.call('POST', '/packages/new', { assetName: 'BodyJoiningLine', unit: 'composite' })).body.packageId;
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { group: true, name: 'JoiningProcess' });
     await h.call('POST', `/packages/${processId}/hierarchy/nodes`, { sourcePackageId: machine, parentPath: ['JoiningProcess'], bulkCount: 2 });
@@ -126,7 +126,7 @@ describe('reference bundle — an English request gives human-readable text in E
     '05_샘플데이터/수집값_RollFormingMachine_1.csv',
   ];
   /** Values from the AAS file — the uploaded file name and the collection connection name */
-  const FROM_FILE = ['01-롤포밍기-공34.aasx', '03-SPR장비-뿌80.aasx', '01-롤포밍기-공34', '03-SPR장비-뿌80', '가상 PLC (시뮬레이션)'];
+  const FROM_FILE = ['01-roll-forming-machine.aasx', '03-spr-riveting-machine.aasx', '01-roll-forming-machine', '03-spr-riveting-machine', '가상 PLC (시뮬레이션)'];
 
   it('English bundle — no Korean except folder/file names and values from the file', async () => {
     const { text } = await unpack('en');

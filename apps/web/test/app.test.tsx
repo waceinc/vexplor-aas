@@ -30,7 +30,7 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 configure({ asyncUtilTimeout: 5000 });
 
 // Under jsdom import.meta.url is an http URL, so no file path can be built from it. Use a path relative to the repo root
-const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const goldenBytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 
 /** Missing in jsdom. The tree only uses it to measure the window height */
 class ResizeObserverStub {

@@ -754,7 +754,7 @@ export class PostgresStore implements AasStore {
          role          = COALESCE($3, role),
          password_hash = COALESCE($4, password_hash),
          disabled      = COALESCE($5, disabled),
-         -- 🔴 빈 문자열은 「지우라」는 뜻이다. COALESCE로는 그 뜻을 낼 수 없어 따로 쓴다
+         -- Important: an empty string means "clear it". COALESCE cannot express that, so it is handled separately
          email         = CASE WHEN $6::text IS NULL THEN email
                               WHEN btrim($6::text) = '' THEN NULL
                               ELSE btrim($6::text) END,

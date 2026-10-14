@@ -123,13 +123,13 @@ if (process.argv[1]?.endsWith('i18n-server-scan.mjs')) {
     if (list) for (const item of row.untranslated) console.log(`         ${item.line}  [${item.kind}] ${item.text.slice(0, 110)}`);
   }
   console.log(`
-[서버] 번역기를 거치지 않는 한국어: ${total}곳`);
-  console.log(`[서버] 번역기를 거치지만 영어 사전에 없는 것: ${missing.size}개 (사전 ${dict.size}항목)`);
-  console.log(`[서버] 번역문이 비었거나 표시({0} · <b>)가 원문과 다르거나 한국어가 남은 것: ${broken.length}개`);
-  console.log(`[서버] 두 사전 파일에 같은 열쇠: ${duplicates.length}개`);
+[server] Korean text bypassing the translator: ${total}`);
+  console.log(`[server] Routed through the translator but missing from the English dictionary: ${missing.size} (dictionary has ${dict.size} entries)`);
+  console.log(`[server] Translations that are empty, have markers ({0} · <b>) differing from the source, or still contain Korean: ${broken.length}`);
+  console.log(`[server] Same key in two dictionary files: ${duplicates.length}`);
   if (showKeys) for (const [text, where] of missing) console.log(`   ${where}  ${text.slice(0, 120)}`);
   for (const item of broken.slice(0, 20)) console.log(`   [FAIL] ${item.key.slice(0, 70)}\n      → ${String(item.value).slice(0, 70)}`);
-  for (const item of duplicates.slice(0, 20)) console.log(`   [FAIL] 겹친 열쇠 (${item.file}) ${item.key.slice(0, 70)}`);
+  for (const item of duplicates.slice(0, 20)) console.log(`   [FAIL] duplicate key (${item.file}) ${item.key.slice(0, 70)}`);
 
   if (check && (total > 0 || missing.size > 0 || broken.length > 0 || duplicates.length > 0)) process.exit(1);
 }

@@ -13,8 +13,8 @@ import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx')));
-const robot = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/11-협동로봇6축.aasx')));
+const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
+const robot = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/11-cobot-6-axis.aasx')));
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function harness() {

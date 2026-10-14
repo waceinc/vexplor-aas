@@ -12,7 +12,7 @@ import { useScreenHarness, wireFetch } from './harness.js';
 
 useScreenHarness();
 
-const bytes = new Uint8Array(readFileSync('tests/fixtures/01-롤포밍기-공34.aasx'));
+const bytes = new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx'));
 const MIN = 60_000;
 
 /** A time inside the current shift window (starts at 08:00) */

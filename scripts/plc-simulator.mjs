@@ -34,13 +34,13 @@ if (sources.length > 0) {
   const lines = [];
   for (const file of sources) {
     const machine = await simulator.attach(readAasx(new Uint8Array(readFileSync(file))).environment);
-    lines.push(`  ${machine.machine}: 태그 ${machine.tags.length}개  (${file})`);
+    lines.push(`  ${machine.machine}: ${machine.tags.length} tags  (${file})`);
   }
-  console.log('가상 PLC(OPC UA, 시뮬레이션)가 떴습니다.');
-  console.log(`  주소: ${simulator.endpoint}`);
+  console.log('Virtual PLC (OPC UA, simulation) is up.');
+  console.log(`  Endpoint: ${simulator.endpoint}`);
   for (const line of lines) console.log(line);
-  console.log('  🔴 시뮬레이션 값입니다 — 시연 캡처·문서에 「시뮬레이션」으로 적으십시오.');
-  console.log('  멈추려면 Ctrl+C');
+  console.log('  [WARN] These are simulated values — label demo captures and documents as "simulation".');
+  console.log('  Press Ctrl+C to stop');
   process.on('SIGINT', () => {
     void simulator.stop().then(() => process.exit(0));
   });
@@ -53,7 +53,7 @@ async function rollFormingDemo() {
 const server = new OPCUAServer({
   port,
   resourcePath: '/UA/RollFormingMachine',
-  buildInfo: { productName: '롤포밍기 시뮬레이터', buildNumber: '1', buildDate: new Date(0) },
+  buildInfo: { productName: 'Roll Forming Machine Simulator', buildNumber: '1', buildDate: new Date(0) },
 });
 await server.initialize();
 const addressSpace = server.engine.addressSpace;
@@ -105,10 +105,10 @@ variable('BrokenSensor', 's=Machine.BrokenSensor', 'Double', () => StatusCodes.B
 
 await server.start();
 
-console.log('가상 PLC(OPC UA)가 떴습니다.');
-console.log(`  주소: opc.tcp://127.0.0.1:${port}/UA/RollFormingMachine`);
-console.log('  태그: MotorSpeed · LineSpeed · MotorTemperature · ProductionCount · AlarmActive · MachineState · BrokenSensor(고장)');
-console.log('  멈추려면 Ctrl+C');
+console.log('Virtual PLC (OPC UA) is up.');
+console.log(`  Endpoint: opc.tcp://127.0.0.1:${port}/UA/RollFormingMachine`);
+console.log('  Tags: MotorSpeed · LineSpeed · MotorTemperature · ProductionCount · AlarmActive · MachineState · BrokenSensor (faulty)');
+console.log('  Press Ctrl+C to stop');
 
 process.on('SIGINT', () => {
   void server.shutdown().then(() => process.exit(0));
