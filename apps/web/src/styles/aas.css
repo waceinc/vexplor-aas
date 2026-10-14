@@ -1826,7 +1826,7 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .integrations .integration-facts { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); font-size: var(--text-sm); }
 .integrations .integration-facts dt { color: var(--muted-foreground); }
 .integrations .integration-facts dd { margin: 0; word-break: break-word; }
-.integrations .integration-facts dd.warn { color: var(--warn); }
+.integrations .integration-facts dd.warn, .integrations .integration-facts .warn { color: var(--warn); }
 .integrations .table-scroll { overflow-x: auto; }
 .integrations .integration-table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
 .integrations .integration-table th, .integrations .integration-table td { text-align: left; vertical-align: top; padding: var(--pad-cell); border-bottom: 1px solid var(--border); }

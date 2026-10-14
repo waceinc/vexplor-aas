@@ -100,7 +100,7 @@ describe('Integrations — who sees what', () => {
     const seen = mockApi([
       on('GET', '/integrations/status', {
         status: 200,
-        body: { enabled: false, instanceId: '9f2c4e1a7b3d', masterKey: 'missing', egress: { allow: [] }, opcua: { security: 'secure' }, backlog: { pending: 0, dead: 2 } },
+        body: { enabled: false, instanceId: '9f2c4e1a7b3d', masterKey: 'missing', egress: { allow: [] }, opcua: { security: 'secure', running: false }, backlog: { pending: 0, dead: 2 } },
       }),
     ]);
     show(user('admin'));
@@ -109,6 +109,8 @@ describe('Integrations — who sees what', () => {
     expect(screen.getByText('INTEGRATIONS=on')).toBeTruthy();
     expect((screen.getByLabelText('읽어 가는 주소') as HTMLInputElement).value).toBe('http://aas.local/integrations/events?after=0');
     expect(screen.getByText(/PostgreSQL 저장소에서는 AAS_SECRET_KEY/)).toBeTruthy();
+    // Secure mode switched on but not started (no account yet) — said next to the mode
+    expect(screen.getByText(/서버가 뜨지 않았습니다/)).toBeTruthy();
     expect(seen.some((item) => item.path === '/integrations/status')).toBe(true);
   });
 
