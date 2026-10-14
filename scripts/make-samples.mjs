@@ -47,6 +47,13 @@ const after = fixed.after.countBySeverity;
 if (after.error > 0 || after.warning > 0) {
   throw new Error(`Findings remain after fixing — ${after.error} violations · ${after.warning} warnings. Not shipping this as a sample`);
 }
+// The fixture's BOM entry node names the line asset, not this machine, so integration readiness (INT-2) would block the
+// sample's BOM export. Point the entry node at the shell's own asset; the fixture keeps the mismatch for the tests.
+const b64 = (id) => Buffer.from(id).toString('base64url');
+const shellAsset = (await call('GET', `/packages/${machine}/api/v3.0/shells`)).body.result[0].assetInformation.globalAssetId;
+const bomSubmodel = (await call('GET', `/packages/${machine}/api/v3.0/submodels`, undefined, { idShort: 'HierarchicalStructures' })).body.result[0];
+const entryPath = `/packages/${machine}/api/v3.0/submodels/${b64(bomSubmodel.id)}/submodel-elements/${bomSubmodel.submodelElements.find((e) => e.modelType === 'Entity').idShort}`;
+await call('PUT', entryPath, { ...(await call('GET', entryPath)).body, globalAssetId: shellAsset });
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/${MACHINE}`, (await call('GET', `/packages/${machine}`)).body);
 
