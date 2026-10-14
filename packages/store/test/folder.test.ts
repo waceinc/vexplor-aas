@@ -192,6 +192,20 @@ describe('FolderStore — accounts also survive a restart (user-reported, 2026-1
     expect(next.id).not.toBe(lee.id);
   });
 
+  it('a stale id counter in the accounts file does not let a new account overwrite an existing one', async () => {
+    // A counter behind the stored ids happens when users.json is restored from an older backup or edited by hand.
+    // The ids already in the file are the backstop — the next id must come after the highest of them.
+    const dir = freshDir();
+    const stored = (id: string, login: string) => ({ id, login, displayName: login, role: 'editor', passwordHash: 'h', disabled: false, createdAt: '2026-10-01T00:00:00.000Z' });
+    writeFileSync(join(dir, 'users.json'), JSON.stringify({ users: [stored('user_1', 'kim'), stored('user_2', 'lee')], nextUserId: 1 }), 'utf8');
+
+    const store = await open(dir);
+    const park = await store.createUser({ login: 'park', displayName: '박', role: 'viewer', passwordHash: 'h' });
+    expect(park.id).toBe('user_3');
+    expect((await store.findUserByLogin('kim'))?.id).toBe('user_1');
+    expect(await store.countUsers()).toBe(3);
+  });
+
   it('refuses to start when the accounts file is corrupt — starting with 0 accounts would let anyone become first admin', async () => {
     const dir = freshDir();
     writeFileSync(join(dir, 'users.json'), '{ 깨진', 'utf8');
