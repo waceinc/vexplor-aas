@@ -22,8 +22,12 @@ async function world() {
   const call = routeCaller(store, { demo: false, services: testServices({ resolve: PUBLIC }) });
   const created = await call('POST', '/integrations/subscriptions', { principal: ADMIN, body: WEBHOOK });
   const id: string = created.body.subscription.id;
-  await store.enqueueDeliveries([{ subscriptionId: id, eventSeq: 1, eventId: 'evt_1' }], new Date().toISOString());
-  const deliveryId = (await store.listDeliveries(id)).items[0]!.id;
+  const now = new Date().toISOString();
+  await store.enqueueDeliveries([{ subscriptionId: id, eventSeq: 1, eventId: 'evt_1' }], now);
+  // Dead, so redeliver is a legal action — the store only re-queues succeeded or dead rows
+  const [claimed] = await store.claimDeliveries(now, 1, 60_000);
+  await store.completeDelivery(claimed!.id, { outcome: 'dead', at: now, attempt: claimed!.attempts, error: 'gone' });
+  const deliveryId = claimed!.id;
   return { store, call, id, deliveryId, secret: created.body.secret as string };
 }
 

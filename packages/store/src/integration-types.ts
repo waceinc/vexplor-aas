@@ -158,6 +158,11 @@ export interface DeliveryRecord {
 export interface DeliveryResult {
   outcome: 'succeeded' | 'retry' | 'dead';
   at: string;
+  /**
+   * The `attempts` value of the row claimDeliveries handed out. Always pass it: it is what stops a late result of a
+   * worker whose lease expired from overwriting the worker that reclaimed the row (attempts + 1).
+   */
+  attempt?: number;
   /** retry only; defaults to `at` */
   nextAttemptAt?: string;
   statusCode?: number;
@@ -272,13 +277,22 @@ export interface IntegrationStore {
   /** Idempotent on (subscriptionId, eventSeq); rows of an unknown subscription are skipped. Returns the inserted count */
   enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number>;
   /** Due pending + expired in-flight, oldest `nextAttemptAt` first; sets in-flight, leaseUntil = now + leaseMs, attempts + 1 */
-  claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]>;
-  /** Unknown id (e.g. the subscription was deleted meanwhile) is a no-op. Only the delivery row changes */
-  completeDelivery(id: string, result: DeliveryResult): Promise<void>;
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]>;
+  /**
+   * Applies the result only to a row that is still `in-flight` and — when `result.attempt` is given — still at that
+   * attempt; returns whether it was applied. A missing row (subscription deleted meanwhile), a row another worker
+   * finished, and a row reclaimed after the lease expired are all left alone (false). Only the delivery row changes.
+   */
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean>;
+  /** Moves the lease of an in-flight row at `attempt` to `leaseUntil` (absolute); false if the row is not that claim any more */
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean>;
   getDelivery(id: string): Promise<DeliveryRecord | undefined>;
   /** Newest first; the cursor is the id of the last returned row */
   listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>>;
-  /** -> pending, nextAttemptAt = now, lease cleared, attempts kept */
+  /**
+   * -> pending, nextAttemptAt = now, lease cleared, attempts kept. Only for a `succeeded` or `dead` row — a pending row is already queued and an in-flight one would be sent twice at
+   * once. Returns false for those and for a missing row (the API tells them apart with getDelivery: 409 vs 404).
+   */
   redeliver(id: string, now: string): Promise<boolean>;
   /** One entry per subscription, including subscriptions without deliveries */
   deliveryStats(): Promise<DeliveryStats[]>;

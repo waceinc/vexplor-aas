@@ -724,8 +724,9 @@ export class PostgresStore implements AasStore, IntegrationStore {
   updateSubscription(id: string, patch: SubscriptionPatch): Promise<SubscriptionRecord | undefined> { return this.integration.updateSubscription(id, patch); }
   deleteSubscription(id: string): Promise<boolean> { return this.integration.deleteSubscription(id); }
   enqueueDeliveries(rows: readonly { subscriptionId: string; eventSeq: number; eventId: string }[], now: string): Promise<number> { return this.integration.enqueueDeliveries(rows, now); }
-  claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> { return this.integration.claimDeliveries(now, limit, leaseMs); }
-  completeDelivery(id: string, result: DeliveryResult): Promise<void> { return this.integration.completeDelivery(id, result); }
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> { return this.integration.claimDeliveries(now, limit, leaseMs, subscriptionId); }
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean> { return this.integration.completeDelivery(id, result); }
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> { return this.integration.extendLease(id, attempt, leaseUntil); }
   getDelivery(id: string): Promise<DeliveryRecord | undefined> { return this.integration.getDelivery(id); }
   listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>> { return this.integration.listDeliveries(subscriptionId, query); }
   redeliver(id: string, now: string): Promise<boolean> { return this.integration.redeliver(id, now); }

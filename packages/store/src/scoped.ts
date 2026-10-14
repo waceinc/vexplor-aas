@@ -369,11 +369,11 @@ class ScopedStore implements AasStore {
     this.serverOnly();
     return this.base.enqueueDeliveries(rows, now);
   }
-  claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> {
+  claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
     this.serverOnly();
-    return this.base.claimDeliveries(now, limit, leaseMs);
+    return this.base.claimDeliveries(now, limit, leaseMs, subscriptionId);
   }
-  completeDelivery(id: string, result: DeliveryResult): Promise<void> {
+  completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
     this.serverOnly();
     return this.base.completeDelivery(id, result);
   }
@@ -384,6 +384,10 @@ class ScopedStore implements AasStore {
   listDeliveries(subscriptionId: string, query?: { status?: DeliveryStatus } & PageQuery): Promise<PageResult<DeliveryRecord>> {
     this.serverOnly();
     return this.base.listDeliveries(subscriptionId, query);
+  }
+  extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    this.serverOnly();
+    return this.base.extendLease(id, attempt, leaseUntil);
   }
   redeliver(id: string, now: string): Promise<boolean> {
     this.serverOnly();
