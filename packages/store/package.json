@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "AAS 모델 저장소 — 기획서 M1 (무손실 보관 · Identifiable CRUD · 버전 이력)",
+  "description": "AAS model store \u2014 lossless storage, Identifiable CRUD, version history",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

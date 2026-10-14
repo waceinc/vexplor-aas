@@ -785,7 +785,7 @@ and collects once — Connected. This is how someone who received a reference bu
 The **script version**, which simulates several machines at once, follows the same rules.
 
 ```bash
-node scripts/plc-simulator.mjs 14850 --from 03-SPR장비-뿌80.aasx --from 28-flowdrillscrew(FDS)장비.aasx
+node scripts/plc-simulator.mjs 14850 --from press-01.aasx --from welder-02.aasx
 #   address: opc.tcp://127.0.0.1:14850/UA/Simulator   (one object per machine)
 ```
 

@@ -128,7 +128,7 @@ for (const full of files) {
 }
 
 // (5) Required files — without them the public repository is not valid
-for (const path of ['LICENSE', 'NOTICE', 'README.md', 'SECURITY.md', 'CONTRIBUTING.md', 'THIRD-PARTY-NOTICES.md', 'package.json']) {
+for (const path of ['LICENSE', 'NOTICE', 'README.md', 'README.ko.md', 'SECURITY.md', 'SECURITY.ko.md', 'CONTRIBUTING.md', 'CONTRIBUTING.ko.md', 'THIRD-PARTY-NOTICES.md', 'package.json', 'tsconfig.tests.json', 'scripts/i18n-server-scan.mjs', 'scripts/spacing-scan.mjs']) {
   if (!existsSync(join(root, path))) problems.push(`required file missing: ${path}`);
 }
 

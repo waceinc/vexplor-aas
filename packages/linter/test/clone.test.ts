@@ -62,7 +62,7 @@ describe('renameEnvironment (per-unit clone)', () => {
     const before = JSON.stringify(source);
     const cloned = renameEnvironment(source as never, 'Welder_1', IRI);
     expect(JSON.stringify(source)).toBe(before);
-    const findings = lint(cloned, ALL_RULES).findings.filter((finding) => finding.level === 'violation');
+    const findings = lint(cloned, ALL_RULES).findings.filter((finding) => finding.severity === 'error');
     expect(findings).toEqual([]);
   });
 

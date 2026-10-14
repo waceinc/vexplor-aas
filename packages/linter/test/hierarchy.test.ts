@@ -37,7 +37,7 @@ describe('process scaffold', () => {
 
   it('contains the hierarchy submodel, entry point and ArcheType', () => {
     const { environment, index } = process();
-    const elements = environment.submodels![index]!.submodelElements as Record<string, unknown>[];
+    const elements = environment.submodels![index]!.submodelElements as unknown as Record<string, unknown>[];
     expect(elements.map((e) => e['idShort'])).toEqual(['WeldingProcess', 'ArcheType']);
     expect(elements[0]!['modelType']).toBe('Entity');
     expect(elements[1]!['value']).toBe('Full');
@@ -66,7 +66,7 @@ describe('attaching equipment', () => {
       { name: 'RollFormingMachine', globalAssetId: asset('RollFormingMachine') },
       BASE,
     );
-    const entry = (next.submodelElements as Record<string, unknown>[])[0]!;
+    const entry = (next.submodelElements as unknown as Record<string, unknown>[])[0]!;
     const statements = entry['statements'] as Record<string, unknown>[];
     expect(statements.map((s) => s['idShort'])).toEqual([
       'RollFormingMachine',
@@ -83,7 +83,7 @@ describe('attaching equipment', () => {
       { name: 'CoBot', globalAssetId: asset('CoBot'), bulkCount: 3 },
       BASE,
     );
-    const entry = (next.submodelElements as Record<string, unknown>[])[0]!;
+    const entry = (next.submodelElements as unknown as Record<string, unknown>[])[0]!;
     const child = (entry['statements'] as Record<string, unknown>[])[0]!;
     const bulk = (child['statements'] as Record<string, unknown>[])[0]!;
     expect(bulk['idShort']).toBe('BulkCount');
@@ -118,7 +118,7 @@ describe('attaching equipment', () => {
     let submodel = addChild(environment.submodels![index]!, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
     submodel = addChild(submodel, { name: 'CutPress', globalAssetId: asset('CutPress') }, BASE);
     submodel = removeChild(submodel, 'RollFormer');
-    const entry = (submodel.submodelElements as Record<string, unknown>[])[0]!;
+    const entry = (submodel.submodelElements as unknown as Record<string, unknown>[])[0]!;
     expect((entry['statements'] as Record<string, unknown>[]).map((s) => s['idShort'])).toEqual([
       'CutPress',
       'HasPart_CutPress',
@@ -137,7 +137,7 @@ describe('rules catch a broken hierarchy', () => {
   const brokenSubmodel = (mutate: (entry: Record<string, unknown>) => void) => {
     const { environment, index } = process();
     let submodel = addChild(environment.submodels![index]!, { name: 'RollFormer', globalAssetId: asset('RollFormer') }, BASE);
-    const entry = (submodel.submodelElements as Record<string, unknown>[])[0]!;
+    const entry = (submodel.submodelElements as unknown as Record<string, unknown>[])[0]!;
     mutate(entry);
     environment.submodels![index] = submodel;
     return errorsOf(environment).map((f) => f.ruleId);
@@ -165,7 +165,7 @@ describe('rules catch a broken hierarchy', () => {
       { name: 'RollFormer', globalAssetId: asset('RollFormer') },
       BASE,
     );
-    const entry = (submodel.submodelElements as Record<string, unknown>[])[0]!;
+    const entry = (submodel.submodelElements as unknown as Record<string, unknown>[])[0]!;
     const statements = entry['statements'] as Record<string, unknown>[];
     statements[1]!['idShort'] = 'HasPart_공정_롤포밍';   // even with an arbitrary renamed idShort
     environment.submodels![index] = submodel;
@@ -192,7 +192,7 @@ describe('rules catch a broken hierarchy', () => {
 
   it('HIER-1 — catches an ArcheType value outside the spec', () => {
     const { environment, index } = process();
-    const elements = environment.submodels![index]!.submodelElements as Record<string, unknown>[];
+    const elements = environment.submodels![index]!.submodelElements as unknown as Record<string, unknown>[];
     elements[1]!['value'] = '아무거나';
     expect(errorsOf(environment).map((f) => f.ruleId)).toContain('HIER-1');
   });

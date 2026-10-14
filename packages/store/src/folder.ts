@@ -26,6 +26,7 @@
  */
 import { mkdir, readFile, readdir, rename, rm, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fill, tr } from '@aas/core';
 import type { AasxPackage } from '@aas/aasx';
 import { InMemoryStore, type PackageSnapshot, type UserSnapshot } from './memory.js';
 import type {
@@ -82,8 +83,8 @@ export class FolderStore extends InMemoryStore {
     try {
       snapshot = JSON.parse(text) as UserSnapshot;
     } catch (error) {
-      // i18n-ignore — error shown to the operator at startup (there is no request, so no language either)
-      throw new Error(`${join(this.dir, USERS_FILE)}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: ${String(error)}`);
+      // Startup error for the operator — the language comes from AAS_LANG (apps/api/src/lang.ts bootLang)
+      throw new Error(fill(tr('{0}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: {1}'), { 0: join(this.dir, USERS_FILE), 1: String(error) }));
     }
     this.restoreUsers(snapshot);
   }

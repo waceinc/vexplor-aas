@@ -98,4 +98,8 @@ export const EN_PACKAGES: Record<string, string> = {
   'quantity 가 잘못됐습니다: {0}': 'Invalid quantity: {0}',
   '잘못된 MQTT 길이': 'Invalid MQTT length',
   '가상 PLC (시뮬레이션)': 'Virtual PLC (simulation)',
+  'DB 스키마가 {0}판인데 이 프로그램은 {1}판까지만 압니다 — 프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.':
+    'The database schema is version {0}, but this program only knows up to version {1} — upgrade the program. It does not start, because an older program reading newer tables could silently lose data.',
+  '{0}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: {1}':
+    'Could not read {0} — fix it by hand or delete it, then start again: {1}',
 };

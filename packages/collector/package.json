@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "수집 커넥터 — 기획서 M8 (AID 서브모델 해석 + OPC UA Client)",
+  "description": "Collection connector \u2014 resolves the AID submodel and reads field values",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

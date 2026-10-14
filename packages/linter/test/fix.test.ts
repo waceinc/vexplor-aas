@@ -263,7 +263,7 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
     const created = r.env.conceptDescriptions!.find((cd) => cd.id === semantic);
     expect(created).toBeDefined();
     expect(created!.idShort).toBe(node.idShort);
-    const content = created!.embeddedDataSpecifications![0]!.dataSpecificationContent as {
+    const content = created!.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as {
       preferredName: { language: string; text: string }[];
       dataType?: string;
     };
@@ -289,7 +289,7 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
     });
 
     const cd = r.env.conceptDescriptions!.find((c) => c.id === semantic)!;
-    const content = cd.embeddedDataSpecifications![0]!.dataSpecificationContent as { dataType?: string };
+    const content = cd.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as { dataType?: string };
     expect(content.dataType).toBe('BOOLEAN');
     // Our valueType is left untouched
     const fixed = findElement(r.env, (n) => n.idShort === idShort && n.modelType === 'Property');
@@ -306,7 +306,7 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
     const idShort = found.node.idShort!;
     const semantic = found.node.semanticId!.keys[0]!.value;
     const cd = golden.environment.conceptDescriptions!.find((c) => c.id === semantic)!;
-    const dataType = (cd.embeddedDataSpecifications![0]!.dataSpecificationContent as { dataType?: string })
+    const dataType = (cd.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as { dataType?: string })
       .dataType;
 
     const r = fixMutated((env) => {
@@ -315,7 +315,7 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
     });
 
     const fixedCd = r.env.conceptDescriptions!.find((c) => c.id === semantic)!;
-    const fixedContent = fixedCd.embeddedDataSpecifications![0]!.dataSpecificationContent as {
+    const fixedContent = fixedCd.embeddedDataSpecifications![0]!.dataSpecificationContent as unknown as {
       dataType?: string;
     };
     // The external CD stays as is
@@ -329,11 +329,11 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
   it('KOSMO-CD-4: normalizes a non-allowlisted dataType to STRING', () => {
     const r = fixMutated((env) => {
       const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-        .dataSpecificationContent as { dataType?: string };
+        .dataSpecificationContent as unknown as { dataType?: string };
       content.dataType = 'FILE';
     });
     const content = r.env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { dataType?: string };
+      .dataSpecificationContent as unknown as { dataType?: string };
     expect(content.dataType).toBe('STRING');
     expect(remaining(r)).toBe('');
   });
@@ -342,12 +342,12 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
     // We cannot know whether "12.5" is kW or A — a wrong unit is more dangerous than none
     const r = fixMutated((env) => {
       const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-        .dataSpecificationContent as { dataType?: string; unit?: string };
+        .dataSpecificationContent as unknown as { dataType?: string; unit?: string };
       content.dataType = 'REAL_MEASURE';
       delete content.unit;
     });
     const content = r.env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { dataType?: string; unit?: string };
+      .dataSpecificationContent as unknown as { dataType?: string; unit?: string };
     expect(content.dataType).toBe('REAL_COUNT');
     // No unit was made up
     expect(content.unit).toBeUndefined();
@@ -361,7 +361,7 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
     //    whereas here we check the exact opposite: **that no violation is produced**
     const env = structuredClone(golden.environment);
     const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { dataType?: string; unit?: string };
+      .dataSpecificationContent as unknown as { dataType?: string; unit?: string };
     content.dataType = 'REAL_MEASURE';
     content.unit = 'rpm';
     const r = lintAndFix(env, { package: golden.opc });
@@ -386,12 +386,12 @@ describe('Quick Fix — fixing the 8 observed defect types', () => {
   it('PKG-LANG-DUP: removes only the later duplicate language tag and leaves the text untouched', () => {
     const r = fixMutated((env) => {
       const content = env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-        .dataSpecificationContent as { preferredName: { language: string; text: string }[] };
+        .dataSpecificationContent as unknown as { preferredName: { language: string; text: string }[] };
       content.preferredName.push({ language: 'en', text: '나중에 들어온 오타본' });
     });
 
     const content = r.env.conceptDescriptions![0]!.embeddedDataSpecifications![0]!
-      .dataSpecificationContent as { preferredName: { language: string; text: string }[] };
+      .dataSpecificationContent as unknown as { preferredName: { language: string; text: string }[] };
     expect(content.preferredName.filter((s) => s.language === 'en')).toHaveLength(1);
     expect(content.preferredName.some((s) => s.text === '나중에 들어온 오타본')).toBe(false);
     expect(remaining(r)).toBe('');

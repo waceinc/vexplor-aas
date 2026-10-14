@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "IDTA Part 2 정합 REST API — 기획서 M1",
+  "description": "REST API conforming to IDTA Part 2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

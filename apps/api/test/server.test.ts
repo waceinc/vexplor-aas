@@ -53,7 +53,7 @@ describe('HTTP server', () => {
     const health = await fetch(`${baseUrl}/health`);
     expect(await health.json()).toMatchObject({ status: 'ok', auth: 'off' });
     // The version number comes along — with several deployments it is the first question in any inquiry
-    expect((await (await fetch(`${baseUrl}/health`)).json()).version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(((await (await fetch(`${baseUrl}/health`)).json()) as { version: string }).version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('rejects uploads over the limit (Zip Bomb protection)', async () => {

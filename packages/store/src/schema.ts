@@ -9,7 +9,6 @@
  *  ② Without ordinal, a lossless export is not possible.
  *  ③ No UNIQUE on id — defective files must also be accepted without loss so the linter can flag them.
  */
-// i18n-ignore — SQL statement (the Korean inside is SQL comments)
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS aas_package (
   id          text PRIMARY KEY,
@@ -151,7 +150,6 @@ ALTER TABLE aas_package_file ADD CONSTRAINT aas_package_file_role_check
      * Important: passwords are stored **as hashes only** (scrypt, built into Node). The plaintext is kept nowhere.
      */
     version: 3,
-    // i18n-ignore — SQL statement (the Korean inside is SQL comments)
     sql: `
 CREATE TABLE IF NOT EXISTS app_user (
   id            text PRIMARY KEY,
@@ -189,7 +187,7 @@ ALTER TABLE identifiable_history ADD COLUMN IF NOT EXISTS actor_name text;
      * Important: NULL is allowed. Accounts created by an admin on an internal network have no contact details, and
      *    filling the missing value with an empty string would mix "not entered" with "empty value".
      * Important: this is personal data — once collected, a privacy policy, consent, retention period and disposal follow.
-     *    That is why it was left **working without collecting it** (docs/배포_호스팅.md).
+     *    That is why it was left **working without collecting it** (docs/deployment.md).
      */
     version: 5,
     sql: `

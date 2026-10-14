@@ -63,13 +63,13 @@ describe('FolderStore — survives a restart', () => {
     const second = await open(dir);
     const again = await second.exportPackage(record.id);
     expect(again.specPart).toBe(exported.specPart);
-    expect(again.thumbnail?.path).toBe(exported.thumbnail?.path);
+    expect(again.thumbnail?.part).toBe(exported.thumbnail?.part);
     expect(again.thumbnail?.data).toEqual(exported.thumbnail?.data);
-    expect(again.supplementaryFiles.map((f) => f.path).sort()).toEqual(
-      exported.supplementaryFiles.map((f) => f.path).sort(),
+    expect(again.supplementaryFiles.map((f) => f.part).sort()).toEqual(
+      exported.supplementaryFiles.map((f) => f.part).sort(),
     );
     for (const file of exported.supplementaryFiles) {
-      const match = again.supplementaryFiles.find((f) => f.path === file.path);
+      const match = again.supplementaryFiles.find((f) => f.part === file.part);
       expect(match?.data).toEqual(file.data);
     }
     expect([...again.extraParts.keys()].sort()).toEqual([...exported.extraParts.keys()].sort());
@@ -204,6 +204,16 @@ describe('FolderStore — accounts also survive a restart (user-reported, 2026-1
     expect(park.id).toBe('user_3');
     expect((await store.findUserByLogin('kim'))?.id).toBe('user_1');
     expect(await store.countUsers()).toBe(3);
+  });
+
+  it('an accounts file without a counter does not hand out "user_NaN"', async () => {
+    const dir = freshDir();
+    const stored = (id: string, login: string) => ({ id, login, displayName: login, role: 'editor', passwordHash: 'h', disabled: false, createdAt: '2026-10-01T00:00:00.000Z' });
+    writeFileSync(join(dir, 'users.json'), JSON.stringify({ users: [stored('user_4', 'kim')] }), 'utf8');
+
+    const store = await open(dir);
+    const park = await store.createUser({ login: 'park', displayName: 'Park', role: 'viewer', passwordHash: 'h' });
+    expect(park.id).toBe('user_5');
   });
 
   it('refuses to start when the accounts file is corrupt — starting with 0 accounts would let anyone become first admin', async () => {

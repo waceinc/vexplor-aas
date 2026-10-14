@@ -117,8 +117,23 @@ if (blocked.length > 0) {
   for (const item of blocked) console.log(`   ${item.name}@${item.version}  ${item.license}`);
 }
 
+// Important: in --check mode also compare with the committed file — CONTRIBUTING promises that CI catches a
+// notices file that no longer matches the installed dependencies
+let stale = false;
+if (checkOnly) {
+  let current = '';
+  try {
+    current = readFileSync('THIRD-PARTY-NOTICES.md', 'utf8').replace(/\r\n/g, '\n');
+  } catch {
+    /* missing counts as stale */
+  }
+  if (current !== lines.join('\n')) {
+    stale = true;
+    console.error('[FAIL] THIRD-PARTY-NOTICES.md does not match the installed dependencies — run node scripts/make-third-party-notices.mjs');
+  }
+}
 if (!checkOnly) {
   writeFileSync('THIRD-PARTY-NOTICES.md', `${lines.join('\n')}`);
   console.log('\nWrote THIRD-PARTY-NOTICES.md.');
 }
-process.exit(blocked.length > 0 ? 1 : 0);
+process.exit(blocked.length > 0 || stale ? 1 : 0);

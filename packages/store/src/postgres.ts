@@ -195,10 +195,11 @@ export class PostgresStore implements AasStore {
 
       if (current > SCHEMA_VERSION) {
         throw new SchemaVersionError(
-          // i18n-ignore — error shown to the operator at startup (there is no request, so no language either)
-          `DB 스키마가 ${current}판인데 이 프로그램은 ${SCHEMA_VERSION}판까지만 압니다 — ` +
-            // i18n-ignore — continuation line of the sentence above
-            '프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.',
+          // Startup error for the operator — the language comes from AAS_LANG (apps/api/src/lang.ts bootLang)
+          fill(
+            tr('DB 스키마가 {0}판인데 이 프로그램은 {1}판까지만 압니다 — 프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.'),
+            { 0: current, 1: SCHEMA_VERSION },
+          ),
           current,
         );
       }
@@ -748,7 +749,6 @@ export class PostgresStore implements AasStore {
   ): Promise<UserRecord | undefined> {
     // Important: change only what is given. Letting undefined flow through COALESCE would wipe out valid values
     const { rows } = await this.client.query<UserRow>(
-      // i18n-ignore — SQL statement (the Korean inside is SQL comments)
       `UPDATE app_user SET
          display_name  = COALESCE($2, display_name),
          role          = COALESCE($3, role),

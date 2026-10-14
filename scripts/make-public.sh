@@ -29,8 +29,8 @@ ALLOW=(
   # root
   .dockerignore .env.example .gitattributes .gitignore .github
   Caddyfile.example Dockerfile docker-compose.yml
-  LICENSE NOTICE README.md README.ko.md CONTRIBUTING.md SECURITY.md THIRD-PARTY-NOTICES.md
-  package.json package-lock.json tsconfig.json tsconfig.base.json vitest.config.ts
+  LICENSE NOTICE README.md README.ko.md CONTRIBUTING.md CONTRIBUTING.ko.md SECURITY.md SECURITY.ko.md THIRD-PARTY-NOTICES.md
+  package.json package-lock.json tsconfig.json tsconfig.base.json tsconfig.tests.json vitest.config.ts .nvmrc
   # code · tests
   apps packages tests templates
   # docs — user-facing only. Development logs and rule measurement material are not included
@@ -41,7 +41,8 @@ ALLOW=(
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs
   scripts/scan-fixture-names.py scripts/check-public-tree.mjs scripts/make-public.sh
   scripts/aas-test-engines.py scripts/basyx-check.py
-  scripts/i18n-scan.mjs scripts/i18n-append.mjs scripts/make-samples.mjs
+  scripts/i18n-scan.mjs scripts/i18n-server-scan.mjs scripts/spacing-scan.mjs scripts/comment-guard.mjs
+  scripts/i18n-append.mjs scripts/make-samples.mjs
   scripts/opcua-browse.mjs scripts/plc-simulator.mjs scripts/make-demo-aasx.mjs scripts/make-bundle-demo.mjs
   scripts/make-release.sh scripts/install
 )

@@ -452,7 +452,9 @@ export class InMemoryStore implements AasStore {
     for (const user of snapshot.users) this.users.set(user.id, clone(user));
     // Important: if the counter is not restored, a deleted account's id gets reattached to a new account — mixing up the audit log's "who"
     const highest = Math.max(0, ...snapshot.users.map((user) => Number(/^user_(\d+)$/.exec(user.id)?.[1] ?? 0)));
-    this.nextUserId = Math.max(snapshot.nextUserId, highest + 1);
+    // A hand-edited users.json may lack nextUserId — Math.max(undefined, n) is NaN and new ids would become "user_NaN"
+    const stored = Number.isInteger(snapshot.nextUserId) ? snapshot.nextUserId : 1;
+    this.nextUserId = Math.max(stored, highest + 1);
   }
 
   /** All stored package ids */

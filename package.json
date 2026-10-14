@@ -5,7 +5,7 @@
   "author": "WACE",
   "private": true,
   "type": "module",
-  "description": "AAS 저작·배포·수집 통합 플랫폼",
+  "description": "AAS authoring, serving and data collection platform",
   "engines": {
     "node": ">=22"
   },

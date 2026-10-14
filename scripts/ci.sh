@@ -8,8 +8,11 @@ cd "$(dirname "$0")/.."
 echo "▶ 1/10 Build (tsc -b)"
 npx tsc -b
 
-echo "▶ 2/10 Web type check"
+echo "▶ 2/10 Type check — web app, and the test code of every package"
 npm run --silent typecheck --workspace @aas/web
+# Important: vitest does not type-check. A test that reads a property that does not exist compares
+# undefined with undefined and always passes (two such tests were found on 2026-10-14).
+npx tsc -p tsconfig.tests.json
 
 echo "▶ 3/10 UI build (vite) — does the shipped bundle actually build?"
 # Important: a type check alone cannot see bundle-stage failures (asset paths, dynamic import, CSS processing)

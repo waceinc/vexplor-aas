@@ -40,7 +40,7 @@ describe('type → unit propagation', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
     const theirs = clone(TYPE);
-    (theirs.submodels![0]!.submodelElements![1] as Json)['value'] = '120';
+    (theirs.submodels![0]!.submodelElements![1] as unknown as Json)['value'] = '120';
     const plan = planDerivation(base, theirs, instance);
     expect(plan).toEqual([
       expect.objectContaining({ key: 'TechnicalData/MaxSpeed', kind: 'changed', action: 'apply', base: '100', theirs: '120', mine: '100' }),
@@ -51,9 +51,9 @@ describe('type → unit propagation', () => {
   it('skips values edited in the field — does not overwrite them even if the type changed', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
-    (instance.submodels![0]!.submodelElements![1] as Json)['value'] = '95'; // field edit
+    (instance.submodels![0]!.submodelElements![1] as unknown as Json)['value'] = '95'; // field edit
     const theirs = clone(TYPE);
-    (theirs.submodels![0]!.submodelElements![1] as Json)['value'] = '120';
+    (theirs.submodels![0]!.submodelElements![1] as unknown as Json)['value'] = '120';
     const plan = planDerivation(base, theirs, instance);
     expect(plan).toEqual([expect.objectContaining({ kind: 'changed', action: 'skip', reason: 'edited-here', mine: '95' })]);
     expect(valueAt(applyDerivation(instance, theirs, plan), 'TechnicalData', 'MaxSpeed')).toBe('95');
@@ -62,7 +62,7 @@ describe('type → unit propagation', () => {
   it('does not show values where the unit already equals the new type value', () => {
     const base = snapshotOf(TYPE);
     const theirs = clone(TYPE);
-    (theirs.submodels![0]!.submodelElements![1] as Json)['value'] = '120';
+    (theirs.submodels![0]!.submodelElements![1] as unknown as Json)['value'] = '120';
     const instance = clone(theirs);
     expect(planDerivation(base, theirs, instance)).toEqual([]);
   });
@@ -90,7 +90,7 @@ describe('type → unit propagation', () => {
     const instance = clone(TYPE);
     (instance.submodels![0]!.submodelElements as unknown as Json[]).splice(2, 1); // removed Motor from the unit
     const theirs = clone(TYPE);
-    ((theirs.submodels![0]!.submodelElements![2] as Json)['value'] as Json[]).push(prop('Rpm', '1800'));
+    ((theirs.submodels![0]!.submodelElements![2] as unknown as Json)['value'] as Json[]).push(prop('Rpm', '1800'));
     const plan = planDerivation(base, theirs, instance);
     expect(plan).toEqual([expect.objectContaining({ path: 'Motor.Rpm', kind: 'added', action: 'skip', reason: 'parent-missing' })]);
   });
@@ -106,14 +106,14 @@ describe('type → unit propagation', () => {
     expect((after.submodels![0]!.submodelElements as unknown as Json[]).map((e) => e['idShort'])).toEqual(['Manufacturer', 'MaxSpeed']);
 
     const edited = clone(TYPE);
-    (((edited.submodels![0]!.submodelElements![2] as Json)['value'] as Json[])[0] as Json)['value'] = '7kW';
+    (((edited.submodels![0]!.submodelElements![2] as unknown as Json)['value'] as Json[])[0] as Json)['value'] = '7kW';
     expect(planDerivation(base, theirs, edited)).toEqual([expect.objectContaining({ path: 'Motor', kind: 'removed', action: 'skip', reason: 'edited-here' })]);
   });
 
   it('skips when the unit lacks that submodel, and ignores unit-only submodels (data-collection bindings, etc.)', () => {
     const base = snapshotOf(TYPE);
     const theirs = clone(TYPE);
-    (theirs.submodels![0]!.submodelElements![0] as Json)['value'] = 'WACE Co.';
+    (theirs.submodels![0]!.submodelElements![0] as unknown as Json)['value'] = 'WACE Co.';
     const instance = env([{ idShort: 'AssetInterfacesDescription', elements: [prop('X', '1')] }]);
     const plan = planDerivation(base, theirs, instance);
     expect(plan).toEqual([expect.objectContaining({ submodel: 'TechnicalData', action: 'skip', reason: 'submodel-missing' })]);
@@ -124,8 +124,8 @@ describe('type → unit propagation', () => {
     const base = snapshotOf(TYPE);
     const instance = clone(TYPE);
     const theirs = clone(TYPE);
-    (theirs.submodels![0]!.submodelElements![0] as Json)['value'] = 'WACE Co.';
-    (theirs.submodels![0]!.submodelElements![1] as Json)['value'] = '120';
+    (theirs.submodels![0]!.submodelElements![0] as unknown as Json)['value'] = 'WACE Co.';
+    (theirs.submodels![0]!.submodelElements![1] as unknown as Json)['value'] = '120';
     const plan = planDerivation(base, theirs, instance);
     const picked = plan.filter((c) => c.path === 'MaxSpeed');
     const after = applyDerivation(instance, theirs, picked);

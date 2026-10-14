@@ -4,7 +4,7 @@
  * Because protocol adapters sit behind a port, the whole flow can run with a fake reader.
  * Tests against a real OPC UA server live separately on the adapter side (apps).
  */
-import { collectOnce, toSample, type AidInterface, type ProtocolReader, type ValueSample } from '@aas/collector';
+import { collectOnce, toSample, type AidInterface, type ProtocolReader, type ValueSample, type ReadResult } from '@aas/collector';
 import { describe, expect, it } from 'vitest';
 
 const descriptor: AidInterface = {
@@ -24,7 +24,7 @@ function reader(results: { source: string; value?: unknown; error?: string; qual
     async read(sources) {
       return sources.map((source) => {
         const found = results.find((r) => r.source === source);
-        return found ? { ...found, source } : { source, error: '응답 없음' };
+        return (found ? { ...found, source } : { source, error: '응답 없음' }) as ReadResult;
       });
     },
     async close() {},

@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "OPC UA Client(수집·M8) + Server(노출·M6·M7) — node-opcua, MIT",
+  "description": "OPC UA client (collection) and server (publishing) \u2014 node-opcua, MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

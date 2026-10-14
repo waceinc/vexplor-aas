@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "AAS 규칙 린터 — 기획서 M5 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)",
+  "description": "AAS rule linter \u2014 L1 package, L2 AASd/AASc constraints, L3 KOSMO business rules",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

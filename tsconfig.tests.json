@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"],
+    "rootDir": ".",
+    "paths": {
+      "@aas/core": ["./packages/aas-core/src/index.ts"],
+      "@aas/aasx": ["./packages/aasx/src/index.ts"],
+      "@aas/linter": ["./packages/linter/src/index.ts"],
+      "@aas/store": ["./packages/store/src/index.ts"],
+      "@aas/collector": ["./packages/collector/src/index.ts"],
+      "@aas/opcua": ["./packages/opcua/src/index.ts"],
+      "@aas/fieldbus": ["./packages/fieldbus/src/index.ts"],
+      "@aas/api": ["./apps/api/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/test/**/*.ts", "apps/api/test/**/*.ts", "tests/setup/**/*.ts"]
+}

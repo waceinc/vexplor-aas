@@ -141,7 +141,7 @@ describe('reading configuration', () => {
     const onTheWire = Buffer.from('편집용', 'utf8').toString('latin1');
     expect(onTheWire).not.toBe('편집용'); // left as is, it differs from the configured value
 
-    const request = { headers: { authorization: `Bearer ${onTheWire}` } } as ApiRequest;
+    const request = { headers: { authorization: `Bearer ${onTheWire}` } } as unknown as ApiRequest;
     expect(tokenOf(request)).toBe('편집용');
   });
 
@@ -151,8 +151,8 @@ describe('reading configuration', () => {
   });
 
   it('reads tokens only from headers — query parameters end up in logs', () => {
-    expect(tokenOf({ headers: { authorization: 'Bearer abc' } } as ApiRequest)).toBe('abc');
-    expect(tokenOf({ headers: { authorization: 'bearer  abc  ' } } as ApiRequest)).toBe('abc');
+    expect(tokenOf({ headers: { authorization: 'Bearer abc' } } as unknown as ApiRequest)).toBe('abc');
+    expect(tokenOf({ headers: { authorization: 'bearer  abc  ' } } as unknown as ApiRequest)).toBe('abc');
     expect(tokenOf({ headers: {} } as ApiRequest)).toBeUndefined();
   });
 });

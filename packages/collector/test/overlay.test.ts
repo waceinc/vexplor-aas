@@ -6,6 +6,7 @@
  *  (2) **The original stays unchanged** — if option A (the file is the source of truth) breaks, the product's premise collapses
  */
 import { overlayEnvironment, overlaySubmodel, latestByProperty, type ValueSample } from '@aas/collector';
+import type { Environment } from '@aas/core';
 import { describe, expect, it } from 'vitest';
 
 function sample(name: string, value: number | string, at: string): ValueSample {
