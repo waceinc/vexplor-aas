@@ -79,9 +79,10 @@ export interface SettingsMenuContext {
   setShowAccounts: (mode: 'mine' | 'people' | undefined) => void;
   setConfirmQuit: (open: boolean) => void;
   setShowRules: (open: boolean) => void;
+  setShowIntegrations: (open: boolean) => void;
 }
 
-export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules }: SettingsMenuContext): MenuItem[] {
+export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations }: SettingsMenuContext): MenuItem[] {
   return [
     {
       label: fill(tr('언어 — {0}'), { 0: lang === 'en' ? 'English' : tr('한국어') }),
@@ -164,6 +165,20 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
             label: t('탈퇴 — 계정 지우기'),
             title: t('이 계정을 지웁니다. 되돌릴 수 없습니다.'),
             onClick: () => setConfirmQuit(true),
+          },
+        ]
+      : []),
+    /*
+     * Integrations — admins set up subscriptions and rules; everyone else gets the feed address and exports.
+     * Important: hidden for the demo account — integrations are off in demo mode and the window would only say so.
+     */
+    ...(auth?.demo === undefined
+      ? [
+          {
+            label: t('연동 (MES · ERP · CMMS)'),
+            title: tr('MES · ERP · CMMS 가 이 도구의 설비 정보와 가동 사건을 받아 가게 설정합니다'),
+            onClick: () => setShowIntegrations(true),
+            separated: true,
           },
         ]
       : []),

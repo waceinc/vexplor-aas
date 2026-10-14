@@ -1,0 +1,1201 @@
+openapi: 3.0.3
+info:
+  title: VEXPLOR AAS Studio — MES / ERP / CMMS integration API
+  description: >-
+    Every `/integrations` path of VEXPLOR AAS Studio plus the two per-package integration paths
+    (`integration-config`, `external-refs`). Guide: docs/integration.md (English) and docs/연동.md (Korean).
+    Design: docs/design/integration-v1.md §4.
+
+
+    Event payloads (`data` of a CloudEvent) are described by the JSON Schemas the server serves at
+    `GET /integrations/schemas/{type}` — one schema per event type, draft 2020-12 subset. This file references the
+    envelope only, so the payload contract has one source.
+
+
+    Errors use the Part 2 `Result` shape (`messages[0].code` + `messages[0].text`). Authentication is the same as the
+    rest of the API: a session cookie (web login) or `Authorization: Bearer <token>`. "admin" means an administrator
+    **session**; API keys never manage subscriptions.
+
+
+    Kept in sync with the route table by apps/api/test/integration-openapi.test.ts (paths × methods must match).
+  version: '1.0.0'
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+servers:
+  - url: '{base}'
+    variables:
+      base:
+        default: http://localhost:8080
+tags:
+  - name: events
+  - name: subscriptions
+  - name: configuration
+  - name: exports
+  - name: external-references
+  - name: runtime
+  - name: opcua
+paths:
+  /integrations/events:
+    get:
+      tags: [events]
+      summary: Pull feed — events after a sequence number, totally ordered
+      description: >-
+        Pass the returned `nextAfter` as `after` of the next request. Audit events appear only for admin sessions.
+        Answers 410 when `after` is older than the oldest retained event; the consumer then does a full export.
+      parameters:
+        - name: after
+          in: query
+          schema: { type: string, default: '0' }
+          description: Exclusive sequence number (decimal string or number)
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 200 }
+        - name: types
+          in: query
+          schema: { type: string }
+          description: Comma list of event types; a trailing `*` is a prefix (`equipment.*`); the `kr.vexplor.aas.` prefix may be left out
+        - name: packageId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextAfter, oldestSeq, serverTime]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/CloudEvent' } }
+                  nextAfter: { type: string }
+                  oldestSeq: { type: string, nullable: true }
+                  serverTime: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '410':
+          description: The cursor was pruned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Result'
+                  - type: object
+                    properties:
+                      oldestSeq: { type: string }
+  /integrations/schemas:
+    get:
+      tags: [events]
+      summary: List the event types that have a JSON Schema
+      responses:
+        '200':
+          description: Event types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  types: { type: array, items: { type: string } }
+  /integrations/schemas/{type}:
+    get:
+      tags: [events]
+      summary: JSON Schema of one event type (payload `data`)
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string }
+          example: kr.vexplor.aas.equipment.state.changed.v1
+      responses:
+        '200':
+          description: JSON Schema (draft 2020-12 subset)
+          content:
+            application/json:
+              schema: { type: object }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /integrations/status:
+    get:
+      tags: [subscriptions]
+      summary: Integration status (admin)
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntegrationStatus' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /integrations/subscriptions:
+    get:
+      tags: [subscriptions]
+      summary: List subscriptions with delivery statistics (admin)
+      responses:
+        '200':
+          description: Subscriptions — never the secret
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Subscription'
+                        - type: object
+                          properties:
+                            stats: { $ref: '#/components/schemas/DeliveryStats' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [subscriptions]
+      summary: Create a webhook or MQTT subscription (admin)
+      description: >-
+        The signing secret is returned **only here** (and by rotate-secret). MQTT credentials may be written as URL
+        userinfo; the server strips and seals them. Answers 422 `TargetNotAllowed` when the egress policy refuses the
+        target (private address not in AAS_INTEGRATION_ALLOW, plain http/mqtt, blocked port).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subscription, secret]
+                properties:
+                  subscription: { $ref: '#/components/schemas/Subscription' }
+                  secret: { type: string, example: whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/TargetNotAllowed' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /integrations/subscriptions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionId'
+    get:
+      tags: [subscriptions]
+      summary: One subscription (admin)
+      responses:
+        '200':
+          description: Subscription
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [subscriptions]
+      summary: Change a subscription (admin)
+      description: Enabling clears disabledReason and consecutiveDead. A URL change re-runs the egress check.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/TargetNotAllowed' }
+    delete:
+      tags: [subscriptions]
+      summary: Delete a subscription and its deliveries (admin)
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /integrations/subscriptions/{id}/rotate-secret:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionId'
+    post:
+      tags: [subscriptions]
+      summary: New signing secret; the previous one keeps signing for 24 h (admin)
+      responses:
+        '200':
+          description: New secret, shown once
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret: { type: string }
+                  previousValidUntil: { type: string, format: date-time }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /integrations/subscriptions/{id}/test:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionId'
+    post:
+      tags: [subscriptions]
+      summary: Send a signed integration.ping.v1 now (admin)
+      description: Nothing is stored in the event log; an audit event records the test.
+      responses:
+        '200':
+          description: Result of the attempt (also 200 when the receiver failed — see ok)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  statusCode: { type: integer }
+                  durationMs: { type: integer }
+                  address: { type: string }
+                  responseSnippet: { type: string, description: At most 1 KB }
+                  serverTime: { type: string, format: date-time }
+                  error: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /integrations/subscriptions/{id}/replay:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionId'
+    post:
+      tags: [subscriptions]
+      summary: Re-queue matching events from a sequence number or a time (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [fromSeq]
+                  properties:
+                    fromSeq: { type: string }
+                - type: object
+                  required: [from]
+                  properties:
+                    from: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Number of deliveries queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enqueued: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /integrations/subscriptions/{id}/deliveries:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionId'
+    get:
+      tags: [subscriptions]
+      summary: Deliveries of one subscription, newest first (admin)
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, in-flight, succeeded, dead] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Delivery' } }
+                  cursor: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /integrations/deliveries/{id}/redeliver:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [subscriptions]
+      summary: Put one delivery back in the queue with the same event id (admin)
+      responses:
+        '200':
+          description: The delivery, now pending
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /integrations/config:
+    get:
+      tags: [configuration]
+      summary: Server integration config (state rules, time zone, day start, shifts)
+      description: Defaults with revision 0 when never saved.
+      responses:
+        '200':
+          description: Config and revision
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value: { $ref: '#/components/schemas/ServerIntegrationConfig' }
+                  revision: { type: integer }
+    put:
+      tags: [configuration]
+      summary: Replace the server integration config (admin)
+      description: instanceId is server-owned and ignored when changed.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServerIntegrationConfig' }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value: { $ref: '#/components/schemas/ServerIntegrationConfig' }
+                  revision: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /packages/{packageId}/integration-config:
+    parameters:
+      - $ref: '#/components/parameters/PackageId'
+    get:
+      tags: [configuration]
+      summary: Integration rules of one package (state tag, alarms, counters, thresholds)
+      responses:
+        '200':
+          description: Config (value null and revision 0 when never saved)
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    allOf:
+                      - $ref: '#/components/schemas/PackageIntegrationConfig'
+                    nullable: true
+                  revision: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [configuration]
+      summary: Replace the integration rules of one package (edit)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PackageIntegrationConfig' }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value: { $ref: '#/components/schemas/PackageIntegrationConfig' }
+                  revision: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /integrations/exports/equipment:
+    get:
+      tags: [exports]
+      summary: Equipment master (vexplor.equipmentMaster/1) — one item per Instance shell
+      parameters:
+        - name: packageId
+          in: query
+          schema: { type: string }
+          description: Omit for every visible package
+        - name: includeTypes
+          in: query
+          schema: { type: string, enum: ['1'] }
+        - name: trace
+          in: query
+          schema: { type: string, enum: ['1'] }
+        - name: profile
+          in: query
+          schema: { type: string, enum: [sap-pm] }
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Bom'
+        - $ref: '#/components/parameters/Headers'
+        - $ref: '#/components/parameters/Meta'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200': { $ref: '#/components/responses/Export' }
+  /integrations/exports/bom:
+    get:
+      tags: [exports]
+      summary: Bill of materials (vexplor.bom/1)
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Bom'
+        - $ref: '#/components/parameters/Headers'
+        - $ref: '#/components/parameters/Meta'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200': { $ref: '#/components/responses/Export' }
+        '422':
+          description: BomRootMismatch (readiness check INT-2 — hierarchy root differs from the shell asset) or NoBom (the file has no hierarchy to read a BOM from)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
+  /integrations/exports/hierarchy:
+    get:
+      tags: [exports]
+      summary: Process hierarchy (kr.vexplor.aas.hierarchy.v1) of a process file
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Bom'
+        - $ref: '#/components/parameters/Headers'
+        - $ref: '#/components/parameters/Meta'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200': { $ref: '#/components/responses/Export' }
+        '422':
+          description: NoHierarchy — the file is not a process file with a hierarchy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
+  /integrations/exports/maintenance:
+    get:
+      tags: [exports]
+      summary: Maintenance plan (vexplor.maintenancePlan/1); CSV has one row per step
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Bom'
+        - $ref: '#/components/parameters/Headers'
+        - $ref: '#/components/parameters/Meta'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200': { $ref: '#/components/responses/Export' }
+  /integrations/exports/documents:
+    get:
+      tags: [exports]
+      summary: Documents (vexplor.documents/1) with download URL and sha256
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Bom'
+        - $ref: '#/components/parameters/Headers'
+        - $ref: '#/components/parameters/Meta'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200': { $ref: '#/components/responses/Export' }
+  /integrations/readiness:
+    get:
+      tags: [exports]
+      summary: Integration readiness checks INT-1 … INT-5
+      parameters:
+        - name: packageId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Checks per package
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        packageId: { type: string }
+                        checks:
+                          type: array
+                          items:
+                            type: object
+                            required: [id, severity, message]
+                            properties:
+                              id: { type: string, example: INT-2 }
+                              severity: { type: string, enum: [warning, error] }
+                              message: { type: string }
+                              pointer: { type: string }
+  /packages/{packageId}/external-refs:
+    parameters:
+      - $ref: '#/components/parameters/PackageId'
+    get:
+      tags: [external-references]
+      summary: ERP / MES / CMMS numbers of a package (sidecar, not in the AASX)
+      responses:
+        '200':
+          description: Document and revision (revision 0 and no subjects when none)
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value: { $ref: '#/components/schemas/ExternalRefsDoc' }
+                  revision: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [external-references]
+      summary: Replace the numbers of a package (edit); refs with publish true are projected into specificAssetIds
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExternalRefsDoc' }
+      responses:
+        '200':
+          description: Saved and projected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value: { $ref: '#/components/schemas/ExternalRefsDoc' }
+                  revision: { type: integer }
+                  projected:
+                    type: object
+                    properties:
+                      added: { type: array, items: { type: string } }
+                      removed: { type: array, items: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: ExternalRefConflict — the (system, type, id) is already held by another subject
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Result'
+                  - type: object
+                    properties:
+                      claims: { type: array, items: { $ref: '#/components/schemas/RefClaim' } }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /integrations/external-refs/import:
+    post:
+      tags: [external-references]
+      summary: Import numbers from CSV or JSON rows (edit); add / update only, never deletes
+      parameters:
+        - name: dryRun
+          in: query
+          schema: { type: string, enum: ['1'] }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              description: 'Columns: globalAssetId,subjectKind,subjectKey,system,type,id,publish,sensitive,externalSubjectId'
+          application/json:
+            schema:
+              type: object
+              properties:
+                rows: { type: array, items: { type: object } }
+      responses:
+        '200':
+          description: Planned (dry run) or applied changes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        packageId: { type: string }
+                        add: { type: array, items: { $ref: '#/components/schemas/ExternalRef' } }
+                        remove: { type: array, items: { $ref: '#/components/schemas/ExternalRef' } }
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        row: { type: integer }
+                        message: { type: string }
+                  conflicts: { type: array, items: { $ref: '#/components/schemas/RefClaim' } }
+                  revisions: { type: object, additionalProperties: { type: integer } }
+        '422':
+          description: ImportRejected — an apply (no dryRun) with row errors or conflicts; nothing changed, the body carries the same report
+          content:
+            application/json:
+              schema: { type: object }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /integrations/equipment/segments:
+    get:
+      tags: [runtime]
+      summary: State segments of one package over a window (≤ 31 days)
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Segments and totals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  packageId: { type: string }
+                  property: { type: string }
+                  ruleSetHash: { type: string }
+                  holdMs: { type: integer }
+                  segments:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        from: { type: string, format: date-time }
+                        to: { type: string, format: date-time }
+                        state: { type: string, enum: [run, stop, alarm, off, unknown, none] }
+                  totals: { type: object, additionalProperties: { type: integer } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: NoStateTag — the package config names no state property
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
+  /integrations/equipment/oee-inputs:
+    get:
+      tags: [runtime]
+      summary: Inputs for an OEE calculation — times, coverage and counter deltas, never an OEE number
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: day
+          in: query
+          schema: { type: string, format: date }
+        - name: shift
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OEE inputs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  window:
+                    type: object
+                    properties:
+                      from: { type: string, format: date-time }
+                      to: { type: string, format: date-time }
+                      timezone: { type: string }
+                  runMs: { type: integer }
+                  stopMs: { type: integer }
+                  alarmMs: { type: integer }
+                  offMs: { type: integer }
+                  unknownMs: { type: integer }
+                  noDataMs: { type: integer }
+                  coverage: { type: number }
+                  resolutionMs: { type: integer }
+                  produced: { $ref: '#/components/schemas/CounterDelta' }
+                  good: { $ref: '#/components/schemas/CounterDelta' }
+                  reject: { $ref: '#/components/schemas/CounterDelta' }
+                  ruleSetHash: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /integrations/meters:
+    get:
+      tags: [runtime]
+      summary: Meter readings for CMMS — device counters or computed run time
+      parameters:
+        - $ref: '#/components/parameters/RequiredPackageId'
+        - name: counter
+          in: query
+          required: true
+          schema: { type: string }
+          description: Counter id, or `runtime` for computed run time
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: period
+          in: query
+          schema: { type: string, enum: [hour, shift, day], default: day }
+      responses:
+        '200':
+          description: Readings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        readingId: { type: string }
+                        assetId: { type: string }
+                        meterId: { type: string }
+                        meterKind: { type: string, enum: [deviceCounter, computedRunTime] }
+                        unit: { type: string, nullable: true }
+                        reading: { type: number }
+                        delta: { type: number, nullable: true }
+                        periodStart: { type: string, format: date-time }
+                        periodEnd: { type: string, format: date-time }
+                        observedAt: { type: string, format: date-time }
+                        receivedAt: { type: string, format: date-time }
+                        flags: { type: object, additionalProperties: { type: boolean } }
+                        excludedBadSamples: { type: integer }
+                        source: { type: object }
+                        evidence: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /integrations/opcua/certificates:
+    get:
+      tags: [opcua]
+      summary: Trusted and rejected OPC UA client certificates (admin)
+      responses:
+        '200':
+          description: Certificates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trusted: { type: array, items: { $ref: '#/components/schemas/Certificate' } }
+                  rejected: { type: array, items: { $ref: '#/components/schemas/Certificate' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: The OPC UA server is off or runs insecure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
+  /integrations/opcua/certificates/{thumbprint}/trust:
+    parameters:
+      - name: thumbprint
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [opcua]
+      summary: Move a rejected client certificate to trusted (admin)
+      responses:
+        '200': { description: Trusted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The OPC UA server is off or runs insecure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
+components:
+  parameters:
+    PackageId:
+      name: packageId
+      in: path
+      required: true
+      schema: { type: string }
+    RequiredPackageId:
+      name: packageId
+      in: query
+      required: true
+      schema: { type: string }
+    SubscriptionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted revision that was read, e.g. "3" ("0" when never saved). Missing → 428, stale → 412
+      schema: { type: string }
+    Format:
+      name: format
+      in: query
+      schema: { type: string, enum: [json, csv], default: json }
+    Bom:
+      name: bom
+      in: query
+      description: CSV only — prefix a UTF-8 byte order mark (Excel)
+      schema: { type: string, enum: ['1'] }
+    Headers:
+      name: headers
+      in: query
+      description: CSV only — `keys` (the contract, default) or `ko` (Korean labels for people)
+      schema: { type: string, enum: [keys, ko] }
+    Meta:
+      name: meta
+      in: query
+      description: CSV only — first line `#schema=…`
+      schema: { type: string, enum: ['1'] }
+    Lang:
+      name: lang
+      in: query
+      description: Language of multi-language values (default ko, then en, then the first)
+      schema: { type: string }
+    From:
+      name: from
+      in: query
+      schema: { type: string, format: date-time }
+    To:
+      name: to
+      in: query
+      schema: { type: string, format: date-time }
+  responses:
+    BadRequest:
+      description: Invalid parameters or body (the message names the JSON path)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    Unauthorized:
+      description: No session or token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    Forbidden:
+      description: Not allowed — subscriptions and status need an admin session; open servers answer "create an admin first"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    TargetNotAllowed:
+      description: TargetNotAllowed — the egress policy refused the target; the text says why
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    PreconditionFailed:
+      description: The If-Match revision is stale — someone saved first
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    PreconditionRequired:
+      description: If-Match is missing
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    Unavailable:
+      description: IntegrationsOff (set INTEGRATIONS=on) or MasterKeyMissing (set AAS_SECRET_KEY)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+    Export:
+      description: >-
+        JSON envelope `{ schema, exportedAt, source, language, items, excluded }` or RFC 4180 CSV (CRLF, frozen
+        column keys, `;`-joined multi-values) with `Content-Disposition: attachment`
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              schema: { type: string }
+              exportedAt: { type: string, format: date-time }
+              source: { type: object }
+              language: { type: string }
+              items: { type: array, items: { type: object } }
+              excluded: { type: array, items: { type: object } }
+        text/csv:
+          schema: { type: string }
+  schemas:
+    Result:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              messageType: { type: string }
+              text: { type: string }
+              timestamp: { type: string, format: date-time }
+    CloudEvent:
+      type: object
+      description: CloudEvents 1.0 structured JSON. `data` follows GET /integrations/schemas/{type}
+      required: [specversion, id, source, type, time, datacontenttype, sequence, data]
+      properties:
+        specversion: { type: string, enum: ['1.0'] }
+        id: { type: string, description: Dedupe key (= webhook-id) }
+        source: { type: string, example: 'urn:vexplor-aas:9f2c4e1a7b3d' }
+        type: { type: string, example: kr.vexplor.aas.equipment.state.changed.v1 }
+        time: { type: string, format: date-time }
+        subject: { type: string }
+        datacontenttype: { type: string, enum: [application/json] }
+        dataschema: { type: string, format: uri }
+        sequence: { type: string, description: Zero-padded to 20 digits; monotonic, not gap-free }
+        vxpackageid: { type: string }
+        vxrevision: { type: integer }
+        vxcause: { type: string, enum: [edit, fix, import, undo, redo, derivation, external-refs, seed, system] }
+        vxchangeset: { type: string }
+        data: { type: object }
+    IntegrationStatus:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        demo: { type: boolean }
+        instanceId: { type: string }
+        serverTime: { type: string, format: date-time }
+        workers: { type: object }
+        backlog:
+          type: object
+          properties:
+            pending: { type: integer }
+            oldestPendingAt: { type: string, format: date-time }
+            dead: { type: integer }
+        egress:
+          type: object
+          properties:
+            allow: { type: array, items: { type: string } }
+            blockedPorts: { type: array, items: { type: integer } }
+        masterKey: { type: string, enum: [env, file, ephemeral, missing] }
+        opcua:
+          type: object
+          properties:
+            security: { type: string, enum: [secure, insecure, 'off'] }
+            pki: { type: string }
+    SubscriptionInput:
+      type: object
+      required: [name, kind, url, types]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [webhook, mqtt] }
+        url: { type: string, example: 'https://mes.plant.local/hooks/aas' }
+        types: { type: array, minItems: 1, items: { type: string } }
+        packageIds: { type: array, items: { type: string } }
+        enabled: { type: boolean, default: true }
+        options: { $ref: '#/components/schemas/SubscriptionOptions' }
+    SubscriptionPatch:
+      type: object
+      properties:
+        name: { type: string }
+        url: { type: string }
+        types: { type: array, minItems: 1, items: { type: string } }
+        packageIds: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        options: { $ref: '#/components/schemas/SubscriptionOptions' }
+    SubscriptionOptions:
+      type: object
+      properties:
+        topicPrefix: { type: string, description: 'MQTT; default vexplor/aas/<instanceId>; no +, # or NUL; ≤ 200 chars' }
+        retainState: { type: boolean }
+    Subscription:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [webhook, mqtt] }
+        url: { type: string, description: Never carries credentials }
+        types: { type: array, items: { type: string } }
+        packageIds: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        disabledReason: { type: string }
+        options: { $ref: '#/components/schemas/SubscriptionOptions' }
+        secretHint: { type: string, description: Last 4 characters of the secret }
+        consecutiveDead: { type: integer }
+        lastSuccessAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+    DeliveryStats:
+      type: object
+      properties:
+        subscriptionId: { type: string }
+        pending: { type: integer }
+        inFlight: { type: integer }
+        dead: { type: integer }
+        succeeded: { type: integer }
+        oldestPendingAt: { type: string, format: date-time }
+    Delivery:
+      type: object
+      properties:
+        id: { type: string }
+        subscriptionId: { type: string }
+        eventSeq: { type: integer }
+        eventId: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [pending, in-flight, succeeded, dead] }
+        attempts: { type: integer }
+        nextAttemptAt: { type: string, format: date-time }
+        lastStatusCode: { type: integer }
+        lastError: { type: string }
+        lastDurationMs: { type: integer }
+        lastAddress: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ServerIntegrationConfig:
+      type: object
+      required: [schema]
+      additionalProperties: false
+      properties:
+        schema: { type: string, enum: [vexplor.serverIntegrationConfig/1] }
+        instanceId: { type: string }
+        stateRules: { $ref: '#/components/schemas/StateRules' }
+        timezone: { type: string, example: Asia/Seoul }
+        dayStartHour: { type: integer, minimum: 0, maximum: 23 }
+        shifts:
+          type: array
+          items:
+            type: object
+            required: [name, start, end]
+            properties:
+              name: { type: string }
+              start: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+              end: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+    StateRules:
+      type: object
+      properties:
+        run: { type: array, items: { type: string } }
+        stop: { type: array, items: { type: string } }
+        alarm: { type: array, items: { type: string } }
+        'off': { type: array, items: { type: string } }
+    PackageIntegrationConfig:
+      type: object
+      required: [schema]
+      additionalProperties: false
+      properties:
+        schema: { type: string, enum: [vexplor.packageIntegrationConfig/1] }
+        state:
+          type: object
+          nullable: true
+          properties:
+            property: { type: string }
+            interfaceName: { type: string, nullable: true }
+            rules:
+              allOf:
+                - $ref: '#/components/schemas/StateRules'
+              nullable: true
+        alarms:
+          type: array
+          items:
+            type: object
+            required: [id, property]
+            properties:
+              id: { type: string }
+              property: { type: string }
+              activeWhen:
+                oneOf:
+                  - type: string
+                    enum: [truthy]
+                  - type: object
+                    properties:
+                      equals: { type: array, items: { type: string } }
+              codeProperty: { type: string, nullable: true }
+              textProperty: { type: string, nullable: true }
+              severity: { type: string, nullable: true }
+              raiseSamples: { type: integer, minimum: 1 }
+              clearSamples: { type: integer, minimum: 1 }
+              maintenanceIds: { type: array, items: { type: string } }
+        counters:
+          type: array
+          items:
+            type: object
+            required: [id, property]
+            properties:
+              id: { type: string }
+              property: { type: string }
+              kind: { type: string, enum: [total, good, reject, runHours, energy, other] }
+              unit: { type: string, nullable: true }
+              max: { type: number, nullable: true }
+              maxRatePerHour: { type: number, nullable: true }
+        thresholds:
+          type: array
+          items:
+            type: object
+            required: [id, property, direction, limit]
+            properties:
+              id: { type: string }
+              property: { type: string }
+              direction: { type: string, enum: [above, below] }
+              limit: { type: number }
+              hysteresis: { type: number }
+              unit: { type: string, nullable: true }
+              severity: { type: string, nullable: true }
+              raiseSamples: { type: integer, minimum: 1 }
+              clearSamples: { type: integer, minimum: 1 }
+        suppressProperty: { type: string, nullable: true }
+        connection:
+          type: object
+          properties:
+            lostAfterFailures: { type: integer, minimum: 1 }
+        isa95:
+          type: object
+          properties:
+            site: { type: string, nullable: true }
+            levels: { type: object, additionalProperties: { type: string, enum: [Enterprise, Site, Area, WorkCenter, WorkUnit] } }
+    ExternalRef:
+      type: object
+      required: [system, type, id]
+      properties:
+        system: { type: string, example: 'sap-s4:PRD:100' }
+        type: { type: string, example: equipment }
+        id: { type: string }
+        publish: { type: boolean }
+        sensitive: { type: boolean }
+        externalSubjectId: { type: string }
+        syncedAt: { type: string, format: date-time }
+        source: { type: string }
+    ExternalRefsDoc:
+      type: object
+      required: [schema, subjects]
+      properties:
+        schema: { type: string, enum: [vexplor.externalRefs/1] }
+        subjects:
+          type: array
+          items:
+            type: object
+            required: [subject, refs]
+            properties:
+              subject:
+                type: object
+                required: [kind, globalAssetId]
+                properties:
+                  kind: { type: string, enum: [asset, bomChild, consumable, tool] }
+                  globalAssetId: { type: string }
+                  key: { type: string }
+              refs: { type: array, items: { $ref: '#/components/schemas/ExternalRef' } }
+        managedSpecificAssetIds: { type: array, items: { type: string } }
+    RefClaim:
+      type: object
+      properties:
+        system: { type: string }
+        type: { type: string }
+        id: { type: string }
+        packageId: { type: string }
+        subject: { type: string }
+        claimedBy:
+          type: object
+          description: Import conflicts only — the existing holder
+          properties:
+            packageId: { type: string }
+            subject: { type: string }
+    CounterDelta:
+      type: object
+      nullable: true
+      properties:
+        delta: { type: number, nullable: true }
+        resets: { type: integer }
+        counterId: { type: string }
+    Certificate:
+      type: object
+      properties:
+        thumbprint: { type: string }
+        subject: { type: string }
+        notAfter: { type: string, format: date-time }

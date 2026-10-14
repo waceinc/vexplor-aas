@@ -119,6 +119,23 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
       }
     }
 
+    /*
+     * External ERP / MES numbers kept next to the file (integration design §4.5). Deleting the file deletes them, and the
+     * integration side receives "equipment removed" — the ERP may retire that equipment, so the person is told first.
+     * Important: a server without integration routes answers 404 — then there is nothing to warn about.
+     */
+    for (const target of targets) {
+      try {
+        const refs = await api.integration.externalRefs(target.packageId);
+        const count = refs.value.subjects.reduce((sum, subject) => sum + subject.refs.length, 0);
+        if (count > 0) {
+          warnings.push(fill(tr('{0}: ERP · MES 외부 번호 {1}개가 함께 지워지고, 연동된 시스템에는 「설비 없어짐」이 전해집니다'), { 0: target.assetName ?? target.name ?? target.packageId, 1: count }));
+        }
+      } catch {
+        // No integration on this server, or no permission to read the numbers — the delete itself is unchanged
+      }
+    }
+
     const labels = targets.map((item) => `「${item.name ?? item.packageId}」`);
     const head =
       targets.length === 1
