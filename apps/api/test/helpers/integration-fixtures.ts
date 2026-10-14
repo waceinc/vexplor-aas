@@ -87,9 +87,15 @@ export interface CallOptions {
 export function harness(store: IntegrationTestStore, deps: IntegrationRouteDeps = { demo: false }, options: ApiOptions = {}) {
   const handle = createApi(store, {
     ...options,
-    // These tests mount the export routes themselves (fixed clock, own deps) — not the built-in ones
-    integrationRouteBuilders: {},
-    routes: [...exportRoutes(store, deps, { now: () => FIXED_NOW }), ...externalRefRoutes(store, deps)],
+    /**
+     * Important: the routes are built by createApi from the **scoped** store, exactly as in production — only the
+     *    clock is fixed and the test's deps are laid over the ones createApi builds. Mounting routes built from the raw
+     *    store (as `options.routes`) would let them see every workspace and hide a scoping bug from these tests.
+     */
+    integrationRouteBuilders: {
+      exports: (scoped, apiDeps) => exportRoutes(scoped, { ...apiDeps, ...deps }, { now: () => FIXED_NOW }),
+      externalRefs: (scoped, apiDeps) => externalRefRoutes(scoped, { ...apiDeps, ...deps }),
+    },
   });
   const call = async (method: string, path: string, options: CallOptions = {}) => {
     const response = await handle({

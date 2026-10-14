@@ -40,9 +40,11 @@ async function harness(options: { pki?: OpcUaPki; keys?: boolean } = {}) {
     ...(options.pki ? { runtime: { status: () => ({ enabled: true, running: [] }), opcuaPki: () => options.pki } } : {}),
   };
   const api = createApi(store, {
-    // These tests mount the equipment routes themselves (fixed clock, own deps) — not the built-in ones
-    integrationRouteBuilders: {},
-    routes: [...equipmentRoutes(store, deps, { now: () => NOW }), ...opcuaRoutes(store, deps)],
+    // Built by createApi from the scoped store, as in production — only the clock is fixed and the test's deps laid over
+    integrationRouteBuilders: {
+      equipment: (scoped, apiDeps) => equipmentRoutes(scoped, { ...apiDeps, ...deps }, { now: () => NOW }),
+      opcua: (scoped, apiDeps) => opcuaRoutes(scoped, { ...apiDeps, ...deps }),
+    },
     ...(options.keys ? { auth: { tokens: [FULL_KEY], readOnlyTokens: [] } } : {}),
   });
   const cookies = new Map<string, string>();
