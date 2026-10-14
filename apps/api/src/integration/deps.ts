@@ -83,8 +83,11 @@ export interface IntegrationServices {
   now(): number;
   /** Also when the workers are off — says why (`runtime` is absent then) */
   status(): IntegrationStatus;
-  /** OPC UA exposure as GET /integrations/status reports it (WP2 refines it at merge) */
-  opcua(): { security: 'secure' | 'insecure' | 'off'; pki?: string };
+  /**
+   * OPC UA exposure as GET /integrations/status reports it (design §4.2). `security` is the configured mode,
+   * `running` whether the server actually started (secure mode without accounts refuses), `pki` the certificate store
+   */
+  opcua(): { security: 'secure' | 'insecure' | 'off'; running: boolean; pki?: string };
 }
 
 /** Every integration route builder has the signature (store, deps) => Route[] */

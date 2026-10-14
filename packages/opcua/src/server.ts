@@ -18,7 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
   DataType,
   MessageSecurityMode,
@@ -26,6 +26,7 @@ import {
   OPCUAServer,
   SecurityPolicy,
   StatusCodes,
+  UserTokenType,
   Variant,
   type Namespace,
   type OPCUAServerOptions,
@@ -186,6 +187,8 @@ export class AasOpcUaServer {
   private stopped = true;
   private status: ServerStatus;
   private certificates: OPCUACertificateManager | undefined;
+  /** User-certificate store of secure mode — kept empty and closed; it exists so node-opcua never uses its home default */
+  private userCertificates: OPCUACertificateManager | undefined;
   /** Identity of this process — regenerated on every start */
   private readonly instanceUri = `urn:aas-authoring-tool:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 
@@ -211,12 +214,21 @@ export class AasOpcUaServer {
     const manager = new OPCUACertificateManager({ rootFolder: pkiDir, automaticallyAcceptUnknownCertificate: false });
     await manager.initialize();
     this.certificates = manager;
+    // Important: X509 user tokens are not offered (only user name + password, below). This store is defence in depth:
+    //    without it node-opcua falls back to a default user PKI in the home folder that trusts every unknown
+    //    certificate — a self-signed user certificate would then open a session without an account (live E2E, D3).
+    // Its own folder: `rootFolder` is the store itself (node-opcua ignores `name`), and sharing the application trust
+    // list would let a trusted MES application certificate double as a user identity
+    const users = new OPCUACertificateManager({ rootFolder: join(pkiDir, 'user'), automaticallyAcceptUnknownCertificate: false });
+    await users.initialize();
+    this.userCertificates = users;
     this.status = { ...this.status, pki: pkiDir };
     return {
       securityPolicies: [...SECURE_POLICIES],
       securityModes: [MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt],
       allowAnonymous: false,
       serverCertificateManager: manager,
+      userCertificateManager: users,
       userManager: {
         isValidUserAsync(username, password, callback) {
           // `this` is the server session; its secure channel knows the peer address and the client certificate
@@ -270,6 +282,7 @@ export class AasOpcUaServer {
       ...(this.options.hostname ? { alternateHostname: [this.options.hostname] } : {}),
     });
     await this.server.initialize();
+    if ((this.options.security?.mode ?? 'secure') === 'secure') onlyUserNameTokens(this.server);
 
     const addressSpace = this.server.engine.addressSpace;
     if (!addressSpace) throw new Error(tr('주소공간을 만들지 못했습니다.'));
@@ -308,7 +321,9 @@ export class AasOpcUaServer {
     this.server = undefined;
     // The manager watches its folders — leaving it open keeps file watchers (and the process) alive
     await this.certificates?.dispose().catch(() => undefined);
+    await this.userCertificates?.dispose().catch(() => undefined);
     this.certificates = undefined;
+    this.userCertificates = undefined;
   }
 
   /**
@@ -408,5 +423,19 @@ export class AasOpcUaServer {
     if (!variable) return;
     const { variant, status } = toVariant(node.dataType ?? 'String', node.value);
     variable.setValueFromSource(variant, status);
+  }
+}
+
+/**
+ * Leaves only the user-name token on every endpoint (D3). node-opcua offers UserName and Certificate tokens and has no
+ * working option to restrict them (its `userTokenTypes` is not passed through in 2.178), so the endpoint descriptions
+ * are trimmed after `initialize()`, which builds them. The same descriptions decide what a session may use: a token
+ * type without a policy on the endpoint is answered BadIdentityTokenInvalid.
+ */
+function onlyUserNameTokens(server: OPCUAServer): void {
+  for (const endpoint of server.endpoints) {
+    for (const description of endpoint.endpointDescriptions()) {
+      description.userIdentityTokens = (description.userIdentityTokens ?? []).filter((token) => token.tokenType === UserTokenType.UserName);
+    }
   }
 }
