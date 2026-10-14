@@ -46,6 +46,7 @@ let server: AasOpcUaServer;
 let endpoint = '';
 let clientManager: OPCUACertificateManager;
 const checked: string[] = [];
+const clients: { address?: string; certificateThumbprint?: string }[] = [];
 
 async function startOn(port: number): Promise<void> {
   server = new AasOpcUaServer({
@@ -55,8 +56,9 @@ async function startOn(port: number): Promise<void> {
     security: {
       mode: 'secure',
       pkiDir: serverPki,
-      verifyUser: async (username, password) => {
+      verifyUser: async (username, password, client) => {
         checked.push(username);
+        clients.push(client);
         return username === 'operator' && password === 'correct-horse';
       },
     },
@@ -150,6 +152,9 @@ describe('OPC UA server — secure mode', () => {
     await expect(withSession(undefined, async () => 'opened')).rejects.toThrow();
     await expect(withSession({ type: UserTokenType.UserName, userName: 'operator', password: 'wrong' }, async () => 'opened')).rejects.toThrow();
     expect(checked).toContain('operator');
+    // The check learns which client asked — the throttle counts per client certificate, not per server
+    const trusted = (await server.pki()!.list()).trusted[0]!.thumbprint;
+    expect(clients.at(-1)).toMatchObject({ certificateThumbprint: trusted, address: expect.stringMatching(/127\.0\.0\.1/) });
   }, 60_000);
 
   it('reads over Basic256Sha256 / SignAndEncrypt with the right password, and writes stay refused', async () => {
@@ -172,6 +177,13 @@ describe('OPC UA server — option checks', () => {
     const broken = new AasOpcUaServer({ port: 14889, load: async () => [], security: { mode: 'secure', pkiDir: join(root, 'unused') } });
     await expect(broken.start()).rejects.toThrow();
     await broken.stop();
+  });
+
+  it('fail-closed: no security option means secure, and without a user check the server refuses to start', async () => {
+    const forgotten = new AasOpcUaServer({ port: 14890, load: async () => [] });
+    expect(forgotten.currentStatus().security).toBe('secure');
+    await expect(forgotten.start()).rejects.toThrow();
+    await forgotten.stop();
   });
 
   it('insecure mode has no trust store and says so in its status', () => {

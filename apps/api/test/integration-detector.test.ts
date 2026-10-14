@@ -334,7 +334,10 @@ describe('flags and blocks', () => {
     await detector.onPackageCycle(clock.cycle({ MachineState: 'run' }));
     expect(writes).toHaveLength(0);
     await detector.onPackageCycle(clock.cycle({ MachineState: 'stop' }));
-    expect(writes).toHaveLength(1);
+    // A cycle with events writes twice: the new state with the events as pending, then the state with pending cleared
+    expect(writes).toHaveLength(2);
+    expect((writes[0] as { pending?: unknown[] }).pending).toHaveLength(1);
+    expect((writes[1] as { pending?: unknown[] }).pending).toBeUndefined();
   });
 
   it('a deleted package yields nothing', async () => {
@@ -357,5 +360,176 @@ describe('flags and blocks', () => {
         EVENT_TYPES.collectionConnectionRestored,
       ].sort(),
     );
+  });
+});
+
+describe('crash consistency (review M1)', () => {
+  const CONFIG = {
+    ...STATE,
+    alarms: [{ id: 'a1', property: 'AlarmActive', activeWhen: 'truthy' as const, codeProperty: null, textProperty: null, severity: null, raiseSamples: 1, clearSamples: 1, maintenanceIds: [] }],
+    counters: [{ id: 'produced', property: 'ProductionCount', kind: 'total' as const, unit: null, max: null, maxRatePerHour: null }],
+  };
+
+  /** Fails the n-th call (1-based) of a store method once */
+  function failNth(store: RuntimeStore, method: 'putRuntimeState' | 'appendEvents', n: number): void {
+    const real = (store[method] as (...args: unknown[]) => Promise<unknown>).bind(store);
+    let calls = 0;
+    (store as unknown as Record<string, unknown>)[method] = async (...args: unknown[]) => {
+      calls += 1;
+      if (calls === n) throw new Error('store hiccup');
+      return real(...args);
+    };
+  }
+
+  async function scenario(fail: (store: RuntimeStore) => void) {
+    const { store, run } = await setup(CONFIG);
+    await run({ MachineState: 'run', AlarmActive: 0, ProductionCount: 100 });
+    fail(store);
+    await expect(run({ MachineState: 'stop', AlarmActive: 1, ProductionCount: 110 })).rejects.toThrow('store hiccup');
+    // The device still shows the same state; the counter moved on
+    await run({ MachineState: 'stop', AlarmActive: 1, ProductionCount: 112 });
+    await run({ MachineState: 'stop', AlarmActive: 0, ProductionCount: 112 });
+    const events = await allEvents(store);
+    return {
+      deltas: ofType(events, EVENT_TYPES.equipmentCounterAdvanced).map((event) => event.data['delta'] as number),
+      states: ofType(events, EVENT_TYPES.equipmentStateChanged).length,
+      raised: ofType(events, EVENT_TYPES.equipmentAlarmRaised).map((event) => event.data['alarmInstanceId']),
+      cleared: ofType(events, EVENT_TYPES.equipmentAlarmCleared).map((event) => event.data['alarmInstanceId']),
+    };
+  }
+
+  const expectConsistent = (result: Awaited<ReturnType<typeof scenario>>): void => {
+    expect(result.deltas.reduce((sum, delta) => sum + delta, 0)).toBe(12);
+    expect(result.states).toBe(1);
+    expect(result.raised).toHaveLength(1);
+    expect(result.cleared).toEqual(result.raised);
+  };
+
+  it('the state write fails: no event goes out, the next cycle measures from the old state', async () => {
+    const result = await scenario((store) => failNth(store, 'putRuntimeState', 1));
+    expectConsistent(result);
+    expect(result.deltas).toEqual([12]);
+  });
+
+  it('the append fails after the state was saved: the next cycle appends the pending events first', async () => {
+    const result = await scenario((store) => failNth(store, 'appendEvents', 1));
+    expectConsistent(result);
+    expect(result.deltas).toEqual([10, 2]);
+  });
+
+  it('clearing pending fails after the append: the next cycle re-appends and the log skips duplicates', async () => {
+    const result = await scenario((store) => failNth(store, 'putRuntimeState', 2));
+    expectConsistent(result);
+    expect(result.deltas).toEqual([10, 2]);
+  });
+
+  it('the state with pending is flushed to disk before any event is appended', async () => {
+    const { store, run } = await setup(CONFIG);
+    await run({ MachineState: 'run', AlarmActive: 0, ProductionCount: 100 });
+    const calls: string[] = [];
+    const put = store.putRuntimeState.bind(store);
+    const append = store.appendEvents.bind(store);
+    Object.assign(store, {
+      putRuntimeState: async (key: string, value: unknown, packageId?: string) => {
+        calls.push((value as { pending?: unknown[] }).pending ? 'put+pending' : 'put');
+        return put(key, value, packageId);
+      },
+      appendEvents: async (events: Parameters<typeof append>[0]) => {
+        calls.push('append');
+        return append(events);
+      },
+      flush: async () => void calls.push('flush'),
+    });
+    await run({ MachineState: 'stop', AlarmActive: 1, ProductionCount: 110 });
+    expect(calls).toEqual(['put+pending', 'flush', 'append', 'put']);
+  });
+});
+
+describe('removed rules (review L3)', () => {
+  it('an open alarm and an open threshold whose rules are removed are closed with reason rule-removed', async () => {
+    const { store, record, run } = await setup({
+      alarms: [{ id: 'a1', property: 'AlarmActive', activeWhen: 'truthy', codeProperty: 'AlarmCode', textProperty: null, severity: 'high', raiseSamples: 1, clearSamples: 1, maintenanceIds: ['MI-9'] }],
+      thresholds: [{ id: 't1', property: 'MotorTemperature', direction: 'above', limit: 80, hysteresis: 5, unit: 'degC', severity: null, raiseSamples: 1, clearSamples: 1 }],
+    });
+    await run({ AlarmActive: 1, AlarmCode: 'E-1', MotorTemperature: 90 });
+    await store.putPackageIntegrationConfig(record.id, { schema: 'vexplor.packageIntegrationConfig/1' }, 1);
+    await run({ AlarmActive: 1, MotorTemperature: 90 });
+    const events = await allEvents(store);
+    const [raised] = ofType(events, EVENT_TYPES.equipmentAlarmRaised);
+    const [cleared] = ofType(events, EVENT_TYPES.equipmentAlarmCleared);
+    expect(cleared!.data).toMatchObject({
+      reason: 'rule-removed',
+      alarmInstanceId: raised!.data['alarmInstanceId'],
+      code: 'E-1',
+      severity: 'high',
+      maintenanceIds: ['MI-9'],
+      clearedAt: '2026-10-14T00:00:01.000Z',
+      durationMs: 1000,
+    });
+    expect((cleared!.data['source'] as { propertyName: string }).propertyName).toBe('AlarmActive');
+    const [returned] = ofType(events, EVENT_TYPES.equipmentThresholdReturned);
+    expect(returned!.data).toMatchObject({ reason: 'rule-removed', thresholdId: 't1', value: 90, limit: 80, direction: 'above' });
+    // Normal closings carry no reason; a closed track is not closed twice
+    await run({ AlarmActive: 0 });
+    expect(ofType(await allEvents(store), EVENT_TYPES.equipmentAlarmCleared)).toHaveLength(1);
+  });
+
+  it('a closed track of a removed rule disappears without an event', async () => {
+    const { store, record, run } = await setup({
+      alarms: [{ id: 'a1', property: 'AlarmActive', activeWhen: 'truthy', codeProperty: null, textProperty: null, severity: null, raiseSamples: 1, clearSamples: 1, maintenanceIds: [] }],
+    });
+    await run({ AlarmActive: 0 });
+    await store.putPackageIntegrationConfig(record.id, { schema: 'vexplor.packageIntegrationConfig/1' }, 1);
+    await run({ AlarmActive: 1 });
+    expect(await allEvents(store)).toEqual([]);
+  });
+});
+
+describe('connection error text (review L4)', () => {
+  it('credentials inside the interface error are masked', async () => {
+    const { store, record } = await setup(null);
+    const clock = new CycleClock(record, environmentWith(PROPS), [iface('PLC1', PROPS, 'mqtt://plant:s3cret@10.0.0.9:1883')]);
+    const detector = detectorFor(store);
+    for (let i = 0; i < 2; i++) {
+      const cycle = clock.cycle({}, ['PLC1']);
+      cycle.cycle.interfaces[0]!.error = 'connect ECONNREFUSED mqtt://plant:s3cret@10.0.0.9:1883 (after 5000 ms)';
+      await detector.onPackageCycle(cycle);
+    }
+    const [lost] = ofType(await allEvents(store), EVENT_TYPES.collectionConnectionLost);
+    expect(lost!.data['error']).toBe('connect ECONNREFUSED mqtt://plant:***@10.0.0.9:1883 (after 5000 ms)');
+    expect(JSON.stringify(await store.getRuntimeState(detectorStateKey(record.id)))).not.toContain('s3cret');
+  });
+});
+
+describe('folder store durability (review M1)', () => {
+  it('the detector state is on disk before the cycle returns, so a restarted server does not re-announce', async () => {
+    const { mkdtempSync, readFileSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { FolderStore } = await import('@aas/store');
+    const dir = mkdtempSync(join(tmpdir(), 'aas-detector-'));
+    try {
+      const store = new FolderStore(dir);
+      await store.init();
+      const record = await seededPackage(store);
+      await store.putPackageIntegrationConfig(record.id, { schema: 'vexplor.packageIntegrationConfig/1', ...STATE });
+      const clock = new CycleClock(record, environmentWith(PROPS), [iface('PLC1', PROPS)]);
+      await detectorFor(store).onPackageCycle(clock.cycle({ MachineState: 'run' }));
+      // A state write just happened, so the next one is coalesced for about a second
+      await store.flush();
+      await detectorFor(store).onPackageCycle(clock.cycle({ MachineState: 'stop' }));
+      // Read the file at once — the coalesced (1 s) write must not be what makes the state durable
+      const onDisk = JSON.parse(readFileSync(join(dir, 'integration-state.json'), 'utf8')) as { state: Record<string, { value: { state?: { value: string } } }> };
+      expect(onDisk.state[detectorStateKey(record.id)]!.value.state!.value).toBe('stop');
+
+      const restarted = new FolderStore(dir);
+      await restarted.init();
+      expect(await detectorFor(restarted).onPackageCycle(clock.cycle({ MachineState: 'stop' }))).toEqual([]);
+      expect(ofType((await restarted.readEvents({ after: 0, limit: 100 })).items, EVENT_TYPES.equipmentStateChanged)).toHaveLength(1);
+      await restarted.flush();
+      await store.flush();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

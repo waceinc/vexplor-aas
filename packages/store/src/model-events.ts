@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   EVENT_TYPES,
+  type ModelExternalRefsUpdatedData,
   type ModelIdentifiableData,
   type ModelPackageCreatedData,
   type ModelPackageDeletedData,
@@ -154,4 +155,26 @@ export function identifiableEvent(
   if (actor !== undefined) data.actor = { id: actor.id, name: actor.name };
   const subject = `packages/${facts.packageId}/${SEGMENT[record.modelType]}/${b64url(record.id)}`;
   return envelope(TYPES[record.modelType][operation], facts, subject, data, time, explicitActor);
+}
+
+/**
+ * `model.externalrefs.updated` — written in the same store write as the sidecar, so a projector that crashed can find
+ * every refs change in the log. No `packageRevision`: the package did not change, and a receiver that skips revisions
+ * it has already applied would drop this event if it carried the last model revision again.
+ * The owner is passed in (the store knows it at write time); absent = shared.
+ */
+export function externalRefsUpdatedEvent(packageId: string, revision: number, time: string, owner?: string): ModelEvent {
+  const data: ModelExternalRefsUpdatedData = { packageId, revision };
+  const event: ModelEvent = {
+    id: randomUUID(),
+    type: EVENT_TYPES.modelExternalRefsUpdated,
+    time,
+    packageId,
+    subject: `packages/${packageId}`,
+    ...actorFields(),
+    ...changeFields(),
+    data,
+  };
+  if (owner !== undefined) event.owner = owner;
+  return event;
 }

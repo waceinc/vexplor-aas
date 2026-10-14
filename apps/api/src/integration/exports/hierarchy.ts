@@ -9,7 +9,7 @@ import { fill, tr, type Isa95Level, type PackageIntegrationConfig, type Specific
 import type { AasStore } from '@aas/store';
 import { sortedChildren } from './bom.js';
 import { shellsOf, specificAssetIdsOf, assetInformationOf } from './elements.js';
-import { levelOf, nodeKey, readHierarchy, staleOverrides, type HierarchyNode } from './location.js';
+import { isProcessFile, levelOf, nodeKey, readHierarchy, staleOverrides, type HierarchyNode } from './location.js';
 import { serialNumberOf } from './nameplate.js';
 import { readinessMessage } from './readiness.js';
 import { allPackages } from './store.js';
@@ -63,6 +63,9 @@ export function readHierarchyItems(
   selfPackageId: string,
 ): { items: HierarchyItem[]; warnings: string[] } | undefined {
   const hierarchy = readHierarchy(environment);
+  // An equipment file's hierarchy is its BOM tree: a quantity there is a part count, not n machines sharing one asset
+  // id, so INT-4 applies to company / line / process files only — the same rule as the readiness check (review D2)
+  const processFile = isProcessFile(environment);
   if (!hierarchy) return undefined;
   const items: HierarchyItem[] = [];
   const visit = (node: HierarchyNode, parent: HierarchyNode | undefined): void => {
@@ -75,7 +78,7 @@ export function readHierarchyItems(
         ? []
         : (directory.get(globalAssetId) ?? []).filter((entry) => (node.depth === 0) === (entry.packageId === selfPackageId));
     const holder = holders[0];
-    if (node.depth > 0 && globalAssetId !== null && node.bulkCount > 1) {
+    if (processFile && node.depth > 0 && globalAssetId !== null && node.bulkCount > 1) {
       warnings.push(`${readinessMessage('INT-4')} (${nodeKey(node)} ×${node.bulkCount})`);
     }
     if (level === 'WorkUnit' && globalAssetId === null) warnings.push(tr('WorkUnit 노드에 globalAssetId가 없습니다.'));

@@ -13,7 +13,7 @@ import { ApiError, errorResponse, json, type ApiRequest, type ApiResponse } from
 import type { Route } from '../router.js';
 import type { IntegrationRouteDeps } from './deps.js';
 import { integrationStore, requirePackage } from './exports/store.js';
-import { emptyExternalRefs, parseExternalRefsDoc, saveExternalRefs, type SaveResult } from './external-refs.js';
+import { emptyExternalRefs, parseExternalRefsDoc, saveExternalRefs, saveExternalRefsBatch, type SaveResult } from './external-refs.js';
 import { importRows, planImport } from './external-refs-import.js';
 
 /** `If-Match: "3"` → 3. Missing → 428, unreadable → 400 (design §4.5) */
@@ -33,7 +33,7 @@ function conflictResponse(error: ExternalRefConflictError): ApiResponse {
 }
 
 /** Maps the store's revision and uniqueness errors of a save */
-async function guardedSave(run: () => Promise<SaveResult>): Promise<SaveResult | ApiResponse> {
+async function guardedSave<T extends SaveResult | SaveResult[]>(run: () => Promise<T>): Promise<T | ApiResponse> {
   try {
     return await run();
   } catch (error) {
@@ -43,8 +43,8 @@ async function guardedSave(run: () => Promise<SaveResult>): Promise<SaveResult |
   }
 }
 
-function isResponse(value: SaveResult | ApiResponse): value is ApiResponse {
-  return 'status' in value && 'headers' in value;
+function isResponse(value: SaveResult | SaveResult[] | ApiResponse): value is ApiResponse {
+  return !Array.isArray(value) && 'status' in value && 'headers' in value;
 }
 
 async function afterChange(deps: IntegrationRouteDeps, packageIds: readonly string[]): Promise<void> {
@@ -106,9 +106,9 @@ export function externalRefRoutes(store: AasStore, deps: IntegrationRouteDeps): 
           const body = errorResponse(400, 'BadRequest', parsed.errors.map((e) => `${e.path}: ${e.message}`).join('; ')).body as Record<string, unknown>;
           return json(400, { ...body, errors: parsed.errors });
         }
-        const saved = await guardedSave(() => saveExternalRefs(store, packageId, parsed.value, expected));
+        // afterChange runs inside the save once the doc is stored — also if the shell projection then fails
+        const saved = await guardedSave(() => saveExternalRefs(store, packageId, parsed.value, expected, (written) => afterChange(deps, written)));
         if (isResponse(saved)) return saved;
-        await afterChange(deps, [packageId]);
         const response = json(200, saved);
         response.headers['etag'] = `"${saved.revision}"`;
         return response;
@@ -128,14 +128,9 @@ export function externalRefRoutes(store: AasStore, deps: IntegrationRouteDeps): 
         if (plan.errors.length > 0 || plan.conflicts.length > 0) {
           return json(422, { ...report, code: 'ImportRejected', message: tr('오류나 충돌이 있는 행이 있어 아무것도 적용하지 않았습니다.') });
         }
-        const revisions: Record<string, number> = {};
-        for (const [packageId, { doc, revision }] of plan.docs) {
-          const saved = await guardedSave(() => saveExternalRefs(store, packageId, doc, revision));
-          if (isResponse(saved)) return saved;
-          revisions[packageId] = saved.revision;
-        }
-        const packageIds = Object.keys(revisions);
-        if (packageIds.length > 0) {
+        // One store batch: every package or none (a stale revision or a key taken meanwhile aborts the whole file)
+        const items = [...plan.docs].map(([packageId, { doc, revision }]) => ({ packageId, doc, expectedRevision: revision }));
+        const written = async (packageIds: string[]): Promise<void> => {
           await audit(deps.auditStore ?? integrationStore(store), packageIds.join(','), {
             packages: packageIds.length,
             added: plan.changes.reduce((sum, change) => sum + change.add.length, 0),
@@ -143,7 +138,10 @@ export function externalRefRoutes(store: AasStore, deps: IntegrationRouteDeps): 
             source,
           });
           await afterChange(deps, packageIds);
-        }
+        };
+        const saved = items.length === 0 ? [] : await guardedSave(() => saveExternalRefsBatch(store, items, written));
+        if (isResponse(saved)) return saved;
+        const revisions = Object.fromEntries(items.map((item, i) => [item.packageId, saved[i]!.revision]));
         return json(200, { ...report, revisions });
       },
     },

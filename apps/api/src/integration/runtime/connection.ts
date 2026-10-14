@@ -44,6 +44,14 @@ export function stepConnection(track: ConnectionTrack, error: string | undefined
   return { track: { failures: 0, lost: false } };
 }
 
+/**
+ * Masks the password of every URL inside a free text (review L4). Protocol clients put the endpoint they failed to
+ * reach into their error messages — with userinfo, if the endpoint had it — and that text goes out in events.
+ */
+export function maskCredentialsInText(text: string): string {
+  return text.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s'"<>()]+/gi, (url) => maskCredentials(url));
+}
+
 /** Connection events of one cycle — also for packages without an integration config */
 export function detectConnections(
   config: PackageIntegrationConfig | null,
@@ -59,7 +67,9 @@ export function detectConnections(
   for (const iface of cycle.interfaces) {
     const entry = cycle.cycle.interfaces.find((candidate) => candidate.name === iface.name);
     if (!entry) continue; // not attempted in this cycle (an overlapping run was skipped)
-    const result = stepConnection(state.connections[iface.name] ?? { failures: 0, lost: false }, entry.error, at, lostAfter);
+    // Masked before it is stored or sent — the runtime state is exported with the data folder, too
+    const error = entry.error === undefined ? undefined : maskCredentialsInText(entry.error);
+    const result = stepConnection(state.connections[iface.name] ?? { failures: 0, lost: false }, error, at, lostAfter);
     state.connections[iface.name] = result.track;
     const base = { asset, interfaceName: iface.name, protocol: iface.protocol, endpoint: maskCredentials(iface.base ?? ''), simulated: isSimulated(iface) };
     if (result.lost) {

@@ -119,8 +119,11 @@ test labs), internal numbers should not.
 - `system` names the system **including tenant / client** (`sap-s4:PRD:100`, `icube:WACE`). It must not contain `|`.
 - One `(system, type, id)` belongs to **one** asset only. A second claim is refused with 409 and the existing holder.
 - `publish: true` writes the ref into the shell's `specificAssetIds` as `name = "<system>:<type>"`, through a normal edit
-  (history, undo, a `model.shell.updated` event). Unpublishing removes it again; other specificAssetIds are untouched.
-- `type: costCenter` and `sensitive: true` refs are **never** published, exported or put in events.
+  (history and a `model.shell.updated` event). Unpublishing removes it again; other specificAssetIds are untouched.
+- A refs change is **not undoable** and clears the file's undo history (↶): undo restores the model only, so it would
+  remove a published id while the refs document still says `publish: true`. To revert, save the refs again.
+- `type: costCenter` (in any spelling — the type is stored as `costCenter`) and `sensitive: true` refs are **never**
+  published, exported or put in events.
 - Edit them in **Integrations → External references**, or import a CSV (columns
   `globalAssetId,subjectKind,subjectKey,system,type,id,publish,sensitive,externalSubjectId`). The import is always shown
   as a dry run first; it adds and updates only — it never deletes numbers missing from the file. Importing the same file
@@ -185,6 +188,7 @@ All types are `kr.vexplor.aas.<name>.v1`. A payload shape never changes inside `
 | `model.package.created` / `.deleted` | model | A file is uploaded, created, cloned or deleted |
 | `model.package.file.changed` | model | An attachment is put or removed |
 | `model.shell\|submodel\|conceptdescription.created` / `.updated` / `.deleted` | model | Any edit, fix, undo, redo, import |
+| `model.externalrefs.updated` | model | The file's external references (ERP/MES/CMMS numbers) were saved — `data` is only `packageId` and the refs `revision`; re-read the refs |
 | `equipment.master.changed` | master data | The equipment-master projection changed (`changedKeys` lists the export columns) |
 | `equipment.bom.changed` / `.maintenance.changed` / `.documents.changed` | master data | That projection changed; re-read `href` |
 | `equipment.state.changed` | runtime | The judged state changed (`run`, `stop`, `alarm`, `off`, `unknown`) |
@@ -442,7 +446,7 @@ then the first). Two exports without edits differ only in `exportedAt`. In the U
 |---|---|---|
 | `GET /integrations/exports/equipment` | `vexplor.equipmentMaster/1` | One row per Instance shell; `packageId` optional (all visible files); `includeTypes=1`, `trace=1` (source paths), `profile=sap-pm` (length warnings) |
 | `GET /integrations/exports/bom?packageId=` | `vexplor.bom/1` | Refused with 422 `BomRootMismatch` when INT-2 fails, 422 `NoBom` when the file has no hierarchy |
-| `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | A process file; flat list with parent ids. 422 `NoHierarchy` for any other file |
+| `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | Any file with `HierarchicalStructures` (plant structure of a process file, or the BOM tree of an equipment file); flat list with parent ids. 422 `NoHierarchy` only when the file has none |
 | `GET /integrations/exports/maintenance?packageId=` | `vexplor.maintenancePlan/1` | CSV has one row per step |
 | `GET /integrations/exports/documents?packageId=` | `vexplor.documents/1` | One row per document × version × file |
 
@@ -460,7 +464,8 @@ Columns are only ever **added at the end**; any other change is a new schema `/2
 
 Formats inside cells: `specificAssetIds` = `name=value;…`, `externalRefs` = `system|type|id;…`, `location.path` =
 `/`-joined. BOM `quantity` is the child's `BulkCount` per parent (default 1); unmapped children are kept with
-`mapped=false`. Hierarchy rows are never multiplied by a quantity (a quantity above 1 is a warning, INT-4).
+`mapped=false`. Hierarchy rows are never multiplied by a quantity. In a process file a quantity above 1 on equipment is
+an INT-4 warning; in an equipment file's BOM tree a quantity is a part count and carries no warning.
 Maintenance `interval` stays empty with `intervalStatus: "missing"` unless the model holds an explicit value and unit.
 Documents `url` points at the Part 2 attachment route (absolute with `AAS_PUBLIC_URL`); a missing file part gives
 `available=false` and an empty `url`.
@@ -490,7 +495,7 @@ refused. They are not lint findings and do not change the submission report.
 | INT-1 | warning | A Type shell has a DigitalNameplate `SerialNumber` | Excluded from the equipment export unless `includeTypes=1` |
 | INT-2 | error | The hierarchy entry node's `globalAssetId` differs from the shell's | BOM export refused (422 `BomRootMismatch`) |
 | INT-3 | warning | A maintenance instruction has no explicit interval value + unit | `intervalStatus: "missing"` |
-| INT-4 | warning | A hierarchy node with `BulkCount > 1` points at one `globalAssetId` | Hierarchy export warning; never expanded |
+| INT-4 | warning | A process-file hierarchy node with `BulkCount > 1` points at one `globalAssetId` | Hierarchy export warning; never expanded |
 | INT-5 | warning | An Instance shell has no `SerialNumber` | `missing` includes `nameplate.serialNumber` |
 
 ## 8. Runtime rules

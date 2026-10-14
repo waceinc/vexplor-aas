@@ -15,7 +15,7 @@ import { randomBytes } from 'node:crypto';
 import { effectiveStateRules, fill, freshWindowMs, parsePackageIntegrationConfig, parseServerIntegrationConfig, RESERVED_COUNTER_ID, tr, type ServerIntegrationConfig } from '@aas/core';
 import { parseAid } from '@aas/collector';
 import { ConflictError, type AasStore } from '@aas/store';
-import { ApiError, json, type ApiRequest } from '../http.js';
+import { ApiError, errorResponse, json, type ApiRequest, type ApiResponse } from '../http.js';
 import type { Route } from '../router.js';
 import type { IntegrationRouteDeps } from './deps.js';
 import {
@@ -31,15 +31,22 @@ import {
 } from './route-support.js';
 import { deviceCounterReadings, runTimeReadings, type MeterContext } from './runtime/meters.js';
 import { computeOeeInputs } from './runtime/oee.js';
-import { computeSegments, ruleSetHash } from './runtime/segments.js';
+import { computeSegments, ruleSetHash, ValueLimitError } from './runtime/segments.js';
 import { dayWindow, isDay, periodsBetween, shiftWindow } from './runtime/zoned.js';
 
 export { readPackageConfig, readServerConfig, type IntegrationRouteStore } from './route-support.js';
 
-/** Test seams — the routes otherwise use the system clock */
 export interface EquipmentRouteOptions {
+  /** Test seam — the routes otherwise use the system clock */
   now?: () => number;
+  /** Heavy reads (segments, OEE inputs, meters) running at once; more answer 503 with Retry-After. Default 2 */
+  maxConcurrent?: number;
+  /** Most periods one meter request may cover. Default MAX_PERIODS */
+  maxPeriods?: number;
 }
+
+/** Most periods one meter request may cover (31 days of hours is 744) */
+export const MAX_PERIODS = 1000;
 
 const MAX_WINDOW_MS = 31 * 24 * 3_600_000;
 
@@ -81,6 +88,30 @@ function noStateTag(packageId: string): ApiError {
 export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationRouteDeps, options: EquipmentRouteOptions = {}): Route[] {
   const now = options.now ?? Date.now;
   const holdMs = freshWindowMs(deps.collectIntervalMs);
+  const maxConcurrent = options.maxConcurrent ?? 2;
+  let running = 0;
+
+  /**
+   * Runs a heavy read (review M6): at most `maxConcurrent` at once — the rest are told to retry instead of queueing up
+   * memory — and a window holding more values than one request may load becomes a 422 with a clear message.
+   */
+  async function heavy(work: () => Promise<ApiResponse>): Promise<ApiResponse> {
+    if (running >= maxConcurrent) {
+      const busy = errorResponse(503, 'Busy', tr('설비 데이터 조회가 이미 여러 건 진행 중입니다. 잠시 뒤 다시 시도하십시오.'));
+      return { ...busy, headers: { ...busy.headers, 'retry-after': '5' } };
+    }
+    running += 1;
+    try {
+      return await work();
+    } catch (error) {
+      if (error instanceof ValueLimitError) {
+        throw new ApiError(422, 'TooManyValues', fill(tr('이 기간에 저장된 값이 {0}개를 넘습니다. 기간을 줄여 다시 조회하십시오.'), { 0: error.limit }));
+      }
+      throw error;
+    } finally {
+      running -= 1;
+    }
+  }
 
   return [
     {
@@ -149,7 +180,7 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
     {
       method: 'GET',
       pattern: '/integrations/equipment/segments',
-      async handle({ request }) {
+      handle: ({ request }) => heavy(async () => {
         const packageId = requiredPackageId(request);
         const window = windowFromQuery(request);
         await existingPackage(store, packageId);
@@ -157,7 +188,7 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
         if (!config?.state) throw noStateTag(packageId);
         const rules = effectiveStateRules((await readServerConfig(store)).value, config);
         const end = Math.min(window.end, now());
-        const result = end > window.start ? await computeSegments(store, packageId, config.state, rules, window.start, end, holdMs) : { segments: [], totals: { run: 0, stop: 0, alarm: 0, off: 0, unknown: 0, none: 0 }, truncated: false };
+        const result = end > window.start ? await computeSegments(store, packageId, config.state, rules, window.start, end, holdMs) : { segments: [], totals: { run: 0, stop: 0, alarm: 0, off: 0, unknown: 0, none: 0 } };
         return json(200, {
           packageId,
           property: config.state.property,
@@ -165,14 +196,13 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
           holdMs,
           segments: result.segments.map((segment) => ({ from: new Date(segment.from).toISOString(), to: new Date(segment.to).toISOString(), state: segment.state })),
           totals: result.totals,
-          ...(result.truncated ? { truncated: true } : {}),
         });
-      },
+      }),
     },
     {
       method: 'GET',
       pattern: '/integrations/equipment/oee-inputs',
-      async handle({ request }) {
+      handle: ({ request }) => heavy(async () => {
         const packageId = requiredPackageId(request);
         const server = (await readServerConfig(store)).value;
         let window: { start: number; end: number };
@@ -194,12 +224,12 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
         const end = Math.max(window.start, Math.min(window.end, now()));
         const inputs = await computeOeeInputs(store, packageId, config, rules, { start: window.start, end, timezone: server.timezone }, holdMs, deps.collectIntervalMs ?? null);
         return json(200, inputs);
-      },
+      }),
     },
     {
       method: 'GET',
       pattern: '/integrations/meters',
-      async handle({ request }) {
+      handle: ({ request }) => heavy(async () => {
         const packageId = requiredPackageId(request);
         const counter = request.query['counter'];
         if (!counter) throw new ApiError(400, 'BadRequest', tr('counter 값이 필요합니다(카운터 ID 또는 runtime).'));
@@ -225,17 +255,21 @@ export function equipmentRoutes(store: IntegrationRouteStore, deps: IntegrationR
         };
         // Not clipped to now: an unfinished period must keep its real end so the run-time meter can leave it out
         const periods = periodsBetween(server.timezone, window.start, window.end, period, server.dayStartHour, server.shifts);
-        let result;
+        const maxPeriods = options.maxPeriods ?? MAX_PERIODS;
+        if (periods.length > maxPeriods) {
+          throw new ApiError(422, 'TooManyPeriods', fill(tr('한 번에 {0}개가 넘는 기간은 조회할 수 없습니다. 기간을 줄이거나 더 긴 단위를 고르십시오.'), { 0: maxPeriods }));
+        }
+        let readings;
         if (counter === RESERVED_COUNTER_ID) {
           if (!config?.state) throw noStateTag(packageId);
-          result = await runTimeReadings(context, config.state, effectiveStateRules(server, config), periods);
+          readings = await runTimeReadings(context, config.state, effectiveStateRules(server, config), periods);
         } else {
           const rule = config?.counters.find((candidate) => candidate.id === counter);
           if (!rule) throw new ApiError(404, 'NotFound', fill(tr('연동 설정에 없는 카운터입니다: {0}'), { 0: counter }));
-          result = await deviceCounterReadings(context, rule, periods);
+          readings = await deviceCounterReadings(context, rule, periods);
         }
-        return json(200, { readings: result.readings, ...(result.truncated ? { truncated: true } : {}) });
-      },
+        return json(200, { readings });
+      }),
     },
   ];
 }

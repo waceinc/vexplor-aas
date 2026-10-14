@@ -2,7 +2,9 @@
  * External references (design D1, D2, §4.5; ERP E-6, E-15, E-16, E-17, E-18; E-23 for refs).
  */
 import { describe, expect, it } from 'vitest';
+import { runInWorkspace, scopeStore } from '@aas/store';
 import { encodeIdentifier } from '../src/base64url.js';
+import { externalRefRoutes } from '../src/integration/routes-external-refs.js';
 import { createIntegrationStore, type IntegrationTestStore } from './helpers/integration-store.js';
 import { harness, shell, unitAsset, unitCopy, type Json } from './helpers/integration-fixtures.js';
 
@@ -78,6 +80,49 @@ describe('external refs document', () => {
     const claims = (clash.body as { claims: Json[] }).claims;
     expect(claims.map((claim) => claim['packageId'])).toEqual([ids[0], ids[1]]);
     expect(claims.every((claim) => claim['id'] === '10004711')).toBe(true);
+  });
+});
+
+describe('cost centre and sensitive types regardless of spelling (L7)', () => {
+  it('normalises the type case at parse time and keeps CostCenter out of the shell, exports and join', async () => {
+    const { store, call, ids } = await setup();
+    const packageId = ids[0]!;
+    expect((await call('PUT', `/packages/${packageId}/external-refs`, { body: doc(1, [{ system: SAP, type: 'CostCenter', id: 'CC-9', publish: true }]), headers: { 'if-match': '0' } })).status).toBe(400);
+    const put = await call('PUT', `/packages/${packageId}/external-refs`, { body: doc(1, [{ system: SAP, type: 'COSTCENTER', id: 'CC-9' }, { system: SAP, type: 'Equipment', id: 'EQ-1' }]), headers: { 'if-match': '0' } });
+    expect(put.status).toBe(200);
+    const stored = (await store.getExternalRefs(packageId))!.value.subjects[0]!.refs.map((ref) => ref.type);
+    expect(stored).toEqual(['costCenter', 'equipment']);
+    const item = ((await call('GET', '/integrations/exports/equipment')).body as { items: Json[] }).items[0]!;
+    expect(item['externalRefs']).toEqual([{ system: SAP, type: 'equipment', id: 'EQ-1' }]);
+    // The import goes through the same parser
+    const imported = await call('POST', '/integrations/external-refs/import', {
+      query: { dryRun: '1' },
+      body: { rows: [{ globalAssetId: unitAsset(1), system: SAP, type: 'costcenter', id: 'CC-10', publish: true }] },
+    });
+    expect((imported.body as { errors: unknown[] }).errors).toHaveLength(1);
+  });
+
+  it('keeps a differently spelled cost centre out even when the store holds it unnormalised', async () => {
+    const { store, call, ids } = await setup();
+    // Written past the API (an older import, a hand-edited backup): the read side must still filter it
+    await store.putExternalRefs(ids[0]!, { schema: 'vexplor.externalRefs/1', subjects: [{ subject: { kind: 'asset', globalAssetId: unitAsset(1) }, refs: [{ system: SAP, type: 'CostCenter', id: 'CC-9' }] }] }, 0);
+    const item = ((await call('GET', '/integrations/exports/equipment')).body as { items: Json[] }).items[0]!;
+    expect(item['externalRefs']).toEqual([]);
+  });
+});
+
+describe('undo and external refs (L9)', () => {
+  it('does not offer undo for a refs change, and drops older snapshots that would revert its projection', async () => {
+    const { call, ids } = await setup();
+    const packageId = ids[0]!;
+    // An ordinary edit first — its snapshot predates the projection and must not survive the refs change
+    const serial = `/packages/${packageId}/api/v3.0/submodels/${encodeIdentifier('https://www.smart-factory.kr/ids/sm/RollFormingMachine/DigitalNameplate/3/1')}/submodel-elements/SerialNumber/$value`;
+    expect((await call('PATCH', serial, { body: 'SN-EDIT' })).status).toBeLessThan(300);
+    expect(((await call('GET', `/packages/${packageId}/undo`)).body as { undo: string[] }).undo).toHaveLength(1);
+    const put = await call('PUT', `/packages/${packageId}/external-refs`, { body: doc(1, [equipmentRef(true)]), headers: { 'if-match': '0' } });
+    expect(put.status).toBe(200);
+    expect(((await call('GET', `/packages/${packageId}/undo`)).body as { undo: string[] }).undo).toEqual([]);
+    expect((await call('POST', `/packages/${packageId}/undo`)).status).toBe(409);
   });
 });
 
@@ -206,6 +251,58 @@ describe('external refs import', () => {
     const apply = await call('POST', '/integrations/external-refs/import', { body, headers: { 'content-type': 'text/csv' } });
     expect(apply.status).toBe(422);
     expect(await store.getExternalRefs(ids[0]!)).toBeUndefined();
+  });
+});
+
+describe('import is all or nothing (M4)', () => {
+  it('writes no package when another package changed between planning and saving', async () => {
+    const { store, call, ids } = await setup(2);
+    const read = store.getExternalRefs.bind(store);
+    let raced = false;
+    // A concurrent writer saves package 2 right after the import planned it
+    (store as unknown as { getExternalRefs: typeof read }).getExternalRefs = async (packageId) => {
+      const current = await read(packageId);
+      if (packageId === ids[1] && !raced) {
+        raced = true;
+        await store.putExternalRefs(packageId, { schema: 'vexplor.externalRefs/1', subjects: [] }, 0);
+      }
+      return current;
+    };
+    const response = await call('POST', '/integrations/external-refs/import', {
+      body: {
+        rows: [
+          { globalAssetId: unitAsset(1), system: SAP, type: 'equipment', id: 'EQ-1' },
+          { globalAssetId: unitAsset(2), system: SAP, type: 'equipment', id: 'EQ-2' },
+        ],
+      },
+    });
+    expect(response.status).toBe(412);
+    expect(await read(ids[0]!)).toBeUndefined();
+    expect(await shellIds(store, ids[0]!)).toEqual([]);
+  });
+
+  it('reports a key held in another workspace on the dry run, with the holder masked, and applies nothing', async () => {
+    const base = createIntegrationStore();
+    const scoped = scopeStore(base);
+    const alice = { key: 'user:alice', seesAll: false };
+    const bob = { key: 'user:bob', seesAll: false };
+    const a = await runInWorkspace(alice, () => scoped.importPackage({ name: 'a.aasx', package: unitCopy(3) }));
+    await base.putExternalRefs(a.id, doc(3, [{ system: SAP, type: 'equipment', id: 'EQ-9' }]) as never, 0);
+    const b1 = await runInWorkspace(bob, () => scoped.importPackage({ name: 'b1.aasx', package: unitCopy(1) }));
+    await runInWorkspace(bob, () => scoped.importPackage({ name: 'b2.aasx', package: unitCopy(2) }));
+    const route = externalRefRoutes(scoped, { demo: false }).find((r) => r.pattern === '/integrations/external-refs/import')!;
+    const rows = [
+      { globalAssetId: unitAsset(1), system: SAP, type: 'equipment', id: 'EQ-1' },
+      { globalAssetId: unitAsset(2), system: SAP, type: 'equipment', id: 'EQ-9' },
+    ];
+    const post = (query: Record<string, string>) =>
+      runInWorkspace(bob, () => route.handle({ request: { method: 'POST', path: '', query, queryAll: {}, headers: {}, body: { rows } }, params: {} }));
+    const dry = (await post({ dryRun: '1' })).body as { conflicts: Json[] };
+    expect(dry.conflicts).toHaveLength(1);
+    expect(dry.conflicts[0]!['id']).toBe('EQ-9');
+    expect(JSON.stringify(dry.conflicts)).not.toContain(a.id);
+    expect((await post({})).status).toBe(422);
+    expect(await base.getExternalRefs(b1.id)).toBeUndefined();
   });
 });
 

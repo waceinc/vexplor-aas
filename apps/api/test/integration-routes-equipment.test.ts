@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { createApi } from '../src/api.js';
 import type { ApiRequest } from '../src/http.js';
 import type { IntegrationRouteDeps, OpcUaPki } from '../src/integration/deps.js';
-import { equipmentRoutes } from '../src/integration/routes-equipment.js';
+import { equipmentRoutes, MAX_PERIODS, type EquipmentRouteOptions } from '../src/integration/routes-equipment.js';
+import { deviceCounterReadings } from '../src/integration/runtime/meters.js';
 import { opcuaRoutes } from '../src/integration/routes-opcua.js';
 import { hashPassword } from '../src/password.js';
 import { accountVerifier } from '../src/publisher.js';
@@ -24,7 +25,7 @@ interface Call {
   headers: Record<string, string>;
 }
 
-async function harness(options: { pki?: OpcUaPki; keys?: boolean } = {}) {
+async function harness(options: { pki?: OpcUaPki; keys?: boolean; routes?: EquipmentRouteOptions } = {}) {
   const store = await runtimeStore();
   const record = await seededPackage(store);
   for (const [login, role] of [
@@ -40,9 +41,10 @@ async function harness(options: { pki?: OpcUaPki; keys?: boolean } = {}) {
     ...(options.pki ? { runtime: { status: () => ({ enabled: true, running: [] }), opcuaPki: () => options.pki } } : {}),
   };
   const api = createApi(store, {
-    // Built by createApi from the scoped store, as in production — only the clock is fixed and the test's deps laid over
+    // Built by createApi from the scoped store, as in production — only the clock (and route options) are fixed and the
+    // test's deps laid over
     integrationRouteBuilders: {
-      equipment: (scoped, apiDeps) => equipmentRoutes(scoped, { ...apiDeps, ...deps }, { now: () => NOW }),
+      equipment: (scoped, apiDeps) => equipmentRoutes(scoped, { ...apiDeps, ...deps }, { now: () => NOW, ...options.routes }),
       opcua: (scoped, apiDeps) => opcuaRoutes(scoped, { ...apiDeps, ...deps }),
     },
     ...(options.keys ? { auth: { tokens: [FULL_KEY], readOnlyTokens: [] } } : {}),
@@ -149,8 +151,8 @@ describe('package integration config', () => {
 });
 
 /** Package with a saved config and values: 10 min run, 5 min stop on the production day 2026-10-14 (KST) */
-async function withData() {
-  const h = await harness();
+async function withData(options: Parameters<typeof harness>[0] = {}) {
+  const h = await harness(options);
   await h.call('PUT', '/integrations/config', { as: 'admin', body: SERVER_BODY, ifMatch: '"0"' });
   await h.call('PUT', `/packages/${h.record.id}/integration-config`, { as: 'editor', body: PACKAGE_BODY, ifMatch: '"0"' });
   const dayStart = Date.parse('2026-10-13T23:00:00.000Z');
@@ -273,6 +275,65 @@ describe('OPC UA certificate routes', () => {
   });
 });
 
+describe('bounded heavy reads (review M6, M5)', () => {
+  it('a window with more values than one request may load answers 422', async () => {
+    const { call, store, record } = await withData();
+    const at = '2026-10-14T00:00:00.000Z';
+    const flood = Array.from({ length: 200_001 }, (_, i) => ({ packageId: record.id, interfaceName: 'PLC1', propertyName: 'MachineState', observedAt: at, receivedAt: new Date(Date.parse(at) + i).toISOString(), valueText: 'run' }));
+    Object.assign(store, { readValues: async () => flood });
+    const response = await call('GET', '/integrations/equipment/segments', { as: 'viewer', query: { packageId: record.id, from: '2026-10-13T23:00:00.000Z', to: '2026-10-14T23:00:00.000Z' } });
+    expect(response.status).toBe(422);
+    expect(response.body.messages[0].code).toBe('TooManyValues');
+  });
+
+  it('more periods than the cap answer 422; the default cap covers 31 days of hours', async () => {
+    expect(MAX_PERIODS).toBeGreaterThanOrEqual(31 * 24);
+    const { call, record } = await withData({ routes: { maxPeriods: 10 } });
+    const response = await call('GET', '/integrations/meters', { as: 'viewer', query: { packageId: record.id, counter: 'produced', from: '2026-10-13T23:00:00.000Z', to: '2026-10-14T11:00:00.000Z', period: 'hour' } });
+    expect(response.status).toBe(422);
+    expect(response.body.messages[0].code).toBe('TooManyPeriods');
+  });
+
+  it('a third concurrent heavy read is told to retry; once one finishes, a new one runs', async () => {
+    const { call, store, record } = await withData();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const read = store.readValues.bind(store);
+    Object.assign(store, { readValues: async (...args: Parameters<typeof read>) => (await gate, read(...args)) });
+    const query = { packageId: record.id, from: '2026-10-13T23:00:00.000Z', to: '2026-10-14T23:00:00.000Z' };
+    const first = call('GET', '/integrations/equipment/segments', { as: 'viewer', query });
+    const second = call('GET', '/integrations/equipment/oee-inputs', { as: 'viewer', query: { packageId: record.id, day: '2026-10-14' } });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const third = await call('GET', '/integrations/meters', { as: 'viewer', query: { ...query, counter: 'produced' } });
+    expect(third.status).toBe(503);
+    expect(third.headers['retry-after']).toBe('5');
+    release();
+    expect((await first).status).toBe(200);
+    expect((await second).status).toBe(200);
+    expect((await call('GET', '/integrations/meters', { as: 'viewer', query: { ...query, counter: 'produced' } })).status).toBe(200);
+  });
+
+  it('readings of an idle counter whose device time is frozen get one id per period', async () => {
+    const hour = 3_600_000;
+    const t0 = Date.parse('2026-10-14T00:00:00Z');
+    const frozen = new Date(t0 + 10 * 60_000).toISOString();
+    const values = [] as CollectedValue[];
+    for (let minute = 10; minute < 180; minute += 20) {
+      values.push({ packageId: 'pkg_1', interfaceName: 'PLC1', propertyName: 'Count', source: 's', observedAt: frozen, receivedAt: new Date(t0 + minute * 60_000).toISOString(), valueNumber: 500, quality: 'Good' });
+    }
+    const store = { readValues: async (_id: string, q?: { from?: string; to?: string }) => values.filter((v) => v.receivedAt! >= q!.from! && v.receivedAt! < q!.to!).reverse() };
+    const readings = await deviceCounterReadings(
+      { store, packageId: 'pkg_1', assetId: 'urn:a', environment: { submodels: [] } as never, interfaces: [], holdMs: hour, now: t0 + 4 * hour },
+      { id: 'cnt', property: 'Count', kind: 'total', unit: null, max: null, maxRatePerHour: null },
+      [0, 1, 2].map((i) => ({ start: t0 + i * hour, end: t0 + (i + 1) * hour })),
+    );
+    expect(readings).toHaveLength(3);
+    expect(new Set(readings.map((r) => r.readingId)).size).toBe(3);
+    // The delta of an idle counter is 0 once there is a previous reading
+    expect(readings.map((r) => r.delta)).toEqual([null, 0, 0]);
+  });
+});
+
 describe('OPC UA account check (secure mode)', () => {
   async function accounts(): Promise<RuntimeStore> {
     const store = await runtimeStore();
@@ -298,5 +359,35 @@ describe('OPC UA account check (secure mode)', () => {
     expect(await verify('operator', PASSWORD)).toBe(false);
     now += 6 * 60_000;
     expect(await verify('operator', PASSWORD)).toBe(true);
+  });
+
+  it('failures are counted per client: one client guessing does not lock the account for another (review L5)', async () => {
+    const verify = accountVerifier(await accounts(), new LoginThrottle(() => 0));
+    const guesser = { certificateThumbprint: 'a'.repeat(40), address: '10.0.0.66' };
+    const mes = { certificateThumbprint: 'b'.repeat(40), address: '10.0.0.10' };
+    for (let i = 0; i < 5; i++) await verify('operator', 'wrong-password', guesser);
+    expect(await verify('operator', PASSWORD, guesser)).toBe(false);
+    expect(await verify('operator', PASSWORD, mes)).toBe(true);
+    // Without a certificate the address is the slot
+    for (let i = 0; i < 5; i++) await verify('operator', 'wrong-password', { address: '10.0.0.77' });
+    expect(await verify('operator', PASSWORD, { address: '10.0.0.77' })).toBe(false);
+    expect(await verify('operator', PASSWORD, { address: '10.0.0.78' })).toBe(true);
+  });
+
+  it('an unknown login takes as long as a wrong password for a real one (no existence oracle)', async () => {
+    const verify = accountVerifier(await accounts(), new LoginThrottle(() => 0, 1000, 0, 1000, 0));
+    await verify('nobody', 'x'); // warm the dummy hash
+    const time = async (login: string): Promise<number> => {
+      let best = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < 3; i++) {
+        const started = performance.now();
+        await verify(login, 'wrong-password');
+        best = Math.min(best, performance.now() - started);
+      }
+      return best;
+    };
+    const known = await time('operator');
+    const unknown = await time('nobody');
+    expect(unknown).toBeGreaterThan(known * 0.5);
   });
 });

@@ -279,7 +279,10 @@ describe('MemoryIntegrationLog — config, external refs, runtime state', () => 
     expect(await store.getPackageIntegrationConfig('pkg_a')).toBeUndefined();
     expect(await store.getExternalRefs('pkg_a')).toBeUndefined();
     expect(await store.findExternalRef('sap-s4:PRD:100', 'equipment', '1')).toEqual([]);
-    expect((await store.readEvents({ after: 0, limit: 10 })).items.map((row) => row.id)).toEqual(['kept']);
+    // Events stay — the refs write recorded its own model.externalrefs.updated event before `kept`
+    const kept = (await store.readEvents({ after: 0, limit: 10 })).items;
+    expect(kept.map((row) => row.type)).toEqual(['kr.vexplor.aas.model.externalrefs.updated.v1', event('kept').type]);
+    expect(kept[1]!.id).toBe('kept');
   });
 
   it('snapshot survives JSON and restores everything, including the ref key index and the seq counter', async () => {
@@ -298,7 +301,8 @@ describe('MemoryIntegrationLog — config, external refs, runtime state', () => 
     expect(await restored.findExternalRef('sap-s4:PRD:100', 'equipment', '1')).toEqual([{ packageId: 'pkg_a', subject: 'asset|urn:a' }]);
     expect(await restored.getServerIntegrationConfig()).toEqual(await store.getServerIntegrationConfig());
     expect(await restored.getRuntimeState('k')).toEqual([1, 2]);
-    expect((await restored.appendEvents([event('e2')]))[0]!.seq).toBe(2);
+    // seq 1 = e1, seq 2 = the refs event of putExternalRefs
+    expect((await restored.appendEvents([event('e2')]))[0]!.seq).toBe(3);
     expect(await restored.appendEvents([event('e1')])).toEqual([]); // id index rebuilt
     await restored.enqueueDeliveries([{ subscriptionId: sub.id, eventSeq: 2, eventId: 'e2' }], time.now());
     const ids = (await restored.listDeliveries(sub.id)).items.map((row) => row.id);

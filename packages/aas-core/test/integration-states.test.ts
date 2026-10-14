@@ -99,7 +99,7 @@ describe('event catalogue', () => {
   it('every type is kr.vexplor.aas.<name>.v1 and unique', () => {
     expect(new Set(ALL_EVENT_TYPES).size).toBe(ALL_EVENT_TYPES.length);
     for (const type of ALL_EVENT_TYPES) expect(type).toMatch(/^kr\.vexplor\.aas\.[a-z.]+\.v1$/);
-    expect(ALL_EVENT_TYPES).toHaveLength(26);
+    expect(ALL_EVENT_TYPES).toHaveLength(27);
   });
 
   it('audit and ping are never deliverable; everything else is', () => {

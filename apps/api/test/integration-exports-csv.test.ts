@@ -5,7 +5,7 @@
 import { parseCsv } from '@aas/linter';
 import { describe, expect, it } from 'vitest';
 import { EQUIPMENT_V1_COLUMNS } from '../src/integration/exports/columns.js';
-import { cellText, joinMulti, splitMulti } from '../src/integration/exports/csv.js';
+import { cellText, joinMulti, splitMulti, toCsvText } from '../src/integration/exports/csv.js';
 import { equipmentRow, type EquipmentItem } from '../src/integration/exports/equipment.js';
 import { createIntegrationStore } from './helpers/integration-store.js';
 import { element, harness, submodel, unitCopy, type Json } from './helpers/integration-fixtures.js';
@@ -81,6 +81,34 @@ describe('equipment CSV', () => {
     expect(en.split('\r\n')[0]!.includes('제조사')).toBe(false);
     const meta = new TextDecoder().decode((await call('GET', '/integrations/exports/equipment', { query: { format: 'csv', meta: '1' } })).body as Uint8Array);
     expect(meta.split('\r\n')[0]).toBe('#schema=vexplor.equipmentMaster/1');
+  });
+});
+
+describe('list cells in ;-delimited spreadsheet locales (L6)', () => {
+  it('guards every element against formulas and quotes a cell that contains ;', async () => {
+    const markings = ['=1+1', 'a;=2+2', '-5', '@SUM(A1)', 'ok'];
+    const pkg = unitCopy(1, (env) => {
+      const list = element(submodel(env, 'DigitalNameplate'), 'Markings');
+      const template = (list['value'] as Json[])[0]!;
+      list['value'] = markings.map((name, i) => {
+        const entry = structuredClone(template);
+        entry['idShort'] = `MarkingsEntry_${i}`;
+        element(entry, 'MarkingName')['value'] = name;
+        return entry;
+      });
+    });
+    const store = createIntegrationStore();
+    await store.importPackage({ name: 'list.aasx', package: pkg });
+    const { call } = harness(store);
+    const csv = new TextDecoder().decode((await call('GET', '/integrations/exports/equipment', { query: { format: 'csv' } })).body as Uint8Array);
+    // Each element that could start a formula is neutralised; the cell is quoted so a ; delimiter cannot split it
+    expect(csv).toContain(`"'=1+1;a\\;=2+2;-5;'@SUM(A1);ok"`);
+    const [header, row] = parseCsv(csv);
+    expect(splitMulti(row![header!.indexOf('nameplate.markings')]!)).toEqual(markings);
+  });
+
+  it('quotes any cell containing ; even outside lists', () => {
+    expect(toCsvText(['a'], [{ a: 'x;y' }], { bom: false, headers: 'keys', meta: false, schema: 's' })).toBe('a\r\n"x;y"\r\n');
   });
 });
 

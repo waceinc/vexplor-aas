@@ -71,6 +71,8 @@ async function startOn(port: number): Promise<void> {
     load: async (): Promise<PublishPlan[]> => [
       planForPackage(environmentWith(speed), { packageId: PID, name: '롤포밍기' }),
     ],
+    // These tests read anonymously over None — the unauthenticated mode must be asked for explicitly
+    security: { mode: 'insecure' },
   });
   await server.start();
   endpoint = `opc.tcp://127.0.0.1:${port}/UA/AAS`;

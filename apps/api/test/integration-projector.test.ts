@@ -3,7 +3,7 @@
  * The schema test validates the events of `projectionScenario()` (helpers/integration-projection.ts).
  */
 import { describe, expect, it } from 'vitest';
-import type { StoredEvent } from '@aas/store';
+import { runInWorkspace, scopeStore, type StoredEvent } from '@aas/store';
 import { createJoinResolver } from '../src/integration/exports/join.js';
 import { IntegrationProjector, PROJECTOR_CURSOR_KEY } from '../src/integration/projector.js';
 import { createIntegrationStore, type IntegrationTestStore } from './helpers/integration-store.js';
@@ -92,6 +92,94 @@ describe('IntegrationProjector', () => {
     expect(removed).toHaveLength(4);
   });
 
+  it('does not lose an edit that lands while a pass is appending, even with a flushNow in between (M2)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    const other = await store.importPackage({ name: 'unit-2.aasx', package: unitCopy(2) });
+    await editSerial(store, packageId, 'SN-1');
+    await projector.runOnce();
+    time.advance(5_000);
+    // Hold the first append of the next pass
+    const realAppend = store.appendEvents.bind(store);
+    let release!: () => void;
+    let entered!: () => void;
+    const inside = new Promise<void>((resolve) => (entered = resolve));
+    let held = false;
+    (store as unknown as { appendEvents: typeof realAppend }).appendEvents = async (events) => {
+      // Hold the append of this package's SN-1 event, wherever it falls in the pass
+      if (!held && events.some((event) => event.packageId === packageId)) {
+        held = true;
+        entered();
+        await new Promise<void>((resolve) => (release = resolve));
+      }
+      return realAppend(events);
+    };
+    const pass = projector.runOnce();
+    await inside;
+    await editSerial(store, packageId, 'SN-2');
+    const flush = projector.flushNow(other.id);
+    release();
+    await Promise.all([pass, flush]);
+    for (let i = 0; i < 3; i += 1) {
+      time.advance(60_000);
+      await projector.runOnce();
+    }
+    const serials = (await store.readEvents({ after: 0, limit: 1000, types: [MASTER] })).items
+      .filter((event) => event.packageId === packageId)
+      .map((event) => ((event.data as Json)['asset'] as Json)['serialNumber']);
+    expect(serials).toEqual(['SN-1', 'SN-2']);
+  });
+
+  it('removes the digest row once the removal events are out (L8)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    expect(await store.getRuntimeState(`projector:${packageId}`)).toBeTruthy();
+    await store.deletePackage(packageId);
+    const removed = await settle(projector, time);
+    expect(removed.length).toBeGreaterThan(0);
+    expect(await store.getRuntimeState(`projector:${packageId}`)).toBeUndefined();
+  });
+
+  it('keeps the digest when the removal append fails, so a retry still announces it (L8)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    await store.deletePackage(packageId);
+    expect(await projector.runOnce()).toEqual([]);
+    time.advance(5_000);
+    const realAppend = store.appendEvents.bind(store);
+    (store as unknown as { appendEvents: unknown }).appendEvents = async () => {
+      throw new Error('disk full');
+    };
+    await expect(projector.runOnce()).rejects.toThrow('disk full');
+    expect(await store.getRuntimeState(`projector:${packageId}`)).toBeTruthy();
+    (store as unknown as { appendEvents: typeof realAppend }).appendEvents = realAppend;
+    const retried = await projector.runOnce();
+    expect(retried.some((event) => (event.data as Json)['operation'] === 'removed')).toBe(true);
+  });
+
+  it('re-projects a refs change found in the log even without flushNow (M3)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    await store.putExternalRefs(packageId, {
+      schema: 'vexplor.externalRefs/1',
+      subjects: [{ subject: { kind: 'asset', globalAssetId: unitAsset(1) }, refs: [{ system: 'icube:WACE', type: 'equipmentCode', id: 'EQ-LOG' }] }],
+    }, 0);
+    const events = await settle(projector, time);
+    expect(types(events)).toEqual([MASTER]);
+    expect((events[0]!.data as Json)['changedKeys']).toEqual(['externalRefs']);
+  });
+
+  it('gives a flushNow without a triggering event the same ids on a retry at another time (M3)', async () => {
+    const { store, time, projector, packageId } = await setup();
+    const key = `projector:${packageId}`;
+    const real = (await store.getRuntimeState(key)) as { master: Record<string, { hash: string }> };
+    // A digest that differs from the model — as if a projection were cut off before it saved
+    const stale = structuredClone(real);
+    for (const digest of Object.values(stale.master)) digest.hash = 'sha256:stale';
+    await store.putRuntimeState(key, stale);
+    const first = await projector.flushNow(packageId);
+    expect(first).toHaveLength(1);
+    await store.putRuntimeState(key, stale);
+    time.advance(3_600_000);
+    expect(await projector.flushNow(packageId)).toEqual([]);
+  });
+
   it('re-projects after a crash with the same ids, so nothing is announced twice', async () => {
     const { store, time, projector, packageId } = await setup();
     const cursor = await store.getRuntimeState(PROJECTOR_CURSOR_KEY);
@@ -164,5 +252,28 @@ describe('createJoinResolver', () => {
     expect(block!.path).toEqual(['SampleFactory', 'PressLine', 'Forming', 'First']);
     expect(block!.pathAmbiguous).toBe(true);
     expect(shell(await store.getEnvironment(unit.id))['id']).toBe(block!.aasId);
+  });
+});
+
+describe('workspaces (H1)', () => {
+  it('lets the owning workspace see its removal events and never shows them to another workspace', async () => {
+    const base = createIntegrationStore();
+    const scoped = scopeStore(base);
+    const alice = { key: 'user:alice', seesAll: false };
+    const bob = { key: 'user:bob', seesAll: false };
+    const projector = new IntegrationProjector({ store: base, now: () => Date.parse('2026-10-14T00:00:00Z') });
+    await projector.runOnce();
+    const pkg = await runInWorkspace(alice, () => scoped.importPackage({ name: 'secret.aasx', package: unitCopy(1) }));
+    await projector.flushNow();
+    await runInWorkspace(alice, () => scoped.deletePackage(pkg.id));
+    const removed = await projector.flushNow();
+    expect(removed.every((event) => (event.data as Json)['operation'] === 'removed')).toBe(true);
+    expect(removed.length).toBeGreaterThan(0);
+    const projection = (events: readonly StoredEvent[]) => events.filter((event) => event.packageId === pkg.id && event.type.startsWith('kr.vexplor.aas.equipment.'));
+    const seenByBob = projection((await runInWorkspace(bob, () => scoped.readEvents({ after: 0, limit: 1000 }))).items);
+    const seenByAlice = projection((await runInWorkspace(alice, () => scoped.readEvents({ after: 0, limit: 1000 }))).items);
+    expect(seenByBob).toEqual([]);
+    expect(seenByAlice.filter((event) => (event.data as Json)['operation'] === 'removed').map((event) => event.id).sort()).toEqual(removed.map((event) => event.id).sort());
+    expect(removed.every((event) => event.owner === 'user:alice')).toBe(true);
   });
 });

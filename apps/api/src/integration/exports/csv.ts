@@ -5,6 +5,10 @@
  * booleans `true` / `false`, multi-values joined with `;`. Inside a multi-value `\` and `;` are escaped as `\\` and `\;`
  * so the list splits back exactly (`splitMulti`). `bom=1` prepends the UTF-8 BOM that Excel-based Korean upload screens
  * need; `meta=1` adds a `#schema=…` first line (off by default — some ERP uploaders reject comment lines).
+ *
+ * Important: spreadsheets in many locales use `;` as the delimiter. A cell holding `a;=1+1` would then split and the
+ *    second part run as a formula. So every list element gets the same formula guard as a whole cell (a leading `'`),
+ *    and every cell containing `;` is quoted.
  */
 import { csvCell } from '@aas/linter';
 import type { ApiResponse } from '../../http.js';
@@ -20,8 +24,16 @@ export interface CsvOptions {
   meta: boolean;
 }
 
+const FORMULA_START = /^[=+\-@\t\r]/;
+const NUMBER = /^[-+]?\d+(\.\d+)?([eE][-+]?\d+)?$/;
+
+/** The `csvCell` guard for one list element: text that would start a formula gets a leading `'`; numbers stay */
+function guardElement(value: string): string {
+  return FORMULA_START.test(value) && !NUMBER.test(value) ? `'${value}` : value;
+}
+
 export function joinMulti(values: readonly string[]): string {
-  return values.map((value) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;')).join(';');
+  return values.map((value) => guardElement(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;')).join(';');
 }
 
 /** Inverse of `joinMulti` — an empty cell is an empty list */
@@ -40,7 +52,8 @@ export function splitMulti(text: string): string[] {
     } else current += ch;
   }
   out.push(current);
-  return out;
+  // Undo the element guard, as parseCsv does for whole cells
+  return out.map((value) => (/^'[=+\-@\t\r]/.test(value) ? value.slice(1) : value));
 }
 
 export function cellText(value: CsvValue): string {
@@ -50,11 +63,16 @@ export function cellText(value: CsvValue): string {
   return String(value);
 }
 
+/** `csvCell`, plus quoting for `;` (see the file header) */
+function csvField(text: string): string {
+  return csvCell(text, text.includes(';') ? 'always' : 'needed');
+}
+
 export function toCsvText(columns: readonly string[], rows: readonly CsvRow[], options: CsvOptions & { schema: string }): string {
   const lines: string[] = [];
   if (options.meta) lines.push(`#schema=${options.schema}`);
   lines.push(columns.map((key) => csvCell(options.headers === 'ko' ? columnLabel(key) : key)).join(','));
-  for (const row of rows) lines.push(columns.map((key) => csvCell(cellText(row[key]))).join(','));
+  for (const row of rows) lines.push(columns.map((key) => csvField(cellText(row[key]))).join(','));
   return `${options.bom ? '﻿' : ''}${lines.join('\r\n')}\r\n`;
 }
 

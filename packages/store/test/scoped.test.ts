@@ -309,10 +309,14 @@ describe('integration — events, subscriptions and state through workspace eyes
     });
   });
 
-  it('ref lookups list only visible packages; a conflict with another workspace does not name its file', async () => {
+  it('ref lookups see keys held elsewhere but masked; a conflict with another workspace does not name its file', async () => {
     await runInWorkspace(ALICE, () => store.putExternalRefs(aliceFile, refs('A-1')));
     await runInWorkspace(BOB, async () => {
-      expect(await store.findExternalRef('sap', 'equipment', 'A-1')).toEqual([]);
+      // An import dry run must learn that the key is taken — but not by which file or asset
+      const holders = await store.findExternalRef('sap', 'equipment', 'A-1');
+      expect(holders).toHaveLength(1);
+      expect(holders[0]!.packageId).not.toBe(aliceFile);
+      expect(holders[0]!.subject).toBe('');
       expect((await store.listExternalRefs()).map((entry) => entry.packageId)).not.toContain(aliceFile);
       const error = await store.putExternalRefs(bobFile, refs('A-1')).catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(ExternalRefConflictError);
@@ -327,3 +331,55 @@ describe('integration — events, subscriptions and state through workspace eyes
     expect((adminError as ExternalRefConflictError).claims[0]?.packageId).toBe(aliceFile);
   });
 });
+
+describe('integration — review fixes (H1 orphan events, M4 batch)', () => {
+  const ev = (id: string, packageId: string, owner?: string | null) => ({
+    id,
+    type: 'kr.vexplor.aas.equipment.master.changed.v1',
+    time: '2026-10-14T00:00:00.000Z',
+    packageId,
+    data: { serialNumber: 'SN-SECRET' },
+    ...(owner === undefined ? {} : { owner }),
+  });
+  const refs = (gid: string, id: string) => ({
+    schema: 'vexplor.externalRefs/1' as const,
+    subjects: [{ subject: { kind: 'asset' as const, globalAssetId: gid }, refs: [{ system: 'sap', type: 'equipment', id }] }],
+  });
+
+  it('events appended after a private package is deleted stay invisible to other workspaces (projector "removed")', async () => {
+    await runInWorkspace(ALICE, () => store.deletePackage(aliceFile));
+    // The server appends without knowing the owner any more — the package row is gone
+    await store.appendEvents([ev('removed-after-delete', aliceFile)]);
+    const bobSees = await runInWorkspace(BOB, async () => (await store.readEvents({ after: 0, limit: 1000 })).items.map((e) => e.id));
+    expect(bobSees).not.toContain('removed-after-delete');
+    // Admins and the server still see it
+    const adminSees = await runInWorkspace(ADMIN, async () => (await store.readEvents({ after: 0, limit: 1000 })).items.map((e) => e.id));
+    expect(adminSees).toContain('removed-after-delete');
+  });
+
+  it('an explicit owner on an appended event decides who sees it — null means shared', async () => {
+    await runInWorkspace(ALICE, () => store.deletePackage(aliceFile));
+    await store.appendEvents([ev('to-alice', aliceFile, 'visitor:alice'), ev('to-all', aliceFile, null)]);
+    const seen = async (ws: typeof ALICE) =>
+      runInWorkspace(ws, async () => (await store.readEvents({ after: 0, limit: 1000 })).items.map((e) => e.id));
+    expect(await seen(ALICE)).toEqual(expect.arrayContaining(['to-alice', 'to-all']));
+    expect(await seen(BOB)).toContain('to-all');
+    expect(await seen(BOB)).not.toContain('to-alice');
+  });
+
+  it('putExternalRefsBatch checks every package is writable before writing and masks foreign conflicts', async () => {
+    const bobFile = await runInWorkspace(BOB, async () => (await store.importPackage({ name: 'bob.aasx', package: golden() })).id);
+    await runInWorkspace(ALICE, () => store.putExternalRefs(aliceFile, refs('urn:a', 'A-1')));
+    await runInWorkspace(BOB, async () => {
+      await expect(store.putExternalRefsBatch([{ packageId: bobFile, doc: refs('urn:b', 'B-1') }, { packageId: aliceFile, doc: refs('urn:a', 'X') }])).rejects.toBeInstanceOf(NotFoundError);
+      await expect(store.putExternalRefsBatch([{ packageId: bobFile, doc: refs('urn:b', 'B-1') }, { packageId: sharedFile, doc: refs('urn:s', 'S') }])).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await store.getExternalRefs(bobFile)).toBeUndefined();
+      const error = await store.putExternalRefsBatch([{ packageId: bobFile, doc: refs('urn:b', 'A-1') }]).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(ExternalRefConflictError);
+      expect(JSON.stringify((error as ExternalRefConflictError).claims)).not.toContain(aliceFile);
+      expect(JSON.stringify((error as ExternalRefConflictError).claims)).not.toContain('urn:a');
+      expect((await store.putExternalRefsBatch([{ packageId: bobFile, doc: refs('urn:b', 'B-1'), expectedRevision: 0 }]))[0]!.revision).toBe(1);
+    });
+  });
+});
+
