@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -15,14 +17,17 @@ import { defineConfig } from 'vite';
  * 🔴 대상은 `AAS_API_URL`로 바꿀 수 있다. 이 PC에는 설치판(VEXPLOR AAS Studio)이 8080을 쓰고 있어,
  *    개발 API를 다른 포트에 띄워야 할 때가 있다(2026-09-30 — 개발 화면이 설치판에 붙어 데이터가 섞였다).
  * 🔴 `bundles`(레퍼런스 번들 열기)를 더했다 — 빠지면 개발판에서만 번들 열기가 404다.
+ * 🔴 `auth`(로그인·가입·계정)를 더했다 — 빠지면 개발판 첫 화면이 계정 로그인 대신 토큰 입력으로 떨어진다(2026-10-13).
  */
 const API_TARGET = process.env['AAS_API_URL'] ?? 'http://127.0.0.1:8080';
 const API_PATHS =
-  '^/(packages|bundles|description|health|rules|policy|opcua|opcua-status|collect-status|registry-conflicts)(?=/|$|\\?)';
+  '^/(packages|bundles|description|health|auth|rules|policy|opcua|opcua-status|collect-status|registry-conflicts)(?=/|$|\\?)';
 const API_PROXY = { [API_PATHS]: API_TARGET };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  // shadcn kit(src/drive)이 쓰는 경로 별칭 — 로직스튜디오와 같다(`@/lib/cn` · `@/ui/kit/…` · `@/hooks/…`)
+  resolve: { alias: { '@': fileURLToPath(new URL('./src/drive', import.meta.url)) } },
   server: { port: 5173, proxy: API_PROXY },
   preview: { port: 4173, proxy: API_PROXY },
 });

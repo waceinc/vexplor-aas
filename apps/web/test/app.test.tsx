@@ -40,7 +40,7 @@ class ResizeObserverStub {
 
 async function mountApi(
   damage?: (env: ReturnType<typeof readAasx>['environment']) => void,
-  options: { extraPackage?: boolean; aid?: boolean; auth?: { tokens: string[]; readOnlyTokens: string[] } } = {},
+  options: { extraPackage?: boolean; aid?: boolean; auth?: { tokens: string[]; readOnlyTokens: string[] }; nameplateTemplate?: readonly string[] } = {},
 ) {
   const store = new InMemoryStore();
   await store.init();
@@ -48,6 +48,22 @@ async function mountApi(
   damage?.(pkg.environment);
   if (options.aid) pkg.environment.submodels!.push(aidSubmodel() as never);
   await store.importPackage({ name: '01-롤포밍기.aasx', package: pkg });
+
+  // IDTA 템플릿 흉내 — 명판 서브모델을 kind=Template + 개수 조건(필수로 준 이름만 One)으로 바꿔 둔 파일
+  if (options.nameplateTemplate) {
+    const tpl = readAasx(goldenBytes);
+    const nameplate = structuredClone(tpl.environment.submodels!.find((sm) => sm.idShort === 'DigitalNameplate')!) as unknown as Record<string, unknown>;
+    nameplate['kind'] = 'Template';
+    nameplate['id'] = `${String(nameplate['id'])}/template`;
+    for (const element of (nameplate['submodelElements'] ?? []) as Record<string, unknown>[]) {
+      element['qualifiers'] = [
+        { type: 'SMT/Cardinality', valueType: 'xs:string', value: options.nameplateTemplate.includes(String(element['idShort'])) ? 'One' : 'ZeroToOne' },
+      ];
+    }
+    tpl.environment.submodels = [nameplate as never];
+    tpl.environment.assetAdministrationShells![0]!.submodels = [];
+    await store.importPackage({ name: 'IDTA_Nameplate_template.aasx', package: tpl });
+  }
 
   // 가져오기 시험용 — 서브모델이 비어 있는 새 장비 한 대
   if (options.extraPackage) {
@@ -766,6 +782,53 @@ describe('수집 화면 (M8)', () => {
     // 수집해 보면 결과가 그대로 상태가 된다 (가짜 어댑터라 성공)
     fireEvent.click(screen.getByRole('button', { name: '수집' }));
     expect(await screen.findByText('연결됨')).toBeTruthy();
+  });
+
+  it('값 표의 구분 — 템플릿이 있으면 필수·선택이 보이고, 「채울 것만 보기」로 선택이 숨는다', async () => {
+    await mountApi(undefined, { nameplateTemplate: ['ManufacturerName', 'SerialNumber'] });
+    render(<App />);
+    fireEvent.click(await screen.findByText('DigitalNameplate'));
+    const table = (await screen.findByText(/값 한꺼번에 입력/)).closest('.bulk-values') as HTMLElement;
+    expect(within(table).getByText(/^필수 2$/)).toBeTruthy();
+    expect(within(table).getByText(/^선택 \d+$/)).toBeTruthy();
+    expect(within(table).getByText(/기준: 템플릿 IDTA_Nameplate_template\.aasx/)).toBeTruthy();
+    const rowsBefore = table.querySelectorAll('tbody tr').length;
+    const serial = within(table).getByText('SerialNumber').closest('tr') as HTMLElement;
+    expect(within(serial).getByText('필수')).toBeTruthy();
+
+    fireEvent.click(within(table).getByLabelText('채울 것만 보기'));
+    const rowsAfter = table.querySelectorAll('tbody tr').length;
+    expect(rowsAfter).toBe(2); // 필수 두 줄만
+    expect(rowsAfter).toBeLessThan(rowsBefore);
+  });
+
+  it('값 표의 구분 — 템플릿이 없으면 지어내지 않고 「모름」이라고 말한다', async () => {
+    await mountApi();
+    render(<App />);
+    fireEvent.click(await screen.findByText('DigitalNameplate'));
+    const table = (await screen.findByText(/값 한꺼번에 입력/)).closest('.bulk-values') as HTMLElement;
+    expect(within(table).getByText(/IDTA 템플릿이 없어 필수 여부를 모릅니다/)).toBeTruthy();
+    expect(within(table).queryByText('필수')).toBeNull();
+  });
+
+  it('값 신선도 — 수집 전에는 값 없음, 읽으면 받는 중(장비 시각이 옛날이어도 방금 읽었으면)', async () => {
+    await mountApi(undefined, { aid: true });
+    render(<App />);
+    await screen.findByText('DigitalNameplate');
+    const card = (): HTMLElement => document.querySelector('.collection .interface') as HTMLElement;
+    await waitFor(() => expect(card()).toBeTruthy());
+    // 아직 아무것도 안 들어왔다
+    expect(within(card()).getByText(/^값 없음 \d+$/)).toBeTruthy();
+    expect(within(card()).getByText('받는 중 0')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '수집' }));
+    await screen.findByText('연결됨');
+    // 🔴 가짜 어댑터의 장비 시각은 2026-08-24 로 멈춰 있다 — 그걸로 판정하면 전부 「끊김」이 된다.
+    //    수신 시각으로 판정하므로 전부 받는 중이고, 끊김·값 없음은 없다
+    await waitFor(() => expect(within(card()).queryByText(/^값 없음 \d+$/)).toBeNull());
+    expect(within(card()).getByText(/^받는 중 [1-9]\d*$/)).toBeTruthy();
+    expect(within(card()).queryByText(/^끊김 \d+$/)).toBeNull();
+    expect(within(card()).getAllByText('방금').length).toBeGreaterThan(0);
   });
 
   it('연결을 지울 수 있다 — 만들기·바꾸기만 있고 지우기가 없으면 안 된다', async () => {

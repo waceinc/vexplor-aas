@@ -12,6 +12,7 @@
  *    여기서 다 갚아야 한다 — Esc, 바깥 클릭, 포커스 복귀, aria 상태.
  */
 import { useEffect, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 export interface MenuItem {
   label: string;
@@ -71,9 +72,7 @@ export function Menu({ label, title, items, disabled, align = 'left' }: Props): 
         onClick={() => setOpen((current) => !current)}
       >
         {label}
-        <span className="caret" aria-hidden="true">
-          ▾
-        </span>
+        <ChevronDown className="caret" aria-hidden="true" />
       </button>
       {open && (
         <span className={align === 'right' ? 'menu-pop right' : 'menu-pop'} role="menu">

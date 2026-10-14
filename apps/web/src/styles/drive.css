@@ -1,0 +1,299 @@
+
+/*
+ * shadcn/ui 기본 테마 — neutral. 값은 shadcn 이 주는 기본 그대로이고 우리 색으로 바꾸지 않는다
+ * (대표 2026-09-22 「shadcn 기본 색상과 UI 및 컴포넌트 모두를 기본으로」).
+ * 생 색값은 이 파일에만 있고, 화면은 Tailwind 토큰(bg-background 등)으로만 색을 쓴다.
+ */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* 견적트리 v2 를 따라 2px — 각진 편이지만 라벨·카드가 완전히 네모는 아니다(대표 2026-09-23) */
+  --radius: 0.125rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: 0.125rem;
+  --radius-md: 0.125rem;
+  --radius-lg: 0.125rem;
+  --radius-xl: 0.125rem;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* 한글은 낱말 단위로 줄바꿈한다 — 기본값(글자 단위)이면 좁은 칸에서 「파/일/받/기」처럼 한 글자씩 세로로 쪼개진다.
+       한 낱말이 칸보다 길면 그때만 끊는다.
+       `overflow-wrap: anywhere` 를 쓰지 않는다 — anywhere 는 최소 폭 계산에서도 아무 데서나 끊을 수 있다고 보아
+       표 칸·flex 항목이 한 글자 폭까지 줄어 「미/수/집」처럼 세로 띠가 됐다(2026-09-26 1024 폭 실측). break-word 는
+       넘칠 때만 끊고 최소 폭은 낱말 폭으로 둔다 */
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+}
+
+/*
+ * 카드 그림자 없음 — 대표 지시 2026-09-23 「모든 카드에 그림자는 제거」.
+ * shadcn `Card` 의 `shadow-sm` 을 눕힌다. 층(layer) 밖에 두는 이유는 층 안에서는 유틸리티 클래스에 밀리기 때문이다.
+ * 떠 있는 것(대화상자·드롭다운·팝오버·툴팁)의 그림자는 그대로 둔다 — 그림자가 곧 「위에 떠 있다」는 표시라서 없애면 뒤 내용과 섞인다.
+ */
+[data-slot="card"] {
+  box-shadow: none;
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 화면 밀도 — 사무실 셸 90% · 본문 80%.
+ *
+ * `zoom` 이나 `transform: scale()` 은 쓰지 않는다. 그 둘은 이미 그려진 그림만 줄여서
+ * 줄바꿈·열 접힘·좁은 화면 분기가 원래 폭 그대로 남는다 — 화면이 그 치수로 다시 흐르지 않는다.
+ * 여기서는 **Tailwind 크기 토큰 값 자체**를 낮춰 폭·여백·글자가 실제로 줄고 배치가 다시 계산되게 한다.
+ * 생성 CSS 가 크기를 리터럴이 아니라 `calc(var(--spacing) * N)` 과 `var(--text-*)` 로 쓰기 때문에 통한다.
+ *
+ * 이 규칙은 **층(@layer) 밖**에 둔다 — Tailwind 4 는 테마 변수를 `@layer theme` 안에 두므로
+ * 층 밖이어야 이긴다. **`@theme inline` 을 쓰면 안 된다** — inline 은 값을 유틸리티에 박아 넣어
+ * `var()` 참조를 없애고, 그러면 아래 본문 80% 의 하위 범위 재정의가 통하지 않는다.
+ *
+ * 줄 높이(`--text-*--line-height`)는 단위 없는 비율이고 자간(`--tracking-*`)은 `em` 이라
+ * 글자 크기를 줄이면 함께 줄어든다. 그래서 건드리지 않는다.
+ *
+ * **현장 태블릿은 이 배율을 받지 않는다.** `:root` 가 아니라 사무실 셸에만 표를 달기 때문이다 —
+ * 태블릿 화면은 셸 밖에서 그려지고, 장갑·분진 때문에 오히려 키워야 한다(기능설계서 §5-5).
+ *
+ * 값은 전부 Tailwind 기본값 × 배율이고 근거를 남기려고 계산식을 함께 적는다.
+ * 차용: `jhsong/syk-mes-solution` 의 같은 방식(대표 지시 2026-09-23 「방식을 차용하자」).
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/* 사무실 셸 90% — 사이드바·머리글·본문이 모두 이 범위에 든다 */
+[data-scale="shell"] {
+  --spacing: 0.225rem; /* .25 × 0.9 */
+
+  --text-xs: 0.675rem; /* .75   × 0.9 */
+  --text-sm: 0.7875rem; /* .875  × 0.9 */
+  --text-base: 0.9rem; /* 1     × 0.9 */
+  --text-lg: 1.0125rem; /* 1.125 × 0.9 */
+  --text-xl: 1.125rem; /* 1.25  × 0.9 */
+  --text-2xl: 1.35rem; /* 1.5   × 0.9 */
+  --text-3xl: 1.6875rem; /* 1.875 × 0.9 */
+  --text-4xl: 2.025rem; /* 2.25  × 0.9 */
+  --text-5xl: 2.7rem; /* 3     × 0.9 */
+
+  /* `max-w-*` 상한 — 함께 줄이지 않으면 글자만 작아지고 열 폭이 남아 비율이 어긋난다 */
+  --container-xs: 18rem; /* 20 × 0.9 */
+  --container-sm: 21.6rem; /* 24 × 0.9 */
+  --container-md: 25.2rem; /* 28 × 0.9 */
+  --container-lg: 28.8rem; /* 32 × 0.9 */
+  --container-xl: 32.4rem; /* 36 × 0.9 */
+  --container-2xl: 37.8rem; /* 42 × 0.9 */
+  --container-3xl: 43.2rem; /* 48 × 0.9 */
+  --container-4xl: 50.4rem; /* 56 × 0.9 */
+  --container-5xl: 57.6rem; /* 64 × 0.9 */
+  --container-6xl: 64.8rem; /* 72 × 0.9 */
+  --container-7xl: 72rem; /* 80 × 0.9 */
+}
+
+/*
+ * 본문 80% — 표가 많은 자리라 셸보다 한 단 더 죈다.
+ *
+ * 표를 **이미 있는 배치 상자에 단다**. 원본(syk)은 변수만 나르는 껍데기를 하나 더 끼우고
+ * `display: contents` 로 상자를 지웠는데, 그건 상자가 늘어나는 것을 막으려는 조치였다.
+ * 우리는 본문 `div` 가 원래 있으므로 거기에 달면 되고, **`display: contents` 를 쓰면 안 된다** —
+ * 그 자리가 `flex flex-1 flex-col gap-4 p-4` 를 들고 있어서 상자를 지우면 여백과 배치가 함께 사라진다.
+ *
+ * 본문에서 연 대화상자·드롭다운은 포털로 밖에 그려져 셸 배율(90%)을 받는다.
+ */
+[data-scale="content"] {
+  --spacing: 0.2rem; /* .25 × 0.8 */
+
+  --text-xs: 0.6rem; /* .75   × 0.8 */
+  --text-sm: 0.7rem; /* .875  × 0.8 */
+  --text-base: 0.8rem; /* 1     × 0.8 */
+  --text-lg: 0.9rem; /* 1.125 × 0.8 */
+  --text-xl: 1rem; /* 1.25  × 0.8 */
+  --text-2xl: 1.2rem; /* 1.5   × 0.8 */
+  --text-3xl: 1.5rem; /* 1.875 × 0.8 */
+  --text-4xl: 1.8rem; /* 2.25  × 0.8 */
+  --text-5xl: 2.4rem; /* 3     × 0.8 */
+
+  --container-xs: 16rem; /* 20 × 0.8 */
+  --container-sm: 19.2rem; /* 24 × 0.8 */
+  --container-md: 22.4rem; /* 28 × 0.8 */
+  --container-lg: 25.6rem; /* 32 × 0.8 */
+  --container-xl: 28.8rem; /* 36 × 0.8 */
+  --container-2xl: 33.6rem; /* 42 × 0.8 */
+  --container-3xl: 38.4rem; /* 48 × 0.8 */
+  --container-4xl: 44.8rem; /* 56 × 0.8 */
+  --container-5xl: 51.2rem; /* 64 × 0.8 */
+  --container-6xl: 57.6rem; /* 72 × 0.8 */
+  --container-7xl: 64rem; /* 80 × 0.8 */
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 판정 색 — 「WACE 견적트리 v2」의 값을 그대로 가져왔다(대표 지시 2026-09-23 「이 디자인 스타일이 좋다」).
+ *
+ * shadcn 기본 변형은 넷(default·secondary·destructive·outline)뿐인데 DRIVE 의 판정 상태는 서른 가지가 넘는다.
+ * 넷으로는 표에서 「늦음」과 「판정 불가」가 같은 회색으로 붙어 버려 갈리지 않는다.
+ * 그래서 **뜻이 있는 자리에만** 색을 더한다 — 정상(teal) · 경고(warn) · 실패(fail) · 정보(cb) · 표 머리(navy).
+ * 그 밖의 색은 새로 만들지 않고 shadcn 기본을 쓴다.
+ *
+ * 연한 배경(`-bg`)이 함께 있는 이유는 표에서 한 칸만 물들여야 하기 때문이다 — 글자색만으로는 멀리서 안 보인다.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+:root {
+  --navy: #1f3a66;
+  --cb: #2f5da8;
+  --teal: #128578;
+  --warn: #b4531f;
+  --fail: #b42323;
+  --okbg: #e6f4f0;
+  --warnbg: #fff3e8;
+  --failbg: #fbecec;
+}
+
+:root.dark {
+  --navy: #2b4f86;
+  --cb: #7fa3e0;
+  --teal: #3fb596;
+  --warn: #e39a5f;
+  --fail: #e4655f;
+  --okbg: #17302a;
+  --warnbg: #2a2118;
+  --failbg: #2a1c1b;
+}
+
+@theme inline {
+  /* 한글 본문 서체 — 견적트리 v2 와 같은 Pretendard. 패키지로 담아 사내망에서도 뜬다 */
+  --font-sans: Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --color-navy: var(--navy);
+  --color-cb: var(--cb);
+  --color-teal: var(--teal);
+  --color-warn: var(--warn);
+  --color-fail: var(--fail);
+  --color-okbg: var(--okbg);
+  --color-warnbg: var(--warnbg);
+  --color-failbg: var(--failbg);
+}
+
+/*
+ * 표 머리 — 네이비 바탕에 흰 글자. 표가 길어도 머리가 어디인지 바로 보인다.
+ * 층 밖에 둔다(유틸리티보다 뒤에 와야 이긴다). 세로선은 여전히 긋지 않는다.
+ */
+[data-slot="table-header"] [data-slot="table-head"] {
+  background-color: var(--navy);
+  color: #fff;
+}
+
+/*
+ * 사용법 인쇄 — 「인쇄」 단추가 body 에 data-print="manual" 을 단 동안만 서랍 하나만 종이에 남긴다.
+ * 서랍은 body 바로 밑에 붙는다(Radix 포털) — 그 밖의 형제(앱·덮개)를 모두 감춘다.
+ * 화면에서는 고정 위치·자체 스크롤이라 그대로 찍으면 첫 화면 높이만 나온다 — 흐름 배치로 풀어 쪽을 넘기게 한다.
+ */
+@media print {
+  body[data-print="manual"] > :not([data-manual-sheet]) { display: none !important; }
+  body[data-print="manual"] [data-manual-sheet] {
+    position: static !important; inset: auto !important; transform: none !important; animation: none !important;
+    width: auto !important; max-width: none !important; height: auto !important; border: 0 !important; box-shadow: none !important;
+  }
+  body[data-print="manual"] [data-manual-sheet] > button { display: none !important; }
+  body[data-print="manual"] [data-manual-scroll] { overflow: visible !important; }
+}

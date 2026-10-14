@@ -18,7 +18,7 @@ interface Props {
    * 🔴 묶음에서 「요소 8」은 공정 마디·연결선(HasPart)·설정값까지 합친 수라
    *    사람이 보는 구성(공정 2·설비 3)과 어긋난다(2026-08-26 사용자 제보).
    */
-  composition?: { groups: number; assets: number; units: number };
+  composition?: { lines?: number; groups: number; assets: number; units: number };
   /**
    * 담긴 내용 합계 — ⚙로 이어진 설비 파일들까지 합친 서브모델·요소·CD 총량.
    * 🔴 자체 파일의 원시 숫자를 다시 보여 주는 게 아니다(그건 혼란으로 판명 —
@@ -45,11 +45,14 @@ interface Props {
   /** IRI 이관 대장 건수 — 「자동 고치기」가 IDTA 공식 IRI를 자체 IRI로 옮긴 것. 0이면 안 그린다 */
   ledgerCount?: number;
   onRevertLedger?: () => void;
+  /** 형식 파일 카드(components/derivation) — 호기 파일이 형식의 변경을 받아 오는 자리. 판정 줄 바로 아래 */
+  derivation?: React.ReactNode;
   /** 번역기 — 사전에 없으면 한국어 그대로 (i18n.ts) */
   t: (text: string) => string;
 }
 
 export function Summary({
+  derivation,
   fileName,
   composition,
   totals,
@@ -116,6 +119,12 @@ export function Summary({
       <div className="tiles">
         {composition ? (
           <>
+            {(composition.lines ?? 0) > 0 && (
+              <div className="tile">
+                <b>{composition.lines}</b>
+                <span>{t('라인')}</span>
+              </div>
+            )}
             <div className="tile">
               <b>{composition.groups}</b>
               <span>{t('공정·그룹')}</span>
@@ -197,7 +206,7 @@ export function Summary({
           </>
         )}
       </div>
-
+      {derivation}
 
       {/* 이관 대장 — "옮기고 끝"이 아니라는 것을 보이는 자리. 되돌리기는 규정 해석이 바뀌었을 때(사용자 2026-09-11) */}
       {ledgerCount > 0 && (

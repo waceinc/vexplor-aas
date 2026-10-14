@@ -7,6 +7,8 @@ export * from './scaffold.js';
 export * from './hierarchy.js';
 export * from './bundle.js';
 export * from './clone.js';
+export * from './requirements.js';
+export * from './derivation.js';
 export * from './csv.js';
 export * from './docs/brand.js';
 export * from './docs/uml.js';

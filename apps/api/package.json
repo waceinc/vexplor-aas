@@ -24,6 +24,7 @@
     "@aas/store": "0.1.0",
     "@aas/collector": "0.1.0",
     "@aas/opcua": "0.1.0",
+    "@aas/fieldbus": "0.1.0",
     "pg": "^8.23.0"
   }
 }

@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS collected_value (
   observed_at    timestamptz NOT NULL,
   value_number   double precision,
   value_text     text,
-  quality        text
+  quality        text,
+  received_at    timestamptz
 );
 
 CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, property_name, observed_at DESC);
@@ -115,7 +116,7 @@ CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, p
  *    ③ `SCHEMA_VERSION`을 올린다. 마이그레이션은 앞 판의 표를 새 판으로 만들어야 하며 멱등이어야 한다.
  *  - `schema_version`이 없는 기존 DB는 1판으로 본다(판 번호를 도입한 2026-09-04 시점의 표가 1판이다).
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export const SCHEMA_VERSION_SQL = `
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -219,6 +220,19 @@ CREATE INDEX IF NOT EXISTS aas_package_owner_idx ON aas_package (owner);
     sql: `
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS company text;
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS consent_at timestamptz;
+`,
+  },
+  {
+    /*
+     * 8판 (2026-10-13) — 수집값마다 **이 도구가 실제로 읽어 온 시각**을 적는다(신선도 판정의 근거).
+     *
+     * 🔴 observed_at 은 장비가 준 시각(OPC UA SourceTimestamp)이라 값이 바뀔 때만 움직인다 —
+     *    값이 일정한 태그는 매번 잘 읽어도 시각이 멈춰 「끊김」으로 보였다.
+     * 🔴 NULL을 허용한다. 옛 기록에는 없다 — 지어내 채우지 않고 화면이 observed_at 으로 대신한다.
+     */
+    version: 8,
+    sql: `
+ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS received_at timestamptz;
 `,
   },
 ];

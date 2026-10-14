@@ -120,7 +120,8 @@ export interface Attachment {
 export async function listAttachments(store: AasStore, packageId: string): Promise<Attachment[]> {
   const files = await store.packageFiles(packageId);
   return files
-    .filter((file) => file.role === 'bundle' && file.part !== CARRIED_EVIDENCE_PART)
+    // 접두로도 거른다 — role bundle 에는 첨부 말고도 올린 원본(/.original/)·형식 사본(/.derivation/)이 산다
+    .filter((file) => file.role === 'bundle' && file.part.startsWith(BUNDLE_PART_PREFIX) && file.part !== CARRIED_EVIDENCE_PART)
     .map((file) => ({
       path: file.part.slice(BUNDLE_PART_PREFIX.length),
       size: file.data.length,

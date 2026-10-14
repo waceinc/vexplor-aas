@@ -16,6 +16,8 @@ import { parsePolicy, type LinterPolicy } from '@aas/linter';
 //    「서버가 죽었다」로 보였다). 저작만 하는 사람은 OPC UA를 한 번도 안 쓴다.
 import type { SimulatorServer } from '@aas/opcua';
 const opcua = () => import('@aas/opcua');
+// Modbus TCP · MQTT — 외부 의존성 없는 어댑터(@aas/fieldbus). OPC UA 처럼 쓸 때만 불러온다
+const fieldbus = () => import('@aas/fieldbus');
 import { InMemoryStore, visibleInWorkspace, type AasStore } from '@aas/store';
 import { createApi, toErrorResponse } from './api.js';
 import type { OpcUaPublisher } from './publisher.js';
@@ -173,8 +175,17 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     if (demo && !demoOutboundAllowed(endpoint, simulatorPort)) throw new OutboundBlockedError();
   };
 
-  /** AID가 말한 주소로 붙는다. 프로토콜을 아는 곳은 @aas/opcua 하나뿐이다 */
+  /**
+   * AID가 말한 주소로 붙는다 — OPC UA 는 @aas/opcua, Modbus TCP · MQTT 는 @aas/fieldbus(2026-10-14).
+   * 체험판은 셋 모두 guardOutbound 를 거친다 — 가상 PLC(OPC UA) 말고는 막힌다.
+   */
   const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
+    if (descriptor.protocol === 'MODBUS') {
+      if (!descriptor.base) throw new Error('EndpointMetadata.base가 없습니다.');
+      guardOutbound(descriptor.base);
+      return (await fieldbus()).ModbusReader.connect(descriptor, { guard: guardOutbound });
+    }
+    if (descriptor.protocol === 'MQTT') return (await fieldbus()).MqttReader.connect(descriptor, { guard: guardOutbound });
     if (descriptor.protocol !== 'OPCUA') {
       throw new Error(`아직 지원하지 않는 프로토콜입니다: ${descriptor.protocol}`);
     }

@@ -89,6 +89,8 @@ describe('스키마 판 번호 (schema_version)', () => {
     .replace(/^ *-- *연락처\(선택\).*$/m, '')
     .replace(/^ *-- *UNIQUE도 걸지 않는다.*$/m, '')
     .replace(/^ *email +text$/m, '')
+    // 8판 — 수집값의 수신 시각
+    .replace(/^ *received_at +timestamptz$/m, '')
     // 4판 — 감사 기록의 「누가」. 주석까지 함께 지운다
     .replace(/^ *--.*app_user.*$/m, '')
     .replace(/^ *--.*그때의 것을 베껴.*$/m, '')
@@ -152,6 +154,18 @@ describe('스키마 판 번호 (schema_version)', () => {
       login: 'kim', displayName: '김', role: 'editor', passwordHash: 'h', company: 'WACE', consentAt: '2026-10-06T07:00:00.000Z',
     });
     expect((await store.getUser(member.id))?.company).toBe('WACE');
+    // 8판 — 수집값의 수신 시각. 열이 없으면 수집이 통째로 터진다
+    await store.appendValues('p1', [
+      {
+        packageId: 'p1',
+        interfaceName: 'I',
+        propertyName: 'Speed',
+        observedAt: '2026-10-13T00:00:00.000Z',
+        receivedAt: '2026-10-13T00:05:00.000Z',
+        valueNumber: 1,
+      },
+    ]);
+    expect((await store.readValues('p1'))[0]?.receivedAt).toBe('2026-10-13T00:05:00.000Z');
   });
 
   it('🔴 판 번호 도입 전의 1판 표도 제약까지 올라간다 — IF NOT EXISTS만으로는 안 고쳐진다', async () => {

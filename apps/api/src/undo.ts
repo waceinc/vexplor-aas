@@ -14,12 +14,15 @@
  *  - 메모리에만 있다. 서버를 다시 띄우면 비워진다 — 되돌리기는 "이 자리에서 방금"의 개념이다.
  *    영구 이력은 store.history가 따로 든다.
  *  - 첨부 파일·썸네일·패키지 이름은 안 본다. 모델(Environment)만.
+ *    예외는 「곁 파일」(sidecars) — 모델과 한 몸으로 바뀌는 파일이다. 형식 반영(routes/derivation.ts)은 값과
+ *    형식 사본(기준값)을 함께 바꾸는데, 값만 되돌리면 기준이 새 형식 값에 남아 형식 변경이 「이 호기에서
+ *    고친 값」으로 잘못 보였다(2026-10-14 화면 실측). 그런 요청만 곁 파일을 함께 찍고 함께 되돌린다.
  *  - 다른 사람이 낀 변경도 되돌아간다(패키지가 공유 작업물이라 사용자 구분이 없다).
  *  - 지웠던 Identifiable을 되살리면 배열 끝에 붙는다(ordinal은 새로 받는다). 순서는 export에서
  *    무손실이 아닐 수 있으나 내용은 그대로다.
  */
 import type { Environment } from '@aas/core';
-import { ENVIRONMENT_FIELD, type AasStore, type IdentifiableModelType } from '@aas/store';
+import { ENVIRONMENT_FIELD, type AasStore, type IdentifiableModelType, type PackageFileRecord } from '@aas/store';
 
 export const UNDO_DEPTH = 30;
 
@@ -29,6 +32,11 @@ export interface Snapshot {
   /** 사람이 읽는 변경 설명 — "무엇을 되돌리는지" */
   label: string;
   takenAt: string;
+  /**
+   * 곁 파일 — 함께 찍기로 한 요청에만 있다. 파트마다 그때의 파일, 없었으면 null.
+   * 이 칸이 있는 스냅샷으로 돌아갈 때만 곁 파일도 그때로 돌린다(다른 되돌리기는 연결을 건드리지 않는다)
+   */
+  files?: Record<string, PackageFileRecord | null>;
 }
 
 export interface UndoStatus {
@@ -48,6 +56,8 @@ export class UndoStack {
   constructor(
     private readonly store: AasStore,
     private readonly depth = UNDO_DEPTH,
+    /** 곁 파일로 함께 찍을 수 있는 파트(예: 형식 사본) */
+    private readonly sidecars: readonly string[] = [],
   ) {}
 
   /**
@@ -57,11 +67,18 @@ export class UndoStack {
    * 보여 준다. 공용 작업물이라 남이 낀 변경도 같은 더미에 쌓이기 때문이다.
    * 🔴 다시 찍을 때(commit·shift)는 주지 않는다 — 이미 붙은 설명에 또 붙으면 겹친다.
    */
-  async capture(packageId: string, label: string, actorName?: string): Promise<Snapshot | undefined> {
+  async capture(packageId: string, label: string, actorName?: string, withFiles = false): Promise<Snapshot | undefined> {
     if (!(await this.store.getPackage(packageId))) return undefined;
     const environment = await this.store.getEnvironment(packageId);
     const described = actorName === undefined ? label : `${label} — ${actorName}`;
-    return { json: JSON.stringify(environment), label: described, takenAt: new Date().toISOString() };
+    const snapshot: Snapshot = { json: JSON.stringify(environment), label: described, takenAt: new Date().toISOString() };
+    if (withFiles && this.sidecars.length > 0) {
+      const files = await this.store.packageFiles(packageId);
+      snapshot.files = Object.fromEntries(
+        this.sidecars.map((part) => [part, files.find((file) => file.part === part) ?? null]),
+      );
+    }
+    return snapshot;
   }
 
   /**
@@ -112,12 +129,16 @@ export class UndoStack {
     const stacks = this.of(packageId);
     const target = stacks[from][0];
     if (!target) return undefined;
-    const current = await this.capture(packageId, target.label);
+    const current = await this.capture(packageId, target.label, undefined, target.files !== undefined);
     if (!current) {
       this.forget(packageId);
       return undefined;
     }
     await applyEnvironment(this.store, packageId, JSON.parse(target.json) as Environment);
+    for (const [part, file] of Object.entries(target.files ?? {})) {
+      if (file) await this.store.putPackageFile(packageId, file);
+      else if (current.files?.[part]) await this.store.deletePackageFile(packageId, part);
+    }
     stacks[from].shift();
     stacks[from === 'undo' ? 'redo' : 'undo'].unshift(current);
     return target.label;
@@ -180,6 +201,7 @@ export function describeChange(method: string, path: string): string {
   const at = (name: string) => segments.indexOf(name);
 
   if (at('fix') >= 0) return '자동 고치기';
+  if (at('derivation') >= 0) return '형식 변경 반영';
   if (at('restore') >= 0) return '이력에서 되돌리기';
   if (at('aid') >= 0 || at('interfaces') >= 0) return '수집 연결 만들기';
   if (at('hierarchy') >= 0) return '구성 편집';

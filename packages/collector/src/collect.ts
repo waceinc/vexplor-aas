@@ -65,6 +65,8 @@ export async function collectOnce(
 
   const bySource = new Map(readable.map((property) => [property.href!, property]));
   const results = await reader.read([...bySource.keys()]);
+  // 이번에 읽어 온 시각 — 값마다 같다(한 번에 읽었다). 신선도 판정의 근거다(types.ts receivedAt)
+  const receivedAt = now();
 
   const samples: ValueSample[] = [];
   const failures: CollectReport['failures'] = [];
@@ -94,7 +96,8 @@ export async function collectOnce(
           interfaceName: descriptor.name,
           propertyName: property.name,
           source: result.source,
-          observedAt: result.observedAt ?? now(),
+          observedAt: result.observedAt ?? receivedAt,
+          receivedAt,
           ...(result.quality === undefined ? {} : { quality: result.quality }),
         },
         result.value,

@@ -37,7 +37,7 @@ interface Props {
   /** 호기별로 나눠 넣기 — ×n 대신 이름_1…이름_n 파일을 각각 */
   onAddSplit: (sourcePackageId: string, count: number, parentPath: string[]) => void;
   onAddManual: (name: string, globalAssetId: string, bulkCount: number, parentPath: string[]) => void;
-  onAddGroup: (name: string, parentPath: string[]) => void;
+  onAddGroup: (name: string, parentPath: string[], line?: boolean) => void;
   onRemove: (name: string, parentPath: string[]) => void;
   /** ㉯ 자식 설비의 서브모델을 그 자리에서 펼쳐 본다 — 파일 구조는 참조형 그대로, 화면에서만 이어 붙인다 */
   fetchSubmodels: (packageId: string) => Promise<Submodel[]>;
@@ -83,7 +83,7 @@ export function Hierarchy({
   const toDraft = (list: HierarchyNode[]): DraftNode[] =>
     list.map((node) => {
       if (node.globalAssetId === '') {
-        return { name: node.name, kind: 'group', count: 1, split: false, children: toDraft(node.children) };
+        return { name: node.name, kind: 'group', ...(node.line ? { line: true } : {}), count: 1, split: false, children: toDraft(node.children) };
       }
       const source = packageOf(node.globalAssetId);
       const kind: DraftNode['kind'] = source
@@ -123,7 +123,7 @@ export function Hierarchy({
       <p className="hint">
         {unit === 'equipment'
           ? t('이 설비를 이루는 부품입니다 — 이 파일의 HierarchicalStructures 서브모델(IDTA 02011)에 저장됩니다.')
-          : tr('회사 → 공정 → 설비를 한 트리로 그립니다 — 이 파일의 HierarchicalStructures 서브모델(IDTA 02011)에 저장되고, 왼쪽 트리 맨 위 ⚙·▦ 줄로도 보입니다. 회사 줄의 「＋ 공정」으로 공정을 만들고, 그 공정 줄의 「＋ 설비」로 설비를 넣습니다(올려 둔 파일에서 고르거나 「PC에서 가져오기」로 이 PC 폴더의 .aasx를 바로 올립니다).')}
+          : tr('회사 → (라인 →) 공정 → 설비를 한 트리로 그립니다 — 이 파일의 HierarchicalStructures 서브모델(IDTA 02011)에 저장되고, 왼쪽 트리 맨 위 ⚙·▦ 줄로도 보입니다. 회사 줄의 「＋ 공정」으로 공정을(라인이 필요하면 「＋ 라인」 다음 그 줄의 「＋ 공정」으로) 만들고, 그 공정 줄의 「＋ 설비」로 설비를 넣습니다(올려 둔 파일에서 고르거나 「PC에서 가져오기」로 이 PC 폴더의 .aasx를 바로 올립니다).')}
       </p>
       <HierarchyTree
         t={t}
@@ -137,7 +137,7 @@ export function Hierarchy({
         busy={busy}
         {...(adder ? { adder } : {})}
         onAdderChange={onAdderChange}
-        onAddGroup={(parentPath, name) => onAddGroup(name, parentPath)}
+        onAddGroup={(parentPath, name, line) => onAddGroup(name, parentPath, line)}
         onAddFile={(parentPath, packageId, count, split) =>
           split && count > 1 ? onAddSplit(packageId, count, parentPath) : onAdd(packageId, count, parentPath)
         }

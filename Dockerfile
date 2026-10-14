@@ -17,6 +17,7 @@ COPY packages/linter/package.json    packages/linter/
 COPY packages/store/package.json     packages/store/
 COPY packages/collector/package.json packages/collector/
 COPY packages/opcua/package.json     packages/opcua/
+COPY packages/fieldbus/package.json  packages/fieldbus/
 COPY apps/api/package.json           apps/api/
 COPY apps/web/package.json           apps/web/
 RUN npm ci
@@ -37,6 +38,7 @@ COPY packages/linter/package.json    packages/linter/
 COPY packages/store/package.json     packages/store/
 COPY packages/collector/package.json packages/collector/
 COPY packages/opcua/package.json     packages/opcua/
+COPY packages/fieldbus/package.json  packages/fieldbus/
 COPY apps/api/package.json           apps/api/
 COPY apps/web/package.json           apps/web/
 RUN npm ci --omit=dev --workspace @aas/api --include-workspace-root
@@ -48,6 +50,7 @@ COPY --from=build /app/packages/linter/dist    packages/linter/dist
 COPY --from=build /app/packages/store/dist     packages/store/dist
 COPY --from=build /app/packages/collector/dist packages/collector/dist
 COPY --from=build /app/packages/opcua/dist     packages/opcua/dist
+COPY --from=build /app/packages/fieldbus/dist  packages/fieldbus/dist
 COPY --from=build /app/apps/api/dist           apps/api/dist
 COPY --from=build /app/apps/web/dist           apps/web/dist
 

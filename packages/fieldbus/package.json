@@ -1,0 +1,22 @@
+{
+  "name": "@aas/fieldbus",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Modbus TCP · MQTT 수집(M8) — AID(IDTA-02017) 바인딩 해석과 읽기. 외부 의존성 없음(node:net)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@aas/collector": "0.1.0"
+  }
+}

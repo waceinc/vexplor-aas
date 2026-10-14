@@ -181,12 +181,13 @@ export class InMemoryStore implements AasStore {
 
   async readValues(packageId: string, query: ValueQuery = {}): Promise<CollectedValue[]> {
     const state = this.state(packageId);
+    const at = (v: CollectedValue): string => (query.basis === 'received' ? (v.receivedAt ?? v.observedAt) : v.observedAt);
     return state.values
       .filter((v) => query.interfaceName === undefined || v.interfaceName === query.interfaceName)
       .filter((v) => query.propertyName === undefined || v.propertyName === query.propertyName)
-      .filter((v) => query.from === undefined || v.observedAt >= query.from)
-      .filter((v) => query.to === undefined || v.observedAt < query.to)
-      .sort((a, b) => b.observedAt.localeCompare(a.observedAt))
+      .filter((v) => query.from === undefined || at(v) >= query.from)
+      .filter((v) => query.to === undefined || at(v) < query.to)
+      .sort((a, b) => at(b).localeCompare(at(a)))
       .slice(0, query.limit ?? 1000)
       .map((v) => ({ ...v }));
   }
@@ -194,7 +195,8 @@ export class InMemoryStore implements AasStore {
   async pruneValues(before: string): Promise<number> {
     let removed = 0;
     for (const state of this.packages.values()) {
-      const kept = state.values.filter((v) => v.observedAt >= before);
+      // 수신 시각으로 본다 — 값이 일정한 태그는 장비 시각이 멈춰 있어, 장비 시각으로 지우면 방금 받은 값까지 지운다(2026-10-14)
+      const kept = state.values.filter((v) => (v.receivedAt ?? v.observedAt) >= before);
       removed += state.values.length - kept.length;
       state.values = kept;
     }
