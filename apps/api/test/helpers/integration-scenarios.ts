@@ -67,7 +67,12 @@ export const VIEWER: Principal = { userId: 'user_3', login: 'viewer', role: 'vie
 export interface Reply {
   status: number;
   headers: Record<string, string>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test assertions read arbitrary JSON
+  /**
+   * Kept as `any` on purpose: the integration tests read ~55 nested JSON paths of many response shapes
+   * (`reply.body.items[0].data.n`); typing each with `unknown` + casts would bury the assertions. Same convention as the
+   * existing API tests (`body as any` in registry.test.ts and others). Production code has no `any`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see above
   body: any;
 }
 
