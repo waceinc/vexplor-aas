@@ -5,7 +5,7 @@
  *    3. the result of the last cycle can be queried ("is it actually running?")
  */
 import { readAasx } from '@aas/aasx';
-import { CollectSupervisor } from '@aas/api';
+import { CollectSupervisor, type PackageCycle } from '@aas/api';
 import { buildAidSubmodel } from '@aas/collector';
 import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
@@ -101,6 +101,55 @@ describe('collection supervisor', () => {
     expect(second).toBeUndefined();
     release();
     expect((await first)!.collected).toBe(1);
+    await supervisor.stop();
+  });
+
+  it('hands each package cycle to the integration hook with exactly the stored samples', async () => {
+    const { store, withAid } = await seeded();
+    const cycles: PackageCycle[] = [];
+    const supervisor = new CollectSupervisor({
+      store,
+      openReader: async (descriptor) => ({
+        base: descriptor.base ?? '',
+        read: async (sources) => sources.map((source) => ({ source, value: 7, quality: 'Good' })),
+        close: async () => {},
+      }),
+      intervalMs: 30_000,
+      now: () => '2026-10-14T01:00:00.000Z',
+      onPackageCycle: async (cycle) => void cycles.push(cycle),
+    });
+    await supervisor.sweep();
+    expect(cycles).toHaveLength(1);
+    const [cycle] = cycles;
+    expect(cycle!.record.id).toBe(withAid);
+    expect(cycle!.intervalMs).toBe(30_000);
+    expect(cycle!.startedAt).toBe('2026-10-14T01:00:00.000Z');
+    expect(cycle!.interfaces.map((i) => i.name)).toEqual(cycle!.cycle.interfaces.map((i) => i.name));
+    expect(cycle!.samples).toEqual(await store.readValues(withAid));
+    expect(cycle!.samples[0]).toMatchObject({ valueNumber: 7, receivedAt: '2026-10-14T01:00:00.000Z' });
+    await supervisor.stop();
+  });
+
+  it('Important: a failing integration hook is recorded and never breaks collection', async () => {
+    const { store, withAid } = await seeded();
+    const supervisor = new CollectSupervisor({
+      store,
+      openReader: async (descriptor) => ({
+        base: descriptor.base ?? '',
+        read: async (sources) => sources.map((source) => ({ source, value: 1, quality: 'Good' })),
+        close: async () => {},
+      }),
+      intervalMs: 60_000,
+      onPackageCycle: async () => {
+        throw new Error('event store down');
+      },
+    });
+    const report = await supervisor.sweep();
+    expect(report!.collected).toBe(1);
+    expect(report!.results[0]!.errors).toEqual(['integration: event store down']);
+    expect(await store.readValues(withAid)).toHaveLength(1);
+    // The next sweep still runs
+    expect((await supervisor.sweep())!.collected).toBe(1);
     await supervisor.stop();
   });
 });

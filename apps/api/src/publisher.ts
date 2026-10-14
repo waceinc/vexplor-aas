@@ -9,8 +9,10 @@
  * Important: never written back to the model. Overlays are applied only to a copy — value sync option A.
  */
 import { overlayEnvironment, type ValueSample } from '@aas/collector';
-import { AasOpcUaServer, planForPackage, type PublishPlan, type ServerStatus } from '@aas/opcua';
+import { AasOpcUaServer, planForPackage, type OpcUaSecurityOptions, type OpcUaTrustStore, type PublishPlan, type ServerStatus } from '@aas/opcua';
 import type { AasStore } from '@aas/store';
+import { verifyPassword } from './password.js';
+import { LoginThrottle } from './session.js';
 
 export interface PublisherOptions {
   store: AasStore;
@@ -20,6 +22,30 @@ export interface PublisherOptions {
   hostname?: string;
   /** How many values to scan per file — only the latest is used, so a generous number is fine */
   valueLimit?: number;
+  /** OPC UA security (docs/design/integration-v1.md §7). server.ts sets it from OPCUA_ALLOW_INSECURE / OPCUA_PKI_DIR */
+  security?: OpcUaSecurityOptions;
+}
+
+/**
+ * The OPC UA user check for secure mode: the server's own accounts, any role (the address space is read-only),
+ * disabled accounts refused, guessing slowed by the same `LoginThrottle` the web login uses.
+ * Important: node-opcua does not hand the client address to the check, so the throttle's address slot is the fixed
+ *    word 'opcua': five failures block the account on OPC UA for a while, and the account-wide cap still stops guessing.
+ *    Pass the web login's throttle to make OPC UA failures count towards the same account-wide cap.
+ */
+export function accountVerifier(
+  store: Pick<AasStore, 'findUserByLogin'>,
+  throttle: LoginThrottle = new LoginThrottle(),
+): (username: string, password: string) => Promise<boolean> {
+  return async (username, password) => {
+    const login = username.trim();
+    if (login === '' || throttle.blocked(login, 'opcua')) return false;
+    const user = await store.findUserByLogin(login);
+    const ok = user !== undefined && !user.disabled && (await verifyPassword(password, user.passwordHash));
+    if (ok) throttle.pass(login, 'opcua');
+    else throttle.fail(login, 'opcua');
+    return ok;
+  };
 }
 
 export class OpcUaPublisher {
@@ -31,7 +57,13 @@ export class OpcUaPublisher {
       ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
       refreshMs: options.refreshMs ?? 5000,
       load: () => this.plans(),
+      ...(options.security ? { security: options.security } : {}),
     });
+  }
+
+  /** Client certificate trust store — undefined unless the server runs in secure mode (routes-opcua.ts) */
+  pki(): OpcUaTrustStore | undefined {
+    return this.server.pki();
   }
 
   start(): Promise<void> {
