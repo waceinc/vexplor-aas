@@ -267,9 +267,10 @@ export class MemoryIntegrationLog implements IntegrationStore {
     return inserted;
   }
 
-  async claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> {
+  async claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
     const at = ms(now);
     const due = [...this.deliveries.values()]
+      .filter((row) => subscriptionId === undefined || row.subscriptionId === subscriptionId)
       .filter((row) =>
         (row.status === 'pending' && ms(row.nextAttemptAt) <= at) ||
         (row.status === 'in-flight' && row.leaseUntil !== undefined && ms(row.leaseUntil) < at))
@@ -285,9 +286,10 @@ export class MemoryIntegrationLog implements IntegrationStore {
     return due.map((row) => copy(row));
   }
 
-  async completeDelivery(id: string, result: DeliveryResult): Promise<void> {
+  async completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
     const row = this.deliveries.get(id);
-    if (!row) return;
+    // Only the claim that is still current may finish the row — see IntegrationStore.completeDelivery
+    if (!row || row.status !== 'in-flight' || (result.attempt !== undefined && row.attempts !== result.attempt)) return false;
     row.status = result.outcome === 'retry' ? 'pending' : result.outcome;
     if (result.outcome === 'retry') row.nextAttemptAt = result.nextAttemptAt ?? result.at;
     delete row.leaseUntil;
@@ -300,6 +302,14 @@ export class MemoryIntegrationLog implements IntegrationStore {
     };
     applyPatch(row, last);
     row.updatedAt = result.at;
+    return true;
+  }
+
+  async extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    const row = this.deliveries.get(id);
+    if (!row || row.status !== 'in-flight' || row.attempts !== attempt) return false;
+    row.leaseUntil = leaseUntil;
+    return true;
   }
 
   async getDelivery(id: string): Promise<DeliveryRecord | undefined> {
@@ -321,7 +331,8 @@ export class MemoryIntegrationLog implements IntegrationStore {
 
   async redeliver(id: string, now: string): Promise<boolean> {
     const row = this.deliveries.get(id);
-    if (!row) return false;
+    // A pending row is queued already; an in-flight one would be sent twice at the same time
+    if (!row || (row.status !== 'succeeded' && row.status !== 'dead')) return false;
     row.status = 'pending';
     row.nextAttemptAt = now;
     delete row.leaseUntil;

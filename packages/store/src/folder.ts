@@ -363,16 +363,24 @@ export class FolderStore extends InMemoryStore {
     return inserted;
   }
 
-  override async claimDeliveries(now: string, limit: number, leaseMs: number): Promise<DeliveryRecord[]> {
-    const claimed = await super.claimDeliveries(now, limit, leaseMs);
+  override async claimDeliveries(now: string, limit: number, leaseMs: number, subscriptionId?: string): Promise<DeliveryRecord[]> {
+    const claimed = await super.claimDeliveries(now, limit, leaseMs, subscriptionId);
     await this.files.appendDeliveries(claimed);
     return claimed;
   }
 
-  override async completeDelivery(id: string, result: DeliveryResult): Promise<void> {
-    await super.completeDelivery(id, result);
-    const row = await super.getDelivery(id);
+  override async completeDelivery(id: string, result: DeliveryResult): Promise<boolean> {
+    const applied = await super.completeDelivery(id, result);
+    const row = applied ? await super.getDelivery(id) : undefined;
     if (row) await this.files.appendDeliveries([row]);
+    return applied;
+  }
+
+  override async extendLease(id: string, attempt: number, leaseUntil: string): Promise<boolean> {
+    const extended = await super.extendLease(id, attempt, leaseUntil);
+    const row = extended ? await super.getDelivery(id) : undefined;
+    if (row) await this.files.appendDeliveries([row]);
+    return extended;
   }
 
   override async redeliver(id: string, now: string): Promise<boolean> {
