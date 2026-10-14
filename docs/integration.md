@@ -54,7 +54,7 @@ Pushing (webhooks, MQTT), state detection and master-data notifications start on
 | `AAS_INTEGRATION_ALLOW` | empty | Comma list of CIDR / IP / host name, each optionally `:port`, allowed as **private** or **plain http / mqtt** targets; a listed port is also unblocked |
 | `AAS_SECRET_KEY` | — | Base64 of 32 random bytes; seals webhook secrets and MQTT passwords. **Required with PostgreSQL** to create subscriptions. The folder store falls back to `<AAS_DATA_DIR>/secret.key` |
 | `INTEGRATION_RETENTION_DAYS` | `30` | Event log retention by record time. Succeeded deliveries are kept 7 days, dead ones 30 |
-| `INTEGRATION_TIMEOUT_MS` | `10000` | Total deadline of one webhook attempt |
+| `INTEGRATION_TIMEOUT_MS` | `10000` | Total deadline of one webhook attempt, clamped to 1000–60000. DNS lookups time out after 5 s regardless |
 | `OPCUA_ALLOW_INSECURE` | off | `on` restores the old unauthenticated OPC UA server (chapter 9) |
 | `OPCUA_PKI_DIR` | `<AAS_DATA_DIR>/opcua-pki`, else `./opcua-pki` | OPC UA certificate store |
 | `AAS_PUBLIC_URL` (existing) | — | Public address; event `dataschema`, links and document URLs become absolute when set |
@@ -399,7 +399,7 @@ rejects old timestamps, dedupes ids for 48 hours and logs each event.
 | Receiver answers | Result |
 |---|---|
 | 2xx | Delivered |
-| Network / DNS / TLS error, timeout, 408, 425, 429, 5xx | Retried (a `Retry-After` header is honoured, capped at 1 hour) |
+| Network / DNS / TLS error, timeout, 408, 425, 429, 5xx | Retried. A `Retry-After` header can only **lengthen** the wait (the longer of it and the schedule, at most 1 hour) |
 | Any other 4xx | Dead at once — fix the receiver, then send again |
 | 410 | Dead **and** the subscription is disabled ("410 from receiver") |
 | 3xx | Failure — redirects are never followed |
@@ -410,18 +410,21 @@ dead deliveries in a row and no success for 72 hours is disabled; it is never de
 
 In **Integrations → Subscriptions → Deliveries** you see every attempt (status code, error, duration, resolved address),
 send a dead delivery again (same event id — the receiver dedupes it), or replay everything from a sequence number
-(`POST /integrations/subscriptions/{id}/replay` with `{"fromSeq":"1000"}` or `{"from":"<ISO time>"}`).
+(`POST /integrations/subscriptions/{id}/replay` with `{"fromSeq":"1000"}` or `{"from":"<ISO time>"}`). Only a
+succeeded or dead delivery can be sent again; one that is pending or being sent answers 409 `DeliveryBusy`.
 
 **Send test** sends a signed `integration.ping.v1` immediately and shows the status code, latency, resolved IP and the
 first kilobyte of the answer. Nothing is stored in the event log.
 
 **Rotate secret** issues a new secret; for 24 hours both the old and the new signature are sent, so the receiver can
-switch without losing events.
+switch without losing events. Rotating again while the previous secret is still valid answers 409 `RotationInProgress`.
 
 ## 6. MQTT
 
 An MQTT subscription publishes to a broker (`mqtts://` recommended; `mqtt://` only to an allowlisted broker). Broker
 credentials may be written in the URL as `user:password@`; the server strips them from the URL and stores them sealed.
+Changing the subscription's URL to another scheme, host or port **drops the stored credentials** unless the new URL
+carries `user:password@` again — so credentials never travel to a broker they were not given for.
 
 | Topic | Payload | QoS / retain |
 |---|---|---|
@@ -607,12 +610,21 @@ Sign this with the customer before go-live.
 - **Who may do what**: subscriptions, status, server rules and certificates — administrator **session** only (not API
   keys, not open servers). Per-file rules and external references — editors. Feed and exports — any reader, limited to
   the files the reader's workspace may see. Audit events in the feed — administrators only.
+- **Subscriptions are server-wide.** A subscription receives the matching events of **every workspace**, also on a server
+  with `AAS_WORKSPACE=private`. Workspace separation applies to people reading the feed and exports, not to what an
+  administrator subscribes to. Narrow a subscription with its file filter when one customer's data must not reach another
+  system.
 - **Egress (SSRF) policy**: loopback, link-local, multicast, broadcast and their IPv6-mapped forms are always refused;
-  private ranges and plain http / mqtt only when allowlisted; ports such as 22, 25, 445, 502, 1433, 3306, 3389, 5432,
+  private ranges, special-purpose ranges (`192.0.0.0/24`, `192.0.2.0/24`, `198.18.0.0/15`, `198.51.100.0/24`,
+  `203.0.113.0/24`, `2001:db8::/32`, `100::/64`, `2001::/23`, `64:ff9b:1::/48`, `::ffff:0:0:0/96`) and plain http / mqtt
+  only when allowlisted; ports such as 22, 25, 445, 502, 1433, 3306, 3389, 5432,
   6379 and 44818 are refused unless the allow entry names the port. DNS is resolved once per attempt, every answer is
   checked, and the connection goes to the checked address (no DNS rebinding). Redirects are never followed.
 - **Secrets**: webhook secrets and MQTT passwords are sealed with AES-256-GCM under the master key; they never appear in
-  listings, logs, delivery rows or audit events. A secret is shown once, at creation or rotation.
+  listings, logs, delivery rows or audit events. A secret is shown once, at creation or rotation. Audit details mask URL
+  query values (`?token=***`); the full URL is shown only by the subscription GET (administrators). Subscription
+  responses carry `Cache-Control: no-store`. When secrets were sealed under another `AAS_SECRET_KEY`, the status lists
+  those subscriptions in `masterKeyMismatch` — restore the right key, or rotate their secrets.
 - **Thin events**: no submodel content leaves through events; receivers read content with their own credentials.
 - **Demo mode**: integrations are always off and every outbound target is refused.
 
@@ -623,6 +635,7 @@ Sign this with the customer before go-live.
 | "Create an admin first" / 403 on subscriptions | Open server or API key. Sign in as an administrator (create the first one in Settings) |
 | 422 `TargetNotAllowed` | Private address, plain http/mqtt or a blocked port. Add the host or CIDR (with `:port` if needed) to `AAS_INTEGRATION_ALLOW`, restart |
 | 503 `MasterKeyMissing` | PostgreSQL without `AAS_SECRET_KEY`. Generate one (chapter 2), restart |
+| Status lists subscriptions under "sealed with another key" | `AAS_SECRET_KEY` changed. Put the old key back, or rotate those secrets and update the receivers |
 | 503 `IntegrationsOff` | The feature needs workers. Set `INTEGRATIONS=on`, restart |
 | Receiver rejects every signature | Signing a re-serialised body, or using the secret text instead of the base64-decoded bytes. Check with the test vector |
 | Deliveries dead with 401/403 | The receiver's own authentication refuses us — fix it, then "Send again" |

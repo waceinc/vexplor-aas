@@ -104,6 +104,16 @@ export function StatusTab({ admin, feed }: Props): React.JSX.Element {
             </dd>
             <dt>{tr('비밀값 보관 키')}</dt>
             <dd className={status.masterKey === 'missing' || status.masterKey === 'ephemeral' ? 'warn' : ''}>{masterKeyText(status.masterKey)}</dd>
+            {status.masterKeyMismatch && status.masterKeyMismatch.length > 0 && (
+              <>
+                <dt>{tr('다른 키로 봉인된 구독')}</dt>
+                <dd className="warn">
+                  {fill(tr('{0} — 비밀값이 지금과 다른 AAS_SECRET_KEY 로 봉인돼 서명하지 못합니다. 예전 키를 되돌리거나 이 구독들의 비밀값을 바꾸십시오.'), {
+                    0: status.masterKeyMismatch.join(', '),
+                  })}
+                </dd>
+              </>
+            )}
             <dt>{tr('허용한 내부 대상')}</dt>
             <dd className="mono">
               {status.egress && status.egress.allow.length > 0

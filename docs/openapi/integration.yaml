@@ -226,6 +226,11 @@ paths:
                   secret: { type: string }
                   previousValidUntil: { type: string, format: date-time }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: RotationInProgress — the previous secret is still valid (24 h overlap)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
   /integrations/subscriptions/{id}/test:
     parameters:
       - $ref: '#/components/parameters/SubscriptionId'
@@ -325,6 +330,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Delivery' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: DeliveryBusy — only a succeeded or dead delivery can be sent again
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Result' }
   /integrations/config:
     get:
       tags: [configuration]
@@ -984,6 +994,10 @@ components:
             allow: { type: array, items: { type: string } }
             blockedPorts: { type: array, items: { type: integer } }
         masterKey: { type: string, enum: [env, file, ephemeral, missing] }
+        masterKeyMismatch:
+          type: array
+          items: { type: string }
+          description: Subscriptions whose secrets were sealed with another AAS_SECRET_KEY
         opcua:
           type: object
           properties:
