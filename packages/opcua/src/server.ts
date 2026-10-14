@@ -11,21 +11,32 @@
  *
  * Important: everything is **read-only**. Value sync option A (the file is the source of truth) — if values written via
  *    OPC UA leak into the model, option A breaks at that moment. Package Explorer falls into exactly that trap.
- * Important: off by default. Turning it on **opens a port without authentication** — different in nature from the
- *    HTTP-side token auth, so enabling it must be an explicit decision by the deployer (`OPCUA_SERVER=on`).
+ * Important: off by default (`OPCUA_SERVER=on`). When on, it is **secure by default** (docs/design/integration-v1.md §7,
+ *    D16): no `None` security policy, no anonymous sessions, user name and password checked through `verifyUser`, client
+ *    certificates trusted only after an administrator trusts them. The old unauthenticated behaviour (node-opcua
+ *    defaults) needs the explicit `insecure` mode — "never point an MES at an unauthenticated port".
  */
+import { mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   DataType,
+  MessageSecurityMode,
+  OPCUACertificateManager,
   OPCUAServer,
+  SecurityPolicy,
   StatusCodes,
   Variant,
   type Namespace,
+  type OPCUAServerOptions,
   type StatusCode,
   type UAObject,
   type UAVariable,
 } from 'node-opcua';
 import { tr } from '@aas/core';
 import { flattenVariables, type OpcDataType, type PublishNode, type PublishPlan } from './publish.js';
+import { trustStoreOf, type OpcUaTrustStore } from './trust-store.js';
+
+export type { OpcUaCertificateInfo, OpcUaTrustStore } from './trust-store.js';
 
 /**
  * Important: a marker that announces, **at the protocol level**, that this server was started by this tool.
@@ -48,7 +59,24 @@ export interface AasOpcUaServerOptions {
   refreshMs?: number;
   /** Host to advertise. Empty means the node-opcua default */
   hostname?: string;
+  /** Absent = insecure (the behaviour before §7) — kept so library callers and old tests keep working; server.ts always sets it */
+  security?: OpcUaSecurityOptions;
 }
+
+export interface OpcUaSecurityOptions {
+  mode: 'secure' | 'insecure';
+  /** Required for 'secure'. Any account may read (the address space is read-only); a disabled account must answer false */
+  verifyUser?: (username: string, password: string) => Promise<boolean>;
+  /** Root folder of the certificate store (own certificate, trusted and rejected client certificates). Default ./opcua-pki */
+  pkiDir?: string;
+}
+
+/** Policies offered in secure mode — all three are current (Basic128Rsa15 and Basic256 are deprecated by the OPC Foundation) */
+export const SECURE_POLICIES: readonly SecurityPolicy[] = [
+  SecurityPolicy.Basic256Sha256,
+  SecurityPolicy.Aes128_Sha256_RsaOaep,
+  SecurityPolicy.Aes256_Sha256_RsaPss,
+];
 
 export interface ServerStatus {
   running: boolean;
@@ -61,6 +89,9 @@ export interface ServerStatus {
   variables: number;
   lastRefresh?: string;
   lastError?: string;
+  security: 'secure' | 'insecure';
+  /** Certificate store folder (secure mode) */
+  pki?: string;
 }
 
 /**
@@ -141,11 +172,50 @@ export class AasOpcUaServer {
   private shape = '';
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = true;
-  private status: ServerStatus = { running: false, packages: 0, variables: 0 };
+  private status: ServerStatus;
+  private certificates: OPCUACertificateManager | undefined;
   /** Identity of this process — regenerated on every start */
   private readonly instanceUri = `urn:aas-authoring-tool:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 
-  constructor(private readonly options: AasOpcUaServerOptions) {}
+  constructor(private readonly options: AasOpcUaServerOptions) {
+    this.status = { running: false, packages: 0, variables: 0, security: options.security?.mode ?? 'insecure' };
+  }
+
+  /** The certificate trust store — undefined unless the server runs in secure mode */
+  pki(): OpcUaTrustStore | undefined {
+    if (!this.certificates || !this.server) return undefined;
+    return trustStoreOf(this.certificates);
+  }
+
+  /** node-opcua options for the configured security mode */
+  private async securityOptions(): Promise<Partial<OPCUAServerOptions>> {
+    const security = this.options.security;
+    if (!security || security.mode === 'insecure') return {};
+    const verifyUser = security.verifyUser;
+    if (!verifyUser) throw new Error(tr('보안 모드 OPC UA 서버에는 사용자 확인 함수가 필요합니다.'));
+    const pkiDir = resolve(security.pkiDir ?? 'opcua-pki');
+    // 0700: the folder holds the server's private key
+    mkdirSync(pkiDir, { recursive: true, mode: 0o700 });
+    const manager = new OPCUACertificateManager({ rootFolder: pkiDir, automaticallyAcceptUnknownCertificate: false });
+    await manager.initialize();
+    this.certificates = manager;
+    this.status = { ...this.status, pki: pkiDir };
+    return {
+      securityPolicies: [...SECURE_POLICIES],
+      securityModes: [MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt],
+      allowAnonymous: false,
+      serverCertificateManager: manager,
+      userManager: {
+        isValidUserAsync(username, password, callback) {
+          // Important: a throwing or rejecting verifier must deny, never crash the session handshake
+          verifyUser(username, password).then(
+            (ok) => callback(null, ok === true),
+            () => callback(null, false),
+          );
+        },
+      },
+    };
+  }
 
   currentStatus(): ServerStatus {
     return { ...this.status };
@@ -154,7 +224,9 @@ export class AasOpcUaServer {
   async start(): Promise<void> {
     const port = this.options.port ?? 4840;
     const resourcePath = this.options.resourcePath ?? '/UA/AAS';
+    const security = await this.securityOptions();
     this.server = new OPCUAServer({
+      ...security,
       port,
       resourcePath,
       /*
@@ -198,6 +270,8 @@ export class AasOpcUaServer {
       endpoint: `opc.tcp://${this.options.hostname ?? '127.0.0.1'}:${port}${resourcePath}`,
       packages: 0,
       variables: 0,
+      security: this.status.security,
+      ...(this.status.pki === undefined ? {} : { pki: this.status.pki }),
     };
 
     await this.refresh();
@@ -213,6 +287,9 @@ export class AasOpcUaServer {
     this.status = { ...this.status, running: false };
     if (this.server) await this.server.shutdown();
     this.server = undefined;
+    // The manager watches its folders — leaving it open keeps file watchers (and the process) alive
+    await this.certificates?.dispose().catch(() => undefined);
+    this.certificates = undefined;
   }
 
   /**
