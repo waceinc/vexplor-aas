@@ -23,10 +23,11 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function until(check: () => boolean, ms = 30_000): Promise<void> {
+/** Polls (every 50 ms) until `check` holds — the OPC UA start-up runs in the background of createHttpServer */
+async function until(check: () => boolean, what: string, ms = 30_000): Promise<void> {
   const end = Date.now() + ms;
   while (!check()) {
-    if (Date.now() > end) throw new Error('timed out');
+    if (Date.now() > end) throw new Error(`timed out after ${ms} ms waiting for: ${what}`);
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }
@@ -50,16 +51,17 @@ async function boot(port: number, withAccount: boolean) {
 describe('OPC UA start-up (D4)', () => {
   it('secure mode without accounts: refused, never logged as on, status running:false with the store path', async () => {
     const { logs, errors, pki, opcua } = await boot(14897, false);
-    await until(() => errors.some((line) => line.includes('OPCUA_ALLOW_INSECURE=on')));
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await until(() => errors.some((line) => line.includes('OPCUA_ALLOW_INSECURE=on')), 'the refusal line');
+    // No wait needed: the refusal is the last step of the start-up (server.ts returns right after logging it), so
+    // nothing can log an endpoint afterwards
     expect(logs.filter((line) => line.includes('opc.tcp://'))).toEqual([]);
     expect(opcua()).toEqual({ security: 'secure', running: false, pki });
   });
 
   it('secure mode with an account: starts, logs the endpoint and secure mode, status running:true', async () => {
     const { logs, errors, pki, opcua } = await boot(14898, true);
-    await until(() => opcua().running);
-    await until(() => logs.some((line) => line.includes(pki)));
+    await until(() => opcua().running === true, 'the OPC UA server to report running');
+    await until(() => logs.some((line) => line.includes(pki)), 'the start-up line naming the certificate store');
     expect(logs.some((line) => line.includes('opc.tcp://') && line.includes('14898'))).toBe(true);
     expect(errors).toEqual([]);
     expect(opcua()).toEqual({ security: 'secure', running: true, pki: expect.stringContaining(pki) });

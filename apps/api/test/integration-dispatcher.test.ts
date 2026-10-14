@@ -20,7 +20,7 @@ import { newSigningSecret, SecretBox } from '../src/integration/secrets.js';
 import { verifySignature } from '../src/integration/signing.js';
 import { sendWebhook, type WebhookAttempt, type WebhookOutcome } from '../src/integration/webhook.js';
 import type { IntegrationAasStore } from '../src/integration/deps.js';
-import { clock, KEY, memoryStore, startReceiver, testServices } from './helpers/integration-scenarios.js';
+import { clock, KEY, memoryStore, startReceiver, testServices, until } from './helpers/integration-scenarios.js';
 
 const HOST = 'mes.example.com';
 const closers: (() => Promise<void>)[] = [];
@@ -286,7 +286,6 @@ describe('lease and crash safety', () => {
     };
     return { state, send };
   }
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 
   it('≤ 4 sends per subscription at once; claims stay bounded with 10 000 pending', async () => {
     const { state, send } = heldSends();
@@ -304,7 +303,7 @@ describe('lease and crash safety', () => {
     for (let batch = await dispatcher.fanOut(); batch > 0; batch = await dispatcher.fanOut()) enqueued += batch;
     expect(enqueued).toBe(10_000);
     expect(await dispatcher.claimAndStart()).toBe(4);
-    await settle();
+    await until(() => state.active === 4, '4 sends in flight');
     expect(state.peak).toBe(4);
     expect(Math.max(...claimSizes)).toBeLessThanOrEqual(4);
     // The subscription's 4 lanes are busy — another claim takes nothing for it
@@ -324,7 +323,7 @@ describe('lease and crash safety', () => {
     await store.appendEvents(Array.from({ length: 20 }, () => stateEvent()));
     await dispatcher.fanOut();
     await dispatcher.claimAndStart();
-    await settle();
+    await until(() => state.active === 16, '16 sends in flight');
     expect(state.peak).toBe(16);
     expect(state.peakPerUrl).toBeLessThanOrEqual(4);
     while (state.releases.length > 0) state.releases.shift()!();
@@ -428,28 +427,28 @@ describe('security review — lease, stale completions, fairness', () => {
     await subscribe();
     await store.appendEvents(Array.from({ length: 16 }, () => stateEvent()));
     await dispatcher.fanOut();
-    const flush = async () => {
-      for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+    // Conditions, not sleeps: a batch has started when its sends are waiting for release; it has finished when no
+    // claimed row is left in flight
+    const started = (count: number) => until(() => releases.length === count, `${count} sends started`);
+    const finished = () => until(() => dispatcher.status()['inFlight'] === 0, 'all sends completed');
+    const release = async () => {
+      releases.splice(0).forEach((resolve) => resolve());
+      await finished();
     };
     // The review's sequence: every send takes 16 s; after 61 s the first claim's lease (60 s) has run out
-    await dispatcher.claimAndStart();
-    await flush();
+    await started(await dispatcher.claimAndStart());
     for (let round = 0; round < 3; round++) {
       time.advance(16_000);
-      releases.splice(0).forEach((release) => release());
-      await flush();
-      await dispatcher.claimAndStart();
-      await flush();
+      await release();
+      await started(await dispatcher.claimAndStart());
     }
     time.advance(13_000);
-    await dispatcher.claimAndStart();
-    await flush();
+    // Nothing new to claim while the 4 lanes are busy — the reclaim of a row still in progress must not send it
+    expect(await dispatcher.claimAndStart()).toBe(0);
     for (let round = 0; round < 4; round++) {
-      releases.splice(0).forEach((release) => release());
-      await flush();
+      await release();
       time.advance(16_000);
-      await dispatcher.claimAndStart();
-      await flush();
+      await started(await dispatcher.claimAndStart());
     }
     await dispatcher.idle();
     expect(sent).toHaveLength(16);
@@ -468,11 +467,11 @@ describe('security review — lease, stale completions, fairness', () => {
     await store.appendEvents([stateEvent()]);
     await dispatcher.fanOut();
     await dispatcher.claimAndStart();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await until(() => sent.length === 1, 'the first send started');
     const { leaseFor } = await import('../src/integration/dispatcher.js');
     time.advance(leaseFor(300) + 1);
-    await dispatcher.claimAndStart();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // The store hands the expired row out again; the dispatcher recognises it as its own and starts nothing
+    expect(await dispatcher.claimAndStart()).toBe(0);
     expect(sent).toHaveLength(1);
     releases.splice(0).forEach((release) => release());
     await dispatcher.idle();
@@ -507,7 +506,7 @@ describe('security review — lease, stale completions, fairness', () => {
     await store.appendEvents([stateEvent()]);
     await dispatcher.fanOut();
     await dispatcher.claimAndStart();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await until(() => releases.length === 1, 'the send started');
     const { leaseFor } = await import('../src/integration/dispatcher.js');
     time.advance(leaseFor(300) + 1);
     // Another process takes the expired row and is still sending it
@@ -550,8 +549,8 @@ describe('security review — lease, stale completions, fairness', () => {
     await store.updateSubscription(healthy.id, { url: `http://${HOST}:1000/healthy` });
     await store.appendEvents([stateEvent()]);
     await dispatcher.fanOut();
-    await dispatcher.claimAndStart();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await dispatcher.claimAndStart()).toBe(5);
+    await until(() => (bySub['slow'] ?? 0) + (bySub['healthy'] ?? 0) === 5, 'all 5 started sends reached the transport');
     expect(bySub['slow']).toBe(4);
     expect(bySub['healthy']).toBe(1);
   });

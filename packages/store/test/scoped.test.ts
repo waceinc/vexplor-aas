@@ -180,11 +180,18 @@ describe('without context everything is visible — the server itself, and serve
   });
 
   it('overlapping requests do not see each other\'s workspace', async () => {
+    // Alice's request is still running when Bob's finishes — guaranteed by a gate, not by a delay
+    let bobDone!: () => void;
+    const bobFinished = new Promise<void>((resolve) => (bobDone = resolve));
     const slow = runInWorkspace(ALICE, async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await bobFinished;
       return (await store.listPackages()).items.map((item) => item.id);
     });
-    const fast = runInWorkspace(BOB, async () => (await store.listPackages()).items.map((item) => item.id));
+    const fast = runInWorkspace(BOB, async () => {
+      const ids = (await store.listPackages()).items.map((item) => item.id);
+      bobDone();
+      return ids;
+    });
     const [alice, bob] = await Promise.all([slow, fast]);
     expect(alice).toContain(aliceFile);
     expect(bob).not.toContain(aliceFile);

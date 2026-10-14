@@ -35,8 +35,9 @@ function fakeBroker(options: { failConnect?: string; failPublish?: string } = {}
       connected: true,
       async publish(topic, payload, publishOptions) {
         if (options.failPublish && topic.includes('/events/')) throw new Error(options.failPublish);
-        // Resolves only after the broker "acknowledged" — the sink must await it
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        // Resolves only after the broker "acknowledged" — an asynchronous step the sink must await. Simulated latency,
+        // not a wait for some condition: any later turn of the event loop will do
+        await new Promise((resolve) => setImmediate(resolve));
         published.push({ topic, payload: payload.toString(), ...publishOptions });
       },
       async close() {
