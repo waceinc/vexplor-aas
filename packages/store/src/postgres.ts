@@ -82,6 +82,8 @@ export interface SqlClient {
 
 /** Advisory lock key for schema version checks — an arbitrary value that does not clash with other uses */
 const SCHEMA_LOCK_KEY = 0x00aa5501;
+/** Advisory lock key for creating the first account (red-team L3) */
+const FIRST_USER_LOCK_KEY = 0x00aa5502;
 
 /** The DB schema is newer than the program — startup is refused */
 export class SchemaVersionError extends Error {
@@ -767,18 +769,44 @@ export class PostgresStore implements AasStore, IntegrationStore {
   }
 
   async createUser(user: NewUser): Promise<UserRecord> {
+    return this.insertUser(this.client, user);
+  }
+
+  /** Serializes first-account creation inside this process — see createFirstUser */
+  private firstUser: Promise<unknown> = Promise.resolve();
+
+  /**
+   * Important: two layers, because each covers what the other cannot. The advisory lock (inside a transaction)
+   *    serializes several server instances on one database. The in-process chain is still needed because a single
+   *    connection (pg.Client · PGlite) runs both callers' statements in one session, where the advisory lock is
+   *    re-entrant and BEGIN does not nest — so it would not keep them apart.
+   */
+  async createFirstUser(user: NewUser): Promise<UserRecord | undefined> {
+    const run = this.firstUser.catch(() => undefined).then(() =>
+      withTransaction(this.client, async (tx) => {
+        await tx.query('SELECT pg_advisory_xact_lock($1)', [FIRST_USER_LOCK_KEY]);
+        const { rows } = await tx.query<{ n: string }>(`SELECT COUNT(*)::text AS n FROM app_user`);
+        if (Number(rows[0]?.n ?? 0) > 0) return undefined;
+        return this.insertUser(tx, user);
+      }),
+    );
+    this.firstUser = run;
+    return run;
+  }
+
+  private async insertUser(client: SqlClient, user: NewUser): Promise<UserRecord> {
     const login = user.login.trim().toLowerCase();
     if (login === '') throw new Error(tr('로그인 이름이 비어 있습니다.'));
     const display = user.displayName.trim() === '' ? login : user.displayName.trim();
     // Important: the id is generated here, not in the DB — it must have the same form as the memory implementation (user_N)
     //    so the conformance tests see both implementations the same way
-    const { rows: seq } = await this.client.query<{ next: string }>(
+    const { rows: seq } = await client.query<{ next: string }>(
       `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 6) AS integer)), 0) + 1 AS next
          FROM app_user WHERE id ~ '^user_[0-9]+$'`,
     );
     const id = `user_${seq[0]?.next ?? 1}`;
     try {
-      const { rows } = await this.client.query<UserRow>(
+      const { rows } = await client.query<UserRow>(
         `INSERT INTO app_user (id, login, display_name, role, password_hash, email, company, consent_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING ${USER_FIELDS}`,

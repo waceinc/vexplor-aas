@@ -21,8 +21,8 @@ import {
 } from '@aas/store';
 import { AasxLimitError, AasxReadError } from '@aas/aasx';
 import { ValueNotSupportedError } from './elements.js';
-import { ApiError, errorResponse, json, type ApiRequest, type ApiResponse } from './http.js';
-import { authorize, fullTokenGiven, isOpen, OPEN_ACCESS, type AuthResult, type Principal } from './auth.js';
+import { ApiError, errorResponse, ServiceBusyError, json, type ApiRequest, type ApiResponse } from './http.js';
+import { authorize, fullTokenGiven, isAlwaysOpen, isOpen, OPEN_ACCESS, type AuthResult, type Principal } from './auth.js';
 import { buildAuthRoutes, principalOf } from './routes/auth.js';
 import { LoginThrottle, SessionStore } from './session.js';
 import { crossSiteWrite, isHttps } from './security.js';
@@ -105,6 +105,9 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
           status: 'ok',
           version: PRODUCT_VERSION,
           // Important: even without a key, login is required if accounts exist — saying "off" would mislead both operators and attackers
+          // Important: kept public on purpose (red-team D3 review, 2026-10-16). The UI reads `version` before sign-in, the
+          //    Docker healthcheck and docs read this route, and whether login is required is public anyway — /auth/me must
+          //    say it so the UI knows whether to show the login screen. Hiding it here would hide nothing
           auth: isOpen(options.auth ?? OPEN_ACCESS) && (await store.countUsers()) === 0 ? 'off' : 'on',
         }),
     },
@@ -166,9 +169,20 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     // Block **before** matching the path. Reduces probing tokens against nonexistent paths
     const allowed = authorize(auth, request, principal, principal ? true : await accountsNow());
     if (!allowed.ok) return allowed.response!;
+    // Important: separating workspaces needs a way to tell people apart. With no accounts and no keys everyone is
+    //    "anonymous" and would silently share one workspace while believing it private (red-team L10, 2026-10-16).
+    //    Refuse until the first admin exists — the account routes stay open so that can happen
+    if (privateWorkspaces && allowed.via === 'open' && !isAlwaysOpen(request.path)) {
+      return errorResponse(
+        403,
+        'Forbidden',
+        tr('이 서버는 작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 먼저 첫 관리자 계정을 만드십시오.'),
+      );
+    }
     // Some places in routes need to know "who called" (account management, audit records).
     // Important: this is the only place it is resolved — if routes resolved it again themselves, the two interpretations would diverge
-    const inbound: ApiRequest = principal ? { ...request, principal } : request;
+    const access = { level: allowed.level ?? 'read-only', via: allowed.via ?? 'open' } as const;
+    const inbound: ApiRequest = principal ? { ...request, principal, access } : { ...request, access };
 
     const found = match(routes, inbound.method, inbound.path);
     if (found === undefined) {
@@ -195,6 +209,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
         //    the undo list is one (server memory). Through that path one could read someone else's list, and by attempting
         //    undo, erase someone else's list (caught by a test). Blocking once more here ensures that
         //    even if more such state appears in the future, there is no gap to slip through.
+        // Important: only on partitioning servers. Doing it everywhere was tried (red-team M3, 2026-10-16) and changed
+        //    answers clients rely on (501 "collection off" became 404, route-specific 404 texts changed). The path risk of
+        //    a hostile id is closed where ids become paths instead — FolderStore refuses anything but a plain name.
         if (workspace && packageId !== undefined && !(await store.getPackage(packageId))) {
           return errorResponse(404, 'NotFound', fill(tr('패키지 {0}을(를) 찾을 수 없습니다.'), { 0: packageId }));
         }
@@ -317,6 +334,10 @@ function undoRoutes(undo: UndoStack): Route[] {
 }
 
 export function toErrorResponse(error: unknown): ApiResponse {
+  if (error instanceof ServiceBusyError) {
+    const busy = errorResponse(error.status, error.code, error.message);
+    return { ...busy, headers: { ...busy.headers, 'retry-after': String(error.retryAfterSeconds) } };
+  }
   if (error instanceof ApiError) return errorResponse(error.status, error.code, error.message);
   if (error instanceof NotFoundError) return errorResponse(404, 'NotFound', error.message);
   if (error instanceof ForbiddenError) return errorResponse(403, 'Forbidden', error.message);

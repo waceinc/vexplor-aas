@@ -103,8 +103,12 @@ export function isHttps(headers: Record<string, string | string[] | undefined>, 
  *    and we do not allow credentialed CORS (cors.ts)
  *  - Reads (GET, HEAD) change nothing
  *
- * If `Origin` is missing entirely, let it through. It is not a browser (curl, scripts, servers),
- * and such callers never hold someone else's cookie in the first place.
+ * Important: `Origin: null` is **refused** — it is exactly what a sandboxed iframe or a `data:` page sends. It used to be
+ *    let through with a missing Origin as "not a browser" (red-team L2, 2026-10-16).
+ * Important: a **missing** Origin is refused when the browser says where the request came from (`Sec-Fetch-Site`) and
+ *    it is not same-origin. Only a request carrying neither header passes: every browser that sends Sec-Fetch-Site
+ *    also sends Origin on writes, so "neither" means a non-browser client (curl, scripts), which cannot hold a
+ *    victim's cookie. The pre-2019 browsers that sent neither are covered by the SameSite=Strict cookie.
  */
 export function crossSiteWrite(
   request: ApiRequest,
@@ -112,7 +116,9 @@ export function crossSiteWrite(
 ): ApiResponse | undefined {
   if (!MUTATING.has(request.method)) return undefined;
   const origin = request.headers['origin'];
-  if (!origin || origin === 'null') return undefined;
+  const site = request.headers['sec-fetch-site'];
+  if (origin === 'null') return site === 'same-origin' ? undefined : refused();
+  if (!origin) return site === undefined || site === 'same-origin' ? undefined : refused();
 
   // Important: behind a proxy, `Host` may have been changed. Caddy passes the original value through, but
   //    nginx defaults to the **upstream address** (127.0.0.1:8080), so comparing as-is makes **every write**
@@ -122,9 +128,13 @@ export function crossSiteWrite(
   for (const host of [request.headers['x-forwarded-host'], request.headers['host']]) {
     if (host !== undefined && host !== '' && sameOrigin(origin, host)) return undefined;
   }
-  if (allowedOrigins.includes('*')) return undefined;
-  if (allowedOrigins.some((allowed) => normalize(allowed) === normalize(origin))) return undefined;
+  // Important: `CORS_ORIGIN=*` is about response headers for anonymous reads — it never means "trust every site's
+  //    cookie writes" (red-team L11). Only origins named one by one count here
+  if (allowedOrigins.some((allowed) => allowed !== '*' && normalize(allowed) === normalize(origin))) return undefined;
+  return refused();
+}
 
+function refused(): ApiResponse {
   return errorResponse(
     403,
     'Forbidden',

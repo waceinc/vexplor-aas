@@ -734,6 +734,20 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
         expect(await store.getUser('user_없음')).toBeUndefined();
       });
 
+      it('creates the first account only while there is none, even when two calls race (red-team L3)', async () => {
+        const store = await create();
+        await store.init(); // Important: tables must exist — PGlite is an empty DB before init
+        const results = await Promise.all([
+          store.createFirstUser({ login: 'first1', displayName: 'A', role: 'admin', passwordHash: 'h1' }),
+          store.createFirstUser({ login: 'first2', displayName: 'B', role: 'admin', passwordHash: 'h2' }),
+        ]);
+        expect(results.filter((made) => made !== undefined)).toHaveLength(1);
+        expect(await store.countUsers()).toBe(1);
+        // Once an account exists it never creates another
+        expect(await store.createFirstUser({ login: 'late', displayName: 'C', role: 'admin', passwordHash: 'h3' })).toBeUndefined();
+        expect(await store.countUsers()).toBe(1);
+      });
+
       it('records the login time', async () => {
         const store = await create();
         await store.init(); // Important: tables must exist — PGlite is an empty DB before init

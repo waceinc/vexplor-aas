@@ -462,9 +462,21 @@ export class InMemoryStore implements AasStore, IntegrationStore {
   }
 
   async createUser(user: NewUser): Promise<UserRecord> {
+    return this.insertUser(user);
+  }
+
+  async createFirstUser(user: NewUser): Promise<UserRecord | undefined> {
+    // Important: check and insert run with no await in between — nothing else can run in that gap
+    return this.users.size === 0 ? this.insertUser(user) : undefined;
+  }
+
+  /** Synchronous so callers can make check-and-insert atomic */
+  private insertUser(user: NewUser): UserRecord {
     const login = user.login.trim().toLowerCase();
     if (login === '') throw new Error(tr('로그인 이름이 비어 있습니다.'));
-    if (await this.findUserByLogin(login)) throw new Error(fill(tr('이미 있는 로그인 이름입니다: {0}'), { 0: login }));
+    if ([...this.users.values()].some((found) => found.login === login)) {
+      throw new Error(fill(tr('이미 있는 로그인 이름입니다: {0}'), { 0: login }));
+    }
     const record: UserRecord = {
       id: `user_${this.nextUserId++}`,
       login,

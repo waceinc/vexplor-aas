@@ -10,7 +10,7 @@
 import type { AasStore, UserRole } from '@aas/store';
 import { levelOfRole, type Principal } from '../auth.js';
 import { ApiError, json, type ApiRequest } from '../http.js';
-import { checkPasswordRule, hashPassword, verifyPassword } from '../password.js';
+import { checkPasswordRule, decoyHash, hashPassword, verifyPassword } from '../password.js';
 import { SignupThrottle, type LoginThrottle, type SessionStore } from '../session.js';
 import type { Route } from '../router.js';
 import { clientAddress, sameCode } from '../security.js';
@@ -253,10 +253,21 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
           );
         }
 
-        const user = await store.findUserByLogin(login);
-        const ok = user && !user.disabled && (await verifyPassword(password, user.passwordHash));
+        if (counted) {
+          // Important: an account under an address-rotating guessing attack is slowed down, not locked (session.ts L1)
+          const wait = throttle.slowdownMs(login);
+          if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+          // Important: counted **before** the hash — a parallel burst must hit the cap while its hashes are still
+          //    running, not after all of them ran (red-team L4). A success takes the count back (throttle.pass)
+          throttle.fail(login, from);
+        }
+
+        const found = await store.findUserByLogin(login);
+        const user = found && !found.disabled ? found : undefined;
+        // Important: unknown and disabled accounts are checked against a decoy hash at the same cost — otherwise the
+        //    response time says which logins exist (red-team M1)
+        const ok = await verifyPassword(password, user?.passwordHash ?? (await decoyHash()));
         if (!ok || !user) {
-          if (counted) throttle.fail(login, from);
           // Important: do not distinguish an existing account from a wrong password
           throw new ApiError(401, 'Unauthorized', tr('로그인하지 못했습니다 — 이름이나 비밀번호를 확인하십시오.'));
         }
@@ -438,12 +449,15 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         const bad = checkPasswordRule(password);
         if (bad) throw new ApiError(400, 'BadRequest', bad);
 
-        const user = await store.createUser({
+        // Important: the earlier count is only a fast answer. The hash takes tens of ms, so two setups racing each other
+        //    both passed it — createFirstUser checks again and inserts in one step (red-team L3)
+        const user = await store.createFirstUser({
           login,
           displayName,
           role: 'admin',
           passwordHash: await hashPassword(password),
         });
+        if (!user) throw new ApiError(409, 'Conflict', tr('이미 계정이 있습니다 — 관리자에게 받으십시오.'));
         const key = sessions.create(user.id);
         return {
           status: 201,
@@ -684,15 +698,21 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
 /**
  * Admins only — otherwise refuse.
  *
- * Important: no `principal` means **a machine (API key) or a server with auth off.** Both pass —
- *    an API key holder already has full access, and with auth off there is no basis to block.
+ * Important: no `principal` means **a machine (API key) or a server with auth off.** A full-access key passes (its holder
+ *    already has full access) and so does a server with auth off (no basis to block). A read-only key does not.
  *    (To turn auth on, create an account or configure a token)
  */
 function requireAdmin(request: ApiRequest): void {
   const who = request.principal;
-  if (who && who.role !== 'admin') {
-    throw new ApiError(403, 'Forbidden', tr('관리자만 계정을 다룰 수 있습니다.'));
+  if (who) {
+    if (who.role !== 'admin') throw new ApiError(403, 'Forbidden', tr('관리자만 계정을 다룰 수 있습니다.'));
+    return;
   }
+  // Important: without a person, only a **full** API key or a truly open server (no keys, no accounts) passes.
+  //    A read-only key used to pass because "no principal" was read as "machine with full access" (red-team M2)
+  const access = request.access;
+  if (access?.level === 'full' && (access.via === 'apikey' || access.via === 'open')) return;
+  throw new ApiError(403, 'Forbidden', tr('관리자만 계정을 다룰 수 있습니다.'));
 }
 
 /** Resolves the person from the request's session. Returns undefined if none — then it is the token's turn */

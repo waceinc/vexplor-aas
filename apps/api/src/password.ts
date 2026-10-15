@@ -15,6 +15,8 @@ import { randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { tr } from '@aas/core';
 
+import { ServiceBusyError } from './http.js';
+
 const scrypt = promisify(scryptCb) as (
   password: string | Buffer,
   salt: string | Buffer,
@@ -34,9 +36,48 @@ const P = 1;
 const KEYLEN = 32;
 const MAXMEM = 128 * 1024 * 1024;
 
+/**
+ * Runs password hashes a few at a time (red-team L4, 2026-10-16).
+ *
+ * Important: each hash holds about 32 MB and a CPU core for tens of milliseconds. Without a cap, a burst of logins
+ *    (one per spoofed address, so no throttle stops them) made the server compute hundreds at once. A short queue
+ *    absorbs normal bursts; past it the request is refused with 503 instead of waiting behind everyone.
+ */
+export class PasswordHashGate {
+  private running = 0;
+  private readonly waiting: (() => void)[] = [];
+
+  constructor(
+    private readonly maxConcurrent = 4,
+    private readonly maxQueued = 32,
+  ) {}
+
+  async run<T>(work: () => Promise<T>): Promise<T> {
+    if (this.running >= this.maxConcurrent) {
+      if (this.waiting.length >= this.maxQueued) {
+        throw new ServiceBusyError(tr('지금은 로그인 요청이 많습니다. 잠시 뒤에 다시 해 주십시오.'), 5);
+      }
+      await new Promise<void>((resolve) => this.waiting.push(resolve));
+    } else {
+      this.running += 1;
+    }
+    try {
+      return await work();
+    } finally {
+      // Hand the slot straight to the next in line — `running` stays the same, so no newcomer can jump the queue
+      const next = this.waiting.shift();
+      if (next) next();
+      else this.running -= 1;
+    }
+  }
+}
+
+/** The one gate every hash in this process goes through */
+const hashGate = new PasswordHashGate();
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const derived = await scrypt(password, salt, KEYLEN, { N, r: R, p: P, maxmem: MAXMEM });
+  const derived = await hashGate.run(() => scrypt(password, salt, KEYLEN, { N, r: R, p: P, maxmem: MAXMEM }));
   return `scrypt$${N}$${R}$${P}$${salt.toString('base64')}$${derived.toString('base64')}`;
 }
 
@@ -67,9 +108,22 @@ export async function verifyPassword(password: string, stored: string): Promise<
   }
   if (salt.length === 0 || expected.length === 0) return false;
 
-  const derived = await scrypt(password, salt, expected.length, { N: n, r, p, maxmem: MAXMEM });
+  const derived = await hashGate.run(() => scrypt(password, salt, expected.length, { N: n, r, p, maxmem: MAXMEM }));
   if (derived.length !== expected.length) return false;
   return timingSafeEqual(derived, expected);
+}
+
+/** A hash nobody's password matches — made once, on first use */
+let decoy: Promise<string> | undefined;
+
+/**
+ * Hash to check against when there is no real one (unknown or disabled account).
+ * Important: the check still runs at full cost, so the response time does not tell which logins exist
+ *    (red-team M1, 2026-10-16 — a missing account answered in ~1 ms, a real one in tens of ms).
+ */
+export function decoyHash(): Promise<string> {
+  decoy ??= hashPassword(randomBytes(24).toString('base64'));
+  return decoy;
 }
 
 /**

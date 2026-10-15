@@ -5,7 +5,8 @@
  *    **whether the plaintext never leaks**. Both are easy to break later when the cost is raised.
  */
 import { describe, expect, it } from 'vitest';
-import { checkPasswordRule, hashPassword, verifyPassword } from '../src/password.js';
+import { ServiceBusyError } from '../src/http.js';
+import { checkPasswordRule, hashPassword, PasswordHashGate, verifyPassword } from '../src/password.js';
 
 describe('password hashing', () => {
   it('the right password passes, a wrong one is blocked', async () => {
@@ -72,5 +73,38 @@ describe('password rules', () => {
 
   it('Important: does not force uppercase or symbols — only length matters (NIST SP 800-63B)', () => {
     expect(checkPasswordRule('소문자만으로된긴비밀번호')).toBeUndefined();
+  });
+});
+
+describe('password hashes run a few at a time (red-team L4, 2026-10-16)', () => {
+  it('queues past the concurrency cap and refuses with 503 once the queue is full', async () => {
+    const gate = new PasswordHashGate(1, 1);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const order: string[] = [];
+    const first = gate.run(async () => {
+      order.push('first');
+      await held;
+    });
+    const second = gate.run(async () => {
+      order.push('second');
+    });
+    // One running, one waiting — the third has no room
+    await expect(gate.run(async () => undefined)).rejects.toMatchObject({ status: 503 });
+    expect(order).toEqual(['first']);
+    release();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['first', 'second']);
+  });
+
+  it('the busy error tells the client when to retry', async () => {
+    const gate = new PasswordHashGate(1, 0);
+    let release!: () => void;
+    const running = gate.run(() => new Promise<void>((resolve) => (release = resolve)));
+    const refused = await gate.run(async () => undefined).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(ServiceBusyError);
+    expect((refused as ServiceBusyError).retryAfterSeconds).toBeGreaterThan(0);
+    release();
+    await running;
   });
 });

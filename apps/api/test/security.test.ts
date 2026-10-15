@@ -89,7 +89,8 @@ describe('CSRF — origin check', () => {
     const request = ask({ headers: { origin: 'https://mes.example', host: 'me:8080' } });
     expect(crossSiteWrite(request, [])?.status).toBe(403);
     expect(crossSiteWrite(request, ['https://mes.example'])).toBeUndefined();
-    expect(crossSiteWrite(request, ['*'])).toBeUndefined();
+    // Important: '*' is for CORS response headers only — it never trusts every site's cookie writes (red-team L11)
+    expect(crossSiteWrite(request, ['*'])?.status).toBe(403);
   });
 
   it('Important: passes even when the proxy rewrites Host — that is the nginx default', () => {
