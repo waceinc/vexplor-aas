@@ -118,6 +118,8 @@ export const EN_API: Record<string, string> = {
     'Too many large uploads are in progress right now. Please upload again shortly.',
   'JSON 본문을 읽지 못했습니다: {0}':
     'Could not read the JSON body: {0}',
+  'JSON 본문이 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.':
+    'The JSON body is nested too deeply — up to {0} levels are accepted.',
   '썸네일은 PNG · JPEG · GIF · WebP 그림 파일만 올릴 수 있습니다.':
     'A thumbnail must be a PNG, JPEG, GIF or WebP image.',
   '그 Submodel 참조가 없습니다.': 'There is no such Submodel reference.',

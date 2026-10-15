@@ -5,7 +5,7 @@
  *   L8 — a broken [Content_Types].xml or .rels escaped as a raw parser error instead of AasxReadError
  */
 import { AasxReadError, readAasx } from '@aas/aasx';
-import { MAX_ELEMENT_DEPTH, parseEnvironment } from '@aas/core';
+import { jsonDepthExceeds, MAX_ELEMENT_DEPTH, parseEnvironment } from '@aas/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -21,10 +21,15 @@ function withParts(replace: Record<string, string>): Uint8Array {
   return zipSync(entries);
 }
 
+/**
+ * Built as text on purpose. Important: JSON.stringify of a deeply nested object is itself recursive and overflows on
+ *    Node 22 / Linux before the code under test even runs — that is how the first version of this test failed in CI.
+ */
 function nestedJson(depth: number): string {
-  let node: Record<string, unknown> = { modelType: 'Property', idShort: 'leaf', valueType: 'xs:string', value: 'x' };
-  for (let i = 0; i < depth; i += 1) node = { modelType: 'SubmodelElementCollection', idShort: 'c', value: [node] };
-  return JSON.stringify({ submodels: [{ modelType: 'Submodel', id: 'urn:x', idShort: 's', submodelElements: [node] }] });
+  const leaf = '{"modelType":"Property","idShort":"leaf","valueType":"xs:string","value":"x"}';
+  const open = '{"modelType":"SubmodelElementCollection","idShort":"c","value":['.repeat(depth);
+  const close = ']}'.repeat(depth);
+  return `{"submodels":[{"modelType":"Submodel","id":"urn:x","idShort":"s","submodelElements":[${open}${leaf}${close}]}]}`;
 }
 
 function nestedXml(depth: number): string {
@@ -35,6 +40,20 @@ function nestedXml(depth: number): string {
     `<submodelElements>${open}${close}</submodelElements></submodel></submodels></environment>`
   );
 }
+
+describe('L7 — the depth scan runs without recursion', () => {
+  it('counts brackets outside strings only, honouring escapes', () => {
+    expect(jsonDepthExceeds('[[[]]]', 3)).toBe(false);
+    expect(jsonDepthExceeds('[[[[]]]]', 3)).toBe(true);
+    expect(jsonDepthExceeds('["[[[[[[", {"a": "]]]{{{"}]', 2)).toBe(false);
+    expect(jsonDepthExceeds('["\\"[[[[", [[]]]', 2)).toBe(true);
+    expect(jsonDepthExceeds('["a\\\\", [[[]]]]', 3)).toBe(true);
+  });
+
+  it('handles a million levels in one pass', () => {
+    expect(jsonDepthExceeds('['.repeat(1_000_000) + ']'.repeat(1_000_000), 1000)).toBe(true);
+  });
+});
 
 describe('L7 — nesting depth cap', () => {
   it('parseEnvironment refuses elements nested past the cap with a parse issue, not a stack overflow', () => {

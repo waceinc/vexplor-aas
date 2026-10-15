@@ -51,6 +51,19 @@ describe('L5 — error responses written by the transport carry the security hea
   });
 });
 
+describe('L7 — JSON request bodies', () => {
+  it('a body nested far deeper than any model is a 400, refused before it is parsed', async () => {
+    const base = await listen({});
+    const response = await fetch(`${base}/packages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '['.repeat(100_000) + ']'.repeat(100_000),
+    });
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(await response.json())).toContain('깊');
+  });
+});
+
 describe('L9 — upload memory', () => {
   it('the body cap follows AASX_MAX_TOTAL_MB instead of always being 512 MB', () => {
     expect(bodyLimitFor({}, undefined)).toBe(512 * 1024 * 1024);

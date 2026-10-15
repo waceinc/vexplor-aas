@@ -12,6 +12,7 @@ import type { Environment } from '../types/environment.js';
 import type { AssetAdministrationShell } from '../types/shell.js';
 import type { Submodel, SubmodelElement } from '../types/submodel.js';
 import { fill, tr } from '../i18n/index.js';
+import { jsonDepthExceeds } from './depth.js';
 
 export interface ParseIssue {
   /** JSON Pointer */
@@ -37,6 +38,12 @@ const SME_TYPES = new Set<string>(AAS_SUBMODEL_ELEMENTS);
  *    and surfaced as a 500. Real equipment models stay far below 64 levels — this only refuses hostile files.
  */
 export const MAX_ELEMENT_DEPTH = 64;
+
+/**
+ * Deepest JSON nesting accepted in an environment text — each element level costs two JSON levels (the element object
+ * and its `value` array), plus the envelope (environment, submodels, submodel, submodelElements, …).
+ */
+export const MAX_JSON_DEPTH = MAX_ELEMENT_DEPTH * 2 + 16;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -126,6 +133,12 @@ export interface ParseOptions {
 /** Converts a JSON string or an already-parsed object to an Environment */
 export function parseEnvironment(input: string | unknown, options: ParseOptions = {}): Environment {
   const { fillMissingModelType = true } = options;
+  // Important: the depth is checked on the text before anything recursive runs — see depth.ts
+  if (typeof input === 'string' && jsonDepthExceeds(input, MAX_JSON_DEPTH)) {
+    throw new AasParseError([
+      { pointer: '', message: fill(tr('요소가 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.'), { 0: MAX_ELEMENT_DEPTH }) },
+    ]);
+  }
   const raw: unknown = typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!isRecord(raw)) throw new AasParseError([{ pointer: '', message: tr('최상위는 객체여야 합니다.') }]);

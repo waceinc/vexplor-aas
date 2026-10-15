@@ -31,13 +31,16 @@ import { corsFromEnv, corsHeaders, isPreflight, type CorsPolicy } from './cors.j
 import { demoOutboundAllowed, isHttps, OutboundBlockedError, securityHeaders, setupCode, setupCodeRequired } from './security.js';
 import { demoFromEnv, seedDemoUser, startDemoReset } from './demo.js';
 import { hashPassword, verifyPassword } from './password.js';
-import { fill, tr } from '@aas/core';
+import { fill, jsonDepthExceeds, tr } from '@aas/core';
 import { bootLang, langOfRaw, runInLang } from './lang.js';
 import { startIntegrations, type IntegrationBoot, type StartIntegrationsOptions } from './integration/boot.js';
 import { integrationComposition } from './integration/compose.js';
 import { opcuaModeFromEnv, opcuaPkiDirFromEnv } from './integration/opcua-env.js';
 import { LoginThrottle } from './session.js';
 import type { StoreKind } from './integration/secrets.js';
+
+/** Deepest JSON request body accepted — well above any AAS model (64 element levels ≈ 144 JSON levels) */
+const MAX_REQUEST_JSON_DEPTH = 512;
 
 /** Upload cap — guards against zip bombs (spec Ⅷ, security). Default 512MB */
 const DEFAULT_MAX_BODY = 512 * 1024 * 1024;
@@ -223,8 +226,14 @@ export async function toApiRequest(
   if (raw.length > 0) {
     // Parse JSON; pass anything else (AASX uploads) through as raw bytes
     if (contentType.includes('json')) {
+      const text = new TextDecoder().decode(raw);
+      // Important: refused before parsing — routes walk models recursively, and a body nested thousands deep would
+      //    overflow the stack there (red-team L7). Real AAS JSON stays far below this
+      if (jsonDepthExceeds(text, MAX_REQUEST_JSON_DEPTH)) {
+        throw new ApiError(400, 'BadRequest', fill(tr('JSON 본문이 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.'), { 0: MAX_REQUEST_JSON_DEPTH }));
+      }
       try {
-        body = JSON.parse(new TextDecoder().decode(raw));
+        body = JSON.parse(text);
       } catch (error) {
         // A broken body is the client's mistake — 400, not a 500 that reads like a server fault
         throw new ApiError(400, 'BadRequest', fill(tr('JSON 본문을 읽지 못했습니다: {0}'), { 0: (error as Error).message }));
