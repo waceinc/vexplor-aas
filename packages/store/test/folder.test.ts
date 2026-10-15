@@ -439,3 +439,29 @@ describe('FolderStore — integration file formats', () => {
     expect((await second.readEvents({ after: 0, limit: 10 })).items.map((event) => event.id)).toEqual(['ok']);
   });
 });
+
+describe('FolderStore — a package id is never a path (red-team M3, 2026-10-16)', () => {
+  it('rejects ids that would leave the data folder, and writes nothing outside it', async () => {
+    const parent = freshDir();
+    const dir = join(parent, 'data');
+    const store = await open(dir);
+    for (const id of ['../escape', '..', 'a/b', 'a\\b', '', 'x'.repeat(65), 'pkg 1']) {
+      await expect(store.importPackage({ id, name: 'x.aasx', package: golden() })).rejects.toThrow();
+    }
+    expect(existsSync(join(parent, 'escape'))).toBe(false);
+    expect(existsSync(join(parent, 'model.json'))).toBe(false);
+  });
+
+  it('every method that builds a path checks the id first', async () => {
+    const store = await open(freshDir());
+    await expect(store.appendValues('../x', [])).rejects.toThrow();
+    await expect(store.deletePackage('../x')).rejects.toThrow();
+    await expect(store.putPackageFile('../x', { part: '/a', role: 'extra', contentType: 'text/plain', data: new Uint8Array() })).rejects.toThrow();
+  });
+
+  it('generated ids still work', async () => {
+    const store = await open(freshDir());
+    const record = await store.importPackage({ name: 'ok.aasx', package: golden() });
+    expect(record.id).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+  });
+});

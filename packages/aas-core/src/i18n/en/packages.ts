@@ -31,6 +31,10 @@ export const EN_PACKAGES: Record<string, string> = {
     'The modelType/id in the body differs from the path: {0} {1}. To change an id, use the Quick Fix correction path to keep references intact.',
   '로그인 이름이 비어 있습니다.': 'The login name is empty.',
   '이미 있는 로그인 이름입니다: {0}': 'This login name already exists: {0}',
+  '패키지 id로 쓸 수 없는 값입니다: {0}':
+    'This value cannot be used as a package id: {0}',
+  '{0} 파트를 읽지 못했습니다: {1}':
+    'Could not read the {0} part: {1}',
   '함께 쓰는 파일이라 고칠 수 없습니다 — 「다른 파일에서 가져오기」로 내 파일에 가져와 고치십시오.':
     'This is a shared file and cannot be edited — use "Import from another file" to bring it into your own file and edit it there.',
   '파일은 한 사람당 {0}개까지 올릴 수 있습니다 — 안 쓰는 파일을 지우고 다시 하십시오.':
