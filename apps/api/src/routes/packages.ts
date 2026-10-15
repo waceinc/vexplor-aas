@@ -69,7 +69,6 @@ import { decodeIdentifier } from '../base64url.js';
 import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest } from '../http.js';
 import { fieldValues, fileOf, MultipartError, parseMultipart } from '../multipart.js';
 import type { Route } from '../router.js';
-import { withSafeThumbnail } from '../user-file.js';
 import { originalFile } from './bundle-files.js';
 import { derivationFile, newDerivation } from './derivation.js';
 import { fill, tr } from '@aas/core';
@@ -691,8 +690,9 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       success: [201],
       async handle({ request }) {
         const upload = uploadedPackage(request);
-        // Important: the thumbnail's declared type comes from the uploader's [Content_Types] — store what the bytes prove (H1)
-        const pkg = withSafeThumbnail(readAasx(upload.data, readOptions));
+        // Important: stored exactly as in the package (lossless round-trip). The thumbnail's declared type comes from the
+        //    uploader, so it is never trusted when serving — the GET decides by the bytes (user-file.ts, red-team H1)
+        const pkg = readAasx(upload.data, readOptions);
         // Keep the original bytes — if not fixed, this exact file goes into the reference bundle (hash check)
         const record = await store.importPackage({ name: upload.name, package: pkg, keep: [originalFile(upload.data)] });
         const description = await packageDescription(store, record);
@@ -725,7 +725,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         if (!existing) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
 
         const upload = uploadedPackage(request);
-        const pkg = withSafeThumbnail(readAasx(upload.data, readOptions));
+        const pkg = readAasx(upload.data, readOptions);
         // Replacing is the same as storing anew. Keep the same packageId to preserve client links
         await store.deletePackage(packageId);
         // Important: **carry the owner over unchanged.** Otherwise the file would belong to whoever replaced it — an admin replacing

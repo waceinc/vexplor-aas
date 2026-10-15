@@ -12,6 +12,7 @@
  *   - the demo account's "no downloads" rule is decided by what the route does, not only by response headers
  */
 import { readAasx, writeAasx } from '@aas/aasx';
+import { strFromU8, unzipSync } from 'fflate';
 import { InMemoryStore } from '@aas/store';
 import { createApi, encodeIdentifier, type ApiRequest } from '@aas/api';
 import { readFileSync } from 'node:fs';
@@ -102,7 +103,7 @@ describe('H1 — a thumbnail upload must be a raster image', () => {
   });
 });
 
-describe('H1 — a thumbnail imported inside an AASX is stored with a safe type', () => {
+describe('H1 — an imported thumbnail keeps its stored type, and is only made safe when served', () => {
   it('an HTML thumbnail declared text/html is kept as bytes but never served as HTML', async () => {
     const evil = writeAasx({ ...golden, thumbnail: { part: '/thumbnail.png', contentType: 'text/html', data: HTML } });
     const created = await call('POST', '/packages', { body: evil, query: { name: 'evil.aasx' } });
@@ -112,9 +113,35 @@ describe('H1 — a thumbnail imported inside an AASX is stored with a safe type'
     const got = await call('GET', thumbPath());
     expectOpaqueDownload(got);
     expect(got.body).toEqual(HTML);
-    // And the stored type itself is no longer the attacker's
-    const exported = readAasx((await call('GET', `/packages/${packageId}`)).body as Uint8Array);
-    expect(exported.thumbnail?.contentType).not.toBe('text/html');
+  });
+
+  it('an SVG thumbnail round-trips with a byte-identical [Content_Types] entry, and GET serves it as an attachment', async () => {
+    const svg = text('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>');
+    const source = writeAasx({ ...golden, thumbnail: { part: '/thumbnail.svg', contentType: 'image/svg+xml', data: svg } });
+    // Point the shell at the SVG part, as a real package with an SVG thumbnail would
+    const pkg = readAasx(source);
+    const shell = pkg.environment.assetAdministrationShells![0]!;
+    shell.assetInformation.defaultThumbnail = { path: '/thumbnail.svg', contentType: 'image/svg+xml' };
+    const upload = writeAasx(pkg);
+    const entryOf = (data: Uint8Array): string => {
+      const types = strFromU8(unzipSync(data)['[Content_Types].xml']!);
+      const found = /<(Override|Default)[^>]*(PartName="\/thumbnail\.svg"|Extension="svg")[^>]*>/.exec(types);
+      expect(found).not.toBeNull();
+      return found![0];
+    };
+
+    const created = await call('POST', '/packages', { body: upload, query: { name: 'svg-thumb.aasx' } });
+    expect(created.status).toBe(201);
+    packageId = created.body.packageId;
+
+    const exported = (await call('GET', `/packages/${packageId}`)).body as Uint8Array;
+    expect(entryOf(exported)).toBe(entryOf(upload));
+    expect(readAasx(exported).thumbnail).toMatchObject({ part: '/thumbnail.svg', contentType: 'image/svg+xml' });
+    expect(readAasx(exported).thumbnail?.data).toEqual(svg);
+
+    const got = await call('GET', thumbPath());
+    expectOpaqueDownload(got);
+    expect(got.body).toEqual(svg);
   });
 });
 

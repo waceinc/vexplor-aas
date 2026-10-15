@@ -8,11 +8,11 @@
  * Important: **the bytes decide, never the declared type.** A file is served inline only when its first bytes are
  *    one of a few passive formats, and then with the type the bytes prove. Everything else leaves as an opaque
  *    `application/octet-stream` attachment, which a browser neither renders nor runs (with `nosniff`).
+ * Important: stored types are kept exactly as uploaded — AASX round-trips must stay lossless, so an imported package's
+ *    [Content_Types] is never rewritten. Safety is enforced here, when serving, and nowhere else.
  * Important: every such response also carries a sandbox CSP. Even if a passive check were ever wrong, the document
  *    would get a unique opaque origin with scripts off — it could not read our cookies or call our API.
  */
-import type { AasxPackage } from '@aas/aasx';
-
 import type { ApiResponse } from './http.js';
 
 /** Raster images a browser draws but never executes — the only types a thumbnail may have */
@@ -75,16 +75,4 @@ export function userFileResponse(data: Uint8Array, filename?: string): ApiRespon
     },
     body: data,
   };
-}
-
-/**
- * Thumbnail as stored on import: the bytes are kept (lossless), only the type is replaced by what they prove.
- * Important: a thumbnail declared `text/html` inside someone's AASX must not be stored as `text/html` — the next
- *    reader of that value (an export, a future route) should not have to know it was hostile.
- */
-export function withSafeThumbnail<T extends AasxPackage>(pkg: T): T {
-  if (!pkg.thumbnail) return pkg;
-  const proven = rasterTypeOf(pkg.thumbnail.data) ?? 'application/octet-stream';
-  if (proven === pkg.thumbnail.contentType) return pkg;
-  return { ...pkg, thumbnail: { ...pkg.thumbnail, contentType: proven } };
 }

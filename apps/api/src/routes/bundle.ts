@@ -66,7 +66,7 @@ import {
   type EvidenceSource,
 } from './evidence.js';
 import type { Route } from '../router.js';
-import { userFileResponse, withSafeThumbnail } from '../user-file.js';
+import { userFileResponse } from '../user-file.js';
 import { localTimestamp } from './packages.js';
 
 /**
@@ -815,7 +815,7 @@ export async function importBundle(
     let packageId = opened.get(digest);
     const reused = packageId !== undefined;
     if (!packageId) {
-      const pkg = withSafeThumbnail(readAasx(bytes, { limits }));
+      const pkg = readAasx(bytes, { limits });
       const name = relative.split('/').pop()!;
       // Keep the original as well — re-exporting yields the same bytes, so the hash chain continues
       packageId = (await store.importPackage({ name, package: pkg, keep: [originalFile(bytes)] })).id;
