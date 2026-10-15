@@ -66,6 +66,7 @@ import {
   type EvidenceSource,
 } from './evidence.js';
 import type { Route } from '../router.js';
+import { userFileResponse, withSafeThumbnail } from '../user-file.js';
 import { localTimestamp } from './packages.js';
 
 /**
@@ -814,7 +815,7 @@ export async function importBundle(
     let packageId = opened.get(digest);
     const reused = packageId !== undefined;
     if (!packageId) {
-      const pkg = readAasx(bytes, { limits });
+      const pkg = withSafeThumbnail(readAasx(bytes, { limits }));
       const name = relative.split('/').pop()!;
       // Keep the original as well — re-exporting yields the same bytes, so the hash chain continues
       packageId = (await store.importPackage({ name, package: pkg, keep: [originalFile(bytes)] })).id;
@@ -977,22 +978,21 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
       },
     },
     {
-      /** Get an attachment — opened for viewing in the UI */
+      /** Get an attachment — the UI fetches it and saves it as a file */
       method: 'GET',
       pattern: '/packages/:packageId/bundle/files',
       success: [200],
+      fileDownload: true,
       async handle({ params, request }) {
         const path = checkAttachmentPath(request.query['path'] ?? '');
         const found = (await listAttachments(store, params['packageId']!)).find((a) => a.path === path);
         if (!found) throw new ApiError(404, 'NotFound', fill(tr('첨부가 없습니다: {0}'), { 0: path }));
-        return {
-          status: 200,
-          headers: {
-            'content-type': found.contentType,
-            'content-disposition': `attachment; filename="attachment"; filename*=UTF-8''${encodeURIComponent(path.split('/').pop()!)}`,
-          },
-          body: found.data,
-        };
+        // Important: the stored type comes from the file name the uploader picked (an .svg can carry script) — user-file.ts
+        //    decides by the bytes. A passive file is still offered under its name, so saving it keeps working
+        const response = userFileResponse(found.data, path.split('/').pop());
+        response.headers['content-disposition'] ??=
+          `attachment; filename="attachment"; filename*=UTF-8''${encodeURIComponent(path.split('/').pop()!)}`;
+        return response;
       },
     },
     {

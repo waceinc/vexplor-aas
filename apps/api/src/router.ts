@@ -20,6 +20,12 @@ export interface Route {
    * Left empty for extension routes outside the spec.
    */
   success?: number[];
+  /**
+   * This route hands a stored file out of the server (attachment, package, bundle). The demo account may not use it.
+   * Important: declared on the route as well as read from the response — a file served inline (a PDF manual) has no
+   *    `content-disposition`, so a header-only check let the demo account take it out (red-team D4, 2026-10-16).
+   */
+  fileDownload?: boolean;
   handle: (ctx: RouteContext) => Promise<ApiResponse>;
 }
 

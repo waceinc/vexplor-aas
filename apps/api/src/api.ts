@@ -206,9 +206,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
             ? await undo.capture(packageId, describeChange(request.method, request.path), actor?.name, SIDECAR_PATTERNS.has(found.route.pattern))
             : undefined;
         const response = await found.route.handle({ request: inbound, params: found.params });
-        // Important: the demo account **cannot take files out.** It looks at the outgoing response, not the path
-        //    — even as download paths grow, nothing is missed (demo.ts)
-        if (options.demo && isDemoAccount(options.demo, principal) && isFileDownload(response)) {
+        // Important: the demo account **cannot take files out.** It looks at the outgoing response — even as download paths
+        //    grow, nothing is missed (demo.ts) — and at the route's declared intent, for files that go out inline (router.ts)
+        if (options.demo && isDemoAccount(options.demo, principal) && (found.route.fileDownload || isFileDownload(response))) {
           return errorResponse(
             403,
             'Forbidden',

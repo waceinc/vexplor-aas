@@ -110,6 +110,8 @@ export const EN_API: Record<string, string> = {
   '첨부 파트가 패키지에 없습니다: {0}': 'The attachment part is not in the package: {0}',
   '첨부는 File·Blob 요소에만 붙습니다.': 'Attachments can only be set on File and Blob elements.',
   '썸네일이 없습니다.': 'There is no thumbnail.',
+  '썸네일은 PNG · JPEG · GIF · WebP 그림 파일만 올릴 수 있습니다.':
+    'A thumbnail must be a PNG, JPEG, GIF or WebP image.',
   '그 Submodel 참조가 없습니다.': 'There is no such Submodel reference.',
 
   // ── routes/packages.ts — packages · composition · import · collection ────────────────────
