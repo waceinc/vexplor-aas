@@ -690,6 +690,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       success: [201],
       async handle({ request }) {
         const upload = uploadedPackage(request);
+        // Important: stored exactly as in the package (lossless round-trip). The thumbnail's declared type comes from the
+        //    uploader, so it is never trusted when serving — the GET decides by the bytes (user-file.ts, red-team H1)
         const pkg = readAasx(upload.data, readOptions);
         // Keep the original bytes — if not fixed, this exact file goes into the reference bundle (hash check)
         const record = await store.importPackage({ name: upload.name, package: pkg, keep: [originalFile(upload.data)] });

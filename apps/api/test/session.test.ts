@@ -132,9 +132,13 @@ describe('login attempt limiting — others cannot lock my account (2026-10-06 s
     expect(throttle.blocked('kim', '198.51.100.7')).toBe(false);
   });
 
-  it('rotating addresses still stops at the account-wide limit', () => {
+  it('rotating addresses slows the account down at the account-wide limit — without locking a fresh address out', () => {
+    // Important: this was a hard block until the 2026-10-16 red-team review (L1) — a targeted lockout of the real owner
     const throttle = new LoginThrottle(() => 0);
-    for (let i = 0; i < 50; i += 1) throttle.fail('kim', `10.0.0.${i}`);
-    expect(throttle.blocked('kim', '10.9.9.9')).toBe(true);
+    for (let i = 0; i < 49; i += 1) throttle.fail('kim', `10.0.0.${i}`);
+    expect(throttle.slowdownMs('kim')).toBe(0);
+    throttle.fail('kim', '10.0.0.49');
+    expect(throttle.slowdownMs('kim')).toBeGreaterThan(0);
+    expect(throttle.blocked('kim', '10.9.9.9')).toBe(false);
   });
 });

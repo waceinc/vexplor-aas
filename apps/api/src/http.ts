@@ -37,6 +37,12 @@ export interface ApiRequest {
    * Important: **use it only for counting** — behind a proxy it is not a trustworthy value (security.ts).
    */
   remoteAddress?: string;
+  /**
+   * How this request was let in — set by api.ts next to `principal`, from the same single authorization decision.
+   * Important: "no principal" alone does not tell a full API key from a read-only one. Routes that need an admin read
+   *    this instead of assuming (red-team M2, 2026-10-16: a read-only key passed the admin check and read contact details).
+   */
+  access?: { level: 'full' | 'read-only'; via: 'session' | 'apikey' | 'open' };
 }
 
 export interface ApiResponse {
@@ -84,6 +90,21 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = 'ApiError';
+  }
+}
+
+/**
+ * The server is busy with expensive work (password hashes, large uploads) — 503 with `Retry-After`.
+ * Important: a refusal, not a queue without end. Queuing everything turns a burst into memory and minutes of latency
+ *    for everyone; refusing early keeps the server answering (red-team L4 / L9, 2026-10-16).
+ */
+export class ServiceBusyError extends ApiError {
+  constructor(
+    message: string,
+    readonly retryAfterSeconds: number,
+  ) {
+    super(503, 'ServiceUnavailable', message);
+    this.name = 'ServiceBusyError';
   }
 }
 

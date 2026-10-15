@@ -115,6 +115,11 @@ const ALWAYS_OPEN = new Set([
   '/auth/signup',
 ]);
 
+/** Whether a path is passed through without tokens or login (the account doors and /health) */
+export function isAlwaysOpen(path: string): boolean {
+  return ALWAYS_OPEN.has(path);
+}
+
 export interface AuthResult {
   ok: boolean;
   level?: AccessLevel;

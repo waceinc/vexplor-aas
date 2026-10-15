@@ -493,6 +493,9 @@ class ScopedStore implements AasStore {
   createUser(user: NewUser): Promise<UserRecord> {
     return this.base.createUser(user);
   }
+  createFirstUser(user: NewUser): Promise<UserRecord | undefined> {
+    return this.base.createFirstUser(user);
+  }
   updateUser(
     id: string,
     patch: Partial<Pick<UserRecord, 'displayName' | 'role' | 'passwordHash' | 'disabled' | 'email'>>,

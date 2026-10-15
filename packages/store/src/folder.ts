@@ -53,10 +53,19 @@ import type {
   NewUser,
   UserRecord,
   WriteOptions, CreateOptions } from './types.js';
+import { InvalidPackageIdError } from './types.js';
 
 const MODEL_FILE = 'model.json';
 const USERS_FILE = 'users.json';
 const VALUES_FILE = 'values.jsonl';
+
+/**
+ * Shape of a package id that may become a folder name — generated ids are `pkg_N`.
+ * Important: the id is used as a path. Without this check an id like `../x` writes outside the data folder and
+ *    `deletePackage` removes a folder of the attacker's choosing (red-team M3, 2026-10-16). Every method that builds
+ *    a path goes through packageDir; nothing joins a package id by hand.
+ */
+const PACKAGE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Test seams — a failing rename is how a torn write (power loss between two files) is reproduced */
 export interface FolderStoreOptions {
@@ -83,8 +92,9 @@ export class FolderStore extends InMemoryStore {
     await this.readUsers();
     const entries = await readdir(this.dir, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const modelPath = join(this.dir, entry.name, MODEL_FILE);
+      // Folders that are not package ids are not ours (someone's backup, a stray copy) — leave them alone
+      if (!entry.isDirectory() || !PACKAGE_ID.test(entry.name)) continue;
+      const modelPath = join(this.packageDir(entry.name), MODEL_FILE);
       let snapshot: PackageSnapshot;
       try {
         snapshot = JSON.parse(await readFile(modelPath, 'utf8')) as PackageSnapshot;
@@ -144,6 +154,12 @@ export class FolderStore extends InMemoryStore {
     return record;
   }
 
+  override async createFirstUser(user: NewUser): Promise<UserRecord | undefined> {
+    const record = await super.createFirstUser(user);
+    if (record) await this.persistUsers();
+    return record;
+  }
+
   override async updateUser(
     id: string,
     patch: Parameters<InMemoryStore['updateUser']>[1],
@@ -164,10 +180,18 @@ export class FolderStore extends InMemoryStore {
     await this.persistUsers();
   }
 
+  /** The folder of one package — refuses ids that are not plain names */
+  private packageDir(packageId: string): string {
+    if (!PACKAGE_ID.test(packageId)) {
+      throw new InvalidPackageIdError(fill(tr('패키지 id로 쓸 수 없는 값입니다: {0}'), { 0: JSON.stringify(packageId.slice(0, 80)) }));
+    }
+    return join(this.dir, packageId);
+  }
+
   private async readValueFile(packageId: string): Promise<CollectedValue[]> {
     let text: string;
     try {
-      text = await readFile(join(this.dir, packageId, VALUES_FILE), 'utf8');
+      text = await readFile(join(this.packageDir(packageId), VALUES_FILE), 'utf8');
     } catch {
       return [];
     }
@@ -215,7 +239,7 @@ export class FolderStore extends InMemoryStore {
   }
 
   private async writeModel(packageId: string): Promise<void> {
-    const folder = join(this.dir, packageId);
+    const folder = this.packageDir(packageId);
     await mkdir(folder, { recursive: true });
     const target = join(folder, MODEL_FILE);
     const temp = `${target}.tmp`;
@@ -243,19 +267,29 @@ export class FolderStore extends InMemoryStore {
     keep?: readonly PackageFileRecord[];
     owner?: string | null;
   }): Promise<PackageRecord> {
+    // Checked before the memory copy exists — otherwise a refused id would still be listed until restart
+    if (input.id !== undefined) this.packageDir(input.id);
     const record = await super.importPackage(input);
     await this.persistChange(record.id);
     return record;
   }
 
+  /** Refuses a malformed id here too — every package route starts with this lookup, so the answer is one 400 */
+  override async getPackage(packageId: string): Promise<PackageRecord | undefined> {
+    this.packageDir(packageId);
+    return super.getPackage(packageId);
+  }
+
   override async deletePackage(packageId: string): Promise<void> {
+    const folder = this.packageDir(packageId);
     await super.deletePackage(packageId);
     await this.files.flushEvents();
-    await rm(join(this.dir, packageId), { recursive: true, force: true });
+    await rm(folder, { recursive: true, force: true });
     await this.files.packageDeleted(packageId);
   }
 
   override async putPackageFile(packageId: string, file: PackageFileRecord): Promise<void> {
+    this.packageDir(packageId);
     await super.putPackageFile(packageId, file);
     await this.persistChange(packageId);
   }
@@ -301,9 +335,9 @@ export class FolderStore extends InMemoryStore {
     packageId: string,
     values: readonly CollectedValue[],
   ): Promise<void> {
+    const folder = this.packageDir(packageId);
     await super.appendValues(packageId, values);
     if (values.length === 0) return;
-    const folder = join(this.dir, packageId);
     await mkdir(folder, { recursive: true });
     const lines = values.map((value) => JSON.stringify(value)).join('\n');
     await appendFile(join(folder, VALUES_FILE), `${lines}\n`, 'utf8');
@@ -431,7 +465,7 @@ export class FolderStore extends InMemoryStore {
   private async rewriteValueFile(packageId: string): Promise<void> {
     {
       const kept = await super.readValues(packageId, { limit: Number.MAX_SAFE_INTEGER });
-      const path = join(this.dir, packageId, VALUES_FILE);
+      const path = join(this.packageDir(packageId), VALUES_FILE);
       if (kept.length === 0) {
         await rm(path, { force: true });
         return;

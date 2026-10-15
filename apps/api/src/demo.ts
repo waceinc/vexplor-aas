@@ -73,8 +73,13 @@ export function demoFromEnv(env: Record<string, string | undefined>): DemoConfig
  */
 export function isFileDownload(response: ApiResponse): boolean {
   const disposition = response.headers['content-disposition'] ?? '';
-  return disposition.toLowerCase().includes('attachment');
+  if (disposition.toLowerCase().includes('attachment')) return true;
+  // Important: the Part 2 serialization route returns a whole AASX without a file name — it is still the package leaving
+  return (response.headers['content-type'] ?? '').toLowerCase().startsWith(AASX_PACKAGE_TYPE);
 }
+
+/** Same value as AASX_MEDIA_TYPE in routes/packages.ts — not imported, to keep this module free of route code */
+const AASX_PACKAGE_TYPE = 'application/asset-administration-shell-package';
 
 /**
  * Create the demo account, and if it already exists, **bring it in line with the settings** (name, password).

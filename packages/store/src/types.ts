@@ -248,6 +248,17 @@ export class InvalidContentError extends Error {
   }
 }
 
+/**
+ * A package id this store cannot use (the folder store refuses anything but a plain name — it becomes a path).
+ * Important: a subclass of InvalidContentError so the API answers 400 like any other bad input, not 500.
+ */
+export class InvalidPackageIdError extends InvalidContentError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidPackageIdError';
+  }
+}
+
 export class ConflictError extends Error {
   constructor(
     readonly expected: number,
@@ -419,6 +430,12 @@ export interface AasStore extends IntegrationStore {
   listUsers(): Promise<UserRecord[]>;
   /** Important: rejects if the same login already exists (enforces the same meaning as the table's UNIQUE in the memory implementation too) */
   createUser(user: NewUser): Promise<UserRecord>;
+  /**
+   * Creates the account **only if there is none yet** — undefined otherwise. The check and the insert are one step.
+   * Important: "count, then create" with anything awaited in between (the password hash) let two first-admin setups
+   *    racing each other both succeed (red-team L3, 2026-10-16). Each implementation makes this atomic in its own way.
+   */
+  createFirstUser(user: NewUser): Promise<UserRecord | undefined>;
   /** Edits password, name, role and lock state. Changes only what is given */
   updateUser(
     id: string,

@@ -6,6 +6,7 @@ export * from './types/shell.js';
 export * from './types/concept.js';
 export * from './types/environment.js';
 export * from './json/deserialize.js';
+export * from './json/depth.js';
 export * from './json/serialize.js';
 export * from './traverse.js';
 export * from './pointer.js';

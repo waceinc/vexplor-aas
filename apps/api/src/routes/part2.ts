@@ -43,6 +43,7 @@ import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest, type 
 import { AASX_MEDIA_TYPE } from './packages.js';
 import { fieldValues, fileOf, parseMultipart } from '../multipart.js';
 import type { Route, RouteContext } from '../router.js';
+import { rasterTypeOf, userFileResponse } from '../user-file.js';
 import { fill, tr } from '@aas/core';
 
 const BASE = '/packages/:packageId/api/v3.0';
@@ -798,6 +799,7 @@ function submodelElementRoutes(
       method: 'GET',
       pattern: `${elements}/:path/attachment`,
       success: [200],
+      fileDownload: true,
       async handle(ctx) {
         const packageId = ctx.params['packageId']!;
         const submodel = await readSubmodel(store, ctx, resolveSubmodel);
@@ -807,7 +809,8 @@ function submodelElementRoutes(
 
         const file = (await store.packageFiles(packageId)).find((f) => f.part === part);
         if (!file) throw new ApiError(404, 'NotFound', fill(tr('첨부 파트가 패키지에 없습니다: {0}'), { 0: part }));
-        return bytes(200, file.data, file.contentType || 'application/octet-stream');
+        // Important: never echo the stored type — the uploader chose it (user-file.ts)
+        return userFileResponse(file.data, part.split('/').pop());
       },
     },
     {
@@ -1101,7 +1104,8 @@ export function part2Routes(store: AasStore): Route[] {
         const record = await requireShell(store, ctx);
         const thumbnail = await findThumbnail(store, packageId, record.content);
         if (!thumbnail) throw new ApiError(404, 'NotFound', tr('썸네일이 없습니다.'));
-        return bytes(200, thumbnail.data, thumbnail.contentType);
+        // Important: never echo the stored type — the uploader chose it (user-file.ts)
+        return userFileResponse(thumbnail.data);
       },
     },
     {
@@ -1117,12 +1121,18 @@ export function part2Routes(store: AasStore): Route[] {
         const packageId = ctx.params['packageId']!;
         const record = await requireShell(store, ctx);
         const upload = uploadedFile(ctx.request);
+        // Important: a thumbnail is a picture — only raster images whose bytes prove it. SVG, HTML and scripts are refused
+        //    here, before anything is stored, so a hostile "thumbnail" never exists in the package (red-team H1)
+        const raster = rasterTypeOf(upload.data);
+        if (!raster) {
+          throw new ApiError(400, 'BadRequest', tr('썸네일은 PNG · JPEG · GIF · WebP 그림 파일만 올릴 수 있습니다.'));
+        }
 
         const part = upload.name.startsWith('/') ? upload.name : `/${upload.name}`;
         await store.putPackageFile(packageId, {
           part,
           role: 'thumbnail',
-          contentType: upload.contentType,
+          contentType: raster,
           data: upload.data,
         });
 
@@ -1135,7 +1145,7 @@ export function part2Routes(store: AasStore): Route[] {
         if (previous && previous !== part) {
           await store.deletePackageFile(packageId, previous).catch(() => undefined);
         }
-        info['defaultThumbnail'] = { path: part, contentType: upload.contentType };
+        info['defaultThumbnail'] = { path: part, contentType: raster };
 
         const updated = await store.updateIdentifiable(
           packageId,

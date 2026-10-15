@@ -120,6 +120,8 @@ export class LoginThrottle {
     /** After this many failures on one account regardless of address (guessing attack) */
     private readonly loginLimit = 50,
     private readonly loginBlockMs = 15 * 60 * 1000,
+    /** Fixed delay added to every try on an account past `loginLimit` (see slowdownMs) */
+    private readonly slowMs = 2000,
   ) {}
 
   private static active(
@@ -139,8 +141,20 @@ export class LoginThrottle {
     const name = login.toLowerCase();
     const at = this.now();
     const mine = LoginThrottle.active(this.fails, `${name}|${address}`, at);
-    const all = LoginThrottle.active(this.perLogin, name, at);
-    return (mine?.count ?? 0) >= this.limit || (all?.count ?? 0) >= this.loginLimit;
+    return (mine?.count ?? 0) >= this.limit;
+  }
+
+  /**
+   * Delay before checking a password for this account, in ms — 0 normally, `slowMs` once the account has had
+   * `loginLimit` failures from any mix of addresses.
+   *
+   * Important: this used to be a hard block (red-team L1, 2026-10-16). An attacker rotating spoofed addresses could fail
+   *    50 times and lock the real owner out **from everywhere** for 15 minutes — a targeted lockout of the admin.
+   *    A fixed delay still makes guessing slow (and the hash gate caps parallel tries), but the owner gets in.
+   */
+  slowdownMs(login: string): number {
+    const all = LoginThrottle.active(this.perLogin, login.toLowerCase(), this.now());
+    return (all?.count ?? 0) >= this.loginLimit ? this.slowMs : 0;
   }
 
   fail(login: string, address = ''): void {
@@ -155,8 +169,16 @@ export class LoginThrottle {
     }
   }
 
+  /**
+   * A successful login. Clears this address's count and takes back the one attempt `fail` counted up front.
+   * Important: the login route counts **before** hashing (red-team L4) — counting after let a parallel burst run all its
+   *    hashes before the first failure was recorded. So a success must undo its own provisional count.
+   */
   pass(login: string, address = ''): void {
-    this.fails.delete(`${login.toLowerCase()}|${address}`);
+    const name = login.toLowerCase();
+    this.fails.delete(`${name}|${address}`);
+    const all = LoginThrottle.active(this.perLogin, name, this.now());
+    if (all && all.count > 0) all.count -= 1;
   }
 }
 

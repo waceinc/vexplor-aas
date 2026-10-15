@@ -62,6 +62,21 @@ export interface ReadResult extends AasxPackage {
   opc: OpcSnapshot;
 }
 
+/**
+ * Parses one part; any failure becomes an AasxReadError naming the part.
+ * Important: a hostile file must end as "this file cannot be read" (400), never as a raw parser error or a stack
+ *    overflow that the server reports as its own fault (500) — red-team L7 / L8, 2026-10-16.
+ */
+function readPart<T>(part: string, parse: () => T): T {
+  try {
+    return parse();
+  } catch (error) {
+    if (error instanceof AasxReadError || error instanceof AasxLimitError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new AasxReadError(fill(tr('{0} 파트를 읽지 못했습니다: {1}'), { 0: part, 1: message.slice(0, 500) }));
+  }
+}
+
 export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadResult {
   const { strict = false } = options;
   const warnings: string[] = [];
@@ -90,14 +105,14 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   const ctPart = '/[Content_Types].xml';
   const ctRaw = parts.get(ctPart);
   let contentTypes: ContentTypes = { defaults: new Map(), overrides: new Map() };
-  if (ctRaw) contentTypes = parseContentTypes(strFromU8(ctRaw));
+  if (ctRaw) contentTypes = readPart(ctPart, () => parseContentTypes(strFromU8(ctRaw)));
   else fail(tr('[Content_Types].xml이 없습니다.'));
 
   // ② Parse all relationship files
   const relsByOwner = new Map<string, Relationship[]>();
   for (const [part, data] of parts) {
     if (!part.includes('/_rels/') || !part.endsWith('.rels')) continue;
-    relsByOwner.set(part, parseRelationships(strFromU8(data), ownerDirOfRels(part)));
+    relsByOwner.set(part, readPart(part, () => parseRelationships(strFromU8(data), ownerDirOfRels(part))));
   }
   const relsOf = (part: string): Relationship[] => relsByOwner.get(relsPathFor(part)) ?? [];
 
@@ -125,13 +140,12 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
       fill(tr('XML 판을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.'), { 0: specPart, 1: DEFAULT_SPEC_PART }),
     );
   }
-  const environment: Environment = isXml
-    ? parseEnvironmentXml(strFromU8(specRaw))
-    : lower.endsWith('.json')
-      ? parseEnvironment(strFromU8(specRaw))
-      : (() => {
-          throw new AasxReadError(fill(tr('알 수 없는 본문 형식입니다: {0} (.json 또는 .xml)'), { 0: specPart }));
-        })();
+  if (!isXml && !lower.endsWith('.json')) {
+    throw new AasxReadError(fill(tr('알 수 없는 본문 형식입니다: {0} (.json 또는 .xml)'), { 0: specPart }));
+  }
+  const environment: Environment = readPart(specPart, () =>
+    isXml ? parseEnvironmentXml(strFromU8(specRaw)) : parseEnvironment(strFromU8(specRaw)),
+  );
 
   // ④ Thumbnail
   const consumed = new Set<string>([ctPart, specPart, originPart, ...relsByOwner.keys()]);

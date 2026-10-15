@@ -110,6 +110,18 @@ export const EN_API: Record<string, string> = {
   '첨부 파트가 패키지에 없습니다: {0}': 'The attachment part is not in the package: {0}',
   '첨부는 File·Blob 요소에만 붙습니다.': 'Attachments can only be set on File and Blob elements.',
   '썸네일이 없습니다.': 'There is no thumbnail.',
+  '지금은 로그인 요청이 많습니다. 잠시 뒤에 다시 해 주십시오.':
+    'There are too many sign-in requests right now. Please try again shortly.',
+  '이 서버는 작업 공간을 사람마다 나눕니다(AAS_WORKSPACE=private) — 먼저 첫 관리자 계정을 만드십시오.':
+    'This server separates workspaces per person (AAS_WORKSPACE=private) — create the first administrator account first.',
+  '지금은 큰 파일을 올리는 사람이 많습니다. 잠시 뒤에 다시 올려 주십시오.':
+    'Too many large uploads are in progress right now. Please upload again shortly.',
+  'JSON 본문을 읽지 못했습니다: {0}':
+    'Could not read the JSON body: {0}',
+  'JSON 본문이 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.':
+    'The JSON body is nested too deeply — up to {0} levels are accepted.',
+  '썸네일은 PNG · JPEG · GIF · WebP 그림 파일만 올릴 수 있습니다.':
+    'A thumbnail must be a PNG, JPEG, GIF or WebP image.',
   '그 Submodel 참조가 없습니다.': 'There is no such Submodel reference.',
 
   // ── routes/packages.ts — packages · composition · import · collection ────────────────────
@@ -275,8 +287,8 @@ export const EN_API: Record<string, string> = {
     'Administrators and API keys see everything. Files uploaded before this are read-only for everyone.',
   'OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.':
     'OPC UA exposure is on — **everyone\'s values** go out on that port without authentication.',
-  '계정도 API 키도 없으면 가를 수 없습니다 — 모두가 같은 칸을 씁니다. 계정을 먼저 만드십시오.':
-    'Without accounts or API keys nothing can be separated — everyone shares one workspace. Create accounts first.',
+  '계정도 API 키도 없어 사람을 가를 수 없습니다 — 첫 관리자를 만들기 전까지 파일 요청을 받지 않습니다.':
+    'No accounts and no API keys, so people cannot be told apart — file requests are refused until the first administrator is created.',
   '스스로 가입할 수 있습니다 — 새 계정의 역할: {0}': 'Self sign-up is open — role of new accounts: {0}',
   'AAS_SIGNUP_ROLE=admin은 받지 않습니다 — 가입하면 누구나 관리자가 됩니다. editor로 둡니다.':
     'AAS_SIGNUP_ROLE=admin is not accepted — anyone signing up would become an administrator. Using editor.',
