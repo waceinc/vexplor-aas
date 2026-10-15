@@ -397,9 +397,10 @@ docker compose up -d --build</code></pre>
   demo('loading');
   (async function(){
     var url;
+    // 주소는 https 출처만 받는다 — demo.json 이 바뀌어도 javascript: 같은 주소가 단추에 들어가지 않는다
     try{
       var r=await fetch('demo.json?t='+Date.now(),{cache:'no-store'});
-      var j=await r.json(); url=j&&j.url; if(!url) throw new Error('no url');
+      var j=await r.json(); var u=new URL(String(j&&j.url)); if(u.protocol!=='https:'||u.username||u.password) throw new Error('bad url'); url=u.origin;
     }catch(e){demo('down');return;}
     var root=url.replace(/\/$/,'');
     // 서버가 떠 있는지 아이콘 하나로 확인한다
