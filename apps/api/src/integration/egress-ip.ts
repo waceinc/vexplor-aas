@@ -90,6 +90,9 @@ const ALWAYS_BLOCKED = cidrs([
   '127.0.0.0/8',
   '0.0.0.0/8',
   '169.254.0.0/16',
+  // Azure platform endpoint (WireServer) — a public-looking address every Azure VM and App Service reaches; it serves
+  // platform agent and DHCP data, so a webhook URL must never point a server hosted on Azure at it
+  '168.63.129.16/32',
   '224.0.0.0/4',
   // 240/4 is reserved and contains the limited broadcast 255.255.255.255
   '240.0.0.0/4',
