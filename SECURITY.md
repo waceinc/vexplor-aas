@@ -76,5 +76,5 @@ Please read these before you deploy.
 | Upload memory | The body cap follows `AASX_MAX_TOTAL_MB` (twice that, at most 512 MB); at most two bodies over 32 MB are read at once, otherwise 503 with `Retry-After` |
 | Data folder paths | The folder store refuses package ids that are not plain names, so an id can never point outside the data folder |
 | Concurrent edits | ETags detect conflicts instead of overwriting |
-| Outbound connections (webhooks, MQTT) | DNS answer pinned for the connect; loopback, link-local and metadata addresses always refused; private networks and plain http/mqtt only when listed in `AAS_INTEGRATION_ALLOW`; redirects not followed |
+| Outbound connections (webhooks, MQTT) | DNS answer pinned for the connect; loopback, link-local, cloud metadata and the Azure platform address (168.63.129.16) always refused; private networks and plain http/mqtt only when listed in `AAS_INTEGRATION_ALLOW`; redirects not followed |
 | Integration secrets | Webhook signing secrets and broker passwords sealed with AES-256-GCM; shown once on creation |
