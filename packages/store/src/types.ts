@@ -248,6 +248,17 @@ export class InvalidContentError extends Error {
   }
 }
 
+/**
+ * A package id this store cannot use (the folder store refuses anything but a plain name — it becomes a path).
+ * Important: a subclass of InvalidContentError so the API answers 400 like any other bad input, not 500.
+ */
+export class InvalidPackageIdError extends InvalidContentError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidPackageIdError';
+  }
+}
+
 export class ConflictError extends Error {
   constructor(
     readonly expected: number,

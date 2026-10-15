@@ -53,6 +53,7 @@ import type {
   NewUser,
   UserRecord,
   WriteOptions, CreateOptions } from './types.js';
+import { InvalidPackageIdError } from './types.js';
 
 const MODEL_FILE = 'model.json';
 const USERS_FILE = 'users.json';
@@ -182,7 +183,7 @@ export class FolderStore extends InMemoryStore {
   /** The folder of one package — refuses ids that are not plain names */
   private packageDir(packageId: string): string {
     if (!PACKAGE_ID.test(packageId)) {
-      throw new Error(fill(tr('패키지 id로 쓸 수 없는 값입니다: {0}'), { 0: JSON.stringify(packageId.slice(0, 80)) }));
+      throw new InvalidPackageIdError(fill(tr('패키지 id로 쓸 수 없는 값입니다: {0}'), { 0: JSON.stringify(packageId.slice(0, 80)) }));
     }
     return join(this.dir, packageId);
   }
@@ -271,6 +272,12 @@ export class FolderStore extends InMemoryStore {
     const record = await super.importPackage(input);
     await this.persistChange(record.id);
     return record;
+  }
+
+  /** Refuses a malformed id here too — every package route starts with this lookup, so the answer is one 400 */
+  override async getPackage(packageId: string): Promise<PackageRecord | undefined> {
+    this.packageDir(packageId);
+    return super.getPackage(packageId);
   }
 
   override async deletePackage(packageId: string): Promise<void> {
