@@ -31,6 +31,13 @@ export class AasParseError extends Error {
 
 const SME_TYPES = new Set<string>(AAS_SUBMODEL_ELEMENTS);
 
+/**
+ * Deepest SubmodelElement nesting accepted (red-team L7, 2026-10-16).
+ * Important: the checks below recurse per level; a file nested a few thousand levels deep overflowed the call stack
+ *    and surfaced as a 500. Real equipment models stay far below 64 levels — this only refuses hostile files.
+ */
+export const MAX_ELEMENT_DEPTH = 64;
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
@@ -39,7 +46,11 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * Validates a SubmodelElement.
  * Only checks the modelType discriminator and passes the remaining fields through unchanged.
  */
-function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): void {
+function checkElement(node: unknown, pointer: string, issues: ParseIssue[], depth = 1): void {
+  if (depth > MAX_ELEMENT_DEPTH) {
+    issues.push({ pointer, message: fill(tr('요소가 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.'), { 0: MAX_ELEMENT_DEPTH }) });
+    return;
+  }
   if (!isRecord(node)) {
     issues.push({ pointer, message: tr('SubmodelElement는 객체여야 합니다.') });
     return;
@@ -62,7 +73,7 @@ function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): voi
       issues.push({ pointer: `${pointer}/${field}`, message: fill(tr('{0}는 배열이어야 합니다.'), { 0: field }) });
       return;
     }
-    children.forEach((c, i) => checkElement(c, `${pointer}/${field}/${i}`, issues));
+    children.forEach((c, i) => checkElement(c, `${pointer}/${field}/${i}`, issues, depth + 1));
   };
 
   if (mt === 'SubmodelElementCollection' || mt === 'SubmodelElementList') recurse('value');
@@ -78,7 +89,7 @@ function checkElement(node: unknown, pointer: string, issues: ParseIssue[]): voi
       }
       vars.forEach((v, i) => {
         if (isRecord(v) && v['value'] !== undefined) {
-          checkElement(v['value'], `${pointer}/${f}/${i}/value`, issues);
+          checkElement(v['value'], `${pointer}/${f}/${i}/value`, issues, depth + 1);
         }
       });
     }

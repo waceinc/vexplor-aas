@@ -23,7 +23,7 @@ import { createApi, toErrorResponse } from './api.js';
 import type { OpcUaPublisher } from './publisher.js';
 import { CollectSupervisor } from './supervisor.js';
 import { authFromEnv, isAsciiToken, isOpen, resolveBindHost } from './auth.js';
-import { ApiError, json, JSON_TYPE, type ApiRequest } from './http.js';
+import { ApiError, json, JSON_TYPE, ServiceBusyError, type ApiRequest } from './http.js';
 import { isDocumentRequest, openStatic, resolveStatic } from './static.js';
 import { seedTemplates } from './templates.js';
 import { retentionDaysFromEnv, startRetention } from './retention.js';
@@ -42,12 +42,56 @@ import type { StoreKind } from './integration/secrets.js';
 /** Upload cap — guards against zip bombs (spec Ⅷ, security). Default 512MB */
 const DEFAULT_MAX_BODY = 512 * 1024 * 1024;
 
+/**
+ * Body cap for this server.
+ * Important: when `AASX_MAX_TOTAL_MB` lowers the decompression cap, the body cap follows it (twice that, so a bundle
+ *    carrying a package and its kept original still fits), never above the default. Otherwise an operator who set a
+ *    small AASX cap to save memory still accepted 512 MB bodies held whole in memory (red-team L9, 2026-10-16).
+ *    An explicit `maxBodyBytes` wins.
+ */
+export function bodyLimitFor(options: Pick<ServerOptions, 'maxBodyBytes'>, limits: Partial<AasxLimits> | undefined): number {
+  if (options.maxBodyBytes !== undefined) return options.maxBodyBytes;
+  const total = limits?.maxTotalUncompressedBytes;
+  if (total === undefined || !Number.isFinite(total) || total <= 0) return DEFAULT_MAX_BODY;
+  return Math.min(DEFAULT_MAX_BODY, total * 2);
+}
+
+/**
+ * Large uploads in flight at once (red-team L9, 2026-10-16).
+ * Important: a body is held in memory whole and then parsed, so a few parallel 500 MB uploads exhaust the server.
+ *    Bodies past `thresholdBytes` take one of `maxConcurrent` slots; with none free the request gets 503 + Retry-After
+ *    at once instead of being read. Small requests never touch the slots.
+ */
+class LargeUploadSlots {
+  private used = 0;
+
+  constructor(
+    readonly thresholdBytes: number,
+    private readonly maxConcurrent: number,
+  ) {}
+
+  take(): () => void {
+    if (this.used >= this.maxConcurrent) {
+      throw new ServiceBusyError(tr('지금은 큰 파일을 올리는 사람이 많습니다. 잠시 뒤에 다시 올려 주십시오.'), 30);
+    }
+    this.used += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.used -= 1;
+    };
+  }
+}
+
 export interface ServerOptions {
   store?: AasStore;
   port?: number;
   maxBodyBytes?: number;
   /** Decompression cap for uploaded AASX. Can also be set via the AASX_MAX_TOTAL_MB env var */
   aasxLimits?: Partial<AasxLimits>;
+  /** Large uploads held in memory at once — default: 2 bodies over 32 MB (LargeUploadSlots) */
+  largeUploads?: { thresholdBytes?: number; maxConcurrent?: number };
   /**
    * Whether to enable collection (M8). Off by default — an authoring-only deployment has no reason to load the OPC UA stack.
    * Can also be enabled with the env var `COLLECT=on`.
@@ -123,15 +167,21 @@ function limitsFromEnv(): Partial<AasxLimits> | undefined {
   return { maxTotalUncompressedBytes: Math.floor(megabytes * 1024 * 1024) };
 }
 
-async function readBody(request: IncomingMessage, limit: number): Promise<Uint8Array> {
+async function readBody(request: IncomingMessage, limit: number, large?: BodySlot): Promise<Uint8Array> {
+  const tooLarge = (): ApiError =>
+    new ApiError(413, 'PayloadTooLarge', fill(tr('본문이 상한({0} 바이트)을 넘었습니다.'), { 0: limit }));
+  // Decide from the announced length before reading anything — refusing after buffering would defeat the point
+  const announced = Number(request.headers['content-length']);
+  if (Number.isFinite(announced) && announced > limit) throw tooLarge();
+  if (large && Number.isFinite(announced) && announced > large.slots.thresholdBytes) large.claim();
   const chunks: Uint8Array[] = [];
   let size = 0;
   for await (const chunk of request) {
     const data = chunk as Uint8Array;
     size += data.length;
-    if (size > limit) {
-      throw new ApiError(413, 'PayloadTooLarge', fill(tr('본문이 상한({0} 바이트)을 넘었습니다.'), { 0: limit }));
-    }
+    if (size > limit) throw tooLarge();
+    // Chunked bodies announce nothing — take the slot when the body actually grows past the threshold
+    if (large && size > large.slots.thresholdBytes) large.claim();
     chunks.push(data);
   }
   const out = new Uint8Array(size);
@@ -143,9 +193,16 @@ async function readBody(request: IncomingMessage, limit: number): Promise<Uint8A
   return out;
 }
 
+/** One request's claim on a large-upload slot — claimed at most once, released by the request handler */
+interface BodySlot {
+  slots: LargeUploadSlots;
+  claim(): void;
+}
+
 export async function toApiRequest(
   request: IncomingMessage,
   limit: number,
+  large?: BodySlot,
 ): Promise<ApiRequest> {
   const url = new URL(request.url ?? '/', 'http://localhost');
   const query: Record<string, string> = {};
@@ -160,12 +217,21 @@ export async function toApiRequest(
     if (typeof value === 'string') headers[key.toLowerCase()] = value;
   }
 
-  const raw = await readBody(request, limit);
+  const raw = await readBody(request, limit, large);
   const contentType = headers['content-type'] ?? '';
   let body: unknown;
   if (raw.length > 0) {
     // Parse JSON; pass anything else (AASX uploads) through as raw bytes
-    body = contentType.includes('json') ? JSON.parse(new TextDecoder().decode(raw)) : raw;
+    if (contentType.includes('json')) {
+      try {
+        body = JSON.parse(new TextDecoder().decode(raw));
+      } catch (error) {
+        // A broken body is the client's mistake — 400, not a 500 that reads like a server fault
+        throw new ApiError(400, 'BadRequest', fill(tr('JSON 본문을 읽지 못했습니다: {0}'), { 0: (error as Error).message }));
+      }
+    } else {
+      body = raw;
+    }
   }
 
   const remote = request.socket.remoteAddress;
@@ -445,7 +511,11 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       return (await opcua()).browseDevice({ endpoint, ...(self ? { selfUri: self } : {}) });
     },
   });
-  const limit = options.maxBodyBytes ?? DEFAULT_MAX_BODY;
+  const limit = bodyLimitFor(options, aasxLimits);
+  const largeSlots = new LargeUploadSlots(
+    options.largeUploads?.thresholdBytes ?? 32 * 1024 * 1024,
+    options.largeUploads?.maxConcurrent ?? 2,
+  );
   const webRoot = webRootFrom(options.webRoot);
   let ready: Promise<void> | undefined;
 
@@ -453,12 +523,15 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     // Important: set the language once more here — errors sent before reaching createApi, like the body cap (413),
     //    must also be in the request's language. It also keeps the startup log language (AAS_LANG) from leaking into requests
     void runInLang(langOfRaw(request.url, request.headers['accept-language']), async () => {
+      // Security headers attached to every response. Important: **they must be on static files too** — what CSP
+      // protects is precisely that UI. Adding them only to API responses would leave the app page itself unprotected.
+      // Important: computed **outside** the try — error responses written by the catch below need them as well
+      //    (red-team L5, 2026-10-16: a 413 or a broken-JSON error went out with no headers at all)
+      const guard = securityHeaders(isHttps(request.headers, (request.socket as { encrypted?: boolean }).encrypted === true));
+      let release: (() => void) | undefined;
       try {
         // Static files come first. Only real files are intercepted, so this never collides with API paths.
         // Important: no authentication here — the UI must load for the user to enter a token
-        // Security headers attached to every response. Important: **they must be on static files too** — what CSP
-        // protects is precisely that UI. Adding them only to API responses would leave the app page itself unprotected
-        const guard = securityHeaders(isHttps(request.headers, (request.socket as { encrypted?: boolean }).encrypted === true));
 
         if (webRoot && (request.method === 'GET' || request.method === 'HEAD')) {
           const path = new URL(request.url ?? '/', 'http://localhost').pathname;
@@ -479,7 +552,12 @@ export function createHttpServer(options: ServerOptions = {}): Server {
 
         ready ??= store.init();
         await ready;
-        const apiRequest = await toApiRequest(request, limit);
+        const apiRequest = await toApiRequest(request, limit, {
+          slots: largeSlots,
+          claim() {
+            release ??= largeSlots.take();
+          },
+        });
         const apiResponse = await handle(apiRequest);
 
         // If the API does not know the path but a browser asked for a page, serve the app shell
@@ -501,7 +579,12 @@ export function createHttpServer(options: ServerOptions = {}): Server {
         write(response, apiResponse.status, { ...guard, ...corsExtra, ...apiResponse.headers }, apiResponse.body);
       } catch (error) {
         const fallback = toErrorResponse(error);
-        write(response, fallback.status, fallback.headers, fallback.body);
+        // Important: a refused body was not read — close the connection rather than leave the rest of it in the pipe
+        if (fallback.status === 413 || fallback.status === 503) response.setHeader('connection', 'close');
+        write(response, fallback.status, { ...guard, ...fallback.headers }, fallback.body);
+      } finally {
+        // The body stays in memory until the response is written, so the slot is held until here
+        release?.();
       }
     });
   });
@@ -723,7 +806,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
       }
       if (isOpen(bootAuth) && bootUserCount === 0) {
         // Important: without logins there is nothing to separate by — users must not be left believing it is on
-        console.log('     ⚠️  ' + tr('계정도 API 키도 없으면 가를 수 없습니다 — 모두가 같은 칸을 씁니다. 계정을 먼저 만드십시오.'));
+        console.log('     ⚠️  ' + tr('계정도 API 키도 없어 사람을 가를 수 없습니다 — 첫 관리자를 만들기 전까지 파일 요청을 받지 않습니다.'));
       }
     }
     if (process.env['AAS_SIGNUP'] === 'on' || bootDemo) {

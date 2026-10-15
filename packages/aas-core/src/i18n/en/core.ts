@@ -2,6 +2,8 @@
 export const EN_CORE: Record<string, string> = {
   // ── json/deserialize.ts — reading AAS JSON ──
   'AAS JSON 파싱 실패 ({0}건)': 'AAS JSON parsing failed ({0} issues)',
+  '요소가 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.':
+    'Elements are nested too deeply — up to {0} levels are accepted.',
   'SubmodelElement는 객체여야 합니다.': 'A SubmodelElement must be an object.',
   'modelType이 없습니다.': 'modelType is missing.',
   '알 수 없는 modelType입니다: {0}': 'Unknown modelType: {0}',
