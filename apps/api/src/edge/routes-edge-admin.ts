@@ -17,7 +17,7 @@ import { fill, tr } from '@aas/core';
 import { currentWorkspace, runInWorkspace, type AasStore } from '@aas/store';
 import { ApiError, json } from '../http.js';
 import type { Route } from '../router.js';
-import { currentInterfaces, revisionOf } from './read-list.js';
+import { currentInterfaces, revisionOf, type ReadListInterface } from './read-list.js';
 import { deviceWorkspace, servedList } from './routes-edge.js';
 import type { EdgeDevice, EdgeRegistry } from './state.js';
 
@@ -28,6 +28,35 @@ export interface EdgeAdminOptions {
   /** The server splits workspaces (AAS_WORKSPACE=private or demo) */
   partitioned?: boolean;
   now?: () => Date;
+}
+
+const MIN_INTERVAL_MS = 100;
+const MAX_INTERVAL_MS = 3_600_000;
+
+/**
+ * The approved list with the person's read intervals (plan gap 6): `{ <interfaceId | tagId>: ms }`, 100 ms – 1 h.
+ * An interface id sets the interface; a tag id overrides one tag. An id not in the list is an error, not ignored —
+ * a typo would otherwise leave a tag read at the default without anyone noticing.
+ */
+function withIntervals(interfaces: ReadListInterface[], intervals: unknown): ReadListInterface[] {
+  if (intervals === undefined) return interfaces;
+  if (typeof intervals !== 'object' || intervals === null || Array.isArray(intervals)) {
+    throw new ApiError(400, 'BadRequest', tr('intervals 는 { id: 밀리초 } 형태여야 합니다.'));
+  }
+  const wanted = new Map(Object.entries(intervals as Record<string, unknown>));
+  for (const [id, ms] of wanted) {
+    if (typeof ms !== 'number' || !Number.isInteger(ms) || ms < MIN_INTERVAL_MS || ms > MAX_INTERVAL_MS) {
+      throw new ApiError(400, 'BadRequest', fill(tr('{0} 의 주기는 100ms 에서 1시간 사이 정수(밀리초)여야 합니다.'), { 0: id }));
+    }
+  }
+  const known = new Set(interfaces.flatMap((iface) => [iface.interfaceId, ...iface.tags.map((tag) => tag.tagId)]));
+  const unknown = [...wanted.keys()].filter((id) => !known.has(id));
+  if (unknown.length > 0) throw new ApiError(400, 'BadRequest', fill(tr('목록에 없는 id 입니다: {0}'), { 0: unknown.join(', ') }));
+  return interfaces.map((iface) => ({
+    ...iface,
+    intervalMs: (wanted.get(iface.interfaceId) as number | undefined) ?? iface.intervalMs,
+    tags: iface.tags.map((tag) => (wanted.has(tag.tagId) ? { ...tag, intervalMs: wanted.get(tag.tagId) as number } : tag)),
+  }));
 }
 
 /** Whether the caller may see and manage this device */
@@ -57,7 +86,7 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       served: servedList(device).revision,
       approvedRevision: approved?.revision ?? null,
       currentRevision: current.revision,
-      changedSinceApproval: approved !== undefined && approved.revision !== current.revision,
+      changedSinceApproval: approved !== undefined && (approved.basis ?? approved.revision) !== current.revision,
       tags: current.interfaces.reduce((sum, iface) => sum + iface.tags.length, 0),
     };
   };
@@ -107,8 +136,13 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
         if (current.revision !== revision) {
           throw new ApiError(409, 'Conflict', tr('미리 본 뒤 목록이 바뀌었습니다 — 다시 미리 보고 승인하십시오.'));
         }
+        const interfaces = withIntervals(current.interfaces, (request.body as { intervals?: unknown }).intervals);
         const approvedAt = now().toISOString();
-        return change(device.deviceId, (d) => ({ ...d, state: 'approved', approved: { revision, approvedAt, interfaces: current.interfaces } }));
+        return change(device.deviceId, (d) => ({
+          ...d,
+          state: 'approved',
+          approved: { revision: revisionOf(interfaces), basis: revision, approvedAt, interfaces },
+        }));
       },
     },
     {

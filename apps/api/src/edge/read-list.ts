@@ -31,6 +31,8 @@ export interface ReadListTag {
   type?: string;
   unit?: string;
   fields: Record<string, string>;
+  /** Overrides the interface's intervalMs for this tag (set at approval) */
+  intervalMs?: number;
 }
 
 export interface ReadListInterface {

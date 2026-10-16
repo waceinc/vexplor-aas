@@ -96,7 +96,8 @@ What to read, already resolved from the AAS by the server. Response **200** `vex
 - `interfaces[]` — one per equipment connection: `interfaceId`, `packageId`, `aasId`, `globalAssetId`,
   `interfaceName` (the AID interface), `protocol` (`OPCUA` · `MODBUS` · `MQTT` · `HTTP`), `endpoint` (AID `base`),
   `security`, `intervalMs`, and `tags[]` — `tagId`, `propertyName`, `address` (AID `href`), optional `key`, `type`,
-  `unit`, and `fields` (the remaining AID form fields, as text, by name).
+  `unit`, `fields` (the remaining AID form fields, as text, by name), and optional `intervalMs` that overrides the
+  interface's for that tag.
 - `security` — `mode` (`None` · `Sign` · `SignAndEncrypt` for OPC UA; `None` · `TLS` otherwise), optional `policy`, and
   optional `credentialRef`. **The list never carries a password or a key.** `credentialRef` names a credential the
   installer stored on the edge machine; the edge looks it up locally.
@@ -164,7 +165,7 @@ PostgreSQL — all of them). The read interval it hands out is `COLLECT_INTERVAL
 | `POST /edge/registration-codes` | A one-time code for the caller's workspace — shown once, valid 24 h |
 | `GET /edge/devices` | Devices of the workspace, with `changedSinceApproval` when the files changed after approval |
 | `GET /edge/devices/:deviceId/read-list-preview` | What approving now would grant, and its `revision` |
-| `POST /edge/devices/:deviceId/approve` `{ revision }` | Grants exactly the previewed list; refused (409) when the files changed meanwhile |
+| `POST /edge/devices/:deviceId/approve` `{ revision, intervals? }` | Grants exactly the previewed list; refused (409) when the files changed meanwhile. `intervals` `{ <interfaceId or tagId>: ms }` (100 ms – 1 h) sets read intervals — re-approving with other intervals gives the edge a new revision |
 | `POST /edge/devices/:deviceId/pause` · `/revoke` | Empty list from now on · the device is refused from now on |
 
 A device belongs to the workspace of whoever made its code and never sees other workspaces, even when an admin approves

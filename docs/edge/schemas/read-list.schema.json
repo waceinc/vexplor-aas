@@ -158,6 +158,11 @@
             "type": "string"
           },
           "description": "Remaining AID form fields by name, as text"
+        },
+        "intervalMs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Overrides the interface's intervalMs for this tag"
         }
       },
       "required": [

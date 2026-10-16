@@ -30,7 +30,10 @@ const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'; // Crockford base32 �
 export type EdgeState = 'pending-approval' | 'approved' | 'paused';
 
 export interface ApprovedList {
+  /** What the edge sees — the approved interfaces with their intervals */
   revision: string;
+  /** The preview revision the person approved — the files as they were; "changed since approval" compares this */
+  basis?: string;
   approvedAt: string;
   interfaces: ReadListInterface[];
 }
