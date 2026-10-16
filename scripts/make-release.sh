@@ -29,6 +29,8 @@
 # Important: without Docker Desktop's buildx (e.g. podman as docker) the images are built with plain `docker build` and
 #    saved under docker.io/library/<name> — podman would otherwise save them as localhost/<name>, a name the
 #    receiving Docker does not match against docker-compose.yml.
+# Important: build an x86_64 bundle on an x86_64 machine or with Docker Desktop (Rosetta). Under podman's qemu emulation on
+#    an ARM Mac the web build crashes (exit 139, measured 2026-10-16); an ARM bundle builds natively there.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
