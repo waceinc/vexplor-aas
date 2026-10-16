@@ -253,7 +253,7 @@ describe('remote collector — proxy, T9, T10', () => {
     ];
     const found = source.flatMap(({ file, text }) => forbidden.filter(([, pattern]) => pattern.test(text)).map(([what]) => `${file}: ${what}`));
     expect(found).toEqual([]);
-    // Only the command line ends the process — never an answer from the server
-    expect(source.filter(({ file, text }) => file !== 'cli.ts' && /process\.exit/.test(text)).map(({ file }) => file)).toEqual([]);
+    // Only the entry point ends the process — never an answer from the server
+    expect(source.filter(({ file, text }) => file !== 'bin.ts' && /process\.exit/.test(text)).map(({ file }) => file)).toEqual([]);
   });
 });

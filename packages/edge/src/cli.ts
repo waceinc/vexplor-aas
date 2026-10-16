@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * vexplor-edge — the remote collector.
  *
@@ -48,15 +47,4 @@ export async function main(args: readonly string[]): Promise<number> {
   });
   await agent.stop();
   return 0;
-}
-
-const invoked = process.argv[1] ?? '';
-if (invoked.endsWith('cli.js') || invoked.endsWith('vexplor-edge')) {
-  main(process.argv.slice(2)).then(
-    (code) => process.exit(code),
-    (error: Error) => {
-      log('error', error.message);
-      process.exit(1);
-    },
-  );
 }

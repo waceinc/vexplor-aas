@@ -39,7 +39,7 @@ ALLOW=(
   # the sample integration bundle other products run their import gate on (docs/integration.md §7.4)
   docs/examples
   # the edge contract other products implement (vexplor.edge/1)
-  docs/edge-contract.md docs/엣지계약.md docs/edge
+  docs/edge-contract.md docs/엣지계약.md docs/edge docs/edge-install.md docs/엣지설치.md
   # tools
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs
@@ -48,7 +48,7 @@ ALLOW=(
   scripts/i18n-scan.mjs scripts/i18n-server-scan.mjs scripts/spacing-scan.mjs scripts/comment-guard.mjs
   scripts/i18n-append.mjs scripts/make-samples.mjs
   scripts/opcua-browse.mjs scripts/plc-simulator.mjs scripts/make-demo-aasx.mjs scripts/make-bundle-demo.mjs
-  scripts/make-release.sh scripts/install scripts/pack-libraries.mjs scripts/mock-edge.mjs scripts/mock-edge.d.mts
+  scripts/make-release.sh scripts/install scripts/pack-libraries.mjs scripts/mock-edge.mjs scripts/mock-edge.d.mts scripts/pack-edge.mjs
 )
 
 if [ -n "$(git status --porcelain)" ]; then

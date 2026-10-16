@@ -8,7 +8,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "vexplor-edge": "./dist/cli.js"
+    "vexplor-edge": "./dist/bin.js"
   },
   "exports": {
     ".": {

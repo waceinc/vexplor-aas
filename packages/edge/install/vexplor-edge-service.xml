@@ -1,0 +1,20 @@
+<!-- VEXPLOR Edge as a Windows service, run by WinSW (https://github.com/winsw/winsw, MIT). docs/edge-install.md -->
+<service>
+  <id>vexplor-edge</id>
+  <name>VEXPLOR Edge</name>
+  <description>VEXPLOR remote collector — reads approved equipment tags and sends signed batches. Read only, outbound only.</description>
+  <executable>%BASE%\vexplor-edge.exe</executable>
+  <arguments>run --config "%ProgramData%\VEXPLOR Edge\edge.json"</arguments>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec"/>
+  <stoptimeout>15 sec</stoptimeout>
+  <serviceaccount>
+    <username>NT AUTHORITY\LocalService</username>
+  </serviceaccount>
+  <logpath>%ProgramData%\VEXPLOR Edge\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

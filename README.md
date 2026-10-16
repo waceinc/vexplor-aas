@@ -125,6 +125,12 @@ Never by version number — the `@aas` scope on the public npm registry is not o
 install whatever someone else publishes there. The tarballs point at each other by release URL, so one pinned URL is
 enough.
 
+### Remote collector
+
+`vexplor-edge` (`packages/edge`) reads PLCs inside the factory and sends signed batches out over HTTPS — read only,
+outbound only, no remote stop. Contract: [docs/edge-contract.md](docs/edge-contract.md); install:
+[docs/edge-install.md](docs/edge-install.md); packages: `node scripts/pack-edge.mjs` (Linux and Windows).
+
 ## Standards
 
 | Standard | Status |
