@@ -38,6 +38,8 @@ ALLOW=(
   # docs — user-facing only. Development logs and rule measurement material are not included
   docs/사용법.md docs/설치.md docs/배포_호스팅.md docs/규칙_목록.md docs/images docs/spec
   docs/usage.md docs/install.md docs/deployment.md docs/rules.md
+  # the integration guide (MES / ERP / CMMS, exports, @aas/bundle) — README, install and usage link to it
+  docs/integration.md docs/연동.md
   # the sample integration bundle other products run their import gate on (docs/integration.md §7.4)
   docs/examples
   # the edge contract other products implement (vexplor.edge/1)
