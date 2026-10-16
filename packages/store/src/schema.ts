@@ -211,6 +211,9 @@ CREATE TABLE IF NOT EXISTS collected_value (
 );
 
 CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, property_name, observed_at DESC);
+-- Important: a DB from before version numbers runs this before MIGRATIONS (postgres.ts init) — its collected_value has no
+--    value_key yet, so the column is ensured before the index that uses it
+ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS value_key text;
 CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx ON collected_value (package_id, value_key, observed_at);
 ${INTEGRATION_SCHEMA_SQL}`;
 
