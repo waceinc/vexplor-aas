@@ -29,6 +29,8 @@ export interface EdgeConfig {
   flushIntervalMs: number;
   /** Batches kept on disk at most; the oldest are dropped and counted beyond it. Default 100 000 */
   maxQueuedBatches: number;
+  /** Signed update notices (update.ts) — absent: no update request is ever made */
+  update?: { manifestUrl: string; publicKey: string };
 }
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
@@ -78,6 +80,12 @@ export function parseEdgeConfig(json: string, file: string): EdgeConfig {
   const opcua = (input['opcua'] ?? {}) as Record<string, unknown>;
   const caFile = path(text(input['caFile'], 'caFile'));
   const credentialsFile = path(text(input['credentialsFile'], 'credentialsFile'));
+  const updateInput = input['update'] as Record<string, unknown> | undefined;
+  const manifestUrl = text(updateInput?.['manifestUrl'], 'update.manifestUrl');
+  const releaseKey = text(updateInput?.['publicKey'], 'update.publicKey');
+  if ((manifestUrl === undefined) !== (releaseKey === undefined)) throw new EdgeConfigError('update needs both manifestUrl and publicKey');
+  if (manifestUrl && !manifestUrl.startsWith('https://')) throw new EdgeConfigError(`update.manifestUrl must be https://: ${manifestUrl}`);
+  if (releaseKey && !/^[A-Za-z0-9_-]{43}$/.test(releaseKey)) throw new EdgeConfigError('update.publicKey must be a 32-byte Ed25519 key in base64url');
 
   return {
     server: url.origin,
@@ -89,6 +97,7 @@ export function parseEdgeConfig(json: string, file: string): EdgeConfig {
     opcua: { pkiDir: path(text(opcua['pkiDir'], 'opcua.pkiDir')) ?? join(stateDir, 'opcua-pki'), trustFirstUse: opcua['trustFirstUse'] === true },
     flushIntervalMs: positive(input['flushIntervalMs'], 'flushIntervalMs', 1000),
     maxQueuedBatches: positive(input['maxQueuedBatches'], 'maxQueuedBatches', 100_000),
+    ...(manifestUrl && releaseKey ? { update: { manifestUrl, publicKey: releaseKey } } : {}),
   };
 }
 
