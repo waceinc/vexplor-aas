@@ -27,6 +27,9 @@ vexplor-edge run --config edge.json                              # what the serv
   sequence when the server answers again; the server stores each once.
 - **Secrets stay here.** The private key is made on this machine; PLC passwords live in `credentialsFile` by endpoint,
   never in the AAS or the read list.
+- **Batches stay few during an outage.** One batch every `flushIntervalMs` (default 5 s — 12 requests a minute, well
+  under the server's 60) while sending works; while it is paused, at most one a minute or when a batch is full, so a long
+  outage leaves a backlog the server takes in minutes.
 - **A stop loses nothing either.** Samples read but not yet batched go to the queue on SIGINT/SIGTERM and are sent by
   the next start.
 - **Update notices, never installs.** With `"update": { "manifestUrl": "https://…/latest.json", "publicKey": "<release

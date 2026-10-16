@@ -36,6 +36,13 @@ interface ReadList {
 }
 
 const HEARTBEAT_MS = 60_000;
+/**
+ * While sending is paused (outage, rate limit), samples go to disk at most once a minute or when a batch is full — not
+ * every flush interval. Found by the 30-minute outage soak (2026-10-16): one batch a second piled up 1 769 batches, and
+ * at the server's 60 requests a minute the backlog never shrank while new batches kept coming. A crash during an
+ * outage now loses at most this much.
+ */
+const PAUSED_BATCH_MS = 60_000;
 const UPDATE_CHECK_MS = 24 * 3600_000;
 const SOFTWARE = { name: 'vexplor-edge', version: PRODUCT_VERSION };
 
@@ -207,10 +214,14 @@ export class EdgeAgent {
     if (this.stopped || !this.list) return;
     const at = this.now();
     const limit = this.identity.limits?.maxSamplesPerBatch ?? 5000;
-    const samples = this.buffer.splice(0);
-    const heartbeat = samples.length === 0 && at.getTime() - this.lastBatchAt >= HEARTBEAT_MS;
-    if (samples.length > 0 || heartbeat) this.enqueue(samples, at, limit);
-    if (at.getTime() < this.sendAfter) return;
+    const paused = at.getTime() < this.sendAfter;
+    const due = !paused || this.buffer.length >= limit || at.getTime() - this.lastBatchAt >= PAUSED_BATCH_MS;
+    if (due) {
+      const samples = this.buffer.splice(0);
+      const heartbeat = samples.length === 0 && at.getTime() - this.lastBatchAt >= HEARTBEAT_MS;
+      if (samples.length > 0 || heartbeat) this.enqueue(samples, at, limit);
+    }
+    if (paused) return;
     const result = await this.sender.flush();
     if (result.state === 'wait') {
       this.sendAfter = at.getTime() + result.waitMs;

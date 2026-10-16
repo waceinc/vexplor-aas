@@ -140,6 +140,10 @@ describe('remote collector — R2 checks', () => {
       await close(first.server);
       const before = agent.collected;
       await until(() => agent.collected >= before + 10 && agent.queue.size > 0);
+      // While sending is paused the edge does not write a batch every flush interval — a 30-minute outage made 1 769
+      //    batches that a rate-limited server could never catch up with (soak, 2026-10-16)
+      await sleep(1500);
+      expect(agent.queue.size).toBeLessThanOrEqual(2);
       second = await aasStudio(first.port, first.store);
       await until(() => agent.queue.size === 0 && agent.collected > before + 10, 30_000);
       await agent.stop();
