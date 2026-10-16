@@ -708,9 +708,11 @@ async function storeFromEnv(): Promise<{ store: AasStore; kind: string }> {
   if (!url) return { store: new InMemoryStore(), kind: 'memory' };
   const { connectPostgres } = await import('./pg.js');
   const schema = process.env['DATABASE_SCHEMA'];
+  const { timescaleFeaturesFromEnv } = await import('./timescale.js');
   const { store, timescale } = await connectPostgres({
     connectionString: url,
     ...(schema ? { schema } : {}),
+    features: { settings: timescaleFeaturesFromEnv(process.env), retentionDays: retentionDaysFromEnv(process.env) },
   });
   return { store, kind: fill(tr('postgres{0} · 수집값 {1}'), { 0: schema ? ` (schema ${schema})` : '', 1: timescale }) };
 }
