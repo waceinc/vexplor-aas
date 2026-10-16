@@ -202,6 +202,9 @@ interface BodySlot {
   claim(): void;
 }
 
+/** Body limit of the signed edge endpoints — twice the contract's default batch limit, so the route answers the precise 413 */
+const EDGE_BODY_LIMIT = 2 * 1024 * 1024;
+
 export async function toApiRequest(
   request: IncomingMessage,
   limit: number,
@@ -223,6 +226,8 @@ export async function toApiRequest(
   const raw = await readBody(request, limit, large);
   const contentType = headers['content-type'] ?? '';
   let body: unknown;
+  // Kept for every body, JSON or not — the edge contract signs these bytes, so a non-JSON body must not be left unsigned
+  const rawBody = raw.length > 0 ? raw : undefined;
   if (raw.length > 0) {
     // Parse JSON; pass anything else (AASX uploads) through as raw bytes
     if (contentType.includes('json')) {
@@ -251,6 +256,9 @@ export async function toApiRequest(
     queryAll,
     headers,
     body,
+    ...(rawBody ? { rawBody } : {}),
+    // The request target exactly as sent — the edge signs it (review M7); rebuilding it from the parsed URL would not match
+    ...(request.url ? { rawTarget: request.url } : {}),
     ...(remote ? { remoteAddress: remote } : {}),
   };
 }
@@ -449,6 +457,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     integrationServices: integrations.services,
     loginThrottle,
     ...(collectIntervalMs ? { collectIntervalMs } : {}),
+    // Remote collectors (docs/edge-contract.md) — off unless EDGE=on; createApi keeps it off in demo mode
+    ...(process.env['EDGE'] === 'on' ? { edge: collectIntervalMs ? { intervalMs: collectIntervalMs } : {} } : {}),
     routes: [
       {
         /** What is being exposed externally — where the UI and operators check */
@@ -561,7 +571,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
 
         ready ??= store.init();
         await ready;
-        const apiRequest = await toApiRequest(request, limit, {
+        // The edge sends batches of at most 1 MiB (docs/edge-contract.md §6) — refuse more while reading, not after (review M6)
+        const apiRequest = await toApiRequest(request, (request.url ?? '').startsWith('/edge/v1/') ? Math.min(limit, EDGE_BODY_LIMIT) : limit, {
           slots: largeSlots,
           claim() {
             release ??= largeSlots.take();

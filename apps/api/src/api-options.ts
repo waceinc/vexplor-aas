@@ -15,6 +15,8 @@ import type { Route } from './router.js';
 import type { PackageRouteOptions } from './routes/packages.js';
 import type { LoginThrottle, SessionStore, SignupThrottle } from './session.js';
 import type { UndoStack } from './undo.js';
+import type { EdgeLimits } from './edge/routes-edge.js';
+import type { EdgeRegistry } from './edge/state.js';
 
 export interface ApiOptions {
   /** Extra routes — extension point for tests */
@@ -95,4 +97,18 @@ export interface ApiOptions {
   integrationAuditStore?: Pick<IntegrationStore, 'appendEvents'>;
   /** Which WP2 / WP4 integration route builders to mount (default: all). Tests that mount their own pass `{}` */
   integrationRouteBuilders?: IntegrationRouteBuilders;
+  /**
+   * Remote collectors (docs/edge-contract.md). Absent = off: `/edge/v1/*` is not answered and the management routes are
+   * not mounted. Never on in demo mode. server.ts turns it on with `EDGE=on`.
+   */
+  edge?: EdgeConfig;
+  /** The device registry — createApi creates it from `edge` and passes it to the route table */
+  edgeRegistry?: EdgeRegistry;
+}
+
+export interface EdgeConfig {
+  /** Read interval the read list gives every interface (ms). Default 5000 */
+  intervalMs?: number;
+  pollSeconds?: number;
+  limits?: Partial<EdgeLimits>;
 }
