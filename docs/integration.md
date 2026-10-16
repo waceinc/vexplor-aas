@@ -706,6 +706,13 @@ Sign this with the customer before go-live.
   export of the visible files in one zip with a manifest (§7.4).
 - **Libraries for other products.** `@aas/core`, `@aas/aasx` and `@aas/linter` are packed for the release
   (`scripts/pack-libraries.mjs`) — install by release URL (README, "Using the libraries in another product").
+- **Remote collectors (`EDGE=on`).** The edge contract `vexplor.edge/1` (docs/edge-contract.md), its endpoints, the
+  management routes and the mock edge `scripts/mock-edge.mjs`.
+- **OPC UA security when collecting.** Mode, policy and user name from the AID 1.1 `securityDefinitions`; certificate
+  store, first-use trust and credentials by endpoint (`OPCUA_CLIENT_*`).
+- **Webhooks through a proxy.** `INTEGRATION_PROXY` / `INTEGRATION_NO_PROXY` — HTTP CONNECT, rules on the destination name.
+- **AID protocol by supplementalSemanticId.** The interface's protocol comes from its supplementalSemanticId (AID 1.1),
+  then the endpoint scheme, and only last from the idShort. BACnet is recognised and not collected yet.
 - **Type link from `derivedFrom`.** The equipment master now fills `typeAasId` from an Instance shell's `derivedFrom`
   when the server has no link of its own (before, it stayed null for units uploaded as files). `typeAasId` is part of
   the equipment digest, so such a unit gives one equipment-updated event the next time it is projected.
