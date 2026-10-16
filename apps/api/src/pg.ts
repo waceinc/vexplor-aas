@@ -10,6 +10,7 @@
  */
 import { HYPERTABLE_SQL, PostgresStore, type SqlClient } from '@aas/store';
 import { fill, tr } from '@aas/core';
+import { setupTimescaleFeatures, type TimescaleFeatures } from './timescale.js';
 
 export interface PostgresOptions {
   connectionString: string;
@@ -20,13 +21,15 @@ export interface PostgresOptions {
    * Because it must also work on plain PostgreSQL (better not to be picky about the install target).
    */
   timescale?: boolean;
+  /** Compression and aggregates on top of the hypertable (timescale.ts). Absent = none */
+  features?: { settings: TimescaleFeatures; retentionDays: number };
 }
 
 /**
  * Use it if present, skip it if not.
  * Important: installing the extension requires superuser — for deployments on a shared DB, an admin can enable it in advance.
  */
-async function tryTimescale(client: SqlClient): Promise<string> {
+async function tryTimescale(client: SqlClient, features: PostgresOptions['features']): Promise<string> {
   try {
     await client.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
   } catch {
@@ -34,10 +37,16 @@ async function tryTimescale(client: SqlClient): Promise<string> {
   }
   try {
     await client.query(HYPERTABLE_SQL);
-    return tr('TimescaleDB 하이퍼테이블');
   } catch (error) {
     // e.g. when trying to convert a table that already holds data. Does not affect operation
     return fill(tr('일반 표로 둔다 ({0})'), { 0: error instanceof Error ? error.message : String(error) });
+  }
+  if (!features) return tr('TimescaleDB 하이퍼테이블');
+  try {
+    return fill(tr('TimescaleDB 하이퍼테이블 · {0}'), { 0: await setupTimescaleFeatures(client, features.settings, features.retentionDays) });
+  } catch (error) {
+    // Values are still stored without them — a failed setup must not stop the server
+    return fill(tr('TimescaleDB 하이퍼테이블 · 압축 · 집계 설정 실패 ({0})'), { 0: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -84,6 +93,6 @@ export async function connectPostgres(
   const store = new PostgresStore(client);
   // Important: if the schema version is newer than the program, it stops here with SchemaVersionError — printed as-is in the startup log
   await store.init();
-  const timescale = options.timescale === false ? tr('끔') : await tryTimescale(client);
+  const timescale = options.timescale === false ? tr('끔') : await tryTimescale(client, options.features);
   return { store, timescale: fill(tr('{0} · 스키마 {1}판'), { 0: timescale, 1: store.schemaVersion }) };
 }

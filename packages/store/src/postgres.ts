@@ -359,14 +359,45 @@ export class PostgresStore implements AasStore, IntegrationStore {
   }
 
   async pruneValues(before: string): Promise<number> {
-    // SqlResult has no rowCount, so count via RETURNING. Works the same on a hypertable
-    // (drop_chunks is cheaper, but the code is not split from deployments without TimescaleDB)
+    const dropped = await this.dropOldChunks(before);
+    // SqlResult has no rowCount, so count via RETURNING
     const { rows } = await this.client.query<{ n: number }>(
       // Judged by receive time — for constant-value tags the device time is frozen, so deleting by device time would also delete values just received
       'DELETE FROM collected_value WHERE COALESCE(received_at, observed_at) < $1::timestamptz RETURNING 1 AS n',
       [before],
     );
-    return rows.length;
+    return dropped + rows.length;
+  }
+
+  /**
+   * On a TimescaleDB hypertable, whole chunks that end before `before` are dropped instead of deleted row by row —
+   * deleting from a compressed chunk would decompress it first (lead request §6 H2). The rule stays the receive time:
+   * a chunk that still holds a value received after `before` (a constant tag whose device time is frozen) is left to
+   * the row delete. Plain PostgreSQL has no chunks; nothing happens.
+   */
+  private async dropOldChunks(before: string): Promise<number> {
+    const { rows: catalog } = await this.client.query<{ present: boolean }>(
+      "SELECT to_regclass('timescaledb_information.chunks') IS NOT NULL AS present",
+    );
+    if (!catalog[0]?.present) return 0;
+    const { rows: chunks } = await this.client.query<{ chunk: string }>(
+      `SELECT format('%I.%I', chunk_schema, chunk_name) AS chunk FROM timescaledb_information.chunks
+        WHERE hypertable_schema = current_schema() AND hypertable_name = 'collected_value' AND range_end <= $1::timestamptz
+        ORDER BY range_start`,
+      [before],
+    );
+    let dropped = 0;
+    for (const { chunk } of chunks) {
+      // The name comes from the catalog, quoted by format(%I)
+      const { rows } = await this.client.query<{ total: number; recent: number }>(
+        `SELECT count(*)::int AS total, count(*) FILTER (WHERE COALESCE(received_at, observed_at) >= $1::timestamptz)::int AS recent FROM ${chunk}`,
+        [before],
+      );
+      if ((rows[0]?.recent ?? 0) > 0) continue;
+      await this.client.query(`DROP TABLE ${chunk}`);
+      dropped += rows[0]?.total ?? 0;
+    }
+    return dropped;
   }
 
   async readValues(packageId: string, query: ValueQuery = {}): Promise<CollectedValue[]> {

@@ -231,6 +231,13 @@ export const EN_API: Record<string, string> = {
   '일반 PostgreSQL (timescaledb 확장 없음)': 'plain PostgreSQL (no timescaledb extension)',
   'TimescaleDB 하이퍼테이블': 'TimescaleDB hypertable',
   '일반 표로 둔다 ({0})': 'kept as a plain table ({0})',
+  'TimescaleDB 하이퍼테이블 · {0}': 'TimescaleDB hypertable · {0}',
+  'TimescaleDB 하이퍼테이블 · 압축 · 집계 설정 실패 ({0})': 'TimescaleDB hypertable · compression and aggregates not set up ({0})',
+  '압축 · 집계 없음 (TimescaleDB Apache 판)': 'no compression or aggregates (TimescaleDB Apache build)',
+  '압축 · 집계 없음 (하이퍼테이블 아님)': 'no compression or aggregates (not a hypertable)',
+  '{0}일 지나면 압축': 'compressed after {0} days',
+  '1분 · 1시간 집계 ({0}일 뒤까지 반영)': '1-minute and 1-hour aggregates (late values up to {0} days)',
+  '압축 · 집계 끔': 'compression and aggregates off',
   끔: 'off',
   '{0} · 스키마 {1}판': '{0} · schema v{1}',
   '체험 서버 정리 — {0}분 넘게 안 쓴 방문자 파일 {1}개를 지웠습니다.':

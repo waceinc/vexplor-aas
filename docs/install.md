@@ -109,6 +109,9 @@ The startup log states the current mode in one line — check it once.
 | `APP_PORT` | Port exposed to the outside (default 8080) |
 | `COLLECT` / `COLLECT_INTERVAL` | Collection of field values (OPC UA). `on` plus an interval (seconds) only when you have equipment |
 | `COLLECT_RETENTION_DAYS` | **Retention period (days)** for collected values. Older values are deleted at startup and every hour. `.env` default 180 · empty or 0 keeps them forever. Models (AASX) are not touched |
+| `COLLECT_COMPRESS_AFTER_DAYS` | TimescaleDB only — collected values older than this many days are **compressed** (15 to 22 times smaller, measured — 1 000 tags every second: 1 099 MB an hour raw, 50 MB compressed). Empty = 7 · 0 = no compression |
+| `COLLECT_ROLLUPS` | TimescaleDB only — **1-minute and 1-hour aggregates** `collected_value_1m` / `collected_value_1h` (avg · min · max · last · count per property), kept up to date and reaching 35 days back so late values from a remote collector are included. Empty = on · `off` = none |
+| `COLLECT_ROLLUP_MINUTE_DAYS` | How long the 1-minute aggregate is kept. Empty = 90 · 0 = forever. The 1-hour aggregate is kept |
 | `AAS_PUBLIC_URL` | **Required behind a reverse proxy.** The registry advertises this address |
 | `CORS_ORIGIN` | When a **web app** at another address (an intranet portal, etc.) calls this API from the browser, list its origins separated by commas. If empty, the browser blocks cross-origin requests (default, safest). The authoring UI is on the same port and does not need it; server-to-server calls are not affected |
 | `AAS_POLICY_FILE` | File for changing the conventions (values) without changing code — usage §10-4 |
