@@ -16,6 +16,8 @@ import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto
 export const EDGE_CONTRACT = 'vexplor.edge/1';
 export const CLOCK_SKEW_SECONDS = 300;
 const NONCE_WINDOW_MS = 10 * 60 * 1000;
+/** Nonces remembered at most — past it the oldest go first; the timestamp window still bounds a replay (review L) */
+const NONCES_KEPT = 200_000;
 /** SubjectPublicKeyInfo prefix for an Ed25519 key (RFC 8410) — followed by the 32 raw key bytes */
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
@@ -34,7 +36,7 @@ export function signedHeaders(headers: Record<string, string>): SignedHeaders | 
   const timestamp = Number(headers['x-edge-timestamp']);
   const nonce = headers['x-edge-nonce'];
   const signature = /^ed25519=([A-Za-z0-9_-]+)$/.exec(headers['x-edge-signature'] ?? '')?.[1];
-  if (!device || !Number.isInteger(timestamp) || !nonce || nonce.length < 22 || !signature) return undefined;
+  if (!device || device.length > 64 || !Number.isInteger(timestamp) || !nonce || !/^[A-Za-z0-9_-]{22,64}$/.test(nonce) || !signature) return undefined;
   const bytes = Buffer.from(signature, 'base64url');
   return bytes.length === 64 ? { device, timestamp, nonce, signature: bytes } : undefined;
 }
@@ -69,11 +71,13 @@ export class SignatureVerifier {
   check(key: KeyObject, text: string, headers: SignedHeaders): SignatureFailure | undefined {
     if (!verify(null, Buffer.from(text), key, headers.signature)) return 'SignatureInvalid';
     if (Math.abs(this.now() / 1000 - headers.timestamp) > CLOCK_SKEW_SECONDS) return 'ClockSkew';
-    // Only a correctly signed request reaches the nonce memory — a flood of junk cannot fill it
+    // Only a correctly signed request reaches the nonce memory. Self-signed register requests do too — so the memory is
+    //    capped, and registration is rate-limited before the signature check (routes-edge.ts)
     this.forgetOld();
     const seen = `${headers.device}\n${headers.nonce}`;
     if (this.nonces.has(seen)) return 'SignatureInvalid';
     this.nonces.set(seen, this.now());
+    while (this.nonces.size > NONCES_KEPT) this.nonces.delete(this.nonces.keys().next().value!);
     return undefined;
   }
 

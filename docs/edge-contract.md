@@ -118,6 +118,10 @@ Request `vexplor.edge.batch/1`:
 Response **200** `vexplor.edge.batchResult/1` — `bootId`, `seq`, `accepted`, `duplicate`, `rejected[]` (`index`,
 `tagId`, `code` — e.g. a tag that is not in the approved list), and the server's current `readListRevision`.
 
+`rejected[].code` says why one sample was not stored: `NotApproved` (nothing approved yet), `UnknownTag` (not in the
+approved list), `PackageUnavailable` (the file is gone or no longer the device's), `BadTime`, `TooLong`, `TypeMismatch`
+(e.g. text for a `float` tag). The other samples of the batch are stored; a refused sample is not sent again.
+
 A batch the server already has answers 200 with `duplicate: true` and stores nothing again. The server does not require
 `seq` to arrive in order or without gaps.
 
@@ -164,7 +168,9 @@ PostgreSQL — all of them). The read interval it hands out is `COLLECT_INTERVAL
 | `POST /edge/devices/:deviceId/pause` · `/revoke` | Empty list from now on · the device is refused from now on |
 
 A device belongs to the workspace of whoever made its code and never sees other workspaces, even when an admin approves
-it. A changed list is not handed out until someone approves it again. The mock edge `scripts/mock-edge.mjs` is the
+it. Its list holds only files that workspace owns (shared files are readable but cannot take values). On a server that
+splits workspaces, a device registered before the split is refused until it registers again. Registration is limited
+to 10 attempts a minute per address and 120 per server. A changed list is not handed out until someone approves it again. The mock edge `scripts/mock-edge.mjs` is the
 reference client (`node scripts/mock-edge.mjs --server https://… --code …`).
 
 ## 9. What this contract does not claim

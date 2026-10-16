@@ -7,6 +7,8 @@
  *    answers 304 and nothing restarts on the factory side.
  * Important: only what can be read goes out — an interface with no endpoint or a protocol the server cannot name, and
  *    a property with no address, are left out. Supporting the contract is not full AID support (contract §8).
+ * Important: only files the device's workspace **owns**. Shared (ownerless) files are readable in a workspace but not
+ *    writable, so values for them could never be stored — listing them made every batch fail (review H1).
  * Important: no secrets. Credentials stay on the edge machine; the list can only name one (`credentialRef`), which
  *    this server does not do yet.
  */
@@ -95,9 +97,15 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
   return out;
 }
 
-/** Everything the store (scoped to the device's workspace by the caller) shows, in package order */
-export async function currentInterfaces(store: AasStore, intervalMs: number): Promise<ReadListInterface[]> {
+/** Whether a device of this workspace may store values for the package: it owns it (every package on a server that does not partition) */
+export const ownedBy = (workspace: string | null, record: { owner?: string | null } | undefined): boolean =>
+  record !== undefined && (workspace === null || record.owner === workspace);
+
+/** The files the device's workspace owns, in package order. The caller runs it inside the device's workspace */
+export async function currentInterfaces(store: AasStore, intervalMs: number, workspace: string | null): Promise<ReadListInterface[]> {
   const out: ReadListInterface[] = [];
-  for (const record of await allPackages(store)) out.push(...interfacesOf(record.id, await store.getEnvironment(record.id), intervalMs));
+  for (const record of await allPackages(store)) {
+    if (ownedBy(workspace, record)) out.push(...interfacesOf(record.id, await store.getEnvironment(record.id), intervalMs));
+  }
   return out;
 }

@@ -25,6 +25,8 @@ export interface EdgeAdminOptions {
   registry: EdgeRegistry;
   store: AasStore;
   intervalMs: number;
+  /** The server splits workspaces (AAS_WORKSPACE=private or demo) */
+  partitioned?: boolean;
   now?: () => Date;
 }
 
@@ -44,7 +46,7 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
   };
   const preview = (device: EdgeDevice) =>
     runInWorkspace(deviceWorkspace(device), async () => {
-      const interfaces = await currentInterfaces(options.store, options.intervalMs);
+      const interfaces = await currentInterfaces(options.store, options.intervalMs, device.workspace);
       return { revision: revisionOf(interfaces), interfaces };
     });
   const summary = async (device: EdgeDevice) => {
@@ -95,6 +97,10 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       async handle({ request, params }) {
         const device = await deviceOf(params['deviceId']!);
         if (device.revokedAt) throw new ApiError(409, 'Conflict', tr('해지된 장치는 승인할 수 없습니다.'));
+        // Registered before this server split workspaces: it has none, and approving it would hand it every file (review M4)
+        if (options.partitioned && device.workspace === null) {
+          throw new ApiError(409, 'Conflict', tr('작업 공간을 나누기 전에 등록된 장치입니다 — 해지하고 새 코드로 다시 등록하십시오.'));
+        }
         const revision = (request.body as { revision?: unknown } | undefined)?.revision;
         if (typeof revision !== 'string') throw new ApiError(400, 'BadRequest', tr('승인할 목록의 revision 이 필요합니다(미리 보기에서 받은 값).'));
         const current = await preview(device);

@@ -3,21 +3,23 @@
  *
  * They are answered **before** the server's login and API-key check (api.ts): an edge has no session and no API key —
  * its signature is its identity. Everything after the signature runs inside the device's workspace, so a device reads
- * and writes only what its workspace shows.
+ * and writes only what its workspace owns.
  *
  * Important: values never go into the AAS. Accepted samples are appended to the value store, referencing package,
  *    interface and property, exactly like the server's own collector (types.ts in @aas/collector — Option A).
- * Important: only approved tags are stored. A sample for a tag that is not in the approved list is refused one by one
- *    (`rejected[]`), never stored — a device cannot widen what it collects on its own.
+ * Important: only approved tags of owned, existing files are stored, checked sample by sample before anything is
+ *    written — so a batch is stored whole or not at all, and a retry never stores part of it twice (review H1).
+ * Important: registration is rate-limited before its signature is checked — an attacker signs with a key of their own,
+ *    so the signature always verifies and cannot be the first gate (review H3).
  */
+import { fill, tr } from '@aas/core';
 import { runInWorkspace, type AasStore, type CollectedValue } from '@aas/store';
-import { tr } from '@aas/core';
 import type { ApiRequest, ApiResponse } from '../http.js';
 import { checkSchema } from '../integration/schema-check.js';
+import { ownedBy, type ReadListInterface } from './read-list.js';
 import { EDGE_SCHEMAS } from './schemas.js';
-import { publicKeyOf, signedHeaders, signedText, SignatureVerifier, type SignedHeaders } from './signature.js';
+import { publicKeyOf, signedHeaders, signedText, SignatureVerifier } from './signature.js';
 import type { EdgeDevice, EdgeRegistry } from './state.js';
-import type { ReadListInterface } from './read-list.js';
 
 export interface EdgeLimits {
   maxBatchBytes: number;
@@ -29,6 +31,8 @@ export interface EdgeOptions {
   registry: EdgeRegistry;
   /** The workspace-scoped store — every read and write runs inside the device's workspace */
   store: AasStore;
+  /** The server splits workspaces — then a device without one (registered before the split) is refused */
+  partitioned?: boolean;
   limits?: Partial<EdgeLimits>;
   pollSeconds?: number;
   serverVersion: string;
@@ -36,6 +40,11 @@ export interface EdgeOptions {
 }
 
 export const DEFAULT_LIMITS: EdgeLimits = { maxBatchBytes: 1_048_576, maxSamplesPerBatch: 5_000, requestsPerMinute: 60 };
+/** Registration attempts per minute — per remote address, and for the whole server */
+const REGISTER_PER_ADDRESS = 10;
+const REGISTER_PER_SERVER = 120;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NUMERIC_TYPES = new Set(['number', 'float', 'double', 'integer', 'int', 'decimal']);
 const RETRYABLE = new Set(['ClockSkew', 'RateLimited', 'Unavailable', 'ServerError']);
 
 export function edgeError(status: number, code: string, message: string, retryAfterSeconds?: number): ApiResponse {
@@ -69,15 +78,50 @@ export function servedList(device: EdgeDevice): { revision: string; interfaces: 
   return { revision: device.state === 'paused' ? `paused-${device.approved?.revision ?? '0'}` : '0', interfaces: [] };
 }
 
+/** Requests per minute, per key — the answer when over the limit */
+class Window {
+  private readonly recent = new Map<string, number[]>();
+  constructor(private readonly now: () => number) {}
+  take(key: string, perMinute: number): number | undefined {
+    const at = this.now();
+    const window = (this.recent.get(key) ?? []).filter((t) => t > at - 60_000);
+    if (window.length >= perMinute) {
+      this.recent.set(key, window);
+      return Math.max(1, Math.ceil((window[0]! + 60_000 - at) / 1000));
+    }
+    window.push(at);
+    this.recent.set(key, window);
+    return undefined;
+  }
+}
+
+type Sample = { tagId: string; observedAt: string; receivedAt: string; value: unknown; quality?: string; error?: string };
+
+/** Why one sample cannot be stored, or undefined */
+function sampleProblem(sample: Sample, tagType: string | undefined): string | undefined {
+  if (!Number.isFinite(Date.parse(sample.observedAt)) || !Number.isFinite(Date.parse(sample.receivedAt))) return 'BadTime';
+  if ((sample.quality?.length ?? 0) > 64 || (sample.error?.length ?? 0) > 512) return 'TooLong';
+  if (typeof sample.value === 'string' && sample.value.length > 4096) return 'TooLong';
+  const type = tagType?.toLowerCase();
+  if (sample.value !== null && type && NUMERIC_TYPES.has(type) && typeof sample.value !== 'number') return 'TypeMismatch';
+  if (sample.value !== null && type === 'boolean' && typeof sample.value !== 'boolean') return 'TypeMismatch';
+  return undefined;
+}
+
+class Revoked extends Error {}
+
 export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) => Promise<ApiResponse> {
   const now = options.now ?? Date.now;
   const verifier = new SignatureVerifier(now);
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
   const pollSeconds = options.pollSeconds ?? 60;
-  const recent = new Map<string, number[]>();
+  const perDevice = new Window(now);
+  const registrations = new Window(now);
 
-  const pathAndQuery = (request: ApiRequest): string => {
-    const query = new URLSearchParams(request.queryAll ? Object.entries(request.queryAll).flatMap(([k, vs]) => vs.map((v) => [k, v])) : Object.entries(request.query)).toString();
+  /** The request target as sent; rebuilt only for in-process callers that have none */
+  const target = (request: ApiRequest): string => {
+    if (request.rawTarget) return request.rawTarget;
+    const query = new URLSearchParams(request.query).toString();
     return query === '' ? request.path : `${request.path}?${query}`;
   };
 
@@ -88,42 +132,38 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
     const device = await options.registry.device(headers.device);
     const key = device ? publicKeyOf(device.publicKey) : undefined;
     if (!device || !key) return edgeError(401, 'UnknownDevice', tr('등록되지 않은 장치입니다.'));
-    const failure = verifier.check(key, signedText(request.method, pathAndQuery(request), headers, request.rawBody), headers);
+    const failure = verifier.check(key, signedText(request.method, target(request), headers, request.rawBody), headers);
     if (failure === 'ClockSkew') return edgeError(401, 'ClockSkew', tr('요청 시각이 서버 시계와 300초 넘게 다릅니다.'));
     if (failure) return edgeError(401, 'SignatureInvalid', tr('서명이 맞지 않습니다.'));
     if (device.revokedAt) return edgeError(403, 'DeviceRevoked', tr('해지된 장치입니다.'));
+    if (options.partitioned && device.workspace === null) {
+      return edgeError(403, 'DeviceRevoked', tr('작업 공간을 나누기 전에 등록된 장치입니다 — 새 코드로 다시 등록하십시오.'));
+    }
     return device;
   }
 
-  /** Requests in the last minute, per device. The answer when over the limit */
-  function throttle(deviceId: string): ApiResponse | undefined {
-    const at = now();
-    const window = (recent.get(deviceId) ?? []).filter((t) => t > at - 60_000);
-    if (window.length >= limits.requestsPerMinute) {
-      recent.set(deviceId, window);
-      return edgeError(429, 'RateLimited', tr('이 장치의 요청이 너무 많습니다.'), Math.max(1, Math.ceil((window[0]! + 60_000 - at) / 1000)));
-    }
-    window.push(at);
-    recent.set(deviceId, window);
-    return undefined;
-  }
-
   async function register(request: ApiRequest): Promise<ApiResponse> {
+    const wait = registrations.take(`addr:${request.remoteAddress ?? '-'}`, REGISTER_PER_ADDRESS) ?? registrations.take('server', REGISTER_PER_SERVER);
+    if (wait !== undefined) return edgeError(429, 'RateLimited', tr('등록 요청이 너무 많습니다.'), wait);
     const body = request.body as Record<string, unknown> | undefined;
     if (checkSchema(EDGE_SCHEMAS['register-request']!, body).length > 0) return edgeError(422, 'SchemaMismatch', tr('등록 요청이 규격과 맞지 않습니다.'));
     const input = body as { code: string; publicKey: string; device: { name: string; hostname?: string; software: { name: string; version: string } } };
     const key = publicKeyOf(input.publicKey);
     if (!key) return edgeError(400, 'BadRequest', tr('publicKey 는 32바이트 Ed25519 공개키(base64url)여야 합니다.'));
-    const headers = signedHeaders(request.headers) as SignedHeaders | undefined;
+    // A code that cannot register is refused before the signature check and the lock — junk costs one memory lookup
+    if (!(await options.registry.codeLooksValid(input.code))) {
+      return edgeError(401, 'RegistrationCodeInvalid', tr('등록 코드가 맞지 않거나, 이미 쓰였거나, 만료되었습니다.'));
+    }
+    const headers = signedHeaders(request.headers);
     if (!headers || headers.device !== 'register') return edgeError(401, 'SignatureInvalid', tr('등록 요청은 X-Edge-Device: register 로 서명해야 합니다.'));
-    const failure = verifier.check(key, signedText(request.method, pathAndQuery(request), headers, request.rawBody), headers);
+    const failure = verifier.check(key, signedText(request.method, target(request), headers, request.rawBody), headers);
     if (failure === 'ClockSkew') return edgeError(401, 'ClockSkew', tr('요청 시각이 서버 시계와 300초 넘게 다릅니다.'));
     if (failure) return edgeError(401, 'SignatureInvalid', tr('서명이 맞지 않습니다.'));
     const created = await options.registry.register(input.code, {
       publicKey: input.publicKey,
-      name: input.device.name,
-      ...(input.device.hostname ? { hostname: input.device.hostname } : {}),
-      software: { name: input.device.software.name, version: input.device.software.version },
+      name: input.device.name.slice(0, 200),
+      ...(input.device.hostname ? { hostname: input.device.hostname.slice(0, 200) } : {}),
+      software: { name: input.device.software.name.slice(0, 100), version: input.device.software.version.slice(0, 50) },
     });
     if (created === undefined) return edgeError(401, 'RegistrationCodeInvalid', tr('등록 코드가 맞지 않거나, 이미 쓰였거나, 만료되었습니다.'));
     if (created === 'key-taken') return edgeError(409, 'KeyAlreadyRegistered', tr('이 공개키는 이미 등록되어 있습니다.'));
@@ -160,17 +200,26 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
     if ((request.rawBody?.length ?? 0) > limits.maxBatchBytes) return edgeError(413, 'PayloadTooLarge', tr('묶음이 크기 상한을 넘었습니다.'));
     const body = request.body as Record<string, unknown> | undefined;
     if (checkSchema(EDGE_SCHEMAS['batch']!, body).length > 0) return edgeError(422, 'SchemaMismatch', tr('묶음이 규격과 맞지 않습니다.'));
-    const input = body as { bootId: string; seq: number; samples: { tagId: string; observedAt: string; receivedAt: string; value: unknown; quality?: string }[] };
+    const input = body as { bootId: string; seq: number; samples: Sample[] };
+    if (!UUID.test(input.bootId)) return edgeError(422, 'SchemaMismatch', tr('bootId 는 UUID 여야 합니다.'));
     if (input.samples.length > limits.maxSamplesPerBatch) return edgeError(413, 'PayloadTooLarge', tr('묶음의 값 개수가 상한을 넘었습니다.'));
 
     const served = servedList(device);
     const tags = new Map(served.interfaces.flatMap((iface) => iface.tags.map((tag) => [tag.tagId, { iface, tag }] as const)));
+    // Every package the batch would write: it must still exist and be owned by the device's workspace
+    const writable = new Map<string, boolean>();
+    for (const { iface } of tags.values()) {
+      if (!writable.has(iface.packageId)) writable.set(iface.packageId, ownedBy(device.workspace, await options.store.getPackage(iface.packageId)));
+    }
     const rejected: { index: number; tagId: string; code: string }[] = [];
     const byPackage = new Map<string, CollectedValue[]>();
     input.samples.forEach((sample, index) => {
       const found = tags.get(sample.tagId);
-      if (!found) {
-        rejected.push({ index, tagId: sample.tagId, code: device.state === 'approved' ? 'UnknownTag' : 'NotApproved' });
+      const problem = !found
+        ? device.state === 'approved' ? 'UnknownTag' : 'NotApproved'
+        : !writable.get(found.iface.packageId) ? 'PackageUnavailable' : sampleProblem(sample, found.tag.type);
+      if (problem || !found) {
+        rejected.push({ index, tagId: sample.tagId.slice(0, 100), code: problem ?? 'UnknownTag' });
         return;
       }
       const value: CollectedValue = {
@@ -188,6 +237,8 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
     });
     const accepted = input.samples.length - rejected.length;
     const stored = await options.registry.once(device.deviceId, input.bootId, input.seq, async () => {
+      // Revoked while this request waited for the lock — store nothing (review L)
+      if ((await options.registry.device(device.deviceId))?.revokedAt) throw new Revoked();
       for (const [packageId, values] of byPackage) await options.store.appendValues(packageId, values);
     });
     return ok(200, {
@@ -208,8 +259,21 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
     if (!isList && !isBatch) return edgeError(404, 'BadRequest', tr('엣지 규격에 없는 경로입니다.'));
     const device = await authenticate(request);
     if (!('deviceId' in device)) return device;
-    const limited = throttle(device.deviceId);
-    if (limited) return limited;
-    return runInWorkspace(deviceWorkspace(device), () => (isList ? readList(request, device) : batch(request, device)));
+    const wait = perDevice.take(device.deviceId, limits.requestsPerMinute);
+    if (wait !== undefined) return edgeError(429, 'RateLimited', tr('이 장치의 요청이 너무 많습니다.'), wait);
+    try {
+      return await runInWorkspace(deviceWorkspace(device), () => (isList ? readList(request, device) : batch(request, device)));
+    } catch (error) {
+      if (error instanceof Revoked) return edgeError(403, 'DeviceRevoked', tr('해지된 장치입니다.'));
+      throw error;
+    }
   };
+}
+
+/** Any other answer inside the edge handler, in the edge error envelope (api.ts) — the edge reads only that shape */
+export function edgeErrorFrom(answer: ApiResponse): ApiResponse {
+  const text = (answer.body as { messages?: { text?: string }[] } | undefined)?.messages?.[0]?.text ?? fill(tr('오류 {0}'), { 0: answer.status });
+  if (answer.status === 413) return edgeError(413, 'PayloadTooLarge', text);
+  if (answer.status >= 500) return edgeError(500, 'ServerError', tr('서버 오류입니다 — 같은 묶음을 다시 보내십시오.'));
+  return edgeError(answer.status === 404 || answer.status === 403 ? 422 : answer.status, 'BadRequest', text);
 }

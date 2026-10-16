@@ -20,4 +20,9 @@ export const EN_EDGE: Record<string, string> = {
   "해지된 장치는 승인할 수 없습니다.": "A revoked device cannot be approved.",
   "해지된 장치입니다.": "This device has been revoked.",
   "서버 오류입니다 — 같은 묶음을 다시 보내십시오.": "Server error — send the same batch again.",
+  "등록 요청이 너무 많습니다.": "Too many registration requests.",
+  "bootId 는 UUID 여야 합니다.": "bootId must be a UUID.",
+  "작업 공간을 나누기 전에 등록된 장치입니다 — 새 코드로 다시 등록하십시오.": "This device was registered before workspaces were split — register it again with a new code.",
+  "작업 공간을 나누기 전에 등록된 장치입니다 — 해지하고 새 코드로 다시 등록하십시오.": "This device was registered before workspaces were split — revoke it and register it again with a new code.",
+  "오류 {0}": "Error {0}",
 };

@@ -28,7 +28,7 @@ import { LoginThrottle, SessionStore } from './session.js';
 import { crossSiteWrite, isHttps } from './security.js';
 import { isFileDownload, VISITOR_PREFIX, type DemoConfig } from './demo.js';
 import { compile, match, type Route } from './router.js';
-import { createEdgeHandler, edgeError } from './edge/routes-edge.js';
+import { createEdgeHandler, edgeErrorFrom } from './edge/routes-edge.js';
 import { edgeAdminRoutes } from './edge/routes-edge-admin.js';
 import { EdgeRegistry } from './edge/state.js';
 import { hasIntegrationStore } from './integration/exports/store.js';
@@ -101,7 +101,12 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
     }, options.integrationRouteBuilders),
     // Remote collectors — management for people; the signed edge endpoints are answered in createApi
     ...(options.edgeRegistry
-      ? edgeAdminRoutes({ registry: options.edgeRegistry, store, intervalMs: options.edge?.intervalMs ?? DEFAULT_EDGE_INTERVAL_MS })
+      ? edgeAdminRoutes({
+          registry: options.edgeRegistry,
+          store,
+          intervalMs: options.edge?.intervalMs ?? DEFAULT_EDGE_INTERVAL_MS,
+          partitioned: options.privateWorkspaces === true || options.demo !== undefined,
+        })
       : []),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
@@ -155,6 +160,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     ? createEdgeHandler({
         registry: edgeRegistry,
         store,
+        partitioned: privateWorkspaces,
         serverVersion: PRODUCT_VERSION,
         ...(options.edge?.limits ? { limits: options.edge.limits } : {}),
         ...(options.edge?.pollSeconds ? { pollSeconds: options.edge.pollSeconds } : {}),
@@ -184,8 +190,8 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       try {
         return await edge(request);
       } catch (error) {
-        const answer = toErrorResponse(error);
-        return answer.status >= 500 ? edgeError(500, 'ServerError', tr('서버 오류입니다 — 같은 묶음을 다시 보내십시오.')) : answer;
+        // In the edge error envelope, whatever went wrong — the edge reads only that shape (review H1)
+        return edgeErrorFrom(toErrorResponse(error));
       }
     }
     // Important: logged-in people first, machine API keys after (the order design in auth.ts).

@@ -44,6 +44,7 @@ function viaApi(handle: (request: ApiRequest) => Promise<ApiResponse>) {
     const response = await handle({
       method: init.method ?? 'GET',
       path: url.pathname,
+      rawTarget: url.pathname + url.search,
       query: Object.fromEntries(url.searchParams),
       queryAll: {},
       headers: Object.fromEntries(Object.entries(init.headers as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v])),
@@ -215,5 +216,106 @@ describe('edge workspaces', () => {
     await runInWorkspace({ key: 'user:b', seesAll: false }, async () => {
       expect(((await route('/edge/devices').handle({ request: {} as ApiRequest, params: {} })).body as { items: unknown[] }).items).toEqual([]);
     });
+  });
+});
+
+describe('edge hardening (review of PR #19)', () => {
+  it('H1 — shared (ownerless) files are not listed, and a file deleted after approval is refused per sample, never half-stored', async () => {
+    const base = new InMemoryStore();
+    const mine = await base.importPackage({ name: 'mine.aasx', package: withAid('Mine'), owner: 'user:a' });
+    const gone = await base.importPackage({ name: 'gone.aasx', package: withAid('Gone'), owner: 'user:a' });
+    await base.importPackage({ name: 'shared.aasx', package: withAid('Shared') });
+    const store = scopeStore(base);
+    const registry = new EdgeRegistry(base);
+    const routes = edgeAdminRoutes({ registry, store, intervalMs: 1000, partitioned: true });
+    const route = (pattern: string) => routes.find((r) => r.pattern === pattern)!;
+    const handle = createEdgeHandler({ registry, store, serverVersion: 'test', partitioned: true });
+    const { code } = await registry.createCode('user:a');
+    const edge = createMockEdge({ server: 'http://edge.test', stateDir: stateDir(), fetchImpl: viaApi(handle) });
+    const { deviceId } = await edge.register(code);
+    await runInWorkspace({ key: 'user:a', seesAll: false }, async () => {
+      const preview = (await route('/edge/devices/:deviceId/read-list-preview').handle({ request: {} as ApiRequest, params: { deviceId } })).body as {
+        revision: string;
+        interfaces: { packageId: string }[];
+      };
+      expect(preview.interfaces.map((i) => i.packageId).sort()).toEqual([gone.id, mine.id].sort());
+      await route('/edge/devices/:deviceId/approve').handle({ request: { body: { revision: preview.revision } } as ApiRequest, params: { deviceId } });
+    });
+    const list = await edge.readList();
+    await base.deletePackage(gone.id);
+    edge.enqueue(list);
+    expect(await edge.flush()).toBe('ok');
+    expect(edge.stats).toMatchObject({ accepted: 2, rejected: 2 });
+    expect(await base.readValues(mine.id)).toHaveLength(2);
+  });
+
+  it('H2 — idempotency memory stays bounded and handles seqs out of order', async () => {
+    const base = new InMemoryStore();
+    const registry = new EdgeRegistry(base);
+    let writes = 0;
+    const store = async () => {
+      writes += 1;
+    };
+    const boot = '7f1d2c3e-0a4b-4c5d-8e6f-112233445566';
+    expect(await registry.once('dev_x', boot, 2, store)).toBe(true);
+    expect(await registry.once('dev_x', boot, 1, store)).toBe(true);
+    expect(await registry.once('dev_x', boot, 2, store)).toBe(false);
+    expect(await registry.once('dev_x', boot, 1, store)).toBe(false);
+    for (let i = 0; i < 12; i += 1) await registry.once('dev_x', `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, 1, store);
+    const kept = (await base.getRuntimeState('edge.seen.dev_x')) as { bootId: string; floor: number; above: number[] }[];
+    expect(kept).toHaveLength(8);
+    expect(kept.every((boot) => boot.above.length === 0)).toBe(true);
+    expect(writes).toBe(14);
+  });
+
+  it('H2 — a boot id that is not a UUID is refused, and the edge moves the batch to refused/', async () => {
+    const { store, packageId, admin, code, edge, dir } = await setup();
+    await approve(admin, (await edge.register(code)).deviceId);
+    const list = await edge.readList();
+    const batch = edge.enqueue(list);
+    writeFileSync(join(dir, 'queue', `${edge.bootId}-${String(batch.seq).padStart(8, '0')}.json`), JSON.stringify({ ...batch, bootId: 'x'.repeat(10_000) }));
+    expect(await edge.flush()).toBe('ok');
+    expect(readdirSync(join(dir, 'refused'))).toHaveLength(1);
+    expect(edge.stats.sent).toBe(0);
+    expect(await store.readValues(packageId)).toHaveLength(0);
+  });
+
+  it('H3 — registration is limited per address before its signature is checked', async () => {
+    const { handle } = await setup();
+    const attempt = () =>
+      handle({
+        method: 'POST',
+        path: '/edge/v1/register',
+        query: {},
+        queryAll: {},
+        remoteAddress: '203.0.113.9',
+        headers: { 'content-type': 'application/json' },
+        body: { schema: 'vexplor.edge.register/1', code: 'NOPE-NOPE-NOPE', publicKey: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo', device: { name: 'x', software: { name: 'x', version: '1' } } },
+      });
+    for (let i = 0; i < 10; i += 1) expect((await attempt()).status).toBe(401);
+    const limited = await attempt();
+    expect(limited.status).toBe(429);
+    expect(limited.headers['retry-after']).toBeDefined();
+  });
+
+  it('M4 — on a partitioned server a device without a workspace is refused', async () => {
+    const base = new InMemoryStore();
+    const registry = new EdgeRegistry(base);
+    const { code } = await registry.createCode(null);
+    const handle = createEdgeHandler({ registry, store: scopeStore(base), serverVersion: 'test', partitioned: true });
+    const edge = createMockEdge({ server: 'http://edge.test', stateDir: stateDir(), fetchImpl: viaApi(handle) });
+    await edge.register(code);
+    await expect(edge.readList()).rejects.toMatchObject({ answer: { status: 403, body: { code: 'DeviceRevoked' } } });
+  });
+
+  it('L — a sample whose value does not fit the tag type is refused, the rest stored', async () => {
+    const { store, packageId, admin, code, edge } = await setup();
+    await approve(admin, (await edge.register(code)).deviceId);
+    const list = await edge.readList();
+    const speed = list.interfaces[0]!.tags.find((tag) => tag.type === 'float')!;
+    edge.enqueue(list, [{ tagId: speed.tagId, observedAt: '2026-10-16T00:00:00.000Z', receivedAt: '2026-10-16T00:00:00.000Z', value: 'fast' }]);
+    expect(await edge.flush()).toBe('ok');
+    expect(edge.stats).toMatchObject({ accepted: 2, rejected: 1 });
+    expect(await store.readValues(packageId)).toHaveLength(2);
   });
 });

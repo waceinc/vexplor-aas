@@ -22,6 +22,8 @@ export interface ApiRequest {
    * (docs/edge-contract.md §2) — re-serialising the parsed value would not reproduce them.
    */
   rawBody?: Uint8Array;
+  /** Path and query exactly as received (the HTTP request target) — signed by the edge contract */
+  rawTarget?: string;
   headers: Record<string, string>;
   /**
    * The logged-in user — the API decodes the session and **attaches it to the request** before routing (2026-10-02).
