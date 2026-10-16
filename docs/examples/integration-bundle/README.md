@@ -5,7 +5,7 @@ Inputs and output of `buildBundle` (`@aas/bundle`), for a receiving product's im
 | File | What it is |
 |---|---|
 | `RollFormingMachine_Type.aasx` | Type — the anonymised roll forming machine (`tests/fixtures/01-roll-forming-machine.aasx`) |
-| `RollFormingMachine_1.aasx`, `RollFormingMachine_2.aasx` | Two Instances made from the Type (own `globalAssetId`, serial number, BOM root) |
+| `RollFormingMachine_1.aasx`, `RollFormingMachine_2.aasx` | Two Instances made from the Type (own `globalAssetId`, serial number, BOM root, `derivedFrom` → the Type, so `typeAasId` links them) |
 | `SampleFactory.aasx` | Company file: SampleFactory → PressLine → Forming → both units |
 | `vexplor.integrationBundle-1-sample.zip` | The bundle built from the four files, in this order, `exportedAt` `2026-10-16T00:00:00.000Z` |
 

@@ -14,7 +14,8 @@ import { writeAasx } from '@aas/aasx';
 import { describe, expect, it } from 'vitest';
 import { BundleBuildError, buildBundle, type BundleInput } from '../src/integration/bundle-build.js';
 import { createIntegrationStore } from './helpers/integration-store.js';
-import { FIXED_NOW, harness, plantFile, rollForming, unitAsset, unitCopy } from './helpers/integration-fixtures.js';
+import type { Environment } from '@aas/core';
+import { FIXED_NOW, harness, plantFile, rollForming, shell, unitAsset, unitCopy } from './helpers/integration-fixtures.js';
 
 const SAMPLE_DIR = 'docs/examples/integration-bundle';
 const SAMPLE_TIME = '2026-10-16T00:00:00.000Z';
@@ -22,12 +23,20 @@ const SAMPLE_TIME = '2026-10-16T00:00:00.000Z';
 const SAMPLE_NAMES = ['RollFormingMachine_Type.aasx', 'RollFormingMachine_1.aasx', 'RollFormingMachine_2.aasx', 'SampleFactory.aasx'];
 const updating = process.env['AAS_UPDATE_SAMPLES'] === '1';
 
-/** The sample inputs: a Type, two Instances made from it, and a company file placing both units on a line */
+/**
+ * The sample inputs: a Type, two Instances made from it, and a company file placing both units on a line.
+ * Each Instance names its Type in `derivedFrom`, as "split per unit" writes it — the only Type link a file can carry.
+ */
 function generateInputs(): BundleInput[] {
+  const type = rollForming();
+  const typeAasId = shell(type.environment)['id'] as string;
+  const fromType = (environment: Environment): void => {
+    shell(environment)['derivedFrom'] = { type: 'ModelReference', keys: [{ type: 'AssetAdministrationShell', value: typeAasId }] };
+  };
   const packages = [
-    rollForming(),
-    unitCopy(1),
-    unitCopy(2),
+    type,
+    unitCopy(1, fromType),
+    unitCopy(2, fromType),
     plantFile([
       { name: 'RollForming_1', globalAssetId: unitAsset(1) },
       { name: 'RollForming_2', globalAssetId: unitAsset(2) },
@@ -76,8 +85,11 @@ describe('buildBundle', () => {
   it('carries the Type, both units and the plant hierarchy in the sample', async () => {
     const { manifest, files } = await buildBundle(sampleInputs(), { exportedAt: SAMPLE_TIME });
     expect(manifest.packages.map((record) => record.name)).toEqual(SAMPLE_NAMES);
-    const equipment = JSON.parse(new TextDecoder().decode(files['equipment.json'])) as { items: { assetKind: string }[] };
+    const equipment = JSON.parse(new TextDecoder().decode(files['equipment.json'])) as { items: { assetKind: string; aasId: string; typeAasId: string | null }[] };
     expect(equipment.items.map((item) => item.assetKind).sort()).toEqual(['Instance', 'Instance', 'Type']);
+    // Both units point at the Type in the same bundle, so a receiver can attach them to it
+    const typeAasId = equipment.items.find((item) => item.assetKind === 'Type')!.aasId;
+    expect(equipment.items.filter((item) => item.assetKind === 'Instance').map((item) => item.typeAasId)).toEqual([typeAasId, typeAasId]);
     // The company file (pkg_4) has no Instance shell, yet its hierarchy is in the bundle
     expect(manifest.parts.some((part) => part.path === 'packages/pkg_4/hierarchy.json')).toBe(true);
     for (const part of manifest.parts) expect(`sha256:${sha(files[part.path]!)}`).toBe(part.sha256);

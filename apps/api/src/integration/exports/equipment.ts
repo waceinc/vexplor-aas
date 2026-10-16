@@ -64,6 +64,19 @@ async function typeAasIdOf(store: AasStore, packageId: string): Promise<string |
   }
 }
 
+/**
+ * The Type a shell names itself through the AAS standard field `derivedFrom` (Instance → Type AAS id).
+ * Important: the server's own link (`typeAasIdOf`, made by "link to type") is kept per server package id, so it does not
+ *    travel with the file. A unit made by "split per unit" — or by any tool following the metamodel — carries the link
+ *    in `derivedFrom` instead, and that is all a receiver building the bundle from files alone (`buildBundle`) can see.
+ *    The id is taken as written: the Type may be in another file, or not exported at all.
+ */
+function derivedFromOf(shell: Json): string | null {
+  const keys = (shell['derivedFrom'] as { keys?: { type?: unknown; value?: unknown }[] } | undefined)?.keys;
+  const key = Array.isArray(keys) ? keys.find((entry) => entry?.type === 'AssetAdministrationShell') : undefined;
+  return typeof key?.value === 'string' && key.value !== '' ? key.value : null;
+}
+
 function isa95Columns(isa95: Isa95Path | null | undefined): EquipmentItem['location']['isa95'] {
   return { site: isa95?.site ?? null, area: isa95?.area ?? null, workCenter: isa95?.workCenter ?? null };
 }
@@ -84,7 +97,7 @@ export async function projectPackageEquipment(
   const doc = hasIntegrationStore(store) ? (await store.getExternalRefs(packageId))?.value : undefined;
   const items: EquipmentItem[] = [];
   const excluded: ExcludedShell[] = [];
-  let typeAasId: string | null | undefined;
+  let linkedTypeAasId: string | null | undefined;
 
   for (const shell of shellsOf(env)) {
     const info = assetInformationOf(shell);
@@ -113,7 +126,9 @@ export async function projectPackageEquipment(
         }),
       );
     }
-    typeAasId ??= await typeAasIdOf(store, packageId);
+    // The server's link wins; without one, the shell's own derivedFrom (Type shells have no Type of their own)
+    linkedTypeAasId ??= await typeAasIdOf(store, packageId);
+    const typeAasId = linkedTypeAasId ?? (isType ? null : derivedFromOf(shell as Json));
     const location = (locations.get(key) ?? []).find((entry) => entry.packageId !== packageId);
     items.push({
       key,
