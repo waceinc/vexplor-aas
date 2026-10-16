@@ -10,7 +10,7 @@
  *  - Only UI or wording fixed → last digit (1.0.**1**)
  *  - File format or API changed in a breaking way → first digit (**2**.0.0)
  */
-export const PRODUCT_VERSION = '2.1.0';
+export const PRODUCT_VERSION = '2.2.0';
 
 /**
  * Name shown on screens and documents (set 2026-09-21 → changed from WACE to VEXPLOR on 2026-10-02).
