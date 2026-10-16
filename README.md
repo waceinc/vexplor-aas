@@ -71,7 +71,12 @@ cp .env.example .env          # only POSTGRES_PASSWORD is required
 docker compose up -d --build
 ```
 
-Open `http://localhost:8080`. Details: [install.md](docs/install.md).
+Open `http://localhost:8080`. Details: [install.md](docs/install.md). A factory server with no internet: the site
+install bundle, [site-install.md](docs/site-install.md).
+
+The database image `timescale/timescaledb` is **TimescaleDB Community Edition** by Tiger Data, under the Timescale
+License (https://www.tigerdata.com/legal/licenses) — not under this repository's licence; Docker pulls it from Docker Hub
+on your machine. `-oss` images are TimescaleDB Apache-2 Edition (no compression or continuous aggregates).
 
 ### From source — Node.js 24 LTS (22 or later works)
 

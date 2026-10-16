@@ -16,8 +16,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-aas}
       POSTGRES_USER: ${POSTGRES_USER:-aas}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD를 .env에 정하십시오}
+      # Optional: an app account that is not a superuser, made once on an empty database (db/10-app-user.sh).
+      #   The site installer sets both; empty = the app uses POSTGRES_USER as before
+      AAS_DB_USER: ${AAS_DB_USER:-}
+      AAS_DB_PASSWORD: ${AAS_DB_PASSWORD:-}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # One file, not the folder — the image's own TimescaleDB scripts in that folder must stay
+      - ./db/10-app-user.sh:/docker-entrypoint-initdb.d/10-app-user.sh:ro
     healthcheck:
       # Wait until the DB accepts connections, so the app does not start before it and fail
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-aas} -d ${POSTGRES_DB:-aas}']
@@ -34,7 +40,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-aas}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aas}
+      DATABASE_URL: postgres://${AAS_DB_USER:-${POSTGRES_USER:-aas}}:${AAS_DB_PASSWORD:-${POSTGRES_PASSWORD}}@db:5432/${POSTGRES_DB:-aas}
       # If empty, anyone can read and delete files. The startup log says so
       AAS_TOKEN: ${AAS_TOKEN:-}
       AAS_READONLY_TOKEN: ${AAS_READONLY_TOKEN:-}

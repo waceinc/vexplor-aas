@@ -29,6 +29,8 @@ ALLOW=(
   # root
   .dockerignore .env.example .gitattributes .gitignore .github
   Caddyfile.example Dockerfile docker-compose.yml
+  # the app's own database account, mounted by docker-compose.yml
+  db
   LICENSE NOTICE README.md README.ko.md CONTRIBUTING.md CONTRIBUTING.ko.md SECURITY.md SECURITY.ko.md THIRD-PARTY-NOTICES.md
   package.json package-lock.json tsconfig.json tsconfig.base.json tsconfig.tests.json vitest.config.ts .nvmrc
   # code · tests
@@ -40,6 +42,8 @@ ALLOW=(
   docs/examples
   # the edge contract other products implement (vexplor.edge/1)
   docs/edge-contract.md docs/엣지계약.md docs/edge docs/edge-install.md docs/엣지설치.md
+  # the site server install (AAS Studio + TimescaleDB + remote collector on one Linux server)
+  docs/site-install.md docs/현장설치.md
   # tools
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs

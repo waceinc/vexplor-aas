@@ -1,0 +1,10 @@
+TimescaleDB Apache-2 Edition — 이 설치 묶음의 데이터베이스
+=========================================================
+
+이 설치 묶음에는 Tiger Data(Timescale, Inc.)의 TimescaleDB Apache-2 Edition(판 @TIMESCALE@) 실행 파일이 포함되어 있으며,
+Apache License 2.0 이 적용됩니다. 사본은 licenses/TimescaleDB-Apache-2.0.txt, 고지는 licenses/TimescaleDB-NOTICE.txt 에
+동봉했습니다. 이 판에는 압축 · 연속 집계가 없어, AAS Studio 는 수집값을 압축하지 않고 1분 · 1시간 집계를 만들지 않습니다.
+
+This package includes binaries of TimescaleDB Apache-2 Edition by Tiger Data (Timescale, Inc.), licensed under the
+Apache License 2.0; a copy is included at licenses/TimescaleDB-Apache-2.0.txt and its notice at
+licenses/TimescaleDB-NOTICE.txt.
