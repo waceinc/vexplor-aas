@@ -38,6 +38,8 @@ ALLOW=(
   docs/usage.md docs/install.md docs/deployment.md docs/rules.md
   # the sample integration bundle other products run their import gate on (docs/integration.md §7.4)
   docs/examples
+  # the edge contract other products implement (vexplor.edge/1)
+  docs/edge-contract.md docs/엣지계약.md docs/edge
   # tools
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs

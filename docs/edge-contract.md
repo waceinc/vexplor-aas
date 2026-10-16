@@ -1,0 +1,157 @@
+# Edge contract — `vexplor.edge/1`
+
+*Korean: [엣지계약.md](엣지계약.md)*
+
+One small program runs inside the factory — the **remote collector** (the "edge"). It reads PLCs and controllers and
+sends the values out. This contract is what it talks to. **Two products implement the same server side** — VEXPLOR AAS
+Studio and VEXPLOR Logic Studio Cloud — so one edge program serves both.
+
+| | |
+|---|---|
+| Contract | `vexplor.edge/1` |
+| Endpoints | `POST /edge/v1/register` (once) · `GET /edge/v1/read-list` · `POST /edge/v1/batches` |
+| Schemas | [`docs/edge/schemas/`](edge/schemas/) — JSON Schema; worked examples in [`docs/edge/examples/`](edge/examples/) |
+| Transport | HTTPS, JSON bodies, UTF-8. The edge connects out; nothing connects in to the factory |
+| Identity | One-time registration code → the edge makes an Ed25519 key pair and registers the public key → every request is signed |
+| Idempotency | (device, `bootId`, `seq`) — a batch sent twice is stored once |
+
+## 1. Principles
+
+1. **Outbound only.** The edge opens HTTPS connections to the server (port 443, optionally through an HTTP `CONNECT`
+   proxy). The server never connects to the edge or into the factory network.
+2. **Read only.** The edge reads equipment. It never writes to a PLC. The contract has no command channel and **no
+   remote stop** — the server can only (a) change the read list, which takes effect after a person approves it, and
+   (b) revoke the device, after which the edge stops sending.
+3. **No AAS parser on the edge.** The server reads the AAS (AID — Asset Interfaces Description) and hands the edge a
+   plain list of what to read and where. The edge knows protocols, not the AAS metamodel.
+4. **Nothing is read before a person approves.** A new device, or a changed list, gets an empty list until someone
+   approves the tags on the server.
+5. **Values are not written into the AAS.** The server keeps them in its value store; the AAS keeps the interface
+   description and references only.
+6. **Add only.** Within `/1`, fields are only ever added. Both sides ignore fields they do not know. Anything else is a
+   new contract (`vexplor.edge/2`, new paths `/edge/v2/…`), and the server keeps `/1` for at least one release.
+
+## 2. Signing every request
+
+Every request carries four headers:
+
+| Header | Value |
+|---|---|
+| `X-Edge-Device` | The `deviceId` from registration. On `register` itself: the literal `register` |
+| `X-Edge-Timestamp` | Unix time in seconds. The server accepts ±300 s from its clock |
+| `X-Edge-Nonce` | 16 or more random bytes, base64url. Not reused by the device within 10 minutes |
+| `X-Edge-Signature` | `ed25519=` + base64url (no padding) of the 64-byte signature |
+
+The signed text is seven lines joined by `\n` (no trailing newline), UTF-8:
+
+```
+vexplor.edge/1
+<METHOD, upper case>
+<path and query exactly as sent, e.g. /edge/v1/read-list>
+<X-Edge-Timestamp>
+<X-Edge-Nonce>
+<X-Edge-Device>
+<lower-case hex SHA-256 of the body bytes — of the empty string for GET>
+```
+
+The first line is the contract name. Signing the body hash and the path — not the TLS session — lets the
+signature survive TLS-inspecting proxies. The register request is signed with the key it registers (proof that the edge
+holds the private key).
+
+**Worked example** (RFC 8032 §7.1 test key 1 — never use it for a real device):
+
+| | |
+|---|---|
+| Private key seed (hex) | `9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60` |
+| Public key (base64url) | `11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo` |
+| Request | `POST /edge/v1/batches`, device `dev_8Q2K7M4N`, timestamp `1792141205`, nonce `bm9uY2UtMDAwMDAwMDAwMQ` |
+| Body | [`docs/edge/examples/signed-batch.body.json`](edge/examples/signed-batch.body.json) (exact bytes, no trailing newline) |
+| Body SHA-256 | `c0d5d9913f729fa8d4893e7f6c30fd2e665d42559f84642514365e0955427651` |
+| `X-Edge-Signature` | `ed25519=vEOC6NvXN1SGvT7EJPnqD1O4ji89dr-Uk1UVaUqO94fX5-RVDpwhEwnAW2dVXAkRSztL_kHUP7LgTvQL1LwiCA` |
+
+## 3. Register — `POST /edge/v1/register`
+
+A person creates a **registration code** on the server (it belongs to one workspace, works once, and expires — 24 hours
+unless the server says otherwise). The edge is installed with that code, makes its own Ed25519 key pair, keeps the
+private key on the machine, and sends:
+
+Request `vexplor.edge.register/1` — `code`, `publicKey` (32 raw bytes, base64url), `device` (`name`, optional
+`hostname`, `software` `{name, version}`). Response **201** `vexplor.edge.registration/1` — `deviceId`, `registeredAt`,
+`server` (`tool`, `version`, `contract`), `limits`, `readList` (`path`, `pollSeconds`).
+
+The device belongs to the code's workspace and sees nothing else. A code that is unknown, used or expired answers 401
+`RegistrationCodeInvalid` — the server does not say which. The same public key cannot be registered twice (409
+`KeyAlreadyRegistered`).
+
+## 4. Read list — `GET /edge/v1/read-list`
+
+What to read, already resolved from the AAS by the server. Response **200** `vexplor.edge.readList/1`:
+
+- `revision` — opaque string; changes whenever the list changes. Send it back as `If-None-Match: "<revision>"` to get
+  **304** when nothing changed. The response carries it as `ETag` too.
+- `state` — `pending-approval` (nothing approved yet: `interfaces` is empty), `approved`, or `paused` (approved before,
+  stopped by a person: `interfaces` is empty, the edge stops reading).
+- `pollSeconds` — how long to wait before asking again (the edge may ask sooner after a 2xx batch answer reports a
+  different `readListRevision`).
+- `interfaces[]` — one per equipment connection: `interfaceId`, `packageId`, `aasId`, `globalAssetId`,
+  `interfaceName` (the AID interface), `protocol` (`OPCUA` · `MODBUS` · `MQTT` · `HTTP`), `endpoint` (AID `base`),
+  `security`, `intervalMs`, and `tags[]` — `tagId`, `propertyName`, `address` (AID `href`), optional `key`, `type`,
+  `unit`, and `fields` (the remaining AID form fields, as text, by name).
+- `security` — `mode` (`None` · `Sign` · `SignAndEncrypt` for OPC UA; `None` · `TLS` otherwise), optional `policy`, and
+  optional `credentialRef`. **The list never carries a password or a key.** `credentialRef` names a credential the
+  installer stored on the edge machine; the edge looks it up locally.
+
+An interface whose protocol the edge does not support is skipped and reported in the next batch's `status`.
+
+## 5. Batches — `POST /edge/v1/batches`
+
+Request `vexplor.edge.batch/1`:
+
+- `bootId` — a UUID made fresh every time the edge process starts.
+- `seq` — integer from 1, +1 for every new batch within the boot. **(device, `bootId`, `seq`) is the idempotency key.**
+- `readListRevision` — the list the values were read with.
+- `createdAt`, `samples[]` — `tagId`, `observedAt` (device time when known, else read time), `receivedAt` (when the
+  edge read it), `value` (number, string, boolean or null), optional `quality` and `error`.
+- optional `status` — `startedAt`, `queuedBatches`, `droppedBatches`, `software`, and per interface `connected` and
+  `lastError`. A batch with no samples is a valid heartbeat.
+
+Response **200** `vexplor.edge.batchResult/1` — `bootId`, `seq`, `accepted`, `duplicate`, `rejected[]` (`index`,
+`tagId`, `code` — e.g. a tag that is not in the approved list), and the server's current `readListRevision`.
+
+A batch the server already has answers 200 with `duplicate: true` and stores nothing again. The server does not require
+`seq` to arrive in order or without gaps.
+
+## 6. Limits, errors and what the edge does
+
+Limits come with the registration (`limits`) and may be lowered at any time — the server then answers 413 or 429.
+Defaults: `maxBatchBytes` 1 048 576, `maxSamplesPerBatch` 5 000, `requestsPerMinute` 60, per device.
+
+Errors use one envelope, `vexplor.edge.error/1` — `code`, `message`, `retryable`, optional `retryAfterSeconds`.
+
+| Status | `code` | The edge |
+|---|---|---|
+| 400 / 422 | `BadRequest` · `SchemaMismatch` | Keeps the batch in a local "refused" folder, does not resend, continues with the next |
+| 401 | `SignatureInvalid` · `UnknownDevice` | Stops sending, keeps the queue, raises a local alarm. Never re-registers by itself |
+| 401 | `ClockSkew` | Retries after checking the clock (logs the server `Date` header) |
+| 401 | `RegistrationCodeInvalid` | Register only — asks the installer for a new code |
+| 403 | `DeviceRevoked` | Stops sending, keeps the queue, raises a local alarm |
+| 409 | `KeyAlreadyRegistered` | Register only — makes a new key pair and asks for a new code |
+| 413 | `PayloadTooLarge` | Splits the samples into new batches (new `seq`), keeps the original in "refused" |
+| 429 · 503 | `RateLimited` · `Unavailable` | Waits `Retry-After` (seconds), resends the **same** batch |
+| 5xx · network · timeout | `ServerError` | Resends the **same** batch with backoff: 1 s doubling to 5 min, ±20 % jitter |
+
+**Local queue.** Every batch is written to disk before it is sent and deleted only after a 2xx. When the queue reaches
+its configured size, the oldest batches are dropped and counted in `status.droppedBatches` — never silently.
+
+## 7. Network
+
+- HTTPS only. A server answers `http://` only on loopback, for tests.
+- Proxy: `HTTPS_PROXY` / configuration, HTTP `CONNECT`, TLS end to end. Allow-lists should name the server host, not
+  an IP address.
+- The full list of outbound destinations is the server base URL (and the update source, outside this contract).
+
+## 8. What this contract does not claim
+
+It is a VEXPLOR contract, not an IDTA specification. The read list is derived from AID (IDTA-02017) submodels, but
+supporting this contract does not mean full AID support — protocols and form fields the server cannot resolve are left
+out of the list.

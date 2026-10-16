@@ -1,0 +1,10 @@
+{
+  "schema": "vexplor.edge.register/1",
+  "code": "7KQ4-M2XD-9PRT",
+  "publicKey": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+  "device": {
+    "name": "Line 1 collector",
+    "hostname": "edge-line1",
+    "software": { "name": "vexplor-edge", "version": "0.1.0" }
+  }
+}

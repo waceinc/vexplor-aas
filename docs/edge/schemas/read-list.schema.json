@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/waceinc/vexplor-aas/blob/main/docs/edge/schemas/read-list.schema.json",
+  "title": "vexplor.edge.readList/1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "vexplor.edge.readList/1"
+    },
+    "deviceId": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "string",
+      "description": "Opaque; changes whenever the list changes. Also sent as ETag"
+    },
+    "state": {
+      "enum": [
+        "pending-approval",
+        "approved",
+        "paused"
+      ]
+    },
+    "approvedAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "pollSeconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/interface"
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "deviceId",
+    "revision",
+    "state",
+    "approvedAt",
+    "pollSeconds",
+    "interfaces"
+  ],
+  "description": "GET /edge/v1/read-list 200 response",
+  "$defs": {
+    "interface": {
+      "type": "object",
+      "properties": {
+        "interfaceId": {
+          "type": "string"
+        },
+        "packageId": {
+          "type": "string"
+        },
+        "aasId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "globalAssetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "interfaceName": {
+          "type": "string"
+        },
+        "protocol": {
+          "enum": [
+            "OPCUA",
+            "MODBUS",
+            "MQTT",
+            "HTTP"
+          ]
+        },
+        "endpoint": {
+          "type": "string"
+        },
+        "security": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "enum": [
+                "None",
+                "Sign",
+                "SignAndEncrypt",
+                "TLS"
+              ]
+            },
+            "policy": {
+              "type": "string"
+            },
+            "credentialRef": {
+              "type": "string",
+              "description": "Name of a credential stored on the edge machine. The list never carries secrets"
+            }
+          },
+          "required": [
+            "mode"
+          ]
+        },
+        "intervalMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        }
+      },
+      "required": [
+        "interfaceId",
+        "packageId",
+        "aasId",
+        "globalAssetId",
+        "interfaceName",
+        "protocol",
+        "endpoint",
+        "security",
+        "intervalMs",
+        "tags"
+      ]
+    },
+    "tag": {
+      "type": "object",
+      "properties": {
+        "tagId": {
+          "type": "string"
+        },
+        "propertyName": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Remaining AID form fields by name, as text"
+        }
+      },
+      "required": [
+        "tagId",
+        "propertyName",
+        "address",
+        "fields"
+      ]
+    }
+  }
+}

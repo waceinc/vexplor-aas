@@ -1,0 +1,18 @@
+{
+  "schema": "vexplor.edge.batch/1",
+  "bootId": "7f1d2c3e-0a4b-4c5d-8e6f-112233445566",
+  "seq": 2,
+  "readListRevision": "3",
+  "createdAt": "2026-10-16T09:00:10.000Z",
+  "samples": [
+    { "tagId": "tag_1", "observedAt": "2026-10-16T09:00:09.000Z", "receivedAt": "2026-10-16T09:00:09.110Z", "value": 1450, "quality": "Good" },
+    { "tagId": "tag_1", "observedAt": "2026-10-16T09:00:10.000Z", "receivedAt": "2026-10-16T09:00:10.105Z", "value": null, "quality": "BadCommunicationError", "error": "connection reset" }
+  ],
+  "status": {
+    "startedAt": "2026-10-16T08:59:00.000Z",
+    "queuedBatches": 0,
+    "droppedBatches": 0,
+    "software": { "name": "vexplor-edge", "version": "0.1.0" },
+    "interfaces": [{ "interfaceId": "pkg_2:InterfaceOPCUA", "connected": true, "lastError": null }]
+  }
+}
