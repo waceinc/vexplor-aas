@@ -91,7 +91,7 @@ for _ in $(seq 1 90); do
 done
 echo
 curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || { echo "[X] 서버가 답하지 않습니다. 원인 보기:  cd $DIR && docker compose logs app" >&2; exit 1; }
-echo "[OK] $(cd "$DIR" && docker compose logs app 2>/dev/null | grep -m1 -E '저장소|store' | sed 's/^[^|]*| *//')"
+echo "[OK] $(cd "$DIR" && docker compose logs app 2>/dev/null | grep -m1 -E '(저장소|Store): ' | sed 's/^[^|]*| *//')"
 
 if [ "$EDGE" -eq 1 ]; then
   EDGE_PACKAGE=$(ls "$HERE"/vexplor-edge-*-linux-*.tar.gz 2>/dev/null | head -1)

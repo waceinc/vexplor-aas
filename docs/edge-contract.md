@@ -148,6 +148,7 @@ Errors use one envelope, `vexplor.edge.error/1` — `code`, `message`, `retryabl
 | 413 | `PayloadTooLarge` | Splits the samples into new batches (new `seq`), keeps the original in "refused" |
 | 429 · 503 | `RateLimited` · `Unavailable` | Waits `Retry-After` (seconds), resends the **same** batch |
 | 5xx · network · timeout | `ServerError` | Resends the **same** batch with backoff: 1 s doubling to 5 min, ±20 % jitter |
+| Any other status (404, 405 …) | — | As 5xx: resends the same batch with backoff and logs it. Only 401 (not `ClockSkew`) and 403 stop the edge — another answer comes from something between (a proxy, an upgrade) |
 
 **Local queue.** Every batch is written to disk before it is sent and deleted only after a 2xx. When the queue reaches
 its configured size, the oldest batches are dropped and counted in `status.droppedBatches` — never silently.

@@ -5,6 +5,11 @@
  *   400 · 413 · 422          → refused/, next batch (413: the edge keeps batches under the limit, so this is a bug report)
  *   401 ClockSkew · 429 · 5xx · no answer → stop this round; resend the **same** batch later (backoff or Retry-After)
  *   401 other · 403          → stop sending altogether, keep the queue, alarm. Never re-register by itself
+ *   anything else (404, 405 …) → like 5xx: wait and try again, logged
+ *
+ * Important: only what the contract names stops the edge. An answer it does not name comes from something between —
+ *    a proxy, a server being upgraded, another program on the address — and stopping on it left a factory collector
+ *    stopped for good after one 404 (site test, 2026-10-17).
  *
  * Important: one round never sleeps. It returns when it must wait, with the time to wait — the agent keeps reading
  *    equipment meanwhile, so an outage costs no samples, only queue space.
@@ -76,8 +81,8 @@ export class Sender {
         this.stats.refused += 1;
         continue;
       }
-      const retryable = answer.status === 429 || answer.status >= 500 || (answer.status === 401 && body?.code === 'ClockSkew');
-      if (retryable) {
+      const stops = answer.status === 403 || (answer.status === 401 && body?.code !== 'ClockSkew');
+      if (!stops) {
         this.failures += 1;
         const retryAfter = Number(answer.headers['retry-after']);
         const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : this.backoffMs();

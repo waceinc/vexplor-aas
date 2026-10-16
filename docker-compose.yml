@@ -25,8 +25,11 @@ services:
       # One file, not the folder — the image's own TimescaleDB scripts in that folder must stay
       - ./db/10-app-user.sh:/docker-entrypoint-initdb.d/10-app-user.sh:ro
     healthcheck:
-      # Wait until the DB accepts connections, so the app does not start before it and fail
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-aas} -d ${POSTGRES_DB:-aas}']
+      # Wait until the DB accepts connections, so the app does not start before it and fail.
+      # Important: over TCP (-h 127.0.0.1). On a new volume the image first runs a temporary server for its init scripts
+      #    that listens on the Unix socket only; a socket check passed against it, the app's TCP connection was then
+      #    refused and the app restarted once (measured on a slow x86_64 server, 2026-10-17)
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-aas} -d ${POSTGRES_DB:-aas}']
       interval: 5s
       timeout: 3s
       retries: 20

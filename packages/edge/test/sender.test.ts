@@ -62,3 +62,31 @@ describe('edge queue order and retention', () => {
     expect(queue.dropped).toBe(1);
   });
 });
+
+describe('what stops sending', () => {
+  const answering = (status: number, code?: string) =>
+    ({ request: async () => ({ status, headers: {}, body: code ? { code } : undefined }) }) as unknown as EdgeHttp;
+  const queued = () => {
+    const queue = new DiskQueue(mkdtempSync(join(tmpdir(), 'edge-stop-')), 100);
+    queue.add(batch(1, new Date().toISOString()));
+    return queue;
+  };
+
+  it('only the contract says so: 401 (not ClockSkew) and 403 stop; the batch stays queued', async () => {
+    for (const [status, code] of [[401, 'UnknownDevice'], [401, 'SignatureInvalid'], [403, 'DeviceRevoked']] as const) {
+      const queue = queued();
+      expect((await new Sender(answering(status, code), queue, () => ({}) as never).flush()).state, `${status} ${code}`).toBe('stopped');
+      expect(queue.size).toBe(1);
+    }
+  });
+
+  it('an answer the contract does not name (a proxy or an upgrade in progress: 404, 405, 502 …) waits and tries again', async () => {
+    // Found on a site test (2026-10-17): another server on the same address answered 404, the edge stopped for good
+    for (const status of [404, 405, 408, 409, 502, 504]) {
+      const queue = queued();
+      const result = await new Sender(answering(status), queue, () => ({}) as never, () => 0.5).flush();
+      expect(result.state, String(status)).toBe('wait');
+      expect(queue.size).toBe(1);
+    }
+  });
+});
