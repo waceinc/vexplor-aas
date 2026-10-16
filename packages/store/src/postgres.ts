@@ -339,8 +339,9 @@ export class PostgresStore implements AasStore, IntegrationStore {
     for (const value of values) {
       await this.client.query(
         `INSERT INTO collected_value
-           (package_id, interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at)
-         VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8, $9::timestamptz)`,
+           (package_id, interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at, value_key)
+         VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8, $9::timestamptz, $10)
+         ON CONFLICT DO NOTHING`,
         [
           packageId,
           value.interfaceName,
@@ -351,6 +352,7 @@ export class PostgresStore implements AasStore, IntegrationStore {
           value.valueText ?? null,
           value.quality ?? null,
           value.receivedAt ?? null,
+          value.key ?? null,
         ],
       );
     }

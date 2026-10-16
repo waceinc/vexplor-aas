@@ -92,8 +92,13 @@ describe('schema version number (schema_version)', () => {
     .replace(/^ *-- *Contact address \(optional\).*$/m, '')
     .replace(/^ *-- *No UNIQUE either.*$/m, '')
     .replace(/^ *email +text$/m, '')
-    // v8 — receivedAt of collected values
-    .replace(/^ *received_at +timestamptz$/m, '')
+    // v10 — idempotency key of collected values (column, the pre-versioning guard and its comment, the unique index)
+    .replace(/^ *value_key +text$/m, '')
+    .replace(/^--.*(DB from before version numbers|value_key yet).*$/gm, '')
+    .replace(/^ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS value_key text;$/m, '')
+    .replace(/^CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx.*$/m, '')
+    // v8 — receivedAt of collected values (a trailing comma once v10 follows it)
+    .replace(/^ *received_at +timestamptz,?$/m, '')
     // v4 — the audit trail's "who"; strip its comments too
     .replace(/^ *--.*app_user.*$/m, '')
     .replace(/^ *--.*copied as it was at the time.*$/m, '')
@@ -109,8 +114,21 @@ describe('schema version number (schema_version)', () => {
     data: new Uint8Array([1]),
   };
 
+  it('v1 tables with no version number at all — SCHEMA_SQL runs before the migrations and must not need later columns', async () => {
+    // Found on a real TimescaleDB (2026-10-16): the v10 unique index in SCHEMA_SQL met a collected_value without value_key
+    const db = new PGlite();
+    for (const statement of V1_SCHEMA.split(';')) if (statement.trim()) await db.query(statement);
+    await db.query("INSERT INTO aas_package (id, name) VALUES ('p1', 'old.aasx')");
+    const store = new PostgresStore(clientOf(db));
+    await store.init();
+    expect(store.schemaVersion).toBe(SCHEMA_VERSION);
+    expect((await store.getPackage('p1'))?.name).toBe('old.aasx');
+  });
+
   it('v1 DB — migrates to the latest version with data intact', async () => {
     expect(V1_SCHEMA).not.toBe(SCHEMA_SQL);
+    // Every later addition is stripped — otherwise the "old DB" is the latest one and no migration line runs
+    expect(V1_SCHEMA).not.toMatch(/value_key|received_at/);
     const db = new PGlite();
     for (const statement of V1_SCHEMA.split(';')) if (statement.trim()) await db.query(statement);
     await db.query(SCHEMA_VERSION_TABLE);
@@ -122,6 +140,11 @@ describe('schema version number (schema_version)', () => {
     // Important: do not hard-code the version number — if this test broke on every bump it would
     //    only report that the version changed, never check that the migration **actually happened**
     expect(store.schemaVersion).toBe(SCHEMA_VERSION);
+    // v8 and v10 — receivedAt, and a keyed value stored once
+    // Dated in the past so the v8 check further down still finds its own value first
+    const keyed = { packageId: 'p1', interfaceName: 'I', propertyName: 'P', observedAt: '2020-01-01T00:00:00.000Z', receivedAt: '2020-01-01T00:00:01.000Z', valueNumber: 1, key: 'k1' };
+    await store.appendValues('p1', [keyed, keyed]);
+    expect((await store.readValues('p1')).map((value) => value.receivedAt)).toEqual(['2020-01-01T00:00:01.000Z']);
     await store.putPackageFile('p1', bundleFile);     // v2 — bundle attachment
     expect((await store.packageFiles('p1')).map((f) => f.role)).toEqual(['bundle']);
     // v3 — users table; it must appear in old DBs too or login cannot work

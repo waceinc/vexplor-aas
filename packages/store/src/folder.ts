@@ -336,10 +336,11 @@ export class FolderStore extends InMemoryStore {
     values: readonly CollectedValue[],
   ): Promise<void> {
     const folder = this.packageDir(packageId);
-    await super.appendValues(packageId, values);
-    if (values.length === 0) return;
+    // Only what was not stored before — a value sent again (same key) must not reach the file twice either
+    const fresh = this.acceptValues(packageId, values);
+    if (fresh.length === 0) return;
     await mkdir(folder, { recursive: true });
-    const lines = values.map((value) => JSON.stringify(value)).join('\n');
+    const lines = fresh.map((value) => JSON.stringify(value)).join('\n');
     await appendFile(join(folder, VALUES_FILE), `${lines}\n`, 'utf8');
   }
 

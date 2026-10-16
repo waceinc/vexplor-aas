@@ -232,6 +232,8 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
         ...(typeof sample.value === 'number' ? { valueNumber: sample.value } : {}),
         ...(typeof sample.value === 'string' || typeof sample.value === 'boolean' ? { valueText: String(sample.value) } : {}),
         ...(sample.quality !== undefined ? { quality: sample.quality } : {}),
+        // The store skips a key it already has — a crash after storing and before recording the batch cannot double it
+        key: `edge:${device.deviceId}:${input.bootId}:${input.seq}:${index}`,
       };
       byPackage.set(value.packageId, [...(byPackage.get(value.packageId) ?? []), value]);
     });
