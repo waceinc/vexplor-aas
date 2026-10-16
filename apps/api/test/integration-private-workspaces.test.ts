@@ -8,6 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 
+import { unzipArchive } from '@aas/aasx';
 import { EVENT_TYPES } from '@aas/core';
 import { InMemoryStore } from '@aas/store';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -71,6 +72,19 @@ describe('exports and readiness', () => {
     const listed = await bob('GET', '/integrations/exports/equipment');
     expect(listed.status).toBe(200);
     expect(leaks(listed)).toBe(false);
+  });
+
+  it('bundle: Alice gets her unit in the zip, Bob a bundle without it; her package id → 404', async () => {
+    // Important: the zip is compressed — search the unpacked entries, or a leak would never show up in the bytes
+    const unpacked = (response: ApiResponse): ApiResponse => ({
+      ...response,
+      body: Object.values(unzipArchive(response.body as Uint8Array)).map((entry) => new TextDecoder().decode(entry)).join('\n'),
+    });
+    expect(leaks(unpacked(await alice('GET', '/integrations/exports/bundle')))).toBe(true);
+    const listed = await bob('GET', '/integrations/exports/bundle');
+    expect(listed.status).toBe(200);
+    expect(leaks(unpacked(listed))).toBe(false);
+    expect((await bob('GET', '/integrations/exports/bundle', { query: { packageId } })).status).toBe(404);
   });
 
   it.each(['equipment', 'bom', 'hierarchy', 'maintenance', 'documents'])('exports/%s?packageId=<Alice> → 404 for Bob', async (kind) => {

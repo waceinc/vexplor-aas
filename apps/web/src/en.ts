@@ -1181,6 +1181,11 @@ export const EN_MORE: Record<string, string> = {
   '파일을 하나 고르면 내려받을 수 있습니다': 'Choose one file to download this',
   '같은 내용을 ERP 가 직접 읽는 주소': 'Address an ERP reads directly for the same content',
   '설비 마스터 주소': 'Equipment master address',
+  '전체 묶음 — 다른 시스템에 한 번에 넘길 때': 'Everything at once — to hand over to another system in one step',
+  '전체 묶음(zip) 내려받기': 'Download everything (zip)',
+  '아래 다섯 가지를 JSON 으로 zip 하나에 — 파일마다 sha256 이 적힌 목록(manifest.json)이 함께 들어갑니다':
+    'The five exports below as JSON in one zip, with a list (manifest.json) giving each part its sha256',
+  '전체 묶음 주소': 'Address of the whole bundle',
   '빼기': 'Remove',
   '{0} {1}번째 줄 {2}': '{0} row {1} {2}',
   '{0} 더하기': 'Add {0}',

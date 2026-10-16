@@ -510,6 +510,27 @@ paths:
         - $ref: '#/components/parameters/Lang'
       responses:
         '200': { $ref: '#/components/responses/Export' }
+  /integrations/exports/bundle:
+    get:
+      tags: [exports]
+      summary: Integration bundle (vexplor.integrationBundle/1) — every export of the visible files in one zip
+      description: >-
+        manifest.json (parts with sha256 and item count, skipped exports with their 422 code), equipment.json (Type
+        shells included) and packages/{packageId}/hierarchy|bom|maintenance|documents.json. Each part is exactly the
+        JSON the single export route answers, all with one exportedAt. JSON only.
+      parameters:
+        - name: packageId
+          in: query
+          schema: { type: string }
+          description: Omit for every visible package
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: The bundle
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '404': { $ref: '#/components/responses/NotFound' }
   /integrations/readiness:
     get:
       tags: [exports]

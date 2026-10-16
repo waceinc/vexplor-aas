@@ -312,12 +312,38 @@ export function exportPath(kind: ExportKind, options: ExportOptions): string {
   })}`;
 }
 
+/**
+ * The integration bundle — every export of the chosen file (or every visible file) in one zip (docs/integration.md §7.4).
+ * JSON only, so there is no format, BOM or header option.
+ */
+export function bundlePath(options: { packageId?: string; lang?: string }): string {
+  return `/integrations/exports/bundle${query({ packageId: options.packageId, lang: options.lang })}`;
+}
+
 /** Address an MES / ERP polls — absolute, so it can be pasted into another system's configuration */
 export function feedUrl(origin: string, after = 0): string {
   return `${origin.replace(/\/$/, '')}/integrations/events?after=${after}`;
 }
 
 // ── Calls ───────────────────────────────────────────────────────────────────
+
+/** Fetches a file the server hands out and saves it under the server's file name; returns that name */
+async function download(path: string, fallbackName: string): Promise<string> {
+  const response = await fetch(path, withAuth());
+  if (!response.ok) {
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      /* not JSON */
+    }
+    const message = (body as ErrorBody | undefined)?.messages?.[0];
+    throw new IntegrationError(response.status, message?.text ?? `${response.status} ${response.statusText}`, message?.code, body);
+  }
+  const name = filenameOf(response) ?? fallbackName;
+  saveBlob(await response.blob(), name);
+  return name;
+}
 
 export const integrationApi = {
   status: (): Promise<IntegrationStatusView> => call('/integrations/status'),
@@ -350,23 +376,9 @@ export const integrationApi = {
 
   readiness: (packageId?: string): Promise<ReadinessView> => call(`/integrations/readiness${query({ packageId })}`),
   /** Downloads an export as a file — the name comes from Content-Disposition (the server knows schema and date) */
-  downloadExport: async (kind: ExportKind, options: ExportOptions): Promise<string> => {
-    const path = exportPath(kind, options);
-    const response = await fetch(path, withAuth());
-    if (!response.ok) {
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
-        /* not JSON */
-      }
-      const message = (body as ErrorBody | undefined)?.messages?.[0];
-      throw new IntegrationError(response.status, message?.text ?? `${response.status} ${response.statusText}`, message?.code, body);
-    }
-    const name = filenameOf(response) ?? `${kind}.${options.format}`;
-    saveBlob(await response.blob(), name);
-    return name;
-  },
+  downloadExport: (kind: ExportKind, options: ExportOptions): Promise<string> => download(exportPath(kind, options), `${kind}.${options.format}`),
+  downloadBundle: (options: { packageId?: string; lang?: string }): Promise<string> => download(bundlePath(options), 'bundle.zip'),
+
 
   externalRefs: (packageId: string): Promise<Versioned<ExternalRefsDoc>> => call(`/packages/${enc(packageId)}/external-refs`),
   saveExternalRefs: (

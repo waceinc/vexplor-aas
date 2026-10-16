@@ -16,7 +16,7 @@ decision here is [design/integration-v1.md](design/integration-v1.md).
 | [4](#4-events) | Events — envelope, catalogue, ordering and idempotency, the pull feed |
 | [5](#5-webhooks) | Webhooks — signatures, verification code, retries, dead letters, replay |
 | [6](#6-mqtt) | MQTT — topics, QoS, retained state, security |
-| [7](#7-exports) | Exports — equipment, BOM, hierarchy, maintenance, documents; CSV columns; readiness checks |
+| [7](#7-exports) | Exports — equipment, BOM, hierarchy, maintenance, documents; CSV columns; readiness checks; integration bundle (one zip) |
 | [8](#8-runtime-rules) | Runtime rules — state, alarms, counters, thresholds, shifts, OEE inputs, meters |
 | [9](#9-opc-ua-security) | OPC UA security — modes, accounts, certificates |
 | [10](#10-network-placement) | Network placement |
@@ -452,6 +452,7 @@ then the first). Two exports without edits differ only in `exportedAt`. In the U
 | `GET /integrations/exports/hierarchy?packageId=` | `kr.vexplor.aas.hierarchy.v1` | Any file with `HierarchicalStructures` (plant structure of a process file, or the BOM tree of an equipment file); flat list with parent ids. 422 `NoHierarchy` only when the file has none |
 | `GET /integrations/exports/maintenance?packageId=` | `vexplor.maintenancePlan/1` | CSV has one row per step |
 | `GET /integrations/exports/documents?packageId=` | `vexplor.documents/1` | One row per document × version × file |
+| `GET /integrations/exports/bundle` | `vexplor.integrationBundle/1` | **Everything above in one zip** — see §7.4. `packageId` optional, JSON only |
 
 ### 7.1 Frozen CSV columns
 
@@ -500,6 +501,29 @@ refused. They are not lint findings and do not change the submission report.
 | INT-3 | warning | A maintenance instruction has no explicit interval value + unit | `intervalStatus: "missing"` |
 | INT-4 | warning | A process-file hierarchy node with `BulkCount > 1` points at one `globalAssetId` | Hierarchy export warning; never expanded |
 | INT-5 | warning | An Instance shell has no `SerialNumber` | `missing` includes `nameplate.serialNumber` |
+
+### 7.4 Integration bundle — everything in one file
+
+For a receiving system that wants the whole picture in one step (an ERP or CMMS import job, a VEXPLOR Logic Studio
+tenant) instead of five calls per file. In the UI: **Integrations → Exports → Download everything (zip)**.
+
+```
+manifest.json                          vexplor.integrationBundle/1
+equipment.json                         vexplor.equipmentMaster/1 — Type shells included (assetKind says which)
+packages/<packageId>/hierarchy.json    kr.vexplor.aas.hierarchy.v1
+packages/<packageId>/bom.json          vexplor.bom/1
+packages/<packageId>/maintenance.json  vexplor.maintenancePlan/1   (left out when empty)
+packages/<packageId>/documents.json    vexplor.documents/1         (left out when empty)
+```
+
+- Each part is **exactly** the JSON the single export route answers — the bundle is a carrier, not a second
+  projection. All parts share the manifest's `exportedAt`; two bundles without edits differ only in that value.
+- `manifest.parts[]` lists every entry with `sha256` and the item count — check them before importing.
+- An export a file refuses (422 `NoHierarchy`, `NoBom`, `BomRootMismatch`) appears in `manifest.skipped[]` with the same
+  code and message, so the receiver can show why a part is missing. For hierarchy and BOM a part is always either
+  present or listed there.
+- Same access as the exports: any reader, limited to the files the workspace shows. Document files themselves are not in
+  the zip — `documents.json` carries their download address and `sha256`.
 
 ## 8. Runtime rules
 
@@ -657,5 +681,9 @@ Sign this with the customer before go-live.
   same value).
 - **Daily status rules moved to the server.** Rules kept in a browser are offered to an administrator once ("Move
   browser rules to the server"); after that every screen and every state event uses the server rules.
+- **Integration bundle.** `GET /integrations/exports/bundle` (UI: Integrations → Exports → Download everything) gives every
+  export of the visible files in one zip with a manifest (§7.4).
+- **Libraries for other products.** `@aas/core`, `@aas/aasx` and `@aas/linter` are packed for the release
+  (`scripts/pack-libraries.mjs`) — install by release URL (README, "Using the libraries in another product").
 - New: event log and pull feed, webhook and MQTT subscriptions, exports, external references, readiness checks, runtime
   rules, OEE inputs, meters.

@@ -109,6 +109,19 @@ A TypeScript monorepo — one language for the front end and the server.
 | `apps/api` | REST API server |
 | `apps/web` | React front end |
 
+### Using the libraries in another product
+
+`@aas/core`, `@aas/aasx` and `@aas/linter` are attached to each GitHub release as npm tarballs
+(`node scripts/pack-libraries.mjs`, checksums in `SHA256SUMS`). Install them **by release URL**:
+
+```json
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.0.1/aas-aasx-2.0.1.tgz"
+```
+
+Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would
+install whatever someone else publishes there. The tarballs point at each other by release URL, so one pinned URL is
+enough.
+
 ## Standards
 
 | Standard | Status |
