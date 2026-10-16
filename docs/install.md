@@ -109,8 +109,8 @@ The startup log states the current mode in one line — check it once.
 | `APP_PORT` | Port exposed to the outside (default 8080) |
 | `COLLECT` / `COLLECT_INTERVAL` | Collection of field values (OPC UA). `on` plus an interval (seconds) only when you have equipment |
 | `COLLECT_RETENTION_DAYS` | **Retention period (days)** for collected values. Older values are deleted at startup and every hour. `.env` default 180 · empty or 0 keeps them forever. Models (AASX) are not touched |
-| `COLLECT_COMPRESS_AFTER_DAYS` | TimescaleDB only — collected values older than this many days are **compressed** (15 to 22 times smaller, measured — 1 000 tags every second: 1 099 MB an hour raw, 50 MB compressed). Empty = 7 · 0 = no compression |
-| `COLLECT_ROLLUPS` | TimescaleDB only — **1-minute and 1-hour aggregates** `collected_value_1m` / `collected_value_1h` (avg · min · max · last · count per property), kept up to date and reaching 35 days back so late values from a remote collector are included. Empty = on · `off` = none |
+| `COLLECT_COMPRESS_AFTER_DAYS` | TimescaleDB Community Edition only — collected values older than this many days are **compressed** (15 to 22 times smaller, measured — 1 000 tags every second: 1 099 MB an hour raw, 50 MB compressed). Empty = 7 · 0 = no compression |
+| `COLLECT_ROLLUPS` | TimescaleDB Community Edition only — **1-minute and 1-hour aggregates** `collected_value_1m` / `collected_value_1h` (avg · min · max · last · count per property), kept up to date and reaching 35 days back so late values from a remote collector are included. Empty = on · `off` = none |
 | `COLLECT_ROLLUP_MINUTE_DAYS` | How long the 1-minute aggregate is kept. Empty = 90 · 0 = forever. The 1-hour aggregate is kept |
 | `AAS_PUBLIC_URL` | **Required behind a reverse proxy.** The registry advertises this address |
 | `CORS_ORIGIN` | When a **web app** at another address (an intranet portal, etc.) calls this API from the browser, list its origins separated by commas. If empty, the browser blocks cross-origin requests (default, safest). The authoring UI is on the same port and does not need it; server-to-server calls are not affected |
@@ -141,7 +141,7 @@ Give the values the Docker setup would otherwise provide yourself.
 | Setting | Meaning |
 |---|---|
 | `PORT` | Listening port (default 8080). Corresponds to `APP_PORT` in Docker |
-| `DATABASE_URL` | PostgreSQL connection string — for shared use. If TimescaleDB is present it is used for collected values (it also starts without it) |
+| `DATABASE_URL` | PostgreSQL connection string — for shared use. If TimescaleDB (Community Edition or Apache-2 Edition) is present it is used for collected values (it also starts without it) |
 | `DATABASE_SCHEMA` | Schema name when several instances share one database (optional) |
 | `AAS_DATA_DIR` | Folder for keeping files when one person uses it without `DATABASE_URL`. With neither, everything stays **in memory only** and disappears when stopped (the startup log says so) |
 | `AAS_HOST` | Sets the address to bind to explicitly. When given, the protected-mode (127.0.0.1) decision above is skipped |

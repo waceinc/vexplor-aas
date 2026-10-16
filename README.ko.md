@@ -68,7 +68,12 @@ cp .env.example .env          # POSTGRES_PASSWORD만 채우면 됩니다
 docker compose up -d --build
 ```
 
-브라우저에서 `http://localhost:8080`. 자세한 것은 [설치.md](docs/설치.md).
+브라우저에서 `http://localhost:8080`. 자세한 것은 [설치.md](docs/설치.md). 인터넷이 없는 공장 서버는 현장 설치 묶음 —
+[현장설치.md](docs/현장설치.md).
+
+데이터베이스 이미지 `timescale/timescaledb` 는 Tiger Data 의 **TimescaleDB Community Edition** 이며 이 저장소의 라이선스가
+아니라 Timescale License(https://www.tigerdata.com/legal/licenses)가 적용됩니다 — Docker 가 쓰는 쪽 PC 에서 Docker Hub
+로부터 직접 받습니다. `-oss` 이미지는 TimescaleDB Apache-2 Edition 입니다(압축 · 연속 집계 없음).
 
 ### 소스에서 — Node.js 24 LTS 권장(22 이상이면 동작)
 

@@ -7,8 +7,9 @@
  *   COLLECT_ROLLUPS               off = no aggregates (default on)
  *   COLLECT_ROLLUP_MINUTE_DAYS    how long the 1-minute aggregate is kept (default 90; 0 = forever). 1-hour is kept forever
  *
- * Important: everything here needs the TimescaleDB **community licence** (the `timescale/timescaledb` image). On plain
- *    PostgreSQL or the Apache build (`-oss`) nothing is created and the server works as before — the startup log says so.
+ * Important: everything here needs **TimescaleDB Community Edition** (Timescale License, the `timescale/timescaledb`
+ *    image). On plain PostgreSQL or **TimescaleDB Apache-2 Edition** (`-oss`) nothing is created and the server works as
+ *    before — the startup log says so. Which edition a site gets is decided by the install bundle (make-release.sh).
  * Important: compression segments by package, interface and property, never by `value_key` — that key is unique per
  *    sample (`edge:<device>:<boot>:<seq>:<index>`), so segmenting by it would compress nothing. It is in the order instead,
  *    so a late batch is still checked against the unique index inside a compressed chunk (measured on 2.30.2).
@@ -65,7 +66,7 @@ const interval = (value: number): string => `${value} days`;
  */
 export async function setupTimescaleFeatures(client: SqlClient, features: TimescaleFeatures, retentionDays: number): Promise<string> {
   const { rows: license } = await client.query<{ license: string | null }>("SELECT current_setting('timescaledb.license', true) AS license");
-  if (license[0]?.license !== 'timescale') return tr('압축 · 집계 없음 (TimescaleDB Apache 판)');
+  if (license[0]?.license !== 'timescale') return tr('압축 · 집계 없음 (TimescaleDB Apache-2 Edition)');
 
   const { rows: table } = await client.query<{ compression_enabled: boolean }>(
     "SELECT compression_enabled FROM timescaledb_information.hypertables WHERE hypertable_schema = current_schema() AND hypertable_name = 'collected_value'",

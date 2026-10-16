@@ -1,0 +1,12 @@
+TimescaleDB Community Edition — 이 설치 묶음의 데이터베이스
+==========================================================
+
+이 설치 묶음에는 Tiger Data(Timescale, Inc.)의 TimescaleDB Community Edition(판 @TIMESCALE@) 실행 파일이 포함되어
+있습니다. 이 소프트웨어의 이용에는 Timescale License(TSL)가 적용되며, 최신본은 https://www.tigerdata.com/legal/licenses
+에서 볼 수 있고 사본을 licenses/TimescaleDB-TSL.txt 에 동봉했습니다. TimescaleDB Community Edition은 AAS Studio의 데이터
+보관 기능으로만 제공되며, 단독 데이터베이스 제품이나 데이터베이스 서비스로 쓰거나 제공할 수 없습니다. 이 저장소의 오픈소스
+라이선스는 이 구성요소에 적용되지 않습니다.
+
+This package includes binaries of TimescaleDB Community Edition by Tiger Data (Timescale, Inc.). Use of this software
+is subject to the Timescale License (TSL), the most current version of which is available at
+https://www.tigerdata.com/legal/licenses ; a copy is included at licenses/TimescaleDB-TSL.txt.

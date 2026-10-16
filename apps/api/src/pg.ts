@@ -41,12 +41,16 @@ async function tryTimescale(client: SqlClient, features: PostgresOptions['featur
     // e.g. when trying to convert a table that already holds data. Does not affect operation
     return fill(tr('일반 표로 둔다 ({0})'), { 0: error instanceof Error ? error.message : String(error) });
   }
-  if (!features) return tr('TimescaleDB 하이퍼테이블');
+  // Named as the Timescale License asks (2.4): the edition, never "TimescaleDB" alone
+  const { rows } = await client.query<{ license: string | null }>("SELECT current_setting('timescaledb.license', true) AS license");
+  const edition = rows[0]?.license === 'timescale' ? 'TimescaleDB Community Edition' : 'TimescaleDB Apache-2 Edition';
+  const hypertable = fill(tr('{0} 하이퍼테이블'), { 0: edition });
+  if (!features) return hypertable;
   try {
-    return fill(tr('TimescaleDB 하이퍼테이블 · {0}'), { 0: await setupTimescaleFeatures(client, features.settings, features.retentionDays) });
+    return `${hypertable} · ${await setupTimescaleFeatures(client, features.settings, features.retentionDays)}`;
   } catch (error) {
     // Values are still stored without them — a failed setup must not stop the server
-    return fill(tr('TimescaleDB 하이퍼테이블 · 압축 · 집계 설정 실패 ({0})'), { 0: error instanceof Error ? error.message : String(error) });
+    return `${hypertable} · ${fill(tr('압축 · 집계 설정 실패 ({0})'), { 0: error instanceof Error ? error.message : String(error) })}`;
   }
 }
 

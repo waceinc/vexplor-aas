@@ -3,6 +3,7 @@
  *
  *     npx tsc -b && node scripts/pack-edge.mjs             # → out/edge/vexplor-edge-<version>-linux-x64.tar.gz + SHA256SUMS
  *     npx tsc -b && node scripts/pack-edge.mjs --windows   # + vexplor-edge-<version>-win-x64.zip
+ *     npx tsc -b && node scripts/pack-edge.mjs --arm64     # + vexplor-edge-<version>-linux-arm64.tar.gz (ARM servers, tests)
  *
  * 1. rolldown bundles packages/edge/dist/bin.js and everything it imports into one CommonJS file.
  * 2. The packages that actually went into the bundle become THIRD-PARTY-NOTICES.txt and a CycloneDX SBOM — the list is
@@ -141,7 +142,7 @@ const nodeEntry = { name: 'node', version: NODE_VERSION.slice(1), license: 'MIT'
 const winswEntry = { name: 'winsw', version: '2.12.0', license: 'MIT' };
 const results = [];
 
-const platforms = process.argv.includes('--windows') ? ['linux-x64', 'win-x64'] : ['linux-x64'];
+const platforms = ['linux-x64', ...(process.argv.includes('--arm64') ? ['linux-arm64'] : []), ...(process.argv.includes('--windows') ? ['win-x64'] : [])];
 for (const platform of platforms) {
   // The folder already carries its final name — no tar renaming flags (GNU and BSD tar differ)
   const stage = join(OUT, 'build', platform, `vexplor-edge-${version}`);
@@ -168,7 +169,7 @@ for (const platform of platforms) {
   writeFileSync(join(stage, 'sbom.cdx.json'), sbom(packages, extra));
   const name = `vexplor-edge-${version}-${platform}.${platform === 'win-x64' ? 'zip' : 'tar.gz'}`;
   if (platform === 'win-x64') writeFileSync(join(OUT, name), archiveOf(stage));
-  else execFileSync('tar', ['-czf', join(OUT, name), '-C', join(OUT, 'build', platform), `vexplor-edge-${version}`], { stdio: 'ignore', env: { ...process.env, COPYFILE_DISABLE: '1' } });
+  else execFileSync('tar', ['--no-xattrs', '-czf', join(OUT, name), '-C', join(OUT, 'build', platform), `vexplor-edge-${version}`], { stdio: 'ignore', env: { ...process.env, COPYFILE_DISABLE: '1' } });
   results.push(name);
 }
 
