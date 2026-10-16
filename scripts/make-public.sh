@@ -48,7 +48,7 @@ ALLOW=(
   scripts/i18n-scan.mjs scripts/i18n-server-scan.mjs scripts/spacing-scan.mjs scripts/comment-guard.mjs
   scripts/i18n-append.mjs scripts/make-samples.mjs
   scripts/opcua-browse.mjs scripts/plc-simulator.mjs scripts/make-demo-aasx.mjs scripts/make-bundle-demo.mjs
-  scripts/make-release.sh scripts/install scripts/pack-libraries.mjs
+  scripts/make-release.sh scripts/install scripts/pack-libraries.mjs scripts/mock-edge.mjs scripts/mock-edge.d.mts
 )
 
 if [ -n "$(git status --porcelain)" ]; then

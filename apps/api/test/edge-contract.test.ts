@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 import { checkSchema, type JsonSchema } from '../src/integration/schema-check.js';
+import { EDGE_SCHEMAS } from '../src/edge/schemas.js';
 
 const DIR = 'docs/edge';
 const schema = (name: string): JsonSchema => JSON.parse(readFileSync(`${DIR}/schemas/${name}.schema.json`, 'utf8')) as JsonSchema;
@@ -35,6 +36,12 @@ describe('edge contract schemas and examples', () => {
 
   it.each(Object.entries(EXAMPLES))('%s validates against %s', (name, target) => {
     expect(checkSchema(schema(target), example(name))).toEqual([]);
+  });
+
+  it('the server checks with exactly the published schemas', () => {
+    const published = readdirSync(`${DIR}/schemas`).map((file) => file.replace(/\.schema\.json$/, ''));
+    expect(Object.keys(EDGE_SCHEMAS).sort()).toEqual(published.sort());
+    for (const name of published) expect(EDGE_SCHEMAS[name]).toEqual(schema(name));
   });
 
   it('refuses what the contract refuses', () => {

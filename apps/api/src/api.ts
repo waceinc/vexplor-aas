@@ -28,6 +28,12 @@ import { LoginThrottle, SessionStore } from './session.js';
 import { crossSiteWrite, isHttps } from './security.js';
 import { isFileDownload, VISITOR_PREFIX, type DemoConfig } from './demo.js';
 import { compile, match, type Route } from './router.js';
+import { createEdgeHandler, edgeError } from './edge/routes-edge.js';
+import { edgeAdminRoutes } from './edge/routes-edge-admin.js';
+import { EdgeRegistry } from './edge/state.js';
+import { hasIntegrationStore } from './integration/exports/store.js';
+
+const DEFAULT_EDGE_INTERVAL_MS = 5000;
 import { registryRoutes } from './routes/registry.js';
 import { packageRoutes } from './routes/packages.js';
 import { bundleRoutes } from './routes/bundle.js';
@@ -93,6 +99,10 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
       ...(options.collectIntervalMs ? { collectIntervalMs: options.collectIntervalMs } : {}),
       ...(options.integrationAuditStore ? { auditStore: options.integrationAuditStore } : {}),
     }, options.integrationRouteBuilders),
+    // Remote collectors — management for people; the signed edge endpoints are answered in createApi
+    ...(options.edgeRegistry
+      ? edgeAdminRoutes({ registry: options.edgeRegistry, store, intervalMs: options.edge?.intervalMs ?? DEFAULT_EDGE_INTERVAL_MS })
+      : []),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
     {
@@ -139,8 +149,19 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   const undo = new UndoStack(store, undefined, [DERIVATION_PART]);
   // Important: routes and request handling must see **the same session table** — separate ones mean login won't work
   const sessions = options.sessions ?? new SessionStore();
+  // Remote collectors (edge/): off unless configured, never in demo mode, and only on a store that keeps runtime state
+  const edgeRegistry = options.edge && !options.demo && hasIntegrationStore(base) ? new EdgeRegistry(base) : undefined;
+  const edge = edgeRegistry
+    ? createEdgeHandler({
+        registry: edgeRegistry,
+        store,
+        serverVersion: PRODUCT_VERSION,
+        ...(options.edge?.limits ? { limits: options.edge.limits } : {}),
+        ...(options.edge?.pollSeconds ? { pollSeconds: options.edge.pollSeconds } : {}),
+      })
+    : undefined;
   // Audit events go to the unscoped store — a workspace may not write the server log itself (integration/deps.ts)
-  const routes = compile(buildRoutes(store, { ...options, sessions, undo, integrationAuditStore: base }));
+  const routes = compile(buildRoutes(store, { ...options, sessions, undo, integrationAuditStore: base, ...(edgeRegistry ? { edgeRegistry } : {}) }));
 
   const auth = options.auth ?? OPEN_ACCESS;
   /**
@@ -157,6 +178,16 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   return (request: ApiRequest): Promise<ApiResponse> => runInLang(langOf(request), () => handle(request));
 
   async function handle(request: ApiRequest): Promise<ApiResponse> {
+    // Important: the edge's signature is its identity — answered before the login / API-key check, which an edge
+    //    cannot pass (edge/routes-edge.ts). Only when edge is on; otherwise these paths fall through to a 404
+    if (edge && request.path.startsWith('/edge/v1/')) {
+      try {
+        return await edge(request);
+      } catch (error) {
+        const answer = toErrorResponse(error);
+        return answer.status >= 500 ? edgeError(500, 'ServerError', tr('서버 오류입니다 — 같은 묶음을 다시 보내십시오.')) : answer;
+      }
+    }
     // Important: logged-in people first, machine API keys after (the order design in auth.ts).
     //    With no session, undefined is passed, and then tokens are checked as before.
     const principal = await principalOf(store, sessions, request);

@@ -145,12 +145,29 @@ its configured size, the oldest batches are dropped and counted in `status.dropp
 
 ## 7. Network
 
-- HTTPS only. A server answers `http://` only on loopback, for tests.
+- HTTPS only. The edge refuses an `http://` server address except on this machine (loopback, for tests).
 - Proxy: `HTTPS_PROXY` / configuration, HTTP `CONNECT`, TLS end to end. Allow-lists should name the server host, not
   an IP address.
 - The full list of outbound destinations is the server base URL (and the update source, outside this contract).
 
-## 8. What this contract does not claim
+## 8. The AAS Studio server side
+
+Off by default. `EDGE=on` turns it on (never in demo mode); it needs a store with runtime state (memory, folder or
+PostgreSQL — all of them). The read interval it hands out is `COLLECT_INTERVAL` when set, otherwise 5 s.
+
+| For people (login or API key) | |
+|---|---|
+| `POST /edge/registration-codes` | A one-time code for the caller's workspace — shown once, valid 24 h |
+| `GET /edge/devices` | Devices of the workspace, with `changedSinceApproval` when the files changed after approval |
+| `GET /edge/devices/:deviceId/read-list-preview` | What approving now would grant, and its `revision` |
+| `POST /edge/devices/:deviceId/approve` `{ revision }` | Grants exactly the previewed list; refused (409) when the files changed meanwhile |
+| `POST /edge/devices/:deviceId/pause` · `/revoke` | Empty list from now on · the device is refused from now on |
+
+A device belongs to the workspace of whoever made its code and never sees other workspaces, even when an admin approves
+it. A changed list is not handed out until someone approves it again. The mock edge `scripts/mock-edge.mjs` is the
+reference client (`node scripts/mock-edge.mjs --server https://… --code …`).
+
+## 9. What this contract does not claim
 
 It is a VEXPLOR contract, not an IDTA specification. The read list is derived from AID (IDTA-02017) submodels, but
 supporting this contract does not mean full AID support — protocols and form fields the server cannot resolve are left

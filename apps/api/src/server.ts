@@ -223,6 +223,7 @@ export async function toApiRequest(
   const raw = await readBody(request, limit, large);
   const contentType = headers['content-type'] ?? '';
   let body: unknown;
+  let rawBody: Uint8Array | undefined;
   if (raw.length > 0) {
     // Parse JSON; pass anything else (AASX uploads) through as raw bytes
     if (contentType.includes('json')) {
@@ -232,6 +233,7 @@ export async function toApiRequest(
       if (jsonDepthExceeds(text, MAX_REQUEST_JSON_DEPTH)) {
         throw new ApiError(400, 'BadRequest', fill(tr('JSON 본문이 너무 깊게 겹쳐 있습니다 — {0}단계까지 받습니다.'), { 0: MAX_REQUEST_JSON_DEPTH }));
       }
+      rawBody = raw;
       try {
         body = JSON.parse(text);
       } catch (error) {
@@ -251,6 +253,7 @@ export async function toApiRequest(
     queryAll,
     headers,
     body,
+    ...(rawBody ? { rawBody } : {}),
     ...(remote ? { remoteAddress: remote } : {}),
   };
 }
@@ -449,6 +452,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     integrationServices: integrations.services,
     loginThrottle,
     ...(collectIntervalMs ? { collectIntervalMs } : {}),
+    // Remote collectors (docs/edge-contract.md) — off unless EDGE=on; createApi keeps it off in demo mode
+    ...(process.env['EDGE'] === 'on' ? { edge: collectIntervalMs ? { intervalMs: collectIntervalMs } : {} } : {}),
     routes: [
       {
         /** What is being exposed externally — where the UI and operators check */

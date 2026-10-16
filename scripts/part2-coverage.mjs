@@ -114,6 +114,16 @@ const EXTENSIONS = [
   '/integrations/meters',
   '/integrations/opcua/certificates',
   '/integrations/opcua/certificates/:thumbprint/trust',
+  // 2026-10-16 — remote collectors (docs/edge-contract.md): the signed edge endpoints and their management for people
+  '/edge/v1/register',
+  '/edge/v1/read-list',
+  '/edge/v1/batches',
+  '/edge/registration-codes',
+  '/edge/devices',
+  '/edge/devices/:deviceId/read-list-preview',
+  '/edge/devices/:deviceId/approve',
+  '/edge/devices/:deviceId/pause',
+  '/edge/devices/:deviceId/revoke',
 ];
 
 /** Extracts only (method, path, success code) from OpenAPI YAML — reads by indentation, no dependency */

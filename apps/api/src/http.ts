@@ -17,6 +17,11 @@ export interface ApiRequest {
   queryAll?: Record<string, string[]>;
   /** The parsed value if JSON, bytes if a file upload */
   body?: unknown;
+  /**
+   * The body bytes exactly as received, for a JSON body. The edge contract signs the SHA-256 of these bytes
+   * (docs/edge-contract.md §2) — re-serialising the parsed value would not reproduce them.
+   */
+  rawBody?: Uint8Array;
   headers: Record<string, string>;
   /**
    * The logged-in user — the API decodes the session and **attaches it to the request** before routing (2026-10-02).
