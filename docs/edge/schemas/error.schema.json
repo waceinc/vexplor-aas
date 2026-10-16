@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/waceinc/vexplor-aas/blob/main/docs/edge/schemas/error.schema.json",
+  "title": "vexplor.edge.error/1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "vexplor.edge.error/1"
+    },
+    "code": {
+      "enum": [
+        "BadRequest",
+        "SchemaMismatch",
+        "SignatureInvalid",
+        "UnknownDevice",
+        "ClockSkew",
+        "RegistrationCodeInvalid",
+        "DeviceRevoked",
+        "KeyAlreadyRegistered",
+        "PayloadTooLarge",
+        "RateLimited",
+        "Unavailable",
+        "ServerError"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "retryAfterSeconds": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "schema",
+    "code",
+    "message",
+    "retryable"
+  ],
+  "description": "Error envelope for every non-2xx answer"
+}

@@ -1,0 +1,7 @@
+{
+  "schema": "vexplor.edge.error/1",
+  "code": "RateLimited",
+  "message": "Too many requests from this device.",
+  "retryable": true,
+  "retryAfterSeconds": 30
+}

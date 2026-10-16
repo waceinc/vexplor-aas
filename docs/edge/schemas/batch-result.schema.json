@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/waceinc/vexplor-aas/blob/main/docs/edge/schemas/batch-result.schema.json",
+  "title": "vexplor.edge.batchResult/1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "vexplor.edge.batchResult/1"
+    },
+    "bootId": {
+      "type": "string"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "accepted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "duplicate": {
+      "type": "boolean"
+    },
+    "rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tagId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "tagId",
+          "code"
+        ]
+      }
+    },
+    "readListRevision": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "bootId",
+    "seq",
+    "accepted",
+    "duplicate",
+    "rejected",
+    "readListRevision"
+  ],
+  "description": "POST /edge/v1/batches 200 response"
+}

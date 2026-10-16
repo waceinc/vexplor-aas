@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/waceinc/vexplor-aas/blob/main/docs/edge/schemas/register-request.schema.json",
+  "title": "vexplor.edge.register/1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "vexplor.edge.register/1"
+    },
+    "code": {
+      "type": "string",
+      "description": "One-time registration code made by a person on the server"
+    },
+    "publicKey": {
+      "type": "string",
+      "description": "Ed25519 public key, 32 raw bytes, base64url without padding"
+    },
+    "device": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "software": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "software"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "code",
+    "publicKey",
+    "device"
+  ],
+  "description": "POST /edge/v1/register request body"
+}

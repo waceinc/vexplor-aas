@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/waceinc/vexplor-aas/blob/main/docs/edge/schemas/registration.schema.json",
+  "title": "vexplor.edge.registration/1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "vexplor.edge.registration/1"
+    },
+    "deviceId": {
+      "type": "string"
+    },
+    "registeredAt": {
+      "type": "string",
+      "description": "ISO 8601 date-time, UTC (Z)"
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "contract": {
+          "const": "vexplor.edge/1"
+        }
+      },
+      "required": [
+        "tool",
+        "version",
+        "contract"
+      ]
+    },
+    "limits": {
+      "$ref": "#/$defs/limits"
+    },
+    "readList": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "pollSeconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "path",
+        "pollSeconds"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "deviceId",
+    "registeredAt",
+    "server",
+    "limits",
+    "readList"
+  ],
+  "description": "POST /edge/v1/register 201 response",
+  "$defs": {
+    "limits": {
+      "type": "object",
+      "properties": {
+        "maxBatchBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxSamplesPerBatch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestsPerMinute": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "maxBatchBytes",
+        "maxSamplesPerBatch",
+        "requestsPerMinute"
+      ]
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"schema":"vexplor.edge.batch/1","bootId":"7f1d2c3e-0a4b-4c5d-8e6f-112233445566","seq":1,"readListRevision":"3","createdAt":"2026-10-16T09:00:05.000Z","samples":[{"tagId":"tag_1","observedAt":"2026-10-16T09:00:00.000Z","receivedAt":"2026-10-16T09:00:00.120Z","value":42.5,"quality":"Good"}]}

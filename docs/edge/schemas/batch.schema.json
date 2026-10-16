@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/waceinc/vexplor-aas/blob/main/docs/edge/schemas/batch.schema.json",
+  "title": "vexplor.edge.batch/1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "vexplor.edge.batch/1"
+    },
+    "bootId": {
+      "type": "string",
+      "description": "UUID, new every time the edge process starts"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "+1 per new batch within a boot. (device, bootId, seq) is the idempotency key"
+    },
+    "readListRevision": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "ISO 8601 date-time, UTC (Z)"
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sample"
+      }
+    },
+    "status": {
+      "$ref": "#/$defs/status"
+    }
+  },
+  "required": [
+    "schema",
+    "bootId",
+    "seq",
+    "readListRevision",
+    "createdAt",
+    "samples"
+  ],
+  "description": "POST /edge/v1/batches request body",
+  "$defs": {
+    "sample": {
+      "type": "object",
+      "properties": {
+        "tagId": {
+          "type": "string"
+        },
+        "observedAt": {
+          "type": "string",
+          "description": "ISO 8601 date-time, UTC (Z)"
+        },
+        "receivedAt": {
+          "type": "string",
+          "description": "ISO 8601 date-time, UTC (Z)"
+        },
+        "value": {
+          "type": [
+            "number",
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "quality": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tagId",
+        "observedAt",
+        "receivedAt",
+        "value"
+      ]
+    },
+    "status": {
+      "type": "object",
+      "properties": {
+        "startedAt": {
+          "type": "string",
+          "description": "ISO 8601 date-time, UTC (Z)"
+        },
+        "queuedBatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "droppedBatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "software": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ]
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "interfaceId": {
+                "type": "string"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "lastError": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "interfaceId",
+              "connected"
+            ]
+          }
+        }
+      },
+      "required": [
+        "startedAt",
+        "queuedBatches",
+        "droppedBatches",
+        "software"
+      ]
+    }
+  }
+}

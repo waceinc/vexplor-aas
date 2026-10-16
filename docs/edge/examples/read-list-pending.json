@@ -1,0 +1,9 @@
+{
+  "schema": "vexplor.edge.readList/1",
+  "deviceId": "dev_8Q2K7M4N",
+  "revision": "0",
+  "state": "pending-approval",
+  "approvedAt": null,
+  "pollSeconds": 60,
+  "interfaces": []
+}

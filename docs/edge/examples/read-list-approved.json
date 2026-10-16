@@ -1,0 +1,31 @@
+{
+  "schema": "vexplor.edge.readList/1",
+  "deviceId": "dev_8Q2K7M4N",
+  "revision": "3",
+  "state": "approved",
+  "approvedAt": "2026-10-16T08:59:50.000Z",
+  "pollSeconds": 60,
+  "interfaces": [
+    {
+      "interfaceId": "pkg_2:InterfaceOPCUA",
+      "packageId": "pkg_2",
+      "aasId": "https://www.smart-factory.kr/ids/aas/RollFormingMachine_1/1/0",
+      "globalAssetId": "https://www.smart-factory.kr/ids/asset/RollFormingMachine_1/1/0",
+      "interfaceName": "InterfaceOPCUA",
+      "protocol": "OPCUA",
+      "endpoint": "opc.tcp://192.168.10.21:4840",
+      "security": { "mode": "SignAndEncrypt", "policy": "Basic256Sha256", "credentialRef": "line1-plc" },
+      "intervalMs": 1000,
+      "tags": [
+        {
+          "tagId": "tag_1",
+          "propertyName": "SpindleSpeed",
+          "address": "ns=2;s=Machine.SpindleSpeed",
+          "type": "float",
+          "unit": "1/min",
+          "fields": {}
+        }
+      ]
+    }
+  ]
+}
