@@ -20,6 +20,8 @@ This used to take three tools. VEXPLOR AAS Studio brings the work together and i
 
 **New here?** Click **"Start with a sample"** on the start screen to open a fully filled equipment file and a process structure.
 
+**Website:** [wace.me/en-platform-aas-studio](https://wace.me/en-platform-aas-studio)
+
 **Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 43 rules](docs/rules.md)
 — every document is also available in Korean.
 
