@@ -1,0 +1,28 @@
+# VEXPLOR Edge — remote collector (docs/edge-install.md). Read only, outbound only, listens on no port.
+[Unit]
+Description=VEXPLOR Edge remote collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=vexplor-edge
+Group=vexplor-edge
+ExecStart=/opt/vexplor-edge/vexplor-edge run --config /etc/vexplor-edge/edge.json
+Restart=on-failure
+RestartSec=10
+# Hardening — it needs to write its own state folder and nothing else
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vexplor-edge
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -9,7 +9,7 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 ## Summary
 
 - Shipped for execution (runtime): **248**
-- Development and testing only: 184 (not included in releases)
+- Development and testing only: 186 (not included in releases)
 - Copyleft at runtime (GPL, LGPL, AGPL): **0**
 
 | Runtime license | Count |
@@ -386,6 +386,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | assertion-error | 2.0.1 | MIT |
 | bidi-js | 1.0.3 | MIT |
 | chai | 6.2.2 | MIT |
+| commander | 9.5.0 | MIT |
 | convert-source-map | 2.0.0 | MIT |
 | css-tree | 3.2.1 | MIT |
 | data-urls | 7.0.0 | MIT |
@@ -441,6 +442,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | picocolors | 1.1.1 | ISC |
 | picomatch | 4.0.5 | MIT |
 | postcss | 8.5.26 | MIT |
+| postject | 1.0.0-alpha.6 | MIT |
 | pretty-format | 27.5.1 | MIT |
 | punycode | 2.3.1 | MIT |
 | react-is | 17.0.2 | MIT |
