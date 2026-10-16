@@ -35,7 +35,14 @@ import { fill, jsonDepthExceeds, tr } from '@aas/core';
 import { bootLang, langOfRaw, runInLang } from './lang.js';
 import { startIntegrations, type IntegrationBoot, type StartIntegrationsOptions } from './integration/boot.js';
 import { integrationComposition } from './integration/compose.js';
-import { opcuaModeFromEnv, opcuaPkiDirFromEnv } from './integration/opcua-env.js';
+import {
+  opcuaClientPkiDirFromEnv,
+  opcuaClientTrustsFirstUse,
+  opcuaModeFromEnv,
+  opcuaPkiDirFromEnv,
+  parseOpcUaCredentials,
+  type OpcUaCredential,
+} from './integration/opcua-env.js';
 import { LoginThrottle } from './session.js';
 import type { StoreKind } from './integration/secrets.js';
 
@@ -287,6 +294,14 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     if (demo && !demoOutboundAllowed(endpoint, simulatorPort)) throw new OutboundBlockedError();
   };
 
+  /** OPC UA user names and passwords (OPCUA_CLIENT_CREDENTIALS), read on first need — a broken file fails that connection */
+  let credentials: Map<string, OpcUaCredential> | undefined;
+  const opcuaCredentials = (): Map<string, OpcUaCredential> => {
+    const file = process.env['OPCUA_CLIENT_CREDENTIALS']?.trim();
+    credentials ??= file ? parseOpcUaCredentials(readFileSync(file, 'utf8')) : new Map();
+    return credentials;
+  };
+
   /**
    * Connects to the address the AID specifies — OPC UA via @aas/opcua, Modbus TCP · MQTT via @aas/fieldbus (2026-10-14).
    * In demo mode all three go through guardOutbound — everything except the virtual PLC (OPC UA) is blocked.
@@ -303,7 +318,19 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     }
     if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
     guardOutbound(descriptor.base);
-    return (await opcua()).OpcUaReader.connect({ endpoint: descriptor.base });
+    // Security as the AID states it (AID 1.1); the user name and password from the installer's file, never from the AAS
+    const security = descriptor.security;
+    const user = security?.userIdentityToken === 'UserName' ? opcuaCredentials().get(descriptor.base) : undefined;
+    if (security?.userIdentityToken === 'UserName' && !user) {
+      throw new Error(fill(tr('{0} 은(는) 사용자 이름 로그인을 요구합니다 — OPCUA_CLIENT_CREDENTIALS 파일에 이 주소의 항목을 넣으십시오.'), { 0: descriptor.base }));
+    }
+    return (await opcua()).OpcUaReader.connect({
+      endpoint: descriptor.base,
+      ...(security?.mode ? { security: { mode: security.mode, ...(security.policy ? { policy: security.policy } : {}) } } : {}),
+      ...(user ? { user } : {}),
+      pkiDir: opcuaClientPkiDirFromEnv(process.env),
+      trustUnknownServer: opcuaClientTrustsFirstUse(process.env),
+    });
   };
 
   /**
