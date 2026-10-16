@@ -34,6 +34,26 @@ export interface WriteOptions {
 /** Default timestamp for deterministic output (2026-01-01T00:00:00Z) */
 export const DETERMINISTIC_MTIME = 1767225600000;
 
+/**
+ * The ZIP entry time for `mtime`, the same on every machine.
+ * Important: ZIP keeps a local DOS date and time, and fflate fills it from the Date's **local** fields. The same content
+ *    written in Seoul and on a UTC server therefore gave different bytes — the sample integration bundle's hash differed
+ *    between a developer machine and CI (2026-10-16). A Date whose local fields are the UTC fields of `mtime` makes every
+ *    machine write the UTC wall clock.
+ */
+export function zipTime(mtime: number): Date {
+  const utc = new Date(mtime);
+  return new Date(
+    utc.getUTCFullYear(),
+    utc.getUTCMonth(),
+    utc.getUTCDate(),
+    utc.getUTCHours(),
+    utc.getUTCMinutes(),
+    utc.getUTCSeconds(),
+    utc.getUTCMilliseconds(),
+  );
+}
+
 export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Array {
   const { indent = 2, mtime = DETERMINISTIC_MTIME, level = 6 } = options;
 
@@ -94,11 +114,11 @@ export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Ar
   const ctXml = buildContentTypes(contentTypes);
 
   const zippable: Zippable = {};
-  const opts = { level, mtime } as const;
+  const opts = { level, mtime: zipTime(mtime) } as const;
   zippable['[Content_Types].xml'] = [strToU8(ctXml), opts];
   for (const [part, data] of parts) {
     zippable[toEntryName(part)] = [data, opts];
   }
 
-  return zipSync(zippable, { level, mtime });
+  return zipSync(zippable, opts);
 }

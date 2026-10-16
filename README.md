@@ -113,8 +113,9 @@ A TypeScript monorepo — one language for the front end and the server.
 
 ### Using the libraries in another product
 
-`@aas/core`, `@aas/aasx` and `@aas/linter` are attached to each GitHub release as npm tarballs
-(`node scripts/pack-libraries.mjs`, checksums in `SHA256SUMS`). Install them **by release URL**:
+`@aas/core`, `@aas/aasx`, `@aas/linter` and `@aas/bundle` (the integration bundle built from AASX files without a
+server — `buildBundle`) are attached to each GitHub release as npm tarballs (`node scripts/pack-libraries.mjs`,
+checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
 "@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.1.0/aas-aasx-2.1.0.tgz"

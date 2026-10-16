@@ -29,31 +29,9 @@ import type { PackageRecord } from '@aas/store';
 import { ApiError, type ApiRequest, type ApiResponse } from '../http.js';
 import type { Route } from '../router.js';
 import { exportFileName } from './exports/csv.js';
-import type { ExportSource } from './exports/equipment.js';
+import { BUNDLE_SCHEMA, PER_PACKAGE_KINDS, type BundleManifest, type BundlePart, type ExportSource } from './bundle-types.js';
 
-export const BUNDLE_SCHEMA = 'vexplor.integrationBundle/1';
-
-/** Per-file exports, in the order they appear in the manifest */
-const PER_PACKAGE_KINDS = ['hierarchy', 'bom', 'maintenance', 'documents'] as const;
-type PerPackageKind = (typeof PER_PACKAGE_KINDS)[number];
-
-export interface BundlePart {
-  path: string;
-  schema: string;
-  packageId: string | null;
-  items: number;
-  sha256: string;
-}
-
-export interface BundleManifest {
-  schema: typeof BUNDLE_SCHEMA;
-  exportedAt: string;
-  source: ExportSource;
-  language: string;
-  packages: { packageId: string; name: string; revision: number }[];
-  parts: BundlePart[];
-  skipped: { packageId: string; kind: PerPackageKind; code: string; message: string }[];
-}
+export { BUNDLE_SCHEMA, type BundleManifest, type BundlePart } from './bundle-types.js';
 
 interface ExportBody {
   schema: string;

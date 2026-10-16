@@ -110,7 +110,8 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 
 ### 다른 제품에서 라이브러리로 쓰기
 
-`@aas/core` · `@aas/aasx` · `@aas/linter` 는 GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
+`@aas/core` · `@aas/aasx` · `@aas/linter` · `@aas/bundle`(서버 없이 AASX 에서 연동 묶음을 만드는 `buildBundle`)은
+GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
 (`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
 
 ```json
