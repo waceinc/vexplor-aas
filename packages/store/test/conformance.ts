@@ -554,6 +554,28 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(await store.readValues(packageId, { limit: 1 })).toHaveLength(1);
     });
 
+    it('a value with a key is stored once — a batch sent again adds nothing (remote collector, plan gap 8)', async () => {
+      const { store, packageId } = await seeded();
+      const value = (seq: number, index: number, valueNumber: number) => ({
+        packageId,
+        interfaceName: 'InterfaceOPCUA',
+        propertyName: 'MotorSpeed',
+        observedAt: `2026-08-24T00:00:0${index}.000Z`,
+        valueNumber,
+        key: `edge:dev_1:boot:${seq}:${index}`,
+      });
+      await store.appendValues(packageId, [value(1, 0, 10), value(1, 1, 11)]);
+      // The same batch again (the answer was lost), and one new value in a mixed batch
+      await store.appendValues(packageId, [value(1, 0, 10), value(1, 1, 11), value(2, 2, 12)]);
+      // Values without a key are never deduplicated — the server's own collector keeps working as before
+      const plain = { packageId, interfaceName: 'InterfaceOPCUA', propertyName: 'MotorSpeed', observedAt: '2026-08-24T00:00:05.000Z', valueNumber: 1 };
+      await store.appendValues(packageId, [plain, plain]);
+      const all = await store.readValues(packageId);
+      expect(all.map((v) => v.valueNumber).sort()).toEqual([1, 1, 10, 11, 12]);
+      // The key is bookkeeping, not part of what is read back
+      expect(all.every((v) => !('key' in v))).toBe(true);
+    });
+
     it('receivedAt is stored separately from the device time — absent stays absent (legacy records)', async () => {
       const { store, packageId } = await seeded();
       await store.appendValues(packageId, [

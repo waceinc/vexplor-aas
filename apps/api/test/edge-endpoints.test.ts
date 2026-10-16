@@ -126,6 +126,20 @@ describe('edge endpoints with the mock edge', () => {
     expect(await store.readValues(packageId)).toHaveLength(2);
   });
 
+  it('a batch stored but not recorded as seen (crash in between) is not stored twice when sent again', async () => {
+    const { store, packageId, admin, code, edge, dir } = await setup();
+    const { deviceId } = await edge.register(code);
+    await approve(admin, deviceId);
+    const list = await edge.readList();
+    const batch = edge.enqueue(list);
+    expect(await edge.flush()).toBe('ok');
+    // Forget that the batch was seen — what a crash between storing and recording leaves behind
+    await store.putRuntimeState(`edge.seen.${deviceId}`, []);
+    writeFileSync(join(dir, 'queue', `${edge.bootId}-${String(batch.seq).padStart(8, '0')}.json`), JSON.stringify(batch));
+    expect(await edge.flush()).toBe('ok');
+    expect(await store.readValues(packageId)).toHaveLength(2);
+  });
+
   it('stores nothing before approval, and only approved tags after', async () => {
     const { store, packageId, admin, code, edge } = await setup();
     const { deviceId } = await edge.register(code);

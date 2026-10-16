@@ -74,6 +74,8 @@ interface PackageState {
   record: PackageRecord;
   /** Collected values — kept alongside the model but neither references the other (Option A) */
   values: CollectedValue[];
+  /** Keys of the stored values that have one (CollectedValue.key) */
+  keys: Set<string>;
   files: PackageFileRecord[];
   /** uid → record */
   identifiables: Map<string, IdentifiableRecord>;
@@ -187,6 +189,7 @@ export class InMemoryStore implements AasStore, IntegrationStore {
       files: [...flattenPackageFiles(input.package), ...(input.keep ?? [])].map((f) => ({ ...f, data: f.data.slice() })),
       identifiables: new Map(),
       values: [],
+      keys: new Set(),
       history: [],
       nextUid: 1,
       nextOrdinal: 0,
@@ -252,9 +255,23 @@ export class InMemoryStore implements AasStore, IntegrationStore {
   }
 
   async appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void> {
-    const state = this.state(packageId);
-    for (const value of values) state.values.push({ ...value });
+    this.acceptValues(packageId, values);
     // Collection does not change the model, so the package revision is not bumped — it is not an edit
+  }
+
+  /** Stores the values whose key is new (or that have none) and returns them — FolderStore writes exactly these */
+  protected acceptValues(packageId: string, values: readonly CollectedValue[]): CollectedValue[] {
+    const state = this.state(packageId);
+    const fresh: CollectedValue[] = [];
+    for (const value of values) {
+      if (value.key !== undefined) {
+        if (state.keys.has(value.key)) continue;
+        state.keys.add(value.key);
+      }
+      fresh.push({ ...value });
+    }
+    state.values.push(...fresh);
+    return fresh;
   }
 
   async readValues(packageId: string, query: ValueQuery = {}): Promise<CollectedValue[]> {
@@ -267,7 +284,7 @@ export class InMemoryStore implements AasStore, IntegrationStore {
       .filter((v) => query.to === undefined || at(v) < query.to)
       .sort((a, b) => at(b).localeCompare(at(a)))
       .slice(0, query.limit ?? 1000)
-      .map((v) => ({ ...v }));
+      .map(({ key: _key, ...v }) => v);
   }
 
   async pruneValues(before: string): Promise<number> {
@@ -277,6 +294,7 @@ export class InMemoryStore implements AasStore, IntegrationStore {
       const kept = state.values.filter((v) => (v.receivedAt ?? v.observedAt) >= before);
       removed += state.values.length - kept.length;
       state.values = kept;
+      state.keys = new Set(kept.flatMap((v) => (v.key === undefined ? [] : [v.key])));
     }
     return removed;
   }
@@ -612,6 +630,7 @@ export class InMemoryStore implements AasStore, IntegrationStore {
     this.packages.set(snapshot.record.id, {
       record: clone(snapshot.record),
       values: values.map((v) => clone(v)),
+      keys: new Set(values.flatMap((v) => (v.key === undefined ? [] : [v.key]))),
       files: snapshot.files.map((f) => ({
         part: f.part,
         role: f.role,

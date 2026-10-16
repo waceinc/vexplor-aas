@@ -711,6 +711,8 @@ Sign this with the customer before go-live.
 - **OPC UA security when collecting.** Mode, policy and user name from the AID 1.1 `securityDefinitions`; certificate
   store, first-use trust and credentials by endpoint (`OPCUA_CLIENT_*`).
 - **Webhooks through a proxy.** `INTEGRATION_PROXY` / `INTEGRATION_NO_PROXY` — HTTP CONNECT, rules on the destination name.
+- **Collected values keep an idempotency key (database schema version 10).** A value sent again with the same key is
+  stored once — PostgreSQL adds `value_key` and a unique index at startup; values without a key are unchanged.
 - **AID protocol by supplementalSemanticId.** The interface's protocol comes from its supplementalSemanticId (AID 1.1),
   then the endpoint scheme, and only last from the idShort. BACnet is recognised and not collected yet.
 - **Type link from `derivedFrom`.** The equipment master now fills `typeAasId` from an Instance shell's `derivedFrom`

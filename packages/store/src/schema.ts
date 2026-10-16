@@ -206,10 +206,12 @@ CREATE TABLE IF NOT EXISTS collected_value (
   value_number   double precision,
   value_text     text,
   quality        text,
-  received_at    timestamptz
+  received_at    timestamptz,
+  value_key      text
 );
 
 CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, property_name, observed_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx ON collected_value (package_id, value_key, observed_at);
 ${INTEGRATION_SCHEMA_SQL}`;
 
 /**
@@ -225,7 +227,7 @@ ${INTEGRATION_SCHEMA_SQL}`;
  *    ③ bump `SCHEMA_VERSION`. A migration must turn the previous version's tables into the new version and must be idempotent.
  *  - An existing DB without `schema_version` is treated as version 1 (the tables as of 2026-09-04, when version numbers were introduced, are version 1).
  */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export const SCHEMA_VERSION_SQL = `
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -346,6 +348,21 @@ ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS received_at timestamptz;
   },
   // Version 9 (2026-10-14) — integration tables, see INTEGRATION_SCHEMA_SQL above (CREATE ... IF NOT EXISTS, so idempotent)
   { version: 9, sql: INTEGRATION_SCHEMA_SQL },
+  {
+    /**
+     * Version 10 (2026-10-16) — an idempotency key per collected value (remote collector, plan gap 8).
+     *
+     * Important: the unique index includes observed_at — TimescaleDB only allows unique indexes that contain the
+     *    partitioning column. Rows without a key (NULL) never conflict, so the server's own collector is unaffected.
+     *    Inserts use ON CONFLICT DO NOTHING: a batch sent again stores nothing twice, even after a crash between storing
+     *    it and recording it as seen.
+     */
+    version: 10,
+    sql: `
+ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS value_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx ON collected_value (package_id, value_key, observed_at);
+`,
+  },
 ];
 
 /**

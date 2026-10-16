@@ -119,6 +119,13 @@ export interface CollectedValue {
   valueText?: string;
   /** Quality (OPC UA StatusCode, etc.). Bad values are not discarded but kept with their marking */
   quality?: string;
+  /**
+   * Idempotency key — a value with a key already stored for the package is skipped (remote collector, plan gap 8:
+   * `edge:<device>:<bootId>:<seq>:<index>`). A batch sent again after a lost answer, or after a crash between storing
+   * and recording it, adds nothing. Values without a key (the server's own collector) are never deduplicated.
+   * Bookkeeping only — not returned by readValues.
+   */
+  key?: string;
 }
 
 export interface ValueQuery {
