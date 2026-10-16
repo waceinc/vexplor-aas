@@ -333,3 +333,44 @@ describe('edge hardening (review of PR #19)', () => {
     expect(await store.readValues(packageId)).toHaveLength(2);
   });
 });
+
+describe('edge read intervals per interface and tag (plan gap 6)', () => {
+  it('approval sets intervals; a re-approval with other intervals changes the revision the edge sees', async () => {
+    const { admin, code, edge } = await setup();
+    const { deviceId } = await edge.register(code);
+    const preview = (await admin('GET', `/edge/devices/${deviceId}/read-list-preview`)).body as {
+      revision: string;
+      interfaces: { interfaceId: string; tags: { tagId: string }[] }[];
+    };
+    const iface = preview.interfaces[0]!;
+    const fast = iface.tags[0]!.tagId;
+    const approved = await admin('POST', `/edge/devices/${deviceId}/approve`, {
+      revision: preview.revision,
+      intervals: { [iface.interfaceId]: 5000, [fast]: 200 },
+    });
+    expect(approved.status).toBe(200);
+    const first = await edge.readList();
+    expect(first.interfaces[0]!.intervalMs).toBe(5000);
+    expect((first.interfaces[0]!.tags[0] as { intervalMs?: number }).intervalMs).toBe(200);
+    expect((first.interfaces[0]!.tags[1] as { intervalMs?: number }).intervalMs).toBeUndefined();
+
+    // Same files, new interval: the edge must not get 304 for its cached list
+    await admin('POST', `/edge/devices/${deviceId}/approve`, { revision: preview.revision, intervals: { [iface.interfaceId]: 1000 } });
+    const second = await edge.readList();
+    expect(second.revision).not.toBe(first.revision);
+    expect(second.interfaces[0]!.intervalMs).toBe(1000);
+    // Files unchanged — not reported as changed since approval
+    const devices = (await admin('GET', '/edge/devices')).body as { items: { changedSinceApproval: boolean }[] };
+    expect(devices.items[0]!.changedSinceApproval).toBe(false);
+  });
+
+  it('refuses intervals outside 100 ms – 1 h and ids not in the list', async () => {
+    const { admin, code, edge } = await setup();
+    const { deviceId } = await edge.register(code);
+    const preview = (await admin('GET', `/edge/devices/${deviceId}/read-list-preview`)).body as { revision: string; interfaces: { interfaceId: string }[] };
+    const id = preview.interfaces[0]!.interfaceId;
+    expect((await admin('POST', `/edge/devices/${deviceId}/approve`, { revision: preview.revision, intervals: { [id]: 50 } })).status).toBe(400);
+    expect((await admin('POST', `/edge/devices/${deviceId}/approve`, { revision: preview.revision, intervals: { [id]: 3_600_001 } })).status).toBe(400);
+    expect((await admin('POST', `/edge/devices/${deviceId}/approve`, { revision: preview.revision, intervals: { nope: 1000 } })).status).toBe(400);
+  });
+});

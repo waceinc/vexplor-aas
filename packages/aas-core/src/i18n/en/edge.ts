@@ -29,4 +29,7 @@ export const EN_EDGE: Record<string, string> = {
   "지원하지 않는 OPC UA 보안 정책입니다: {0}": "Unsupported OPC UA security policy: {0}",
   "Sign · SignAndEncrypt 에는 None 이 아닌 보안 정책이 필요합니다.": "Sign and SignAndEncrypt need a security policy other than None.",
   "보안 연결에는 인증서 폴더(pkiDir)가 필요합니다.": "A secure connection needs a certificate folder (pkiDir).",
+  "intervals 는 { id: 밀리초 } 형태여야 합니다.": "intervals must be { id: milliseconds }.",
+  "{0} 의 주기는 100ms 에서 1시간 사이 정수(밀리초)여야 합니다.": "The interval of {0} must be a whole number of milliseconds between 100 ms and 1 hour.",
+  "목록에 없는 id 입니다: {0}": "Not in the list: {0}",
 };
