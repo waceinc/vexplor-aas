@@ -26,7 +26,17 @@ import { tr } from '@aas/core';
 /** semanticId of the AID submodel (the version segment is matched loosely) */
 export const AID_SEMANTIC_ID_PREFIX = 'https://admin-shell.io/idta/AssetInterfacesDescription/';
 
-export type AidProtocol = 'OPCUA' | 'HTTP' | 'MODBUS' | 'MQTT' | 'UNKNOWN';
+/** BACNET is recognised (AID 1.1) but not collected yet — callers treat it like UNKNOWN */
+export type AidProtocol = 'OPCUA' | 'HTTP' | 'MODBUS' | 'MQTT' | 'BACNET' | 'UNKNOWN';
+
+/** AID 1.1 interface supplementalSemanticIds (IDTA-02017 1.1 Table 3) */
+const PROTOCOL_IRIS: Record<string, AidProtocol> = {
+  'http://www.w3.org/2011/modbus': 'MODBUS',
+  'http://www.w3.org/2011/mqtt': 'MQTT',
+  'http://www.w3.org/2011/http': 'HTTP',
+  'http://www.w3.org/2022/bacnet': 'BACNET',
+  'http://opcfoundation.org/UA/WoT-Binding/': 'OPCUA',
+};
 
 export interface AidProperty {
   /** Name used for display and storage (the element's idShort) */
@@ -130,13 +140,29 @@ export function securityOf(endpoint: SubmodelElement | undefined): AidSecurity |
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/** Derives the protocol from the name. AID uses the InterfaceTemplateFor<PROTO> convention */
-export function protocolOf(name: string, base?: string): AidProtocol {
+/**
+ * The protocol of an interface (plan gap 3). AID 1.1 states it by the interface's supplementalSemanticId; without one,
+ * the endpoint scheme decides, and only then the idShort — a naming convention ("InterfaceTemplateFor<PROTO>") that
+ * "Interface00" follows just as validly.
+ */
+export function protocolOf(name: string, base?: string, supplementalSemanticIds?: readonly string[]): AidProtocol {
+  for (const iri of supplementalSemanticIds ?? []) {
+    // A trailing slash written or left out is the same IRI
+    const stated = PROTOCOL_IRIS[iri] ?? PROTOCOL_IRIS[`${iri}/`] ?? PROTOCOL_IRIS[iri.replace(/\/$/, '')];
+    if (stated) return stated;
+  }
+  const scheme = base?.toLowerCase() ?? '';
+  if (scheme.startsWith('opc.tcp')) return 'OPCUA';
+  if (scheme.startsWith('modbus')) return 'MODBUS';
+  if (scheme.startsWith('mqtt')) return 'MQTT';
+  if (scheme.startsWith('http')) return 'HTTP';
+  if (scheme.startsWith('bacnet')) return 'BACNET';
   const upper = name.toUpperCase();
-  if (upper.includes('OPCUA') || upper.includes('OPC_UA') || base?.startsWith('opc.tcp')) return 'OPCUA';
-  if (upper.includes('MODBUS') || base?.startsWith('modbus')) return 'MODBUS';
-  if (upper.includes('MQTT') || base?.startsWith('mqtt')) return 'MQTT';
-  if (upper.includes('HTTP') || base?.startsWith('http')) return 'HTTP';
+  if (upper.includes('OPCUA') || upper.includes('OPC_UA')) return 'OPCUA';
+  if (upper.includes('MODBUS')) return 'MODBUS';
+  if (upper.includes('MQTT')) return 'MQTT';
+  if (upper.includes('HTTP')) return 'HTTP';
+  if (upper.includes('BACNET')) return 'BACNET';
   return 'UNKNOWN';
 }
 
@@ -189,7 +215,10 @@ export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
       properties.push(entry);
     }
 
-    const descriptor: AidInterface = { name, protocol: protocolOf(name, base), properties };
+    const supplemental = ((node as { supplementalSemanticIds?: { keys?: { value?: string }[] }[] }).supplementalSemanticIds ?? []).flatMap((reference) =>
+      (reference.keys ?? []).flatMap((key) => (key.value ? [key.value] : [])),
+    );
+    const descriptor: AidInterface = { name, protocol: protocolOf(name, base, supplemental), properties };
     const security = securityOf(endpoint);
     if (security) descriptor.security = security;
     const title = text(child(node, 'title'));

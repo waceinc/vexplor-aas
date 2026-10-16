@@ -21,6 +21,7 @@ import { assetInformationOf, shellsOf } from '../integration/exports/elements.js
 import { allPackages } from '../integration/exports/store.js';
 
 export type EdgeProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'HTTP';
+const EDGE_PROTOCOLS: ReadonlySet<string> = new Set<EdgeProtocol>(['OPCUA', 'MODBUS', 'MQTT', 'HTTP']);
 
 export interface ReadListTag {
   tagId: string;
@@ -79,7 +80,8 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
   const globalAssetId = assetInformationOf(shell)['globalAssetId'];
   const out: ReadListInterface[] = [];
   for (const descriptor of parseAid(environment)) {
-    if (descriptor.protocol === 'UNKNOWN' || !descriptor.base) continue;
+    // Only protocols the contract names — BACnet is recognised by the AID but not collected yet
+    if (!EDGE_PROTOCOLS.has(descriptor.protocol) || !descriptor.base) continue;
     const tags: ReadListTag[] = [];
     for (const property of descriptor.properties) {
       if (property.href === undefined) continue;
@@ -100,7 +102,7 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
       aasId,
       globalAssetId: typeof globalAssetId === 'string' && globalAssetId !== '' ? globalAssetId : null,
       interfaceName: descriptor.name,
-      protocol: descriptor.protocol,
+      protocol: descriptor.protocol as EdgeProtocol,
       endpoint: descriptor.base,
       security: securityOf(descriptor),
       intervalMs,
