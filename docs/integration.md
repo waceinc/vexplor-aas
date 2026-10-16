@@ -531,6 +531,11 @@ code over an in-memory store, so the same files in the same order with the same 
 for byte (checked against the route in `apps/api/test/integration-bundle-build.test.ts`). Package ids follow the input
 order (`pkg_1`, `pkg_2`, …); document links are relative unless `publicBaseUrl` is given.
 
+**Type link (`typeAasId`).** An Instance row names its Type by the server's link ("link to type") when there is one,
+otherwise by the shell's own AAS `derivedFrom` reference — which "split per unit" writes and which travels inside the
+file, so `buildBundle` sees it too. The id is taken as written; the Type may be in another file or not exported.
+Type rows have `typeAasId` null unless the server links them.
+
 **Sample.** `docs/examples/integration-bundle/` holds four AASX files (a Type, two Instances made from it, a company file
 placing both on a line) and the bundle built from them. Receivers run their import gate on it; the test above fails
 when the sample and the code disagree.
@@ -695,6 +700,9 @@ Sign this with the customer before go-live.
   export of the visible files in one zip with a manifest (§7.4).
 - **Libraries for other products.** `@aas/core`, `@aas/aasx` and `@aas/linter` are packed for the release
   (`scripts/pack-libraries.mjs`) — install by release URL (README, "Using the libraries in another product").
+- **Type link from `derivedFrom`.** The equipment master now fills `typeAasId` from an Instance shell's `derivedFrom`
+  when the server has no link of its own (before, it stayed null for units uploaded as files). `typeAasId` is part of
+  the equipment digest, so such a unit gives one equipment-updated event the next time it is projected.
 - **Bundle without a server.** `@aas/bundle` (`buildBundle`) builds the integration bundle from AASX files with this
   API's own export code; a sample bundle is in `docs/examples/integration-bundle/` (§7.4).
 - New: event log and pull feed, webhook and MQTT subscriptions, exports, external references, readiness checks, runtime

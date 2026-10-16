@@ -18,6 +18,7 @@ import {
   normalized,
   plantFile,
   rollForming,
+  shell,
   submodel,
   text,
   TYPE_ASSET,
@@ -26,6 +27,7 @@ import {
   type Json,
 } from './helpers/integration-fixtures.js';
 import { checkSchema, type JsonSchema } from '../src/integration/schema-check.js';
+import { derivationFile, newDerivation } from '../src/routes/derivation.js';
 
 async function setup(packages = [unitCopy()]) {
   const store = createIntegrationStore();
@@ -219,3 +221,49 @@ describe('BOM', () => {
     expect((await call('GET', '/integrations/exports/bom', { query: { packageId: 'nope' } })).status).toBe(404);
   });
 });
+
+describe('Type link — typeAasId', () => {
+  const OTHER_TYPE = 'https://www.smart-factory.kr/ids/aas/SomeOtherType/1/0';
+  const derivedFrom = (aasId: string) => ({ type: 'ModelReference', keys: [{ type: 'AssetAdministrationShell', value: aasId }] });
+
+  async function equipment(store: ReturnType<typeof createIntegrationStore>) {
+    const response = await harness(store).call('GET', '/integrations/exports/equipment', { query: { includeTypes: '1' } });
+    return items(response.body);
+  }
+
+  it('takes the shell\'s own derivedFrom when the server has no link (a unit read from a file)', async () => {
+    const store = createIntegrationStore();
+    const type = rollForming();
+    const typeAasId = shellIdOf(type.environment);
+    await store.importPackage({ name: 'type.aasx', package: type });
+    await store.importPackage({ name: 'unit.aasx', package: unitCopy(1, (env) => { shell(env)['derivedFrom'] = derivedFrom(typeAasId); }) });
+    const rows = await equipment(store);
+    expect(rows.find((row) => row['assetKind'] === 'Instance')?.['typeAasId']).toBe(typeAasId);
+    // A Type shell is not derived from a Type of its own
+    expect(rows.find((row) => row['assetKind'] === 'Type')?.['typeAasId']).toBeNull();
+  });
+
+  it('keeps null without either link', async () => {
+    const store = createIntegrationStore();
+    await store.importPackage({ name: 'unit.aasx', package: unitCopy(1) });
+    expect((await equipment(store))[0]?.['typeAasId']).toBeNull();
+  });
+
+  it('lets the server link win over derivedFrom', async () => {
+    const store = createIntegrationStore();
+    const type = rollForming();
+    const typeRecord = await store.importPackage({ name: 'type.aasx', package: type });
+    const link = derivationFile(newDerivation(typeRecord.id, 'type.aasx', type.environment));
+    await store.importPackage({
+      name: 'unit.aasx',
+      package: unitCopy(1, (env) => { shell(env)['derivedFrom'] = derivedFrom(OTHER_TYPE); }),
+      keep: [link],
+    });
+    const row = (await equipment(store)).find((candidate) => candidate['assetKind'] === 'Instance');
+    expect(row?.['typeAasId']).toBe(shellIdOf(type.environment));
+  });
+});
+
+function shellIdOf(environment: Parameters<typeof shell>[0]): string {
+  return shell(environment)['id'] as string;
+}
