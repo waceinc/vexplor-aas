@@ -23,6 +23,9 @@ import { ApiError, type ApiRequest } from '../http.js';
 import { originalFile } from '../routes/bundle-files.js';
 import type { BundleManifest } from './bundle-types.js';
 import { exportRoutes } from './routes-exports.js';
+import { interfacesOf } from '../edge/read-list.js';
+import type { Environment } from '@aas/core';
+import type { ReadListInterface } from './bundle-types.js';
 
 export * from './bundle-types.js';
 
@@ -109,3 +112,15 @@ export async function buildBundle(inputs: readonly BundleInput[], options: Build
   const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json'])) as BundleManifest;
   return { zip, manifest, files, warnings };
 }
+
+/**
+ * What a remote collector would read from one file — the AID interfaces resolved into tags, exactly as AAS Studio's
+ * read list does (docs/edge-contract.md §4), with the same stable tag ids for the same `packageId`.
+ *
+ * For a product that builds its own read list from AASX files (VEXPLOR Logic Studio) without writing an AID parser.
+ * Only what can be read is listed: interfaces with an endpoint and a protocol the contract names, properties with an address.
+ */
+export function aidReadList(environment: Environment, packageId: string, intervalMs = 5000): ReadListInterface[] {
+  return interfacesOf(packageId, environment as Parameters<typeof interfacesOf>[1], intervalMs);
+}
+

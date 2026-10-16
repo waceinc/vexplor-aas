@@ -3,7 +3,8 @@
  *
  * Important: written to a temporary name and renamed — a power cut leaves either the whole batch or none, never half a
  *    file that would be refused as BadRequest and lost.
- * Important: bounded. Past `max` batches the oldest are dropped and counted (`droppedBatches` in the next status) —
+ * Important: bounded by count and by age. Past `max` batches, or older than `maxDays` (default 30), the oldest are dropped
+ *    and counted (`droppedBatches` in the next status) —
  *    never silently. A refused batch (400/413/422) moves to refused/ for a person to look at; it is not resent.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -19,12 +20,26 @@ export interface Batch {
   status?: Record<string, unknown>;
 }
 
+/** The creation time from a queue file name (nameOf) — no file is opened to judge its age */
+function createdOf(name: string): number | undefined {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z_/.exec(name);
+  if (!match) return undefined;
+  const at = Date.parse(`${match[1]}T${match[2]}:${match[3]}:${match[4]}.${match[5]}Z`);
+  return Number.isFinite(at) ? at : undefined;
+}
+
 export class DiskQueue {
   private readonly queueDir: string;
   private readonly refusedDir: string;
   dropped = 0;
 
-  constructor(stateDir: string, private readonly max: number) {
+  constructor(
+    stateDir: string,
+    private readonly max: number,
+    /** Unsent batches older than this are dropped and counted (contract §6 — receivers keep their duplicate memory at least this long) */
+    private readonly maxDays = 30,
+    private readonly now: () => number = Date.now,
+  ) {
     this.queueDir = join(stateDir, 'queue');
     this.refusedDir = join(stateDir, 'refused');
     mkdirSync(this.queueDir, { recursive: true });
@@ -41,7 +56,13 @@ export class DiskQueue {
     writeFileSync(join(this.queueDir, `${name}.tmp`), JSON.stringify(batch));
     renameSync(join(this.queueDir, `${name}.tmp`), join(this.queueDir, name));
     const files = this.files();
-    for (const old of files.slice(0, Math.max(0, files.length - this.max))) {
+    const cutoff = this.now() - this.maxDays * 86_400_000;
+    const tooOld = files.filter((file) => {
+      const created = createdOf(file);
+      return created !== undefined && created < cutoff;
+    });
+    const tooMany = files.filter((file) => !tooOld.includes(file)).slice(0, Math.max(0, files.length - tooOld.length - this.max));
+    for (const old of [...tooOld, ...tooMany]) {
       unlinkSync(join(this.queueDir, old));
       this.dropped += 1;
     }

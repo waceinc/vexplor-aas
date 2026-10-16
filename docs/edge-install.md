@@ -75,7 +75,8 @@ revision). It reads nothing before.
 ## 5. Running it
 
 - An outage loses nothing: batches wait in `<state>/queue` and go out in order when the server answers again (each is
-  stored once). Past `maxQueuedBatches` (default 100 000) the oldest are dropped and reported, never silently.
+  stored once). Past `maxQueuedBatches` (default 100 000), or older than `maxQueueDays` (default 30), the oldest are
+  dropped and reported, never silently.
 - A batch the server refuses as malformed goes to `<state>/refused` for a person to look at.
 - A revoked device stops sending by itself and keeps its queue; it never registers again on its own.
 - Update notices (optional): with `"update": { "manifestUrl": "https://…", "publicKey": "<release key>" }` it reports a

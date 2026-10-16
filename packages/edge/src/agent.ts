@@ -80,7 +80,7 @@ export class EdgeAgent {
     this.startedAt = this.now().toISOString();
     this.identity = loadOrCreateIdentity(config.stateDir);
     this.http = new EdgeHttp({ server: config.server, ...(config.proxy ? { proxy: config.proxy } : {}), ...(config.caFile ? { ca: readFileSync(config.caFile, 'utf8') } : {}) });
-    this.queue = new DiskQueue(config.stateDir, config.maxQueuedBatches);
+    this.queue = new DiskQueue(config.stateDir, config.maxQueuedBatches, config.maxQueueDays);
     this.sender = new Sender(this.http, this.queue, () => this.signer());
   }
 

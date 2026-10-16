@@ -126,6 +126,10 @@ approved list), `PackageUnavailable` (the file is gone or no longer the device's
 A batch the server already has answers 200 with `duplicate: true` and stores nothing again. The server does not require
 `seq` to arrive in order or without gaps.
 
+**Order.** The edge sends one batch at a time, oldest first, and starts the next only after the previous one was
+answered — a backlog after an outage arrives before the batches read after it. A receiver may therefore treat a batch
+older than the last it stored from the same device as a backlog, not as a clock fault.
+
 ## 6. Limits, errors and what the edge does
 
 Limits come with the registration (`limits`) and may be lowered at any time — the server then answers 413 or 429.
@@ -147,6 +151,10 @@ Errors use one envelope, `vexplor.edge.error/1` — `code`, `message`, `retryabl
 
 **Local queue.** Every batch is written to disk before it is sent and deleted only after a 2xx. When the queue reaches
 its configured size, the oldest batches are dropped and counted in `status.droppedBatches` — never silently.
+
+**How long a batch may wait.** An unsent batch is kept at most `maxQueueDays` (default 30 days, an edge setting); older
+ones are dropped and counted the same way. A receiver keeps its duplicate memory (the idempotency key of §5) **longer
+than that**, so a batch resent at the end of an outage is still recognised as a duplicate.
 
 ## 7. Network
 

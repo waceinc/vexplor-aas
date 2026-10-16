@@ -32,6 +32,8 @@ export interface EdgeConfig {
   flushIntervalMs: number;
   /** Batches kept on disk at most; the oldest are dropped and counted beyond it. Default 100 000 */
   maxQueuedBatches: number;
+  /** Days an unsent batch is kept at most (contract §6). Default 30 */
+  maxQueueDays: number;
   /** Signed update notices (update.ts) — absent: no update request is ever made */
   update?: { manifestUrl: string; publicKey: string };
 }
@@ -100,6 +102,7 @@ export function parseEdgeConfig(json: string, file: string): EdgeConfig {
     opcua: { pkiDir: path(text(opcua['pkiDir'], 'opcua.pkiDir')) ?? join(stateDir, 'opcua-pki'), trustFirstUse: opcua['trustFirstUse'] === true },
     flushIntervalMs: positive(input['flushIntervalMs'], 'flushIntervalMs', 5000),
     maxQueuedBatches: positive(input['maxQueuedBatches'], 'maxQueuedBatches', 100_000),
+    maxQueueDays: positive(input['maxQueueDays'], 'maxQueueDays', 30),
     ...(manifestUrl && releaseKey ? { update: { manifestUrl, publicKey: releaseKey } } : {}),
   };
 }
