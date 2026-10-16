@@ -25,7 +25,10 @@ export interface EdgeConfig {
   caFile?: string;
   credentialsFile?: string;
   opcua: { pkiDir: string; trustFirstUse: boolean };
-  /** How often collected samples become a batch (ms). Default 1000 */
+  /**
+   * How often collected samples become a batch (ms). Default 5000 — 12 requests a minute, leaving most of the server's
+   * per-device limit (60 a minute) to catch up after an outage
+   */
   flushIntervalMs: number;
   /** Batches kept on disk at most; the oldest are dropped and counted beyond it. Default 100 000 */
   maxQueuedBatches: number;
@@ -95,7 +98,7 @@ export function parseEdgeConfig(json: string, file: string): EdgeConfig {
     ...(caFile ? { caFile } : {}),
     ...(credentialsFile ? { credentialsFile } : {}),
     opcua: { pkiDir: path(text(opcua['pkiDir'], 'opcua.pkiDir')) ?? join(stateDir, 'opcua-pki'), trustFirstUse: opcua['trustFirstUse'] === true },
-    flushIntervalMs: positive(input['flushIntervalMs'], 'flushIntervalMs', 1000),
+    flushIntervalMs: positive(input['flushIntervalMs'], 'flushIntervalMs', 5000),
     maxQueuedBatches: positive(input['maxQueuedBatches'], 'maxQueuedBatches', 100_000),
     ...(manifestUrl && releaseKey ? { update: { manifestUrl, publicKey: releaseKey } } : {}),
   };
