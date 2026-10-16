@@ -40,7 +40,9 @@ const FORBIDDEN_EXTENSIONS = new Set(['.pdf', '.docx', '.doc', '.pptx', '.ppt', 
 
 /** Text checks — [what it is, regex]. Some patterns are Korean on purpose: they match Korean business terms */
 const FORBIDDEN_TEXT = [
-  ['internal repository address', /g\.wace\.me|[a-z0-9.-]*wace\.me/i],
+  // Any subdomain of wace.me (g.wace.me git, p.wace.me PMS …) is internal; the public site wace.me / www.wace.me is not —
+  // the README links the product page there (2026-10-16)
+  ['internal repository address', /(?<![a-z0-9.-])(?!www\.wace\.me)[a-z0-9-]+(\.[a-z0-9-]+)*\.wace\.me/i],
   ['internal server/PC address', /192\.168\.0\.(236|119)\b/],
   ['internal path', /AAS 백업|basyx-setup|aas_research|C:\\ORCA|C:\\Users\\|\/c\/Users\//],
   ['personal account', /myyh\d*|lyh100\d*/i],
