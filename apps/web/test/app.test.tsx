@@ -1953,8 +1953,17 @@ describe('Undo — going back after a mistake', () => {
       expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(false),
     );
 
-    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
-    await waitFor(() => expect(within(tree).getByText('SerialNumber')).toBeTruthy());
+    // Important: Undo enables as soon as the delete is recorded, but the delete's save may still be running — and the
+    //    shortcut is ignored while the app is busy (on purpose: no undo in the middle of a save). Pressing once and
+    //    waiting failed on a slow CI runner. Press again until the element is back; presses during the undo are ignored
+    //    for the same reason, so it cannot undo twice.
+    await waitFor(
+      () => {
+        if (!within(tree).queryByText('SerialNumber')) fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+        expect(within(tree).getByText('SerialNumber')).toBeTruthy();
+      },
+      { timeout: 5000 },
+    );
   });
 });
 
