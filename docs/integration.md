@@ -525,6 +525,16 @@ packages/<packageId>/documents.json    vexplor.documents/1         (left out whe
 - Same access as the exports: any reader, limited to the files the workspace shows. Document files themselves are not in
   the zip — `documents.json` carries their download address and `sha256`.
 
+**Without a server — `@aas/bundle`.** A product that takes AASX files directly (drag and drop) builds the same bundle
+with `buildBundle(files, { exportedAt, lang })` from the `@aas/bundle` release tarball. It runs this API's own export
+code over an in-memory store, so the same files in the same order with the same `exportedAt` give the same zip byte
+for byte (checked against the route in `apps/api/test/integration-bundle-build.test.ts`). Package ids follow the input
+order (`pkg_1`, `pkg_2`, …); document links are relative unless `publicBaseUrl` is given.
+
+**Sample.** `docs/examples/integration-bundle/` holds four AASX files (a Type, two Instances made from it, a company file
+placing both on a line) and the bundle built from them. Receivers run their import gate on it; the test above fails
+when the sample and the code disagree.
+
 ## 8. Runtime rules
 
 Runtime events come from collected values (chapter 8 of [usage.md](usage.md)) judged by **rules on the server**. The
@@ -685,5 +695,7 @@ Sign this with the customer before go-live.
   export of the visible files in one zip with a manifest (§7.4).
 - **Libraries for other products.** `@aas/core`, `@aas/aasx` and `@aas/linter` are packed for the release
   (`scripts/pack-libraries.mjs`) — install by release URL (README, "Using the libraries in another product").
+- **Bundle without a server.** `@aas/bundle` (`buildBundle`) builds the integration bundle from AASX files with this
+  API's own export code; a sample bundle is in `docs/examples/integration-bundle/` (§7.4).
 - New: event log and pull feed, webhook and MQTT subscriptions, exports, external references, readiness checks, runtime
   rules, OEE inputs, meters.

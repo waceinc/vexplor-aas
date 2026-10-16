@@ -1,6 +1,6 @@
 /**
- * Packs the reusable libraries — the AAS model, AASX reading/writing and the validation rules — as npm tarballs that
- * another product installs **from the GitHub release**, without a registry.
+ * Packs the reusable libraries — the AAS model, AASX reading/writing, the validation rules and the integration bundle
+ * builder — as npm tarballs that another product installs **from the GitHub release**, without a registry.
  *
  *     npx tsc -b && node scripts/pack-libraries.mjs                 # → out/libraries/*.tgz + SHA256SUMS
  *     node scripts/pack-libraries.mjs --verify                     # + install them in an empty project and run them
@@ -17,11 +17,18 @@
  *    workspace `0.1.0`. "Which version are you on" has to have one answer.
  * Important: only `dist/` (built code with types), LICENSE and NOTICE go in. Sources stay in the repository; test
  *    output and build info files are left out.
+ * Important: `@aas/bundle` is not a workspace package. It is the API's own integration code (`buildBundle`, the very
+ *    export routes the server mounts) bundled into one file with rolldown, so a product without an AAS Studio server
+ *    gets the same bundle bytes — and the server code stays the one place that projects it. Only `@aas/core`,
+ *    `@aas/aasx`, `@aas/linter` and `node:` built-ins may stay as imports; anything else ending up as an import means
+ *    the bundle would need a package it does not declare, and packing fails.
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
+import { rolldown } from 'rolldown';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const OUT = join(ROOT, 'out/libraries');
@@ -32,7 +39,20 @@ const LIBRARIES = [
   { name: '@aas/core', dir: 'packages/aas-core' },
   { name: '@aas/aasx', dir: 'packages/aasx' },
   { name: '@aas/linter', dir: 'packages/linter' },
+  {
+    name: '@aas/bundle',
+    bundled: {
+      entry: 'apps/api/dist/integration/bundle-build.js',
+      // The declaration files shipped as emitted — the first becomes dist/index.d.ts
+      types: ['apps/api/dist/integration/bundle-build.d.ts', 'apps/api/dist/integration/bundle-types.d.ts'],
+      description: 'VEXPLOR integration bundle (vexplor.integrationBundle/1) built from AASX files, without a server',
+      license: 'Apache-2.0',
+      dependencies: ['@aas/core', '@aas/aasx', '@aas/linter'],
+    },
+  },
 ];
+/** What the bundled code may still import */
+const BUNDLE_EXTERNAL = (id) => id.startsWith('node:') || /^@aas\/(core|aasx|linter)$/.test(id);
 
 const args = process.argv.slice(2);
 const versionAt = args.indexOf('--version');
@@ -81,23 +101,67 @@ function manifestOf(source, locate) {
   };
 }
 
+/** Stages `@aas/bundle`: one ESM file from the API's integration code, plus its two declaration files */
+async function stageBundled(library, target) {
+  const { entry, types } = library.bundled;
+  if (!existsSync(join(ROOT, entry))) fail(`${entry} is missing — run npx tsc -b first`);
+  const build = await rolldown({ input: join(ROOT, entry), external: BUNDLE_EXTERNAL, platform: 'node', treeshake: true, logLevel: 'silent' });
+  const { output } = await build.generate({ format: 'esm' });
+  await build.close();
+  if (output.length !== 1) fail(`${library.name}: expected one bundled file, got ${output.length}`);
+  const code = output[0].code;
+  const imports = [...code.matchAll(/(?:^|\n)\s*(?:import|export)\b[^'"]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g)].map((match) => match[1] ?? match[2]);
+  const stray = [...new Set(imports.filter((id) => !BUNDLE_EXTERNAL(id)))];
+  if (stray.length > 0) fail(`${library.name}: the bundled code still imports ${stray.join(', ')}`);
+  mkdirSync(join(target, 'dist'), { recursive: true });
+  writeFileSync(join(target, 'dist/index.js'), code);
+  types.forEach((file, index) => {
+    const text = readFileSync(join(ROOT, file), 'utf8').replace(/\n\/\/# sourceMappingURL=.*\n?$/, '\n');
+    // A relative import other than the shipped sibling would point at a file the tarball does not carry
+    const relative = [...text.matchAll(/from\s*['"](\.[^'"]*)['"]/g)].map((match) => match[1]).filter((id) => id !== './bundle-types.js');
+    if (relative.length > 0) fail(`${file} imports ${relative.join(', ')}, which the tarball does not carry`);
+    writeFileSync(join(target, 'dist', index === 0 ? 'index.d.ts' : file.split('/').pop()), text);
+  });
+}
+
+/** package.json of the bundled library — written here, it has no workspace package.json of its own */
+function bundledSource(library) {
+  const { description, license, dependencies } = library.bundled;
+  return {
+    name: library.name,
+    description,
+    license,
+    type: 'module',
+    main: './dist/index.js',
+    types: './dist/index.d.ts',
+    exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
+    dependencies: Object.fromEntries(dependencies.map((name) => [name, version])),
+  };
+}
+
 /** Builds every tarball into `outDir`, internal dependencies pointed at `locate(name)` */
-function pack(outDir, locate) {
+async function pack(outDir, locate) {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   const stage = join(outDir, '.stage');
   for (const library of LIBRARIES) {
-    const dir = join(ROOT, library.dir);
-    if (!existsSync(join(dir, 'dist/index.js'))) fail(`${library.dir}/dist is missing — run npx tsc -b first`);
-    const source = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-    if (source.name !== library.name) fail(`${library.dir} is ${source.name}, expected ${library.name}`);
-    const target = join(stage, library.dir.split('/').pop());
+    const target = join(stage, library.name.split('/').pop());
     rmSync(target, { recursive: true, force: true });
     mkdirSync(target, { recursive: true });
-    cpSync(join(dir, 'dist'), join(target, 'dist'), {
-      recursive: true,
-      filter: (path) => !path.endsWith('.tsbuildinfo'),
-    });
+    let source;
+    if (library.bundled) {
+      await stageBundled(library, target);
+      source = bundledSource(library);
+    } else {
+      const dir = join(ROOT, library.dir);
+      if (!existsSync(join(dir, 'dist/index.js'))) fail(`${library.dir}/dist is missing — run npx tsc -b first`);
+      source = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+      if (source.name !== library.name) fail(`${library.dir} is ${source.name}, expected ${library.name}`);
+      cpSync(join(dir, 'dist'), join(target, 'dist'), {
+        recursive: true,
+        filter: (path) => !path.endsWith('.tsbuildinfo'),
+      });
+    }
     cpSync(join(ROOT, 'LICENSE'), join(target, 'LICENSE'));
     cpSync(join(ROOT, 'NOTICE'), join(target, 'NOTICE'));
     writeFileSync(join(target, 'package.json'), `${JSON.stringify(manifestOf(source, locate), null, 2)}\n`);
@@ -111,7 +175,7 @@ function pack(outDir, locate) {
   return files;
 }
 
-const files = pack(OUT, releaseUrl);
+const files = await pack(OUT, releaseUrl);
 console.log(`[OK] ${files.length} libraries, version ${version} → ${OUT}`);
 for (const name of files) console.log(`     ${name}`);
 
@@ -121,7 +185,7 @@ if (verify) {
   //    @aas** and runs it — proving the tarballs are complete and self-contained, not that the URLs answer.
   const local = join(ROOT, 'out/libraries-verify');
   const tarballs = join(local, 'tarballs');
-  pack(tarballs, (name) => `file:${join(tarballs, fileOf(name))}`);
+  await pack(tarballs, (name) => `file:${join(tarballs, fileOf(name))}`);
   const project = join(local, 'project');
   mkdirSync(project, { recursive: true });
   writeFileSync(
@@ -138,12 +202,15 @@ if (verify) {
 import { PRODUCT_VERSION } from '@aas/core';
 import { readAasx } from '@aas/aasx';
 import { ALL_RULES, lint } from '@aas/linter';
+import { buildBundle } from '@aas/bundle';
 const pkg = readAasx(new Uint8Array(readFileSync(${JSON.stringify(fixture)})));
 const shells = pkg.environment.assetAdministrationShells ?? [];
 const result = lint(pkg.environment, ALL_RULES);
 if (shells.length === 0) throw new Error('no shells read');
 if (ALL_RULES.length === 0 || !Array.isArray(result.findings)) throw new Error('the rules did not run');
-console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length }));
+const bundle = await buildBundle([{ name: 'unit.aasx', data: new Uint8Array(readFileSync(${JSON.stringify(fixture)})) }], { exportedAt: '2026-01-01T00:00:00.000Z' });
+if (bundle.manifest.schema !== 'vexplor.integrationBundle/1' || !bundle.files['equipment.json']) throw new Error('no bundle built');
+console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length }));
 `,
   );
   const result = execFileSync('node', ['check.mjs'], { cwd: project, encoding: 'utf8' }).trim();

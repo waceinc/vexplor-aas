@@ -36,6 +36,8 @@ ALLOW=(
   # docs — user-facing only. Development logs and rule measurement material are not included
   docs/사용법.md docs/설치.md docs/배포_호스팅.md docs/규칙_목록.md docs/images docs/spec
   docs/usage.md docs/install.md docs/deployment.md docs/rules.md
+  # the sample integration bundle other products run their import gate on (docs/integration.md §7.4)
+  docs/examples
   # tools
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs

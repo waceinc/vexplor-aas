@@ -8,6 +8,7 @@
 import { PRODUCT_VERSION, fill, tr, type Environment, type Isa95Path, type PublicExternalRef, type SpecificAssetIdPair } from '@aas/core';
 import type { AasStore } from '@aas/store';
 import { DERIVATION_PART } from '../../routes/derivation.js';
+import type { ExportSource } from '../bundle-types.js';
 import { EQUIPMENT_SCHEMA } from './columns.js';
 import type { CsvRow } from './csv.js';
 import { assetInformationOf, shellsOf, specificAssetIdsOf, type Json } from './elements.js';
@@ -138,11 +139,7 @@ export function compareItems(a: { key: string; aasId: string }, b: { key: string
   return a.key.localeCompare(b.key) || a.aasId.localeCompare(b.aasId);
 }
 
-export interface ExportSource {
-  tool: string;
-  version: string;
-  instanceId: string | null;
-}
+export type { ExportSource } from '../bundle-types.js';
 
 export function exportSource(instanceId: string | null): ExportSource {
   return { tool: 'VEXPLOR AAS Studio', version: PRODUCT_VERSION, instanceId };
