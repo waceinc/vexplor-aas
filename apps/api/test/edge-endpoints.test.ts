@@ -12,6 +12,7 @@ import { buildAidSubmodel } from '@aas/collector';
 import { InMemoryStore, runInWorkspace, scopeStore } from '@aas/store';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApi, createHttpServer, type ApiRequest, type ApiResponse } from '@aas/api';
+import { aidReadList } from '../src/integration/bundle-build.js';
 import { createEdgeHandler } from '../src/edge/routes-edge.js';
 import { edgeAdminRoutes } from '../src/edge/routes-edge-admin.js';
 import { EdgeRegistry } from '../src/edge/state.js';
@@ -78,6 +79,18 @@ afterEach(() => {
 });
 
 describe('edge endpoints with the mock edge', () => {
+  it('aidReadList (@aas/bundle) gives another product the very read list the server hands the edge', async () => {
+    const { packageId, admin, code, edge } = await setup();
+    const { deviceId } = await edge.register(code);
+    await approve(admin, deviceId);
+    const list = await edge.readList();
+    expect(list.state).toBe('approved');
+    expect(list.interfaces).toHaveLength(1);
+    expect(list.interfaces).toEqual(aidReadList(withAid().environment, packageId, 1000));
+    // Another file id gives other tag ids — they are stable per package, not per address
+    expect(aidReadList(withAid().environment, 'pkg_other', 1000)[0]!.tags[0]!.tagId).not.toBe(list.interfaces[0]!.tags[0]!.tagId);
+  });
+
   it('over real HTTP: register, wait for approval, send batches, values stored once', async () => {
     process.env['EDGE'] = 'on';
     const store = new InMemoryStore();

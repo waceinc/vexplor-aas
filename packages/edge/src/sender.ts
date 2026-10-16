@@ -21,6 +21,7 @@ const MAX_BACKOFF_MS = 300_000;
 
 export class Sender {
   private failures = 0;
+  private running: Promise<FlushResult> | undefined;
   stats = { sent: 0, accepted: 0, rejectedSamples: 0, duplicates: 0, refused: 0 };
 
   constructor(
@@ -36,7 +37,17 @@ export class Sender {
     return Math.round(base * (0.8 + 0.4 * this.random()));
   }
 
-  async flush(): Promise<FlushResult> {
+  /**
+   * One round at a time: a flush asked for while one runs waits for it instead of starting a second — two rounds at once
+   * could send a realtime batch before the backlog, and the receiver would file the backlog as late (Logic Studio's
+   * request, 2026-10-16; overlapping flushes were measured before this guard).
+   */
+  flush(): Promise<FlushResult> {
+    this.running ??= this.round().finally(() => (this.running = undefined));
+    return this.running;
+  }
+
+  private async round(): Promise<FlushResult> {
     let sent = 0;
     let readListRevision: string | undefined;
     for (const name of this.queue.files()) {

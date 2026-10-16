@@ -20,33 +20,10 @@ import type { AasStore } from '@aas/store';
 import { assetInformationOf, shellsOf } from '../integration/exports/elements.js';
 import { allPackages } from '../integration/exports/store.js';
 
-export type EdgeProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'HTTP';
+import type { EdgeProtocol, ReadListInterface, ReadListTag } from '../integration/bundle-types.js';
+
+export type { EdgeProtocol, ReadListInterface, ReadListTag };
 const EDGE_PROTOCOLS: ReadonlySet<string> = new Set<EdgeProtocol>(['OPCUA', 'MODBUS', 'MQTT', 'HTTP']);
-
-export interface ReadListTag {
-  tagId: string;
-  propertyName: string;
-  address: string;
-  key?: string;
-  type?: string;
-  unit?: string;
-  fields: Record<string, string>;
-  /** Overrides the interface's intervalMs for this tag (set at approval) */
-  intervalMs?: number;
-}
-
-export interface ReadListInterface {
-  interfaceId: string;
-  packageId: string;
-  aasId: string | null;
-  globalAssetId: string | null;
-  interfaceName: string;
-  protocol: EdgeProtocol;
-  endpoint: string;
-  security: { mode: 'None' | 'Sign' | 'SignAndEncrypt' | 'TLS'; policy?: string; credentialRef?: string };
-  intervalMs: number;
-  tags: ReadListTag[];
-}
 
 const short = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16);
 

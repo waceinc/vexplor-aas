@@ -24,7 +24,9 @@ vexplor-edge run --config edge.json                              # what the serv
 - **Read only, outbound only.** It never writes to a device, listens on no port and has no remote stop. A revoked
   device stops sending by itself and keeps its queue.
 - **Nothing lost on an outage.** Batches wait on disk (`stateDir/queue`) and go out in order with the same boot id and
-  sequence when the server answers again; the server stores each once.
+  sequence when the server answers again; the server stores each once. One batch is in flight at a time, so a backlog
+  always arrives before newer batches. A batch waits at most `maxQueueDays` (default 30) — older ones, like those past
+  `maxQueuedBatches`, are dropped and counted in `status.droppedBatches`.
 - **Secrets stay here.** The private key is made on this machine; PLC passwords live in `credentialsFile` by endpoint,
   never in the AAS or the read list.
 - **Batches stay few during an outage.** One batch every `flushIntervalMs` (default 5 s — 12 requests a minute, well

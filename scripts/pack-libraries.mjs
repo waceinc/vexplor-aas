@@ -202,7 +202,7 @@ if (verify) {
 import { PRODUCT_VERSION } from '@aas/core';
 import { readAasx } from '@aas/aasx';
 import { ALL_RULES, lint } from '@aas/linter';
-import { buildBundle } from '@aas/bundle';
+import { aidReadList, buildBundle } from '@aas/bundle';
 const pkg = readAasx(new Uint8Array(readFileSync(${JSON.stringify(fixture)})));
 const shells = pkg.environment.assetAdministrationShells ?? [];
 const result = lint(pkg.environment, ALL_RULES);
@@ -210,7 +210,9 @@ if (shells.length === 0) throw new Error('no shells read');
 if (ALL_RULES.length === 0 || !Array.isArray(result.findings)) throw new Error('the rules did not run');
 const bundle = await buildBundle([{ name: 'unit.aasx', data: new Uint8Array(readFileSync(${JSON.stringify(fixture)})) }], { exportedAt: '2026-01-01T00:00:00.000Z' });
 if (bundle.manifest.schema !== 'vexplor.integrationBundle/1' || !bundle.files['equipment.json']) throw new Error('no bundle built');
-console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length }));
+const readList = aidReadList(pkg.environment, 'pkg_1');
+if (!Array.isArray(readList)) throw new Error('aidReadList did not run');
+console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length, readListInterfaces: readList.length }));
 `,
   );
   const result = execFileSync('node', ['check.mjs'], { cwd: project, encoding: 'utf8' }).trim();

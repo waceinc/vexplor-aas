@@ -537,6 +537,11 @@ code over an in-memory store, so the same files in the same order with the same 
 for byte (checked against the route in `apps/api/test/integration-bundle-build.test.ts`). Package ids follow the input
 order (`pkg_1`, `pkg_2`, …); document links are relative unless `publicBaseUrl` is given.
 
+**Read list without a server — `aidReadList`.** The same tarball has `aidReadList(environment, packageId, intervalMs?)`:
+the AID interfaces of one file resolved into the tags a remote collector reads (`docs/edge-contract.md` §4) — the
+server's own read-list code, so the same `packageId` gives the same stable `tagId`s (checked against the edge endpoint
+in `apps/api/test/edge-endpoints.test.ts`). A product that builds its own read list from AASX files needs no AID parser.
+
 **Type link (`typeAasId`).** An Instance row names its Type by the server's link ("link to type") when there is one,
 otherwise by the shell's own AAS `derivedFrom` reference — which "split per unit" writes and which travels inside the
 file, so `buildBundle` sees it too. The id is taken as written; the Type may be in another file or not exported.
