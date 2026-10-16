@@ -12,12 +12,13 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { PRODUCT_VERSION } from '@aas/core';
-import type { ProtocolReader } from '@aas/collector';
+import type { ProtocolReader, ReadResult } from '@aas/collector';
+import type { SubscribeOptions, ValueSubscription } from '@aas/opcua';
 import type { EdgeConfig } from './config.js';
 import { EdgeHttp, signerOf, type Signer } from './http.js';
 import { loadOrCreateIdentity, saveIdentity, type Identity } from './identity.js';
 import { DiskQueue, type Batch } from './queue.js';
-import { intervalGroups, openReader, readGroup, type ReadListInterface, type Sample } from './readers.js';
+import { intervalGroups, isAnalogType, openReader, readGroup, sampleOf, type ReadListInterface, type ReadListTag, type Sample } from './readers.js';
 import { Sender } from './sender.js';
 import { checkRelease, type ReleaseManifest } from './update.js';
 
@@ -26,6 +27,11 @@ export interface AgentOptions {
   credentials: Map<string, { userName: string; password: string }>;
   log?: (line: string) => void;
   now?: () => Date;
+}
+
+/** A reader that can report changes itself (OPC UA) */
+interface Subscriber {
+  subscribe(sources: readonly string[], options: SubscribeOptions, onChange: (result: ReadResult) => void): Promise<ValueSubscription>;
 }
 
 interface ReadList {
@@ -61,6 +67,7 @@ export class EdgeAgent {
   private buffer: Sample[] = [];
   private readers: { iface: ReadListInterface; reader?: ProtocolReader; error?: string }[] = [];
   private timers: ReturnType<typeof setInterval>[] = [];
+  private subscriptions: ValueSubscription[] = [];
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
   private flushTimer: ReturnType<typeof setInterval> | undefined;
   private updateTimer: ReturnType<typeof setInterval> | undefined;
@@ -177,7 +184,9 @@ export class EdgeAgent {
         this.log(`${iface.interfaceId}: ${slot.error}`);
         continue;
       }
+      const subscriber = this.options.config.opcua.mode === 'subscribe' && iface.protocol === 'OPCUA' ? (slot.reader as Partial<Subscriber>) : undefined;
       for (const [every, tags] of intervalGroups(iface)) {
+        if (subscriber?.subscribe && (await this.watch(slot, subscriber as Subscriber, every, tags))) continue;
         let busy = false;
         this.timers.push(
           setInterval(() => {
@@ -197,9 +206,53 @@ export class EdgeAgent {
     }
   }
 
+  /**
+   * Report by exception (lead request §6 H4): the PLC samples the group on its interval and reports changes only (beyond
+   * the deadband for numeric tags). An unchanged value is sent again every `opcua.resendMs` with a new receive time, so
+   * a constant tag still shows as received. Returns false when the server refuses the subscription — the group is then
+   * polled as before.
+   */
+  private async watch(slot: (typeof this.readers)[number], reader: Subscriber, every: number, tags: readonly ReadListTag[]): Promise<boolean> {
+    const { deadband, resendMs } = this.options.config.opcua;
+    const byAddress = new Map<string, ReadListTag[]>();
+    for (const tag of tags) byAddress.set(tag.address, [...(byAddress.get(tag.address) ?? []), tag]);
+    const last = new Map<string, { sample: Sample; at: number }>();
+    const take = (sample: Sample): void => {
+      this.collected += 1;
+      this.buffer.push(sample);
+      last.set(sample.tagId, { sample, at: Date.parse(sample.receivedAt) });
+    };
+    try {
+      const numeric = new Set(tags.filter((tag) => isAnalogType(tag.type)).map((tag) => tag.address));
+      const subscription = await reader.subscribe([...byAddress.keys()], { samplingIntervalMs: every, deadband, numeric }, (result) => {
+        const receivedAt = this.now().toISOString();
+        for (const tag of byAddress.get(result.source) ?? []) {
+          const sample = sampleOf(tag, result, receivedAt);
+          if (sample) take(sample);
+        }
+        slot.error = undefined;
+      });
+      this.subscriptions.push(subscription);
+    } catch (error) {
+      this.log(`${slot.iface.interfaceId}: subscription refused, reading every ${every} ms instead — ${(error as Error).message}`);
+      return false;
+    }
+    this.timers.push(
+      setInterval(() => {
+        const now = this.now();
+        for (const { sample, at } of [...last.values()]) {
+          if (now.getTime() - at >= resendMs) take({ ...sample, receivedAt: now.toISOString() });
+        }
+      }, Math.min(resendMs, 60_000)),
+    );
+    return true;
+  }
+
   private async closeReaders(): Promise<void> {
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
+    await Promise.all(this.subscriptions.map((subscription) => subscription.close()));
+    this.subscriptions = [];
     await Promise.all(this.readers.map((slot) => slot.reader?.close().catch(() => undefined)));
     this.readers = [];
   }

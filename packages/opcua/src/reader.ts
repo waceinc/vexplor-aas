@@ -15,6 +15,9 @@ import { fill, tr } from '@aas/core';
 import type { ProtocolReader, ReadResult } from '@aas/collector';
 import {
   AttributeIds,
+  DataChangeFilter,
+  DataChangeTrigger,
+  DeadbandType,
   MessageSecurityMode,
   OPCUACertificateManager,
   OPCUAClient,
@@ -22,7 +25,9 @@ import {
   StatusCodes,
   TimestampsToReturn,
   UserTokenType,
+  type ClientMonitoredItemBase,
   type ClientSession,
+  type ClientSubscription,
   type DataValue,
   type UserIdentityInfo,
 } from 'node-opcua';
@@ -133,6 +138,23 @@ export function toReadResult(source: string, dataValue: DataValue): ReadResult {
   return result;
 }
 
+/** Report by exception (remote collector, lead request §6 H4) */
+export interface SubscribeOptions {
+  /** How often the server samples each tag and publishes changes (ms) */
+  samplingIntervalMs: number;
+  /**
+   * Absolute deadband for numeric tags — a change smaller than this is not reported. 0 or absent: every change.
+   * Important: only sources listed in `numeric` get it; a deadband on a boolean or text tag is refused by the server
+   *    (BadFilterNotAllowed), so those are always reported on any change.
+   */
+  deadband?: number;
+  numeric?: ReadonlySet<string>;
+}
+
+export interface ValueSubscription {
+  close(): Promise<void>;
+}
+
 export class OpcUaReader implements ProtocolReader {
   private constructor(
     readonly base: string,
@@ -203,6 +225,53 @@ export class OpcUaReader implements ProtocolReader {
       if (!dataValue) return { source, value: null, error: tr('응답이 없습니다.') };
       return toReadResult(source, dataValue);
     });
+  }
+
+  /**
+   * Subscribes to a list of addresses: the server samples them and reports a value **only when it changes** (beyond the
+   * deadband for numeric tags), plus once at the start. Each report goes to `onChange` as the same ReadResult a read
+   * gives — device time, quality, pending, error.
+   *
+   * Important: read only, like `read` — a subscription asks the server to watch values; it writes nothing.
+   */
+  async subscribe(sources: readonly string[], options: SubscribeOptions, onChange: (result: ReadResult) => void): Promise<ValueSubscription> {
+    // Important: the keep-alive (publishing interval × keep-alive count) must stay well inside the session timeout, or
+    //    node-opcua refuses the subscription (W09 — measured at a 1 s interval with the 10 s session: 20 × 1 s > 10 s).
+    //    Changes are sampled at the tag's interval anyway; publishing may be more frequent than that.
+    const sessionMs = this.session.timeout > 0 ? this.session.timeout : 10_000;
+    const publishingMs = Math.min(options.samplingIntervalMs, Math.floor(sessionMs / 4));
+    const keepAlive = Math.max(1, Math.min(20, Math.floor(sessionMs / 2 / publishingMs)));
+    const subscription: ClientSubscription = await this.session.createSubscription2({
+      requestedPublishingInterval: publishingMs,
+      requestedLifetimeCount: keepAlive * 6,
+      requestedMaxKeepAliveCount: keepAlive,
+      maxNotificationsPerPublish: 0,
+      publishingEnabled: true,
+      priority: 1,
+    });
+    const deadband = options.deadband ?? 0;
+    const filtered = deadband > 0 ? sources.filter((source) => options.numeric?.has(source)) : [];
+    const plain = sources.filter((source) => !filtered.includes(source));
+    const watch = async (list: readonly string[], filter?: DataChangeFilter): Promise<void> => {
+      if (list.length === 0) return;
+      const group = await subscription.monitorItems(
+        list.map((nodeId) => ({ nodeId, attributeId: AttributeIds.Value })),
+        { samplingInterval: options.samplingIntervalMs, discardOldest: true, queueSize: 10, ...(filter ? { filter } : {}) },
+        TimestampsToReturn.Both,
+      );
+      group.on('changed', (_item: ClientMonitoredItemBase, dataValue: DataValue, index: number) => {
+        const source = list[index];
+        if (source !== undefined) onChange(toReadResult(source, dataValue));
+      });
+    };
+    try {
+      await watch(plain);
+      await watch(filtered, new DataChangeFilter({ trigger: DataChangeTrigger.StatusValue, deadbandType: DeadbandType.Absolute, deadbandValue: deadband }));
+    } catch (error) {
+      await subscription.terminate().catch(() => undefined);
+      throw error;
+    }
+    return { close: () => subscription.terminate().catch(() => undefined) };
   }
 
   async close(): Promise<void> {
