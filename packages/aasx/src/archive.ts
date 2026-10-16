@@ -8,7 +8,7 @@
 import { unzipSync, zipSync, type Zippable } from 'fflate';
 import { fill, tr } from '@aas/core';
 import { AasxLimitError, createEntryGuard, DEFAULT_LIMITS, type AasxLimits } from './limits.js';
-import { DETERMINISTIC_MTIME } from './write.js';
+import { DETERMINISTIC_MTIME, zipTime } from './write.js';
 
 export class ArchiveReadError extends Error {
   constructor(message: string) {
@@ -22,12 +22,13 @@ export class ArchiveReadError extends Error {
  * The modification time is fixed so that **the same content yields the same bytes** — bundle hashes must be reproducible.
  */
 export function zipArchive(files: Record<string, Uint8Array>, mtime = DETERMINISTIC_MTIME): Uint8Array {
+  const time = zipTime(mtime);
   const zippable: Zippable = {};
   for (const [path, data] of Object.entries(files)) {
     // Do not recompress already-compressed AASX — it only costs time
-    zippable[path] = [data, { level: /\.(aasx|zip|png|jpe?g)$/i.test(path) ? 0 : 6, mtime }];
+    zippable[path] = [data, { level: /\.(aasx|zip|png|jpe?g)$/i.test(path) ? 0 : 6, mtime: time }];
   }
-  return zipSync(zippable, { mtime });
+  return zipSync(zippable, { mtime: time });
 }
 
 /** Unzips. Limits and dangerous paths are blocked before extraction. Directory entries are skipped */
