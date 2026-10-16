@@ -112,6 +112,7 @@ export class Transport {
       return await this.send({
         url: subscription.url,
         address: target.address,
+        ...(target.proxy ? { proxy: target.proxy } : {}),
         body,
         headers: signatureHeaders(this.signingSecrets(subscription.secrets), event.id, Math.floor(now() / 1000), body),
         ...(this.options.timeoutMs === undefined ? {} : { timeoutMs: this.options.timeoutMs }),

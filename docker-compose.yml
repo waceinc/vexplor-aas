@@ -68,6 +68,9 @@ services:
       OPCUA_CLIENT_PKI_DIR: ${OPCUA_CLIENT_PKI_DIR:-}
       OPCUA_CLIENT_TRUST: ${OPCUA_CLIENT_TRUST:-}
       OPCUA_CLIENT_CREDENTIALS: ${OPCUA_CLIENT_CREDENTIALS:-}
+      # Outbound proxy for webhooks (.env.example)
+      INTEGRATION_PROXY: ${INTEGRATION_PROXY:-}
+      INTEGRATION_NO_PROXY: ${INTEGRATION_NO_PROXY:-}
       # Remote collectors (docs/edge-contract.md)
       EDGE: ${EDGE:-off}
       # Rule conflict ⑤ — keep the semanticId of standard templates (AID etc.) or follow KOSMO

@@ -101,7 +101,14 @@ export async function statusReport(store: IntegrationAasStore, deps: Integration
       ...(oldest ? { oldestPendingAt: oldest } : {}),
       dead: stats.reduce((sum, entry) => sum + entry.dead, 0),
     },
-    egress: { allow: services.egress.allow.map((entry) => entry.text), blockedPorts: [...BLOCKED_PORTS] },
+    egress: {
+      allow: services.egress.allow.map((entry) => entry.text),
+      blockedPorts: [...BLOCKED_PORTS],
+      // Host and port only — proxy credentials never leave the server
+      ...(services.egress.proxy
+        ? { proxy: `${services.egress.proxy.host}:${services.egress.proxy.port}`, noProxy: services.egress.proxy.noProxy.map((entry) => entry.text) }
+        : {}),
+    },
     masterKey: services.masterKey,
     ...(mismatch.length > 0 ? { masterKeyMismatch: mismatch } : {}),
     opcua: services.opcua(),

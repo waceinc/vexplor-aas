@@ -95,4 +95,9 @@ export const EN_INTEGRATION_API: Record<string, string> = {
 
   // Discovery fix (routes/registry.ts)
   'SpecificAssetId.name이 필요합니다.': 'SpecificAssetId.name is required.',
+  "INTEGRATION_PROXY 를 읽지 못했습니다: {0}": "Could not read INTEGRATION_PROXY: {0}",
+  "INTEGRATION_PROXY 는 http://호스트:포트 여야 합니다: {0}": "INTEGRATION_PROXY must be http://host:port: {0}",
+  "INTEGRATION_NO_PROXY 항목을 읽지 못했습니다: {0}": "Could not read an INTEGRATION_NO_PROXY entry: {0}",
+  "MQTT 는 아직 프록시를 지나 보내지 않습니다 — INTEGRATION_NO_PROXY 에 브로커를 적어 직접 연결하십시오.": "MQTT is not sent through the proxy yet — list the broker in INTEGRATION_NO_PROXY to connect directly.",
+  "암호화하지 않은 연결은 프록시로 보내지 않습니다 — https 주소를 쓰십시오.": "Unencrypted connections are not sent through the proxy — use an https address.",
 };

@@ -57,6 +57,8 @@ Pushing (webhooks, MQTT), state detection and master-data notifications start on
 | `INTEGRATION_TIMEOUT_MS` | `10000` | Total deadline of one webhook attempt, clamped to 1000–60000. DNS lookups time out after 5 s regardless |
 | `OPCUA_ALLOW_INSECURE` | off | `on` restores the old unauthenticated OPC UA server (chapter 9) |
 | `OPCUA_PKI_DIR` | `<AAS_DATA_DIR>/opcua-pki`, else `./opcua-pki` | OPC UA certificate store |
+| `INTEGRATION_PROXY` | — | `http://[user:pass@]host:port`. Outside names go through it **unresolved** (HTTP CONNECT, TLS checked end to end against the name); internal names (no dot, `.local`, `.internal`, `.lan`, `.corp`, `.home.arpa`) and private addresses go direct under the rules above. Only https webhooks are tunnelled — MQTT brokers go direct (list them in `INTEGRATION_NO_PROXY`). The proxy resolves the name, so the proxy's own rules must refuse names that resolve to the site's internal addresses |
+| `INTEGRATION_NO_PROXY` | — | Targets that go direct even with a proxy (same syntax as `AAS_INTEGRATION_ALLOW`) |
 | `OPCUA_CLIENT_PKI_DIR` | `<AAS_DATA_DIR>/opcua-client-pki`, else `./opcua-client-pki` | The collector's OPC UA certificate store. Security mode, policy and whether a user name is needed come from the AID (AID 1.1 `securityDefinitions`). An unknown server certificate is refused and kept in `rejected/` until moved to `trusted/certs` |
 | `OPCUA_CLIENT_TRUST` | — | `first-use` accepts a server certificate the first time it is seen |
 | `OPCUA_CLIENT_CREDENTIALS` | — | JSON file `{ "<endpoint>": { "userName", "password" } }` for servers whose AID asks for a user name. Passwords never go into the AAS |
