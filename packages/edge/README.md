@@ -38,6 +38,9 @@ vexplor-edge run --config edge.json                              # what the serv
   key>" }` it checks once a day and reports a newer release signed by that key (log and the next batch's status). It
   downloads and installs nothing — a person installs it with the installer. Without the setting it makes no update
   request at all. A soak of a real 30-minute outage: `EDGE_SOAK_MINUTES=30 npx vitest run packages/edge/test/soak.test.ts`.
+- **Changes only (OPC UA)**: `"opcua": { "mode": "subscribe", "deadband": 0, "resendMs": 300000 }` — the PLC reports
+  changes, the deadband skips small changes of analog tags (never counters), an unchanged value is sent again every
+  `resendMs`. Default `"poll"`.
 - OPC UA security (mode, policy, user name) comes from the AID through the read list; the OPC UA certificate store is
   `stateDir/opcua-pki` (an unknown server certificate waits in `rejected/` unless `trustFirstUse`).
 

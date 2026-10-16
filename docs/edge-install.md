@@ -66,6 +66,11 @@ revision). It reads nothing before.
 - An outage loses nothing: batches wait in `<state>/queue` and go out in order when the server answers again (each is
   stored once). Past `maxQueuedBatches` (default 100 000), or older than `maxQueueDays` (default 30), the oldest are
   dropped and reported, never silently.
+- **Send changes only (OPC UA)**: with `"opcua": { "mode": "subscribe" }` the PLC samples each tag on its interval and
+  the edge sends a value only when it changes; `"deadband": <number>` also skips smaller changes of analog (float) tags —
+  never counters, states or text. An unchanged value is sent again every `"resendMs"` (default 300 000, 5 minutes) so it
+  still shows as received. Measured on a PLC simulator, 6 tags every second for 5 minutes: polling 1 794 values
+  (283 KB), subscribe 729 (130 KB, −54 %), subscribe with deadband 1.0 436 (88 KB, −69 %). The default stays `"poll"`.
 - A batch the server refuses as malformed goes to `<state>/refused` for a person to look at.
 - A revoked device stops sending by itself and keeps its queue; it never registers again on its own.
 - Update notices (optional): with `"update": { "manifestUrl": "https://…", "publicKey": "<release key>" }` it reports a

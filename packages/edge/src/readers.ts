@@ -37,6 +37,13 @@ export interface OpenOptions {
   opcua: { pkiDir: string; trustFirstUse: boolean };
 }
 
+/**
+ * AID value types the deadband applies to — analog values only (float, double, decimal).
+ * Important: not integers. A counter going up by 1 under a deadband of 1 lost every other step in the H4 measurement
+ *    (ProductionCount 100 → 50 in 5 minutes); counts, states and codes are sent on every change.
+ */
+export const isAnalogType = (type: string | undefined): boolean => type !== undefined && /float|double|decimal/i.test(type);
+
 /** The read list's interface in the shape the collector's readers take */
 export function toAidInterface(iface: ReadListInterface): AidInterface {
   return {
@@ -95,6 +102,19 @@ function valueOf(value: unknown): Sample['value'] {
   return JSON.stringify(value);
 }
 
+/** One reading result as a sample — undefined while no value has arrived yet (pending) */
+export function sampleOf(tag: ReadListTag, result: ReadResult, receivedAt: string): Sample | undefined {
+  if (result.pending) return undefined;
+  return {
+    tagId: tag.tagId,
+    observedAt: result.observedAt ?? receivedAt,
+    receivedAt,
+    value: result.error ? null : valueOf(result.value),
+    ...(result.quality ? { quality: result.quality.slice(0, 64) } : {}),
+    ...(result.error ? { error: result.error.slice(0, 512) } : {}),
+  };
+}
+
 /** One reading of a group of tags as samples */
 export async function readGroup(reader: ProtocolReader, tags: readonly ReadListTag[], now: () => Date = () => new Date()): Promise<Sample[]> {
   const results: ReadResult[] = await reader.read(tags.map((tag) => tag.address));
@@ -102,15 +122,8 @@ export async function readGroup(reader: ProtocolReader, tags: readonly ReadListT
   const out: Sample[] = [];
   results.forEach((result, index) => {
     const tag = tags[index];
-    if (!tag || result.pending) return;
-    out.push({
-      tagId: tag.tagId,
-      observedAt: result.observedAt ?? receivedAt,
-      receivedAt,
-      value: result.error ? null : valueOf(result.value),
-      ...(result.quality ? { quality: result.quality.slice(0, 64) } : {}),
-      ...(result.error ? { error: result.error.slice(0, 512) } : {}),
-    });
+    const sample = tag ? sampleOf(tag, result, receivedAt) : undefined;
+    if (sample) out.push(sample);
   });
   return out;
 }

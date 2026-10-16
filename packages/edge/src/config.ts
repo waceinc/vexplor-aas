@@ -7,7 +7,10 @@
  *       "proxy": "http://proxy.plant.local:3128",   // optional, HTTP CONNECT
  *       "caFile": "corp-ca.pem",                    // optional, a private certificate authority for the server
  *       "credentialsFile": "credentials.json",      // optional, { "<endpoint>": { "userName", "password" } }
- *       "opcua": { "pkiDir": "...", "trustFirstUse": false }
+ *       "opcua": { "pkiDir": "...", "trustFirstUse": false,
+ *                  "mode": "poll",                  // or "subscribe": the PLC reports changes only (lead request §6 H4)
+ *                  "deadband": 0,                   // subscribe: absolute, analog (float) tags only — smaller changes not sent
+ *                  "resendMs": 300000 }             // subscribe: an unchanged value is sent again this often
  *     }
  *
  * Important: the server address must be https — plain http only for this machine (tests). The edge refuses to start
@@ -24,7 +27,19 @@ export interface EdgeConfig {
   proxy?: string;
   caFile?: string;
   credentialsFile?: string;
-  opcua: { pkiDir: string; trustFirstUse: boolean };
+  opcua: {
+    pkiDir: string;
+    trustFirstUse: boolean;
+    /** poll (default): read every interval · subscribe: the server samples on the interval and reports changes only */
+    mode: 'poll' | 'subscribe';
+    /** subscribe: absolute deadband for analog tags — float, double, decimal; never counters (0 = every change) */
+    deadband: number;
+    /**
+     * subscribe: an unchanged value is sent again after this long (ms, default 5 min), with a new receive time — so a
+     * constant tag still shows as received and the server can tell "unchanged" from "not reading"
+     */
+    resendMs: number;
+  };
   /**
    * How often collected samples become a batch (ms). Default 5000 — 12 requests a minute, leaving most of the server's
    * per-device limit (60 a minute) to catch up after an outage
@@ -51,6 +66,17 @@ const text = (value: unknown, name: string): string | undefined => {
 const positive = (value: unknown, name: string, fallback: number): number => {
   if (value === undefined) return fallback;
   if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) throw new EdgeConfigError(`${name} must be a positive integer`);
+  return value;
+};
+
+const modeOf = (value: unknown): 'poll' | 'subscribe' => {
+  if (value === undefined || value === 'poll' || value === 'subscribe') return value ?? 'poll';
+  throw new EdgeConfigError('opcua.mode must be "poll" or "subscribe"');
+};
+
+const deadbandOf = (value: unknown): number => {
+  if (value === undefined) return 0;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw new EdgeConfigError('opcua.deadband must be a number ≥ 0');
   return value;
 };
 
@@ -99,7 +125,13 @@ export function parseEdgeConfig(json: string, file: string): EdgeConfig {
     ...(proxy ? { proxy } : {}),
     ...(caFile ? { caFile } : {}),
     ...(credentialsFile ? { credentialsFile } : {}),
-    opcua: { pkiDir: path(text(opcua['pkiDir'], 'opcua.pkiDir')) ?? join(stateDir, 'opcua-pki'), trustFirstUse: opcua['trustFirstUse'] === true },
+    opcua: {
+      pkiDir: path(text(opcua['pkiDir'], 'opcua.pkiDir')) ?? join(stateDir, 'opcua-pki'),
+      trustFirstUse: opcua['trustFirstUse'] === true,
+      mode: modeOf(opcua['mode']),
+      deadband: deadbandOf(opcua['deadband']),
+      resendMs: positive(opcua['resendMs'], 'opcua.resendMs', 300_000),
+    },
     flushIntervalMs: positive(input['flushIntervalMs'], 'flushIntervalMs', 5000),
     maxQueuedBatches: positive(input['maxQueuedBatches'], 'maxQueuedBatches', 100_000),
     maxQueueDays: positive(input['maxQueueDays'], 'maxQueueDays', 30),
