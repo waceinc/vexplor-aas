@@ -106,6 +106,18 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | `apps/api` | REST API 서버 |
 | `apps/web` | 화면(React) |
 
+### 다른 제품에서 라이브러리로 쓰기
+
+`@aas/core` · `@aas/aasx` · `@aas/linter` 는 GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
+(`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
+
+```json
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.0.1/aas-aasx-2.0.1.tgz"
+```
+
+버전 번호로 설치하지 마십시오 — 공개 npm 저장소의 `@aas` 이름 공간은 우리 것이 아니어서 `"@aas/core": "^2.0.0"` 이라고
+쓰면 남이 그 이름으로 올린 것이 설치됩니다. 꾸러미끼리도 릴리스 주소로 서로를 가리키므로 주소 하나만 고정하면 됩니다.
+
 ## 표준 대응
 
 | 표준 | 상태 |

@@ -1,5 +1,6 @@
 /**
- * Exports — equipment master, BOM, hierarchy, maintenance plan and documents as JSON or CSV for ERP / CMMS import.
+ * Exports — equipment master, BOM, hierarchy, maintenance plan and documents as JSON or CSV for ERP / CMMS import,
+ * and the integration bundle (all of them in one zip) for a system that takes everything in one step.
  *
  * Important: the CSV column keys are a frozen contract (docs/integration.md §7). "Korean headers" changes only the
  *    header line for people opening the file in Excel; an import program should use the key headers.
@@ -8,7 +9,7 @@
  */
 import { useState } from 'react';
 import type { PackageDescription } from '../../api.js';
-import { EXPORT_KINDS, exportPath, integrationApi, type ExportKind, type ExportOptions } from '../../api/integration.js';
+import { EXPORT_KINDS, bundlePath, exportPath, integrationApi, type ExportKind, type ExportOptions } from '../../api/integration.js';
 import { currentLang, fill, tr } from '../../i18n.js';
 import { CopyBox, ErrorNote, PackagePicker } from './common.js';
 
@@ -52,12 +53,12 @@ export function ExportsTab({ packages, origin }: Props): React.JSX.Element {
     lang: currentLang(),
   });
 
-  const download = async (kind: ExportKind): Promise<void> => {
+  const run = async (fetchFile: () => Promise<string>): Promise<void> => {
     setError(undefined);
     setSaved(undefined);
     setBusy(true);
     try {
-      setSaved(await integrationApi.downloadExport(kind, options(kind)));
+      setSaved(await fetchFile());
     } catch (caught) {
       setError(caught);
     } finally {
@@ -97,12 +98,24 @@ export function ExportsTab({ packages, origin }: Props): React.JSX.Element {
       <ErrorNote error={error} />
       {saved && <p className="note ok">{fill(tr('{0} 을(를) 내려받았습니다.'), { 0: saved })}</p>}
 
+      <section>
+        <h3>{tr('전체 묶음 — 다른 시스템에 한 번에 넘길 때')}</h3>
+        <ul className="export-list">
+          <li>
+            <button type="button" disabled={busy} onClick={() => void run(() => integrationApi.downloadBundle({ ...(packageId ? { packageId } : {}), lang: currentLang() }))}>
+              {tr('전체 묶음(zip) 내려받기')}
+            </button>
+            <span className="hint">{tr('아래 다섯 가지를 JSON 으로 zip 하나에 — 파일마다 sha256 이 적힌 목록(manifest.json)이 함께 들어갑니다')}</span>
+          </li>
+        </ul>
+      </section>
+
       <ul className="export-list">
         {EXPORT_KINDS.map((kind) => {
           const needsFile = kind !== 'equipment' && !packageId;
           return (
             <li key={kind}>
-              <button type="button" disabled={busy || needsFile} onClick={() => void download(kind)}>
+              <button type="button" disabled={busy || needsFile} onClick={() => void run(() => integrationApi.downloadExport(kind, options(kind)))}>
                 {fill(tr('{0} 내려받기'), { 0: kindLabel(kind) })}
               </button>
               <span className="hint">{needsFile ? tr('파일을 하나 고르면 내려받을 수 있습니다') : kindHint(kind)}</span>
@@ -114,6 +127,7 @@ export function ExportsTab({ packages, origin }: Props): React.JSX.Element {
       <section>
         <h3>{tr('같은 내용을 ERP 가 직접 읽는 주소')}</h3>
         <CopyBox value={`${origin}${exportPath('equipment', options('equipment'))}`} label={tr('설비 마스터 주소')} />
+        <CopyBox value={`${origin}${bundlePath(packageId ? { packageId } : {})}`} label={tr('전체 묶음 주소')} />
       </section>
     </div>
   );

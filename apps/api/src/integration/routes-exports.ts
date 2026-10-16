@@ -30,6 +30,7 @@ import { loadLocationIndex, packageConfigOf } from './exports/join.js';
 import { maintenanceRows, readMaintenancePlans } from './exports/maintenance.js';
 import { bomRootMismatchMessage, readinessChecks } from './exports/readiness.js';
 import { allPackages, hasIntegrationStore, requirePackage } from './exports/store.js';
+import { exportBundleRoute } from './routes-exports-bundle.js';
 
 type Format = 'json' | 'csv';
 
@@ -80,6 +81,18 @@ export interface ExportRouteOptions {
 
 export function exportRoutes(store: AasStore, deps: IntegrationRouteDeps, options: ExportRouteOptions = {}): Route[] {
   const now = options.now ?? (() => new Date().toISOString());
+  // The bundle is built from these very routes, each time with one frozen clock (routes-exports-bundle.ts)
+  return [
+    ...singleExportRoutes(store, deps, now),
+    exportBundleRoute(
+      now,
+      (stamp) => singleExportRoutes(store, deps, () => stamp),
+      async (packageId) => (packageId ? [await requirePackage(store, packageId)] : allPackages(store)),
+    ),
+  ];
+}
+
+function singleExportRoutes(store: AasStore, deps: IntegrationRouteDeps, now: () => string): Route[] {
   return [
     {
       method: 'GET',

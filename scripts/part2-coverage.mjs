@@ -105,6 +105,7 @@ const EXTENSIONS = [
   '/integrations/exports/hierarchy',
   '/integrations/exports/maintenance',
   '/integrations/exports/documents',
+  '/integrations/exports/bundle',
   '/integrations/readiness',
   '/packages/:packageId/external-refs',
   '/integrations/external-refs/import',

@@ -135,7 +135,50 @@ const hierarchyItem: Schema = {
   additionalProperties: false,
 };
 
+/** manifest.json of the integration bundle (routes-exports-bundle.ts) — not an `items` envelope, so written out whole */
+const bundleManifest: Schema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'vexplor.integrationBundle/1',
+  type: 'object',
+  required: ['schema', 'exportedAt', 'source', 'language', 'packages', 'parts', 'skipped'],
+  properties: {
+    schema: { enum: ['vexplor.integrationBundle/1'] },
+    exportedAt: text,
+    source,
+    language: text,
+    packages: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['packageId', 'name', 'revision'],
+        properties: { packageId: text, name: text, revision: { type: 'integer' } },
+        additionalProperties: false,
+      },
+    },
+    parts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['path', 'schema', 'packageId', 'items', 'sha256'],
+        properties: { path: text, schema: text, packageId: nullableText, items: { type: 'integer' }, sha256: text },
+        additionalProperties: false,
+      },
+    },
+    skipped: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['packageId', 'kind', 'code', 'message'],
+        properties: { packageId: text, kind: { enum: ['hierarchy', 'bom', 'maintenance', 'documents'] }, code: text, message: text },
+        additionalProperties: false,
+      },
+    },
+  },
+  additionalProperties: false,
+};
+
 export const EXPORT_SCHEMAS: Record<string, Schema> = {
+  'vexplor.integrationBundle/1': bundleManifest,
   'vexplor.equipmentMaster/1': envelope('vexplor.equipmentMaster/1', equipmentItem, { language: text, excluded }, ['language', 'excluded']),
   'vexplor.bom/1': envelope(
     'vexplor.bom/1',
