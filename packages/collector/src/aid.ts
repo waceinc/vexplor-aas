@@ -43,9 +43,18 @@ export interface AidProperty {
   formFields: Record<string, string>;
 }
 
+/** OPC UA security an interface states (IDTA-02017 1.1 §2.27.7 – 2.27.8) — what the reader needs, never a secret */
+export interface AidSecurity {
+  mode?: 'None' | 'Sign' | 'SignAndEncrypt';
+  policy?: string;
+  userIdentityToken?: 'Anonymous' | 'UserName' | 'Certificate' | 'IssuedToken';
+}
+
 export interface AidInterface {
   /** Element idShort (e.g. InterfaceTemplateForOPCUA) */
   name: string;
+  /** From EndpointMetadata `security` / `securityDefinitions` (AID 1.1). Absent when the interface states none */
+  security?: AidSecurity;
   title?: string;
   protocol: AidProtocol;
   /** Endpoint address. opc.tcp://… for OPC UA */
@@ -66,6 +75,59 @@ function child(node: SubmodelElement | undefined, idShort: string): SubmodelElem
 function text(node: SubmodelElement | undefined): string | undefined {
   const value = (node as { value?: unknown } | undefined)?.value;
   return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+const UAV = 'http://opcfoundation.org/UA/WoT-Binding/';
+const MODES = new Set(['None', 'Sign', 'SignAndEncrypt']);
+const TOKENS = new Set(['Anonymous', 'UserName', 'Certificate', 'IssuedToken']);
+
+function semanticOf(node: SubmodelElement | undefined): string | undefined {
+  return node?.semanticId?.keys?.[0]?.value;
+}
+
+/** The scheme idShorts a `security` or `allOf` list points at — the last key of each reference */
+function referencedNames(node: SubmodelElement | undefined): string[] {
+  return children(node).flatMap((entry) => {
+    const keys = (entry as { value?: { keys?: { value?: string }[] } }).value?.keys;
+    const last = keys?.[keys.length - 1]?.value;
+    return last ? [last] : [];
+  });
+}
+
+/** One OPC UA term of a scheme: by semanticId, else by the specification's idShort (`uav_<term>`) */
+function termOf(scheme: SubmodelElement, term: string): string | undefined {
+  const node = children(scheme).find((c) => semanticOf(c) === `${UAV}${term}`) ?? child(scheme, `uav_${term}`);
+  return text(node);
+}
+
+/**
+ * The OPC UA security an interface states. Only schemes named by EndpointMetadata `security` apply (followed through
+ * `allOf` of combo schemes, loops cut); a scheme counts as channel or authentication by semanticId, else by its idShort.
+ * Values outside the binding's lists are dropped rather than guessed.
+ */
+export function securityOf(endpoint: SubmodelElement | undefined): AidSecurity | undefined {
+  const definitions = new Map(children(child(endpoint, 'securityDefinitions')).map((scheme) => [scheme.idShort ?? '', scheme] as const));
+  const out: AidSecurity = {};
+  const seen = new Set<string>();
+  const visit = (name: string): void => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const scheme = definitions.get(name);
+    if (!scheme) return;
+    const semantic = semanticOf(scheme);
+    if (semantic === `${UAV}OPCUASecurityChannelScheme` || (!semantic && name.startsWith('opcua_channel'))) {
+      const mode = termOf(scheme, 'securityMode');
+      if (mode && MODES.has(mode)) out.mode = mode as AidSecurity['mode'];
+      const policy = termOf(scheme, 'securityPolicy');
+      if (policy) out.policy = policy;
+    } else if (semantic === `${UAV}OPCUASecurityAuthenticationScheme` || (!semantic && name.startsWith('opcua_authentication'))) {
+      const token = termOf(scheme, 'userIdentityToken');
+      if (token && TOKENS.has(token)) out.userIdentityToken = token as AidSecurity['userIdentityToken'];
+    }
+    for (const next of referencedNames(child(scheme, 'allOf'))) visit(next);
+  };
+  for (const name of referencedNames(child(endpoint, 'security'))) visit(name);
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Derives the protocol from the name. AID uses the InterfaceTemplateFor<PROTO> convention */
@@ -128,6 +190,8 @@ export function parseAidSubmodel(submodel: Submodel): AidInterface[] {
     }
 
     const descriptor: AidInterface = { name, protocol: protocolOf(name, base), properties };
+    const security = securityOf(endpoint);
+    if (security) descriptor.security = security;
     const title = text(child(node, 'title'));
     if (title) descriptor.title = title;
     if (base) descriptor.base = base;

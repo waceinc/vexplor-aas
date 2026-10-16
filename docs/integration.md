@@ -57,6 +57,10 @@ Pushing (webhooks, MQTT), state detection and master-data notifications start on
 | `INTEGRATION_TIMEOUT_MS` | `10000` | Total deadline of one webhook attempt, clamped to 1000–60000. DNS lookups time out after 5 s regardless |
 | `OPCUA_ALLOW_INSECURE` | off | `on` restores the old unauthenticated OPC UA server (chapter 9) |
 | `OPCUA_PKI_DIR` | `<AAS_DATA_DIR>/opcua-pki`, else `./opcua-pki` | OPC UA certificate store |
+| `OPCUA_CLIENT_PKI_DIR` | `<AAS_DATA_DIR>/opcua-client-pki`, else `./opcua-client-pki` | The collector's OPC UA certificate store. Security mode, policy and whether a user name is needed come from the AID (AID 1.1 `securityDefinitions`). An unknown server certificate is refused and kept in `rejected/` until moved to `trusted/certs` |
+| `OPCUA_CLIENT_TRUST` | — | `first-use` accepts a server certificate the first time it is seen |
+| `OPCUA_CLIENT_CREDENTIALS` | — | JSON file `{ "<endpoint>": { "userName", "password" } }` for servers whose AID asks for a user name. Passwords never go into the AAS |
+| `EDGE` | off | `on` answers the remote collector endpoints (docs/edge-contract.md) |
 | `AAS_PUBLIC_URL` (existing) | — | Public address; event `dataschema`, links and document URLs become absolute when set |
 
 ```bash

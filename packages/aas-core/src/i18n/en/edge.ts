@@ -25,4 +25,8 @@ export const EN_EDGE: Record<string, string> = {
   "작업 공간을 나누기 전에 등록된 장치입니다 — 새 코드로 다시 등록하십시오.": "This device was registered before workspaces were split — register it again with a new code.",
   "작업 공간을 나누기 전에 등록된 장치입니다 — 해지하고 새 코드로 다시 등록하십시오.": "This device was registered before workspaces were split — revoke it and register it again with a new code.",
   "오류 {0}": "Error {0}",
+  "{0} 은(는) 사용자 이름 로그인을 요구합니다 — OPCUA_CLIENT_CREDENTIALS 파일에 이 주소의 항목을 넣으십시오.": "{0} requires a user name sign-in — add an entry for this address to the OPCUA_CLIENT_CREDENTIALS file.",
+  "지원하지 않는 OPC UA 보안 정책입니다: {0}": "Unsupported OPC UA security policy: {0}",
+  "Sign · SignAndEncrypt 에는 None 이 아닌 보안 정책이 필요합니다.": "Sign and SignAndEncrypt need a security policy other than None.",
+  "보안 연결에는 인증서 폴더(pkiDir)가 필요합니다.": "A secure connection needs a certificate folder (pkiDir).",
 };

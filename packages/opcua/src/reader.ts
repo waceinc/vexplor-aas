@@ -8,15 +8,23 @@
  * Read failures are not raised as exceptions. One bad tag must not stop the whole collection, and
  * **keeping bad values with their reason instead of discarding them** also fits option A's auditability.
  */
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { fill, tr } from '@aas/core';
 import type { ProtocolReader, ReadResult } from '@aas/collector';
 import {
   AttributeIds,
+  MessageSecurityMode,
+  OPCUACertificateManager,
   OPCUAClient,
+  SecurityPolicy,
   StatusCodes,
   TimestampsToReturn,
+  UserTokenType,
   type ClientSession,
   type DataValue,
+  type UserIdentityInfo,
 } from 'node-opcua';
 
 /**
@@ -44,9 +52,40 @@ const PENDING_STATUS: ReadonlySet<number> = new Set(
   ].map((code) => code.value),
 );
 
+/** OPC UA channel security as AID 1.1 states it (`uav_securityMode`, `uav_securityPolicy` — IDTA-02017 1.1 §2.27.7) */
+export interface OpcUaSecurity {
+  mode: 'None' | 'Sign' | 'SignAndEncrypt';
+  /** Default Basic256Sha256 when the mode is not None */
+  policy?: string;
+}
+
+/** Policies we connect with. The two the OPC UA WoT binding calls outdated (Basic256, Basic128Rsa15) are refused */
+const POLICIES: Record<string, SecurityPolicy> = {
+  None: SecurityPolicy.None,
+  Basic256Sha256: SecurityPolicy.Basic256Sha256,
+  Aes128_Sha256_RsaOaep: SecurityPolicy.Aes128_Sha256_RsaOaep,
+  Aes256_Sha256_RsaPss: SecurityPolicy.Aes256_Sha256_RsaPss,
+};
+
 export interface OpcUaOptions {
   /** opc.tcp://host:port — the AID's EndpointMetadata.base is passed in as-is */
   endpoint: string;
+  /** Channel security. Absent = None (anonymous, unsigned) — what most simulators and older field servers offer */
+  security?: OpcUaSecurity;
+  /** User name sign-in. Absent = anonymous. The password comes from the installer's configuration, never from the AAS */
+  user?: { userName: string; password: string };
+  /**
+   * The reader's certificate store — its own certificate (made on first use) and the server certificates it trusts or
+   * has rejected. Required for Sign / SignAndEncrypt.
+   * Important: always a folder we name. node-opcua's default store lives in the user's home folder — a service account
+   *    home on a factory PC, invisible to whoever has to trust a certificate there.
+   */
+  pkiDir?: string;
+  /**
+   * Accept a server certificate never seen before (trust on first use). Default false: an unknown server certificate
+   * refuses the connection and waits in `<pkiDir>/rejected` until a person moves it to `<pkiDir>/trusted/certs`.
+   */
+  trustUnknownServer?: boolean;
   /**
    * Connection timeout (ms). Default 5 s.
    *
@@ -99,24 +138,46 @@ export class OpcUaReader implements ProtocolReader {
     readonly base: string,
     private readonly client: OPCUAClient,
     private readonly session: ClientSession,
+    private readonly certificates?: OPCUACertificateManager,
   ) {}
 
   static async connect(options: OpcUaOptions): Promise<OpcUaReader> {
     const timeout = options.connectTimeoutMs ?? 5000;
+    const mode = options.security?.mode ?? 'None';
+    const policyName = mode === 'None' ? 'None' : (options.security?.policy ?? 'Basic256Sha256');
+    const policy = POLICIES[policyName];
+    // Refused before any connection — a typo or an outdated policy must not fall back to something weaker
+    if (!policy) throw new Error(fill(tr('지원하지 않는 OPC UA 보안 정책입니다: {0}'), { 0: policyName }));
+    if (mode !== 'None' && policy === SecurityPolicy.None) throw new Error(tr('Sign · SignAndEncrypt 에는 None 이 아닌 보안 정책이 필요합니다.'));
+    if (mode !== 'None' && !options.pkiDir) throw new Error(tr('보안 연결에는 인증서 폴더(pkiDir)가 필요합니다.'));
+
+    // Without a folder (None only) a fixed folder under the temp directory — never node-opcua's default in the home folder
+    const certificates = new OPCUACertificateManager({
+      rootFolder: options.pkiDir ?? join(tmpdir(), 'vexplor-opcua-reader-pki'),
+      automaticallyAcceptUnknownCertificate: options.trustUnknownServer === true,
+    });
+    await certificates.initialize();
     const client = OPCUAClient.create({
       // Field equipment often does not report an accurate endpoint list.
       // We may also be unable to resolve the hostname the server advertises (.local, etc.), so the address is used as-is
       endpointMustExist: false,
       connectionStrategy: { maxRetry: 0, initialDelay: 200, maxDelay: 1000 },
       requestedSessionTimeout: Math.max(timeout, 10_000),
+      securityMode: MessageSecurityMode[mode],
+      securityPolicy: policy,
+      clientCertificateManager: certificates,
     });
+    const identity: UserIdentityInfo = options.user
+      ? { type: UserTokenType.UserName, userName: options.user.userName, password: options.user.password }
+      : { type: UserTokenType.Anonymous };
 
     try {
       await withTimeout(client.connect(options.endpoint), timeout, tr('접속'));
-      const session = await withTimeout(client.createSession(), timeout, tr('세션 열기'));
-      return new OpcUaReader(options.endpoint, client, session);
+      const session = await withTimeout(client.createSession(identity), timeout, tr('세션 열기'));
+      return new OpcUaReader(options.endpoint, client, session, certificates);
     } catch (error) {
       await client.disconnect().catch(() => undefined);
+      await certificates.dispose().catch(() => undefined);
       throw error instanceof Error
         ? new Error(fill(tr('{0} 접속 실패: {1}'), { 0: options.endpoint, 1: error.message }))
         : error;
@@ -148,5 +209,6 @@ export class OpcUaReader implements ProtocolReader {
     // A failure to close must not break the collection cycle
     await this.session.close().catch(() => undefined);
     await this.client.disconnect().catch(() => undefined);
+    await this.certificates?.dispose().catch(() => undefined);
   }
 }

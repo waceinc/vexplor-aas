@@ -64,6 +64,12 @@ services:
       COLLECT_INTERVAL: ${COLLECT_INTERVAL:-}
       # Retention for collected values (days). 0 = keep forever — deployments default to 180 days so the disk does not fill
       COLLECT_RETENTION_DAYS: ${COLLECT_RETENTION_DAYS:-180}
+      # OPC UA security when collecting (AID 1.1) — certificate store, first-use trust, user names by endpoint (.env.example)
+      OPCUA_CLIENT_PKI_DIR: ${OPCUA_CLIENT_PKI_DIR:-}
+      OPCUA_CLIENT_TRUST: ${OPCUA_CLIENT_TRUST:-}
+      OPCUA_CLIENT_CREDENTIALS: ${OPCUA_CLIENT_CREDENTIALS:-}
+      # Remote collectors (docs/edge-contract.md)
+      EDGE: ${EDGE:-off}
       # Rule conflict ⑤ — keep the semanticId of standard templates (AID etc.) or follow KOSMO
       LINT_STANDARD_TERMS: ${LINT_STANDARD_TERMS:-kosmo-first}
       AASX_MAX_TOTAL_MB: ${AASX_MAX_TOTAL_MB:-}

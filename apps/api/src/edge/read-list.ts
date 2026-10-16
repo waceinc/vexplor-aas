@@ -54,8 +54,21 @@ export const tagIdOf = (packageId: string, interfaceName: string, propertyName: 
 /** Revision of a list — the same interfaces give the same string */
 export const revisionOf = (interfaces: readonly ReadListInterface[]): string => short(canonicalJson(interfaces));
 
+/**
+ * Security of one interface for the edge. OPC UA takes what the AID states (`uav_securityMode`, `uav_securityPolicy`);
+ * when it asks for a user name, `credentialRef` is the endpoint — the name of the entry the installer stored on the edge.
+ */
 function securityOf(descriptor: AidInterface): ReadListInterface['security'] {
   const base = descriptor.base ?? '';
+  if (descriptor.protocol === 'OPCUA') {
+    const stated = descriptor.security;
+    const mode = stated?.mode ?? 'None';
+    return {
+      mode,
+      ...(mode !== 'None' && stated?.policy ? { policy: stated.policy } : {}),
+      ...(stated?.userIdentityToken === 'UserName' ? { credentialRef: base } : {}),
+    };
+  }
   return { mode: /^(https|mqtts|wss):/i.test(base) ? 'TLS' : 'None' };
 }
 
