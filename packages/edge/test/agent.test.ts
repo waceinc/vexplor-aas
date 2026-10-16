@@ -118,7 +118,7 @@ describe('remote collector — R2 checks', () => {
       await agent.stop();
       await agent.tick().catch(() => undefined);
       // Drain what was read before stopping
-      const final = new EdgeAgent({ config: (agent as unknown as { options: { config: never } }).options.config, credentials: new Map() });
+      const final = new EdgeAgent({ config: agent.config, credentials: new Map() });
       while (final.queue.size > 0) await final.sender.flush();
       expect(agent.collected).toBeGreaterThanOrEqual(10);
       expect(await storedCount(store)).toBe(agent.collected - (agent.pending - final.queue.size));
@@ -151,6 +151,28 @@ describe('remote collector — R2 checks', () => {
       if (second) await close(second.server);
     }
   }, 90_000);
+});
+
+describe('remote collector — stopping', () => {
+  it('a stop keeps what was read on disk, and the next start sends it', async () => {
+    const { server, store, port } = await aasStudio();
+    const agent = await approved(port, `http://127.0.0.1:${port}`);
+    try {
+      await agent.start();
+      await until(() => agent.collected >= 6);
+      await agent.stop();
+      const queued = agent.queue.files().reduce((sum, name) => sum + agent.queue.read(name).samples.length, 0);
+      expect(agent.pending).toBe(queued);
+      expect(queued + (await storedCount(store))).toBe(agent.collected);
+      // The next start of the same edge (same state folder) sends them
+      const next = new EdgeAgent({ config: agent.config, credentials: new Map() });
+      while (next.queue.size > 0) await next.sender.flush();
+      expect(await storedCount(store)).toBe(agent.collected);
+    } finally {
+      await agent.stop();
+      await close(server);
+    }
+  }, 60_000);
 });
 
 describe('remote collector — proxy, T9, T10', () => {

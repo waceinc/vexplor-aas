@@ -27,6 +27,12 @@ vexplor-edge run --config edge.json                              # what the serv
   sequence when the server answers again; the server stores each once.
 - **Secrets stay here.** The private key is made on this machine; PLC passwords live in `credentialsFile` by endpoint,
   never in the AAS or the read list.
+- **A stop loses nothing either.** Samples read but not yet batched go to the queue on SIGINT/SIGTERM and are sent by
+  the next start.
+- **Update notices, never installs.** With `"update": { "manifestUrl": "https://…/latest.json", "publicKey": "<release
+  key>" }` it checks once a day and reports a newer release signed by that key (log and the next batch's status). It
+  downloads and installs nothing — a person installs it with the installer. Without the setting it makes no update
+  request at all. A soak of a real 30-minute outage: `EDGE_SOAK_MINUTES=30 npx vitest run packages/edge/test/soak.test.ts`.
 - OPC UA security (mode, policy, user name) comes from the AID through the read list; the OPC UA certificate store is
   `stateDir/opcua-pki` (an unknown server certificate waits in `rejected/` unless `trustFirstUse`).
 

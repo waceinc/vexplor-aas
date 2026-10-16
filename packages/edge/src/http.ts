@@ -96,8 +96,18 @@ export class EdgeHttp {
       ...(body === undefined ? {} : { 'content-type': 'application/json', 'content-length': String(bytes.length) }),
       ...extraHeaders,
     };
+    return this.send(new URL(target, this.server), method, headers, bytes);
+  }
+
+  /** An unsigned GET of another https address through the same proxy — the update manifest (update.ts) */
+  async getJson(address: string): Promise<EdgeResponse> {
+    const url = new URL(address);
+    if (url.protocol !== 'https:') throw new Error(`not https: ${address}`);
+    return this.send(url, 'GET', {}, new Uint8Array());
+  }
+
+  private async send(url: URL, method: string, headers: Record<string, string>, bytes: Uint8Array): Promise<EdgeResponse> {
     const timeoutMs = this.options.timeoutMs ?? 30_000;
-    const url = new URL(target, this.server);
     const tls = url.protocol === 'https:';
     let agent: HttpsAgent | false = false;
     if (this.proxy && tls) {

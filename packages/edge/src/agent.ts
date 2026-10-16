@@ -19,6 +19,7 @@ import { loadOrCreateIdentity, saveIdentity, type Identity } from './identity.js
 import { DiskQueue, type Batch } from './queue.js';
 import { intervalGroups, openReader, readGroup, type ReadListInterface, type Sample } from './readers.js';
 import { Sender } from './sender.js';
+import { checkRelease, type ReleaseManifest } from './update.js';
 
 export interface AgentOptions {
   config: EdgeConfig;
@@ -35,10 +36,12 @@ interface ReadList {
 }
 
 const HEARTBEAT_MS = 60_000;
+const UPDATE_CHECK_MS = 24 * 3600_000;
 const SOFTWARE = { name: 'vexplor-edge', version: PRODUCT_VERSION };
 
 export class EdgeAgent {
   readonly bootId = randomUUID();
+  readonly config: EdgeConfig;
   readonly http: EdgeHttp;
   readonly queue: DiskQueue;
   readonly sender: Sender;
@@ -53,6 +56,9 @@ export class EdgeAgent {
   private timers: ReturnType<typeof setInterval>[] = [];
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
   private flushTimer: ReturnType<typeof setInterval> | undefined;
+  private updateTimer: ReturnType<typeof setInterval> | undefined;
+  /** A newer signed release, reported — never installed by the edge */
+  updateAvailable: ReleaseManifest | undefined;
   private sendAfter = 0;
   private lastBatchAt = 0;
   private readonly startedAt: string;
@@ -61,6 +67,7 @@ export class EdgeAgent {
 
   constructor(private readonly options: AgentOptions) {
     const { config } = options;
+    this.config = config;
     this.now = options.now ?? (() => new Date());
     this.log = options.log ?? (() => undefined);
     this.startedAt = this.now().toISOString();
@@ -94,12 +101,39 @@ export class EdgeAgent {
     if (!this.identity.deviceId) throw new Error('not registered — run register with a code first');
     await this.poll();
     this.flushTimer = setInterval(() => void this.tick(), this.options.config.flushIntervalMs);
+    if (this.options.config.update) {
+      void this.checkUpdate();
+      this.updateTimer = setInterval(() => void this.checkUpdate(), UPDATE_CHECK_MS);
+    }
+  }
+
+  /** Fetches the release manifest and reports a newer signed release; downloads nothing (update.ts) */
+  async checkUpdate(): Promise<void> {
+    const update = this.options.config.update;
+    if (!update || this.stopped) return;
+    try {
+      const answer = await this.http.getJson(update.manifestUrl);
+      if (answer.status !== 200) return this.log(`update manifest: HTTP ${answer.status}`);
+      const result = checkRelease(answer.body, update.publicKey, SOFTWARE.version);
+      if (result.state === 'rejected') return this.log(`update manifest ignored: ${result.reason}`);
+      if (result.state === 'available' && result.release.version !== this.updateAvailable?.version) {
+        this.updateAvailable = result.release;
+        this.log(`update available: ${result.release.version} — install it with the installer after approval; this edge does not install it`);
+      }
+    } catch (error) {
+      this.log(`update manifest not reachable: ${(error as Error).message}`);
+    }
   }
 
   async stop(reason = 'stopped'): Promise<void> {
-    this.stopped ??= reason;
+    if (this.stopped === undefined) {
+      this.stopped = reason;
+      // Samples read but not yet batched go to disk — a service restart loses nothing; the next start sends them
+      if (this.list && this.buffer.length > 0) this.enqueue(this.buffer.splice(0), this.now());
+    }
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.flushTimer) clearInterval(this.flushTimer);
+    if (this.updateTimer) clearInterval(this.updateTimer);
     await this.closeReaders();
   }
 
@@ -175,21 +209,7 @@ export class EdgeAgent {
     const limit = this.identity.limits?.maxSamplesPerBatch ?? 5000;
     const samples = this.buffer.splice(0);
     const heartbeat = samples.length === 0 && at.getTime() - this.lastBatchAt >= HEARTBEAT_MS;
-    for (let start = 0; start < samples.length || (heartbeat && start === 0); start += limit) {
-      this.seq += 1;
-      const batch: Batch = {
-        schema: 'vexplor.edge.batch/1',
-        bootId: this.bootId,
-        seq: this.seq,
-        readListRevision: this.list.revision,
-        createdAt: at.toISOString(),
-        samples: samples.slice(start, start + limit),
-        status: this.status(),
-      };
-      this.queue.add(batch);
-      this.lastBatchAt = at.getTime();
-      if (heartbeat) break;
-    }
+    if (samples.length > 0 || heartbeat) this.enqueue(samples, at, limit);
     if (at.getTime() < this.sendAfter) return;
     const result = await this.sender.flush();
     if (result.state === 'wait') {
@@ -204,9 +224,28 @@ export class EdgeAgent {
     }
   }
 
-  /** Samples not yet handed to the server: still buffered or queued on disk */
+  /** Batches of at most `limit` samples on disk (one empty batch for a heartbeat) */
+  private enqueue(samples: Sample[], at: Date, limit = this.identity.limits?.maxSamplesPerBatch ?? 5000): void {
+    if (!this.list) return;
+    for (let start = 0; start === 0 || start < samples.length; start += limit) {
+      this.seq += 1;
+      const batch: Batch = {
+        schema: 'vexplor.edge.batch/1',
+        bootId: this.bootId,
+        seq: this.seq,
+        readListRevision: this.list.revision,
+        createdAt: at.toISOString(),
+        samples: samples.slice(start, start + limit),
+        status: this.status(),
+      };
+      this.queue.add(batch);
+      this.lastBatchAt = at.getTime();
+    }
+  }
+
+  /** Samples not yet handed to the server: still buffered, or in batches queued on disk */
   get pending(): number {
-    return this.buffer.length + this.queue.size;
+    return this.buffer.length + this.queue.files().reduce((sum, name) => sum + this.queue.read(name).samples.length, 0);
   }
 
   status(): Record<string, unknown> {
@@ -216,6 +255,7 @@ export class EdgeAgent {
       droppedBatches: this.queue.dropped,
       software: SOFTWARE,
       interfaces: this.readers.map((slot) => ({ interfaceId: slot.iface.interfaceId, connected: slot.reader !== undefined && !slot.error, lastError: slot.error ?? null })),
+      ...(this.updateAvailable ? { updateAvailable: this.updateAvailable.version } : {}),
     };
   }
 }
