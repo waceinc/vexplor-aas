@@ -129,7 +129,7 @@ enough.
 
 `vexplor-edge` (`packages/edge`) reads PLCs inside the factory and sends signed batches out over HTTPS — read only,
 outbound only, no remote stop. Contract: [docs/edge-contract.md](docs/edge-contract.md); install:
-[docs/edge-install.md](docs/edge-install.md); packages: `node scripts/pack-edge.mjs` (Linux and Windows).
+[docs/edge-install.md](docs/edge-install.md); packages: `node scripts/pack-edge.mjs` (Linux — Windows will be covered later).
 
 ## Standards
 

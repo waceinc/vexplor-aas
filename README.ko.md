@@ -125,7 +125,7 @@ GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
 
 `vexplor-edge`(`packages/edge`)는 공장 안에서 PLC 를 읽어 서명한 묶음을 HTTPS 로 밖에 보냅니다 — 읽기만 하고, 밖으로만
 연결하며, 원격 정지가 없습니다. 규격: [docs/엣지계약.md](docs/엣지계약.md), 설치: [docs/엣지설치.md](docs/엣지설치.md),
-꾸러미: `node scripts/pack-edge.mjs`(Linux · Windows).
+꾸러미: `node scripts/pack-edge.mjs`(Linux — Windows 판은 추후 안내).
 
 ## 표준 대응
 

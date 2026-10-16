@@ -1,7 +1,8 @@
 /**
  * Packs the remote collector (packages/edge) as one executable per platform, with its installer (plan R3).
  *
- *     npx tsc -b && node scripts/pack-edge.mjs        # → out/edge/vexplor-edge-<version>-{linux-x64.tar.gz,win-x64.zip} + SHA256SUMS
+ *     npx tsc -b && node scripts/pack-edge.mjs             # → out/edge/vexplor-edge-<version>-linux-x64.tar.gz + SHA256SUMS
+ *     npx tsc -b && node scripts/pack-edge.mjs --windows   # + vexplor-edge-<version>-win-x64.zip
  *
  * 1. rolldown bundles packages/edge/dist/bin.js and everything it imports into one CommonJS file.
  * 2. The packages that actually went into the bundle become THIRD-PARTY-NOTICES.txt and a CycloneDX SBOM — the list is
@@ -12,6 +13,8 @@
  * 4. Each package holds the executable, the installer (install.sh + systemd unit / install.ps1 + WinSW), an example
  *    configuration, LICENSE, NOTICE, the notices and the SBOM.
  *
+ * Important: Windows is built only with --windows — it is not offered yet (installed on no Windows PC so far; the
+ *    guide says Windows will be covered later). Releases ship Linux only until then.
  * Important: the Windows executable is not code-signed — signing needs a certificate (a purchase; plan §10-4). Until
  *    then the package is verified by SHA256SUMS.
  * Important: WinSW publishes no digest for v2.12.0; the hash below was taken at its first download (2026-10-16) and is
@@ -138,7 +141,8 @@ const nodeEntry = { name: 'node', version: NODE_VERSION.slice(1), license: 'MIT'
 const winswEntry = { name: 'winsw', version: '2.12.0', license: 'MIT' };
 const results = [];
 
-for (const platform of ['linux-x64', 'win-x64']) {
+const platforms = process.argv.includes('--windows') ? ['linux-x64', 'win-x64'] : ['linux-x64'];
+for (const platform of platforms) {
   // The folder already carries its final name — no tar renaming flags (GNU and BSD tar differ)
   const stage = join(OUT, 'build', platform, `vexplor-edge-${version}`);
   mkdirSync(stage, { recursive: true });

@@ -30,17 +30,16 @@ There is nothing else. The tests check this (STD-009 T9) by recording every conn
 
 ## 3. Install
 
-Download `vexplor-edge-<version>-linux-x64.tar.gz` or `-win-x64.zip` and check it against `SHA256SUMS` from the same
-release:
+This guide covers **Linux** (x86_64, systemd). **Windows will be covered later** — until then, use a Linux PC or a
+Linux VM on the site's Windows server.
+
+Download `vexplor-edge-<version>-linux-x64.tar.gz` and check it against `SHA256SUMS` from the same release:
 
 ```bash
-sha256sum -c SHA256SUMS --ignore-missing            # Linux
-Get-FileHash .\vexplor-edge-<version>-win-x64.zip   # Windows — compare with SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
 ```
 
 On the server, a person makes a **registration code** (`POST /edge/registration-codes`, valid 24 h, one use).
-
-**Linux** (systemd):
 
 ```bash
 tar xzf vexplor-edge-<version>-linux-x64.tar.gz && cd vexplor-edge-<version>
@@ -51,23 +50,13 @@ Program in `/opt/vexplor-edge`, configuration in `/etc/vexplor-edge/edge.json`, 
 `/var/lib/vexplor-edge` (service account only). The service `vexplor-edge` runs hardened (no new privileges, read-only
 system, its state folder writable, no capabilities). Logs: `journalctl -u vexplor-edge`.
 
-**Windows** (an elevated PowerShell; the service is run by WinSW):
-
-```powershell
-Expand-Archive vexplor-edge-<version>-win-x64.zip; cd vexplor-edge-<version>-win-x64\vexplor-edge-<version>
-.\install.ps1 -Server https://aas.example.com -Code 7KQ4-M2XD-9PRT [-Proxy http://proxy:3128] [-CaFile corp-ca.pem]
-```
-
-Program in `C:\Program Files\VEXPLOR Edge`, configuration, key and queue in `C:\ProgramData\VEXPLOR Edge` (SYSTEM,
-Administrators and the service account only). The executable is not code-signed yet — verify it with `SHA256SUMS`.
-
 Then **approve** the device on the server (`GET /edge/devices/:id/read-list-preview`, then `POST …/approve` with that
 revision). It reads nothing before.
 
 ## 4. Passwords and certificates
 
 - **PLC passwords** live in a credentials file on this PC, by endpoint — `{ "opc.tcp://10.0.0.5:4840": { "userName",
-  "password" } }` — passed with `--credentials-file` / `-CredentialsFile`. They are never in the AAS or the read list.
+  "password" } }` — passed with `--credentials-file`. They are never in the AAS or the read list.
 - **OPC UA certificates**: the collector makes its own certificate in `<state>/opcua-pki`. A server certificate it has
   never seen is refused and kept in `<state>/opcua-pki/rejected`; move it to `trusted/certs` to trust it, or set
   `"opcua": { "trustFirstUse": true }`. The OPC UA server must trust the collector's certificate too.
@@ -86,11 +75,9 @@ revision). It reads nothing before.
 ## 6. Remove
 
 Linux: `sudo systemctl disable --now vexplor-edge && sudo rm -r /opt/vexplor-edge /etc/vexplor-edge /etc/systemd/system/vexplor-edge.service`
-(and `/var/lib/vexplor-edge` once its queue is no longer needed). Windows: `vexplor-edge-service.exe stop`,
-`vexplor-edge-service.exe uninstall`, then remove the two folders. Revoke the device on the server as well.
+(and `/var/lib/vexplor-edge` once its queue is no longer needed). Revoke the device on the server as well.
 
 ## 7. What was checked
 
 The Linux package was installed with this guide on a fresh Ubuntu 24.04 (x86_64) and registered, approved and sent
-values from an OPC UA server over the network. The Windows package is built the same way but has **not yet been
-installed on a Windows PC**.
+values from an OPC UA server over the network. Windows will be covered later.
