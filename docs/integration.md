@@ -548,6 +548,9 @@ order (`pkg_1`, `pkg_2`, …); document links are relative unless `publicBaseUrl
 the AID interfaces of one file resolved into the tags a remote collector reads (`docs/edge-contract.md` §4) — the
 server's own read-list code, so the same `packageId` gives the same stable `tagId`s (checked against the edge endpoint
 in `apps/api/test/edge-endpoints.test.ts`). A product that builds its own read list from AASX files needs no AID parser.
+Since 2.5.0 each tag also carries hints — the model element's `semanticId`, a `suggestedRole` (`run_state` ·
+`counter` · `alarm_source` · `meter` · `condition` · `quality` · `value`) and `limits` from the same file — so a receiver
+can pre-fill roles and specification limits for a person to confirm (`docs/edge-contract.md` §4.1).
 
 **Type link (`typeAasId`).** An Instance row names its Type by the server's link ("link to type") when there is one,
 otherwise by the shell's own AAS `derivedFrom` reference — which "split per unit" writes and which travels inside the

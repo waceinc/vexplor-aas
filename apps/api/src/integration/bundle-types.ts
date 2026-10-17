@@ -42,6 +42,20 @@ export interface BundleManifest {
  */
 export type EdgeProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'HTTP';
 
+/** Role a receiver may pre-fill for a tag (docs/edge-contract.md §4.1) — a person confirms it */
+export type TagRole = 'run_state' | 'counter' | 'alarm_source' | 'meter' | 'condition' | 'quality' | 'value';
+
+/** A bound for a tag's value, taken from a property of the same file (e.g. TechnicalData `MaxSettingForce`) */
+export interface TagLimit {
+  /** Upper or lower specification limit */
+  bound: 'usl' | 'lsl';
+  value: number;
+  /** semanticId of the property the value comes from */
+  semanticId: string;
+  /** `<submodel idShort>:<idShortPath>` of that property */
+  source: string;
+}
+
 export interface ReadListTag {
   tagId: string;
   propertyName: string;
@@ -52,6 +66,12 @@ export interface ReadListTag {
   fields: Record<string, string>;
   /** Overrides the interface's intervalMs for this tag (set at approval) */
   intervalMs?: number;
+  /** Hint: semanticId of the model element the value belongs to. Advisory — not part of the list revision */
+  semanticId?: string;
+  /** Hint: role a receiver may pre-fill. Advisory — not part of the list revision */
+  suggestedRole?: TagRole;
+  /** Hint: bounds from the same file. Advisory — not part of the list revision */
+  limits?: TagLimit[];
 }
 
 export interface ReadListInterface {

@@ -20,9 +20,10 @@ import type { AasStore } from '@aas/store';
 import { assetInformationOf, shellsOf } from '../integration/exports/elements.js';
 import { allPackages } from '../integration/exports/store.js';
 
-import type { EdgeProtocol, ReadListInterface, ReadListTag } from '../integration/bundle-types.js';
+import type { EdgeProtocol, ReadListInterface, ReadListTag, TagLimit, TagRole } from '../integration/bundle-types.js';
+import { tagHintsOf } from './tag-hints.js';
 
-export type { EdgeProtocol, ReadListInterface, ReadListTag };
+export type { EdgeProtocol, ReadListInterface, ReadListTag, TagLimit, TagRole };
 const EDGE_PROTOCOLS: ReadonlySet<string> = new Set<EdgeProtocol>(['OPCUA', 'MODBUS', 'MQTT', 'HTTP']);
 
 const short = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16);
@@ -31,8 +32,22 @@ const short = (text: string): string => createHash('sha256').update(text).digest
 export const tagIdOf = (packageId: string, interfaceName: string, propertyName: string): string =>
   `tag_${short(`${packageId}\0${interfaceName}\0${propertyName}`)}`;
 
-/** Revision of a list — the same interfaces give the same string */
-export const revisionOf = (interfaces: readonly ReadListInterface[]): string => short(canonicalJson(interfaces));
+/** The tag without its hints (semanticId · suggestedRole · limits) */
+function withoutHints(tag: ReadListTag): ReadListTag {
+  const copy: ReadListTag = { ...tag };
+  delete copy.semanticId;
+  delete copy.suggestedRole;
+  delete copy.limits;
+  return copy;
+}
+
+/**
+ * Revision of a list — the same interfaces give the same string.
+ * Important: hints are left out. They only help a person approve; a new or changed hint (a server update, a longer
+ *    role table) must not mark every approved device as changed and make each site approve again.
+ */
+export const revisionOf = (interfaces: readonly ReadListInterface[]): string =>
+  short(canonicalJson(interfaces.map((iface) => ({ ...iface, tags: iface.tags.map(withoutHints) }))));
 
 /**
  * Security of one interface for the edge. OPC UA takes what the AID states (`uav_securityMode`, `uav_securityPolicy`);
@@ -58,6 +73,7 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
   const aasId = typeof shell?.['id'] === 'string' ? shell['id'] : null;
   const globalAssetId = assetInformationOf(shell)['globalAssetId'];
   const out: ReadListInterface[] = [];
+  const hintsOf = tagHintsOf(environment as Parameters<typeof tagHintsOf>[0]);
   for (const descriptor of parseAid(environment)) {
     // Only protocols the contract names — BACnet is recognised by the AID but not collected yet
     if (!EDGE_PROTOCOLS.has(descriptor.protocol) || !descriptor.base) continue;
@@ -72,6 +88,7 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
         ...(property.type !== undefined ? { type: property.type } : {}),
         ...(property.unit !== undefined ? { unit: property.unit } : {}),
         fields: { ...property.formFields },
+        ...hintsOf(property.name),
       });
     }
     if (tags.length === 0) continue;

@@ -163,6 +163,54 @@
           "type": "integer",
           "minimum": 1,
           "description": "Overrides the interface's intervalMs for this tag"
+        },
+        "semanticId": {
+          "type": "string",
+          "description": "Hint: semanticId of the model element the value belongs to. Not part of the revision (§4.1)"
+        },
+        "suggestedRole": {
+          "type": "string",
+          "enum": [
+            "run_state",
+            "counter",
+            "alarm_source",
+            "meter",
+            "condition",
+            "quality",
+            "value"
+          ],
+          "description": "Hint: role a receiver may pre-fill. Not part of the revision (§4.1)"
+        },
+        "limits": {
+          "type": "array",
+          "description": "Hint: bounds from the same file. Not part of the revision (§4.1)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "bound": {
+                "type": "string",
+                "enum": [
+                  "usl",
+                  "lsl"
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "semanticId": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "bound",
+              "value",
+              "semanticId",
+              "source"
+            ]
+          }
         }
       },
       "required": [
