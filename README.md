@@ -22,7 +22,7 @@ This used to take three tools. VEXPLOR AAS Studio brings the work together and i
 
 **Website:** [wace.me/en-platform-aas-studio](https://wace.me/en-platform-aas-studio)
 
-**Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 43 rules](docs/rules.md)
+**Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 43 rules](docs/rules.md) · [Using it with Logic Studio](docs/logic-studio.md)
 — every document is also available in Korean.
 
 ---
@@ -61,7 +61,7 @@ exposed as a policy the user decides.
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 – 2.5
+## What's new in 2.3 – 2.6
 
 | Feature | Release | Detail |
 |---|---|---|
@@ -70,6 +70,7 @@ exposed as a policy the user decides.
 | **Values from an outage** | 2.3.0 | Batches read while the link was down are sent oldest first and kept up to `maxQueueDays` (default 30) |
 | **Factory server install** | 2.4.0 | One command puts AAS Studio, the database and the remote collector on one Linux server; it comes back after a reboot ([site install](docs/site-install.md)) |
 | **Compression · aggregates** | 2.4.0 | With TimescaleDB Community Edition: values older than 7 days are compressed, 1-minute and 1-hour aggregates are built. Measured 1,000 tags · 1 s · 1 h: 1,099 MB → 50 MB |
+| **Logic Studio guide** | 2.6.0 | **? Help → Use it in VEXPLOR Logic Studio** and [docs/logic-studio.md](docs/logic-studio.md): download the checked AASX, drop it on Logic Studio Cloud's equipment screen, and it becomes the equipment register — nothing to install or convert |
 | **Tag hints** | 2.5.0 | Each read-list tag names its model element's `semanticId`, a suggested role (state · counter · alarm · meter · condition · quality) and limits from the same file, so a receiver such as Logic Studio pre-fills roles and SPC limits for a person to confirm ([contract §4.1](docs/edge-contract.md)) |
 | **Read list without a server** | 2.3.0 | `aidReadList` in `@aas/bundle` turns the AID inside an AASX into the tag list a collector reads — no AID parser needed in other products |
 
@@ -88,6 +89,7 @@ no conversion step.
 
 - Type files and Instance files are imported separately.
 - Dropping the same file again ends with "Nothing changes" — no duplicate equipment.
+- Step-by-step guide: [docs/logic-studio.md](docs/logic-studio.md). The in-app help (**? Help**) has the same steps.
 - **Live values are in preparation:** the same remote collector is being prepared to send machine values to
   Logic Studio Cloud as well. The two endpoints any receiver implements are in [docs/edge-contract.md](docs/edge-contract.md).
   Not offered yet.
@@ -154,7 +156,7 @@ server — `buildBundle`) are attached to each GitHub release as npm tarballs (`
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.5.0/aas-aasx-2.5.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.6.0/aas-aasx-2.6.0.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would

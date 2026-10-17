@@ -10,6 +10,7 @@ collection (OPC UA · Modbus TCP · MQTT) and serving, and export of figures and
 The interface and everything the server writes are available in **English and Korean**, with a light and a dark theme (chapter 3).
 
 > This guide is for **people who use the tool**. Installation is in [install.md](install.md), the checked rules are in [rules.md](rules.md).
+> To turn a finished AASX into the equipment register of VEXPLOR Logic Studio, see [logic-studio.md](logic-studio.md).
 > Screenshots show the new design (2026-10), light theme.
 >
 > **Slides for presentations and training**: `python scripts/make-manual-pptx.py` → `out/VEXPLOR_AAS_Studio_사용법.pptx` (built from the Korean guide, same order, with screenshots)

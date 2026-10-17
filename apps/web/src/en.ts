@@ -1280,4 +1280,13 @@ export const EN_MORE: Record<string, string> = {
   '설정은 켜져 있지만 서버가 뜨지 않았습니다. 보안 모드는 계정이 하나 이상 있어야 시작합니다.': 'It is switched on but did not start. Secure mode needs at least one account to start.',
   '다른 키로 봉인된 구독': 'Subscriptions sealed with another key',
   '{0} — 비밀값이 지금과 다른 AAS_SECRET_KEY 로 봉인돼 서명하지 못합니다. 예전 키를 되돌리거나 이 구독들의 비밀값을 바꾸십시오.': '{0} — their secrets were sealed with a different AAS_SECRET_KEY and cannot sign. Put the old key back, or rotate these secrets.',
+
+  'VEXPLOR Logic Studio에서 쓰기': 'Use it in VEXPLOR Logic Studio',
+  '검사를 마친 AASX를 Logic Studio Cloud 설비 화면에 끌어 놓으면 설비 대장이 됩니다. 공장에 설치할 것도, 변환할 것도 없습니다.': 'Drop a checked AASX on the equipment screen of Logic Studio Cloud and it becomes the equipment register. Nothing to install in the factory, nothing to convert.',
+  '「AASX 내려받기」로 위반 0건인 완성본을 받습니다': 'Get the finished file with 0 errors via "Download AASX"',
+  'Logic Studio Cloud 설비 화면에 그 파일을 끌어 놓습니다': 'Drop that file on the equipment screen of Logic Studio Cloud',
+  '미리 보기에서 기종 · 설비 · 공장 · 라인을 확인하고 가져오면 설비가 기종에 연결된 채로 설비 대장에 들어갑니다': 'Check types, equipment, plant and line in the preview and import — each machine enters the register linked to its type',
+  '같은 파일을 다시 놓으면 바뀌는 것이 없고, 고친 파일을 놓으면 바뀐 것만 「변경 제안」으로 나옵니다': 'Dropping the same file again changes nothing; a changed file shows only what changed, as proposals',
+  '원격 수집기가 Logic Studio Cloud로 실시간 값을 보내는 연결은 준비 중입니다.': 'Sending live values from the remote collector to Logic Studio Cloud is in preparation.',
+  'Logic Studio 연계 안내': 'Logic Studio guide',
 };
