@@ -41,7 +41,7 @@ ALLOW=(
   # the integration guide (MES / ERP / CMMS, exports, @aas/bundle) — README, install and usage link to it
   docs/integration.md docs/연동.md docs/openapi docs/design/integration-v1.md
   # using AAS Studio with VEXPLOR Logic Studio — README and the in-app help link to it
-  docs/logic-studio.md docs/로직스튜디오.md
+  docs/logic-studio.md docs/로직스튜디오.md docs/background.md docs/배경.md
   # the reference webhook receiver the integration guide points to (tests import it)
   examples
   # the sample integration bundle other products run their import gate on (docs/integration.md §7.4)
