@@ -39,6 +39,7 @@ export function createMockEdge({ server, stateDir, fetchImpl = fetch, now = () =
   let identity = existsSync(identityFile) ? JSON.parse(readFileSync(identityFile, 'utf8')) : undefined;
   const bootId = randomUUID();
   let seq = 0;
+  const startedAt = new Date(now()).toISOString();
   const stats = { sent: 0, accepted: 0, duplicates: 0, rejected: 0, retries: 0 };
 
   function keyPair() {
@@ -108,7 +109,15 @@ export function createMockEdge({ server, stateDir, fetchImpl = fetch, now = () =
       iface.tags.map((tag, index) => ({ tagId: tag.tagId, observedAt: iso, receivedAt: iso, value: simulate(tag, index, at), quality: 'Good' })),
     );
     seq += 1;
-    const batch = { schema: 'vexplor.edge.batch/1', bootId, seq, readListRevision: list.revision, createdAt: iso, samples: [...samples, ...extraSamples] };
+    // The status a real edge sends with every batch (contract §5) — every interface reported as connected
+    const status = {
+      startedAt,
+      queuedBatches: readdirSync(join(stateDir, 'queue')).length,
+      droppedBatches: 0,
+      software: { name: 'mock-edge', version: '0.0.0' },
+      interfaces: list.interfaces.map((iface) => ({ interfaceId: iface.interfaceId, connected: true, lastError: null })),
+    };
+    const batch = { schema: 'vexplor.edge.batch/1', bootId, seq, readListRevision: list.revision, createdAt: iso, samples: [...samples, ...extraSamples], status };
     writeFileSync(join(stateDir, 'queue', `${bootId}-${String(seq).padStart(8, '0')}.json`), JSON.stringify(batch));
     return batch;
   }

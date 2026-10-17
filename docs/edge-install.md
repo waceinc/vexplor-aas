@@ -1,88 +1,63 @@
-# Installing the remote collector (VEXPLOR Edge)
+# Connecting the remote collector (VEXPLOR Edge) — this server's side
 
-*Korean: [엣지설치.md](엣지설치.md)* · Contract: [edge-contract.md](edge-contract.md)
+*Korean: [엣지설치.md](엣지설치.md)* · Contract copy: [edge-contract.md](edge-contract.md)
 
-VEXPLOR Edge is one program on one PC in the factory. It reads PLCs and controllers named by a **read list a person
-approved on the server**, and sends signed batches out over HTTPS. It is read only, opens no port, and has no remote
-stop. The same program works with AAS Studio and with VEXPLOR Logic Studio Cloud.
+From 2.7.0 the remote collector is **its own open source** — [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge)
+(Apache-2.0, its own version from 1.0.0). Installing it on the factory PC, layouts (DMZ, equipment network), every
+destination it connects to, passwords and certificates, and removal are in that repository's
+[install guide](https://github.com/waceinc/vexplor-edge/blob/main/docs/install.md). This page covers only what you do
+on the AAS Studio server.
 
-## 1. Where to put it — two layouts
+## When to use it
 
-| | A. DMZ / office network | B. Equipment network |
-|---|---|---|
-| The PC sits | Between the office and equipment networks, reaching both | On the equipment network, with an outbound route to the server (often through a proxy) |
-| Firewall towards the equipment | The PC → PLC ports (OPC UA 4840, Modbus 502, MQTT 1883/8883) | Nothing new |
-| Firewall towards the outside | The PC → the server on 443 (or the proxy) | The PC → the proxy (or the server on 443) |
-| Inbound to the PC | **None** | **None** |
+| Where the server is | What reads the machines |
+|---|---|
+| On the machines' network (a server in the factory) | This server's own collector — "Collect" on the right. No remote collector needed |
+| Outside the factory (cloud, head office) | VEXPLOR Edge on one factory PC — reads only an approved list, sends out over HTTPS only |
 
-Choose A when the equipment network has no route out at all; choose B when one PC on the equipment network may go out
-through the site proxy. In both, nothing connects in.
+## One-click connect
 
-## 2. What it connects to (the complete list)
+1. Open **Settings → Remote collectors (VEXPLOR Edge)**. If it says remote collection is off, an admin presses
+   **"Turn on remote collection"** (servers with `EDGE` empty; `EDGE=on` is always on, `EDGE=off` cannot be turned on).
+2. **"+ Connect a collector"** — check this server's address as the factory PC reaches it (**https**) and the list it
+   will read (machines, tags). With "Approve this list so it reads at once" ticked, the approval is done too. With no
+   tags yet, make a collection link (AID) in the machine file first — open the file, then "Create collection link" in
+   "Collect" on the right.
+3. **"Make the connect command"** — paste the line it shows into a terminal on the factory Linux PC (x64 · arm64).
 
-| Destination | Why | When |
-|---|---|---|
-| The server address in the configuration, port 443 (or through `proxy`) | Read list, batches, registration | Always |
-| The PLC endpoints in the approved read list (OPC UA, Modbus TCP, MQTT) | Reading values | After approval |
-| `update.manifestUrl` | Release notice, once a day | Only if configured |
+   ```bash
+   curl -fsSL https://github.com/waceinc/vexplor-edge/releases/latest/download/get.sh | sudo sh -s -- --server https://aas.example.com --code 7KQ4-M2XD-9PRT
+   ```
 
-There is nothing else. The tests check this (STD-009 T9) by recording every connection attempt.
+4. Done when the screen shows the PC's name and **"Receiving"**. Values appear by themselves in "Collect" for that
+   machine file.
 
-## 3. Install
+The code in the command works once, for 24 hours. If the list was not approved upfront, press **"Review and approve"**
+under "Connected collectors" — nothing is read before that, and a collector waiting for approval asks every 10 seconds,
+so it starts right after.
 
-This guide covers **Linux** (x86_64, systemd). **Windows will be covered later** — until then, use a Linux PC or a
-Linux VM on the site's Windows server.
+## After connecting
 
-Download `vexplor-edge-<version>-linux-x64.tar.gz` and check it against `SHA256SUMS` from the same release:
+| The screen shows | Meaning |
+|---|---|
+| Receiving | A batch arrived within 3 minutes |
+| Waiting for the first values | Approved, no batch yet |
+| Waiting for approval | A person has to approve its read list |
+| Silent | Nothing heard for over 3 minutes — check the factory PC's power and its way out to the server (443, proxy) |
+| Paused · Revoked | A person stopped it. Paused: "Resume"; revoked: connect again with a new command |
 
-```bash
-sha256sum -c SHA256SUMS --ignore-missing
-```
+Each device shows the last batch, values received, tags read, machines connected, batches waiting to be sent and the
+collector version. When the files change after approval the screen says so, and the collector keeps reading the
+approved list until someone approves again.
 
-On the server, a person makes a **registration code** (`POST /edge/registration-codes`, valid 24 h, one use).
+## Through the API
 
-```bash
-tar xzf vexplor-edge-<version>-linux-x64.tar.gz && cd vexplor-edge-<version>
-sudo ./install.sh --server https://aas.example.com --code 7KQ4-M2XD-9PRT [--proxy http://proxy:3128] [--ca-file corp-ca.pem]
-```
+The routes the screen uses are in [edge-contract.md](edge-contract.md) section 8 — `GET /edge/status`,
+`POST /edge/enable`, `POST /edge/registration-codes` (`approve` to approve in advance), `GET /edge/devices`,
+`…/read-list-preview`, `…/approve`, `…/pause`, `…/resume`, `…/revoke`.
 
-Program in `/opt/vexplor-edge`, configuration in `/etc/vexplor-edge/edge.json`, key and queue in
-`/var/lib/vexplor-edge` (service account only). The service `vexplor-edge` runs hardened (no new privileges, read-only
-system, its state folder writable, no capabilities). Logs: `journalctl -u vexplor-edge`.
+## Installing it with a site server
 
-Then **approve** the device on the server (`GET /edge/devices/:id/read-list-preview`, then `POST …/approve` with that
-revision). It reads nothing before.
-
-## 4. Passwords and certificates
-
-- **PLC passwords** live in a credentials file on this PC, by endpoint — `{ "opc.tcp://10.0.0.5:4840": { "userName",
-  "password" } }` — passed with `--credentials-file`. They are never in the AAS or the read list.
-- **OPC UA certificates**: the collector makes its own certificate in `<state>/opcua-pki`. A server certificate it has
-  never seen is refused and kept in `<state>/opcua-pki/rejected`; move it to `trusted/certs` to trust it, or set
-  `"opcua": { "trustFirstUse": true }`. The OPC UA server must trust the collector's certificate too.
-
-## 5. Running it
-
-- An outage loses nothing: batches wait in `<state>/queue` and go out in order when the server answers again (each is
-  stored once). Past `maxQueuedBatches` (default 100 000), or older than `maxQueueDays` (default 30), the oldest are
-  dropped and reported, never silently.
-- **Send changes only (OPC UA)**: with `"opcua": { "mode": "subscribe" }` the PLC samples each tag on its interval and
-  the edge sends a value only when it changes; `"deadband": <number>` also skips smaller changes of analog (float) tags —
-  never counters, states or text. An unchanged value is sent again every `"resendMs"` (default 300 000, 5 minutes) so it
-  still shows as received. Measured on a PLC simulator, 6 tags every second for 5 minutes: polling 1 794 values
-  (283 KB), subscribe 729 (130 KB, −54 %), subscribe with deadband 1.0 436 (88 KB, −69 %). The default stays `"poll"`.
-- A batch the server refuses as malformed goes to `<state>/refused` for a person to look at.
-- A revoked device stops sending by itself and keeps its queue; it never registers again on its own.
-- Update notices (optional): with `"update": { "manifestUrl": "https://…", "publicKey": "<release key>" }` it reports a
-  newer signed release in the log and the next batch's status. It downloads and installs nothing — install the new
-  package with the same installer.
-
-## 6. Remove
-
-Linux: `sudo systemctl disable --now vexplor-edge && sudo rm -r /opt/vexplor-edge /etc/vexplor-edge /etc/systemd/system/vexplor-edge.service`
-(and `/var/lib/vexplor-edge` once its queue is no longer needed). Revoke the device on the server as well.
-
-## 7. What was checked
-
-The Linux package was installed with this guide on a fresh Ubuntu 24.04 (x86_64) and registered, approved and sent
-values from an OPC UA server over the network. Windows will be covered later.
+To put AAS Studio and the collector on one factory server, use `sudo ./install.sh --with-edge` from the site bundle
+([site-install.md](site-install.md)). The bundle carries the VEXPLOR Edge release package, checked against that
+release's `SHA256SUMS`.

@@ -115,6 +115,9 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
   const verifier = new SignatureVerifier(now);
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
   const pollSeconds = options.pollSeconds ?? 60;
+  /** A device waiting for a person asks more often — the approval reaches it within seconds, not a minute (2.7.0) */
+  const PENDING_POLL_SECONDS = 10;
+  const pollFor = (state: string): number => (state === 'pending-approval' ? Math.min(pollSeconds, PENDING_POLL_SECONDS) : pollSeconds);
   const perDevice = new Window(now);
   const registrations = new Window(now);
 
@@ -173,7 +176,7 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
       registeredAt: created.registeredAt,
       server: { tool: 'VEXPLOR AAS Studio', version: options.serverVersion, contract: 'vexplor.edge/1' },
       limits,
-      readList: { path: '/edge/v1/read-list', pollSeconds },
+      readList: { path: '/edge/v1/read-list', pollSeconds: pollFor(created.state) },
     });
   }
 
@@ -189,7 +192,7 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
         revision: served.revision,
         state: device.state,
         approvedAt: device.state === 'approved' ? (device.approved?.approvedAt ?? null) : null,
-        pollSeconds,
+        pollSeconds: pollFor(device.state),
         interfaces: served.interfaces,
       },
       { etag },
@@ -200,7 +203,7 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
     if ((request.rawBody?.length ?? 0) > limits.maxBatchBytes) return edgeError(413, 'PayloadTooLarge', tr('묶음이 크기 상한을 넘었습니다.'));
     const body = request.body as Record<string, unknown> | undefined;
     if (checkSchema(EDGE_SCHEMAS['batch']!, body).length > 0) return edgeError(422, 'SchemaMismatch', tr('묶음이 규격과 맞지 않습니다.'));
-    const input = body as { bootId: string; seq: number; samples: Sample[] };
+    const input = body as { bootId: string; seq: number; samples: Sample[]; status?: Record<string, unknown> };
     if (!UUID.test(input.bootId)) return edgeError(422, 'SchemaMismatch', tr('bootId 는 UUID 여야 합니다.'));
     if (input.samples.length > limits.maxSamplesPerBatch) return edgeError(413, 'PayloadTooLarge', tr('묶음의 값 개수가 상한을 넘었습니다.'));
 
@@ -243,6 +246,8 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
       if ((await options.registry.device(device.deviceId))?.revokedAt) throw new Revoked();
       for (const [packageId, values] of byPackage) await options.store.appendValues(packageId, values);
     });
+    // For the screen: when it last sent, how many values, and what it said about its connections
+    await options.registry.recordActivity(device.deviceId, stored ? accepted : 0, input.status);
     return ok(200, {
       schema: 'vexplor.edge.batchResult/1',
       bootId: input.bootId,

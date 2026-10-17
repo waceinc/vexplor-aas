@@ -1,6 +1,6 @@
 # Edge contract — `vexplor.edge/1`
 
-*Korean: [엣지계약.md](엣지계약.md)*
+*Korean: [엣지계약.md](엣지계약.md)* · Canonical: [waceinc/vexplor-edge `docs/contract.md`](https://github.com/waceinc/vexplor-edge/blob/main/docs/contract.md) — this is the copy the AAS Studio server follows (schemas, examples and the signing example must equal the canonical ones; the collector repository's tests compare them)
 
 One small program runs inside the factory — the **remote collector** (the "edge"). It reads PLCs and controllers and
 sends the values out. This contract is what it talks to. **Two products implement the same server side** — VEXPLOR AAS
@@ -92,7 +92,8 @@ What to read, already resolved from the AAS by the server. Response **200** `vex
 - `state` — `pending-approval` (nothing approved yet: `interfaces` is empty), `approved`, or `paused` (approved before,
   stopped by a person: `interfaces` is empty, the edge stops reading).
 - `pollSeconds` — how long to wait before asking again (the edge may ask sooner after a 2xx batch answer reports a
-  different `readListRevision`).
+  different `readListRevision`). A server may give a shorter value while the device waits for approval (AAS Studio gives
+  10 s — an approval reaches the device within seconds).
 - `interfaces[]` — one per equipment connection: `interfaceId`, `packageId`, `aasId`, `globalAssetId`,
   `interfaceName` (the AID interface), `protocol` (`OPCUA` · `MODBUS` · `MQTT` · `HTTP`), `endpoint` (AID `base`),
   `security`, `intervalMs`, and `tags[]` — `tagId`, `propertyName`, `address` (AID `href`), optional `key`, `type`,
@@ -183,16 +184,26 @@ than that**, so a batch resent at the end of an outage is still recognised as a 
 
 ## 8. The AAS Studio server side
 
-Off by default. `EDGE=on` turns it on (never in demo mode); it needs a store with runtime state (memory, folder or
-PostgreSQL — all of them). The read interval it hands out is `COLLECT_INTERVAL` when set, otherwise 5 s.
+With `EDGE` empty (the default) it starts off and an admin turns it on in the screen — Settings → Remote collectors →
+"Turn on remote collection" (2.7.0). `EDGE=on` is always on and `EDGE=off` always off; then the screen's switch is
+locked. Never on in demo mode. It needs a store with runtime state (memory, folder or PostgreSQL — all of them). The
+read interval it hands out is `COLLECT_INTERVAL` when set, otherwise 5 s.
+
+**One-click connect (2.7.0)** — the screen's "+ Connect a collector" uses the routes below in one go. When the code is
+made with the list shown at that moment and `approve: { revision }`, the device it registers reads exactly that list at
+once (if the files change meanwhile it still reads what the person saw, and the screen says "the files changed after
+approval"). The screen makes the collector's one-line install command
+(`curl -fsSL https://github.com/waceinc/vexplor-edge/releases/latest/download/get.sh | sudo sh -s -- --server … --code …`).
 
 | For people (login or API key) | |
 |---|---|
-| `POST /edge/registration-codes` | A one-time code for the caller's workspace — shown once, valid 24 h |
-| `GET /edge/devices` | Devices of the workspace, with `changedSinceApproval` when the files changed after approval |
+| `GET /edge/status` | On or off, whether the screen may switch it (`switchable`), and the list now (`revision`, machines, tags) |
+| `POST /edge/enable` `{ enabled }` | Admin session only. Switches it on a server with `EDGE` empty (409 where `EDGE` is set) |
+| `POST /edge/registration-codes` `{ approve? }` | A one-time code for the caller's workspace — shown once, valid 24 h. With `approve: { revision }` (from `/edge/status`) it is approved in advance — refused (409) when the revision differs |
+| `GET /edge/devices` | Devices of the workspace, with `changedSinceApproval` when the files changed after approval, who approved (`approvedVia` `code` · `person`) and the last batch (`lastSeenAt`, `samplesReceived`, `lastStatus`) |
 | `GET /edge/devices/:deviceId/read-list-preview` | What approving now would grant, and its `revision` |
 | `POST /edge/devices/:deviceId/approve` `{ revision, intervals? }` | Grants exactly the previewed list; refused (409) when the files changed meanwhile. `intervals` `{ <interfaceId or tagId>: ms }` (100 ms – 1 h) sets read intervals — re-approving with other intervals gives the edge a new revision |
-| `POST /edge/devices/:deviceId/pause` · `/revoke` | Empty list from now on · the device is refused from now on |
+| `POST /edge/devices/:deviceId/pause` · `/resume` · `/revoke` | Empty list from now on · read the approved list again · the device is refused from now on |
 
 A device belongs to the workspace of whoever made its code and never sees other workspaces, even when an admin approves
 it. Its list holds only files that workspace owns (shared files are readable but cannot take values). On a server that

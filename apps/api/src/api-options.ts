@@ -99,7 +99,8 @@ export interface ApiOptions {
   integrationRouteBuilders?: IntegrationRouteBuilders;
   /**
    * Remote collectors (docs/edge-contract.md). Absent = off: `/edge/v1/*` is not answered and the management routes are
-   * not mounted. Never on in demo mode. server.ts turns it on with `EDGE=on`.
+   * not mounted. Never on in demo mode. server.ts: `EDGE=on` → mode 'on', `EDGE=off` → absent, not set → 'switchable'
+   * (an admin turns it on in the 「원격 수집기」 screen; until then it answers like off).
    */
   edge?: EdgeConfig;
   /** The device registry — createApi creates it from `edge` and passes it to the route table */
@@ -111,4 +112,6 @@ export interface EdgeConfig {
   intervalMs?: number;
   pollSeconds?: number;
   limits?: Partial<EdgeLimits>;
+  /** 'on' (default) — always on; 'switchable' — off until an admin switches it on */
+  mode?: 'on' | 'switchable';
 }

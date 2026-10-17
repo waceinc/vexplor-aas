@@ -8,6 +8,7 @@ import { FixPreview } from '../components/FixPreview.js';
 import { Accounts } from '../components/Accounts.js';
 import { Settings } from '../components/Settings.js';
 import { Integrations } from '../components/integrations/Integrations.js';
+import { EdgePanel } from '../components/edge/EdgePanel.js';
 import { writeLang, tr } from '../i18n.js';
 import { describeError } from './describeError.js';
 import { OpcuaDialog } from './OpcuaDialog.js';
@@ -18,8 +19,8 @@ import { Tour } from '../components/Tour.js';
 import { markTourSeen, START_STEPS, writeStart } from '../help.js';
 import type { Screen } from './context.js';
 
-export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap' | 'busy' | 'fixPlans' | 'fixReport' | 'helpContext' | 'inside' | 'lang' | 'onApplyFix' | 'onSelectFinding' | 'opcua' | 'packageId' | 'packages' | 'selected' | 'setFixPlans' | 'setShowAccounts' | 'setShowFindings' | 'setShowHelp' | 'setShowIntegrations' | 'setShowOpcua' | 'setShowSettings' | 'setStart' | 'setTour' | 'showAccounts' | 'showFindings' | 'showHelp' | 'showIntegrations' | 'showOpcua' | 'showSettings' | 'start' | 'startItems' | 'startTour' | 't' | 'tour'>): React.JSX.Element {
-  const { allFindings, auth, bootstrap, busy, fixPlans, fixReport, helpContext, inside, lang, onApplyFix, onSelectFinding, opcua, packageId, packages, selected, setFixPlans, setShowAccounts, setShowFindings, setShowHelp, setShowIntegrations, setShowOpcua, setShowSettings, setStart, setTour, showAccounts, showFindings, showHelp, showIntegrations, showOpcua, showSettings, start, startItems, startTour, t, tour } = props;
+export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap' | 'busy' | 'fixPlans' | 'fixReport' | 'helpContext' | 'inside' | 'lang' | 'onApplyFix' | 'onSelectFinding' | 'opcua' | 'packageId' | 'packages' | 'selected' | 'setFixPlans' | 'setShowAccounts' | 'setShowFindings' | 'setShowHelp' | 'setShowIntegrations' | 'setShowEdge' | 'setShowOpcua' | 'setShowSettings' | 'setStart' | 'setTour' | 'showAccounts' | 'showFindings' | 'showHelp' | 'showIntegrations' | 'showEdge' | 'showOpcua' | 'showSettings' | 'start' | 'startItems' | 'startTour' | 't' | 'tour'>): React.JSX.Element {
+  const { allFindings, auth, bootstrap, busy, fixPlans, fixReport, helpContext, inside, lang, onApplyFix, onSelectFinding, opcua, packageId, packages, selected, setFixPlans, setShowAccounts, setShowFindings, setShowHelp, setShowIntegrations, setShowEdge, setShowOpcua, setShowSettings, setStart, setTour, showAccounts, showFindings, showHelp, showIntegrations, showEdge, showOpcua, showSettings, start, startItems, startTour, t, tour } = props;
 
   return (
     <>
@@ -94,6 +95,20 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
       {showIntegrations && (
         <Dialog className="integrations-modal" label={tr('연동')} onClose={() => setShowIntegrations(false)}>
           <Integrations auth={auth} packages={packages} onClose={() => setShowIntegrations(false)} />
+        </Dialog>
+      )}
+
+      {/* Remote collectors — connect a factory PC in one step and watch it (components/edge) */}
+      {showEdge && (
+        <Dialog className="integrations-modal edge-modal" label={tr('원격 수집기')} onClose={() => setShowEdge(false)}>
+          <EdgePanel
+            auth={auth}
+            onClose={() => setShowEdge(false)}
+            onHelp={() => {
+              setShowEdge(false);
+              setShowHelp(true);
+            }}
+          />
         </Dialog>
       )}
 

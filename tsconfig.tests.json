@@ -16,7 +16,6 @@
       "@aas/collector": ["./packages/collector/src/index.ts"],
       "@aas/opcua": ["./packages/opcua/src/index.ts"],
       "@aas/fieldbus": ["./packages/fieldbus/src/index.ts"],
-      "@aas/edge": ["./packages/edge/src/index.ts"],
       "@aas/api": ["./apps/api/src/index.ts"]
     }
   },

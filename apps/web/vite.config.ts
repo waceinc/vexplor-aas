@@ -22,7 +22,7 @@ import { defineConfig } from 'vite';
  */
 const API_TARGET = process.env['AAS_API_URL'] ?? 'http://127.0.0.1:8080';
 const API_PATHS =
-  '^/(packages|bundles|description|health|auth|rules|policy|opcua|opcua-status|collect-status|registry-conflicts|integrations)(?=/|$|\\?)';
+  '^/(packages|bundles|description|health|auth|rules|policy|opcua|opcua-status|collect-status|registry-conflicts|integrations|edge)(?=/|$|\\?)';
 const API_PROXY = { [API_PATHS]: API_TARGET };
 
 export default defineConfig({

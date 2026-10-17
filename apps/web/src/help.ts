@@ -24,6 +24,8 @@ export interface HelpTopic {
 const GUIDE = 'https://github.com/waceinc/vexplor-aas/blob/main/docs/';
 // i18n-ignore — file names of the guide in this repository, not UI text
 const LOGIC_STUDIO_GUIDE = { ko: '로직스튜디오.md', en: 'logic-studio.md' } as const;
+// i18n-ignore — the remote collector is its own repository; its README in each language
+const EDGE_GUIDE = { ko: 'https://github.com/waceinc/vexplor-edge/blob/main/README.ko.md', en: 'https://github.com/waceinc/vexplor-edge/blob/main/README.md' } as const;
 
 export function helpTopics(): HelpTopic[] {
   return [
@@ -133,6 +135,19 @@ export function helpTopics(): HelpTopic[] {
         tr('「수집」 — 지금 값을 한 번 읽어 옵니다. 「주소 목록」으로 수집 주소 표(CSV)'),
       ],
       note: tr('연결하면 파일에 수집 연결(AID)이 추가되어 「시연본」이 됩니다. 원본 파일에는 연결하지 마세요.'),
+    },
+    {
+      id: 'edge',
+      title: tr('원격 수집기 (VEXPLOR Edge) — 원클릭 연결'),
+      summary: tr('이 서버가 공장 밖에 있을 때, 공장 PC 한 대에 수집기를 두어 설비 값을 받습니다. 단추 하나와 붙여 넣기 한 줄이면 연결됩니다.'),
+      steps: [
+        tr('「설정 ▾ → 원격 수집기」를 엽니다(꺼져 있으면 관리자가 「원격 수집 켜기」)'),
+        tr('「+ 수집기 연결」 — 서버 주소와 읽을 목록을 확인하고 「연결 명령 만들기」'),
+        tr('나온 한 줄을 공장 Linux PC의 터미널에 붙여 넣습니다 — 설치 · 등록 · 시작이 한 번에 끝납니다'),
+        tr('화면에 「받는 중」이 뜨면 끝입니다. 이후 마지막 수신 · 설비 연결 상태를 같은 화면에서 봅니다'),
+      ],
+      note: tr('수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. 지금은 Linux(x64 · arm64)용이고 Windows용은 준비 중입니다.'),
+      link: { label: tr('VEXPLOR Edge 안내'), href: EDGE_GUIDE[currentLang()] },
     },
     {
       id: 'account',

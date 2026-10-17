@@ -18,8 +18,8 @@ import { Welcome } from './Welcome.js';
 
 type S = Screen;
 
-export function HeaderBar(s: Pick<S, 't' | 'lang' | 'version' | 'packages' | 'packageId' | 'busy' | 'demoLocked' | 'errors' | 'warnings' | 'fixable' | 'unfixable' | 'linkedFixable' | 'opcua' | 'undoState' | 'showHelp' | 'fileInput' | 'bundleInput' | 'setAdding' | 'setFilesOpen' | 'setPickedFiles' | 'onOpenSample' | 'auth' | 'theme' | 'bootstrap' | 'setShowSettings' | 'setStartAccounts' | 'setShowAccounts' | 'setConfirmQuit' | 'setShowRules' | 'setShowIntegrations' | 'shell' | 'fileUnit' | 'run' | 'goHome' | 'loadPackage' | 'onUpload' | 'onOpenBundle' | 'onUndo' | 'onRedo' | 'onFix' | 'onDownload' | 'setShowFindings' | 'setShowHelp' | 'setShowOpcua'>): React.JSX.Element {
-  const { t, busy, demoLocked, packages, fileInput, bundleInput, setAdding, setFilesOpen, setPickedFiles, onOpenSample, lang, auth, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations, shell, packageId, fileUnit, run } = s;
+export function HeaderBar(s: Pick<S, 't' | 'lang' | 'version' | 'packages' | 'packageId' | 'busy' | 'demoLocked' | 'errors' | 'warnings' | 'fixable' | 'unfixable' | 'linkedFixable' | 'opcua' | 'undoState' | 'showHelp' | 'fileInput' | 'bundleInput' | 'setAdding' | 'setFilesOpen' | 'setPickedFiles' | 'onOpenSample' | 'auth' | 'theme' | 'bootstrap' | 'setShowSettings' | 'setStartAccounts' | 'setShowAccounts' | 'setConfirmQuit' | 'setShowRules' | 'setShowIntegrations' | 'setShowEdge' | 'shell' | 'fileUnit' | 'run' | 'goHome' | 'loadPackage' | 'onUpload' | 'onOpenBundle' | 'onUndo' | 'onRedo' | 'onFix' | 'onDownload' | 'setShowFindings' | 'setShowHelp' | 'setShowOpcua'>): React.JSX.Element {
+  const { t, busy, demoLocked, packages, fileInput, bundleInput, setAdding, setFilesOpen, setPickedFiles, onOpenSample, lang, auth, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations, setShowEdge, shell, packageId, fileUnit, run } = s;
   return (
     <AppHeader
       t={t}
@@ -40,7 +40,7 @@ export function HeaderBar(s: Pick<S, 't' | 'lang' | 'version' | 'packages' | 'pa
       fileInput={fileInput}
       bundleInput={bundleInput}
       fileMenu={fileMenuItems({ t, busy, demoLocked, packages, fileInput, bundleInput, setAdding, setFilesOpen, setPickedFiles, onOpenSample })}
-      settingsMenu={settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations })}
+      settingsMenu={settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations, setShowEdge })}
       submodelMenu={submodelMenuItems({ t, busy, shell, setAdding })}
       exportMenu={packageId ? exportMenuItems({ t, busy, packageId, fileUnit, run, setAdding }) : []}
       goHome={s.goHome}

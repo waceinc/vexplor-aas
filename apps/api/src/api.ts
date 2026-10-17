@@ -106,6 +106,7 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
           store,
           intervalMs: options.edge?.intervalMs ?? DEFAULT_EDGE_INTERVAL_MS,
           partitioned: options.privateWorkspaces === true || options.demo !== undefined,
+          mode: options.edge?.mode ?? 'on',
         })
       : []),
     ...(options.routes ?? []),
@@ -186,7 +187,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   async function handle(request: ApiRequest): Promise<ApiResponse> {
     // Important: the edge's signature is its identity — answered before the login / API-key check, which an edge
     //    cannot pass (edge/routes-edge.ts). Only when edge is on; otherwise these paths fall through to a 404
-    if (edge && request.path.startsWith('/edge/v1/')) {
+    if (edge && request.path.startsWith('/edge/v1/') && (options.edge?.mode !== 'switchable' || (await edgeRegistry!.enabled()))) {
       try {
         return await edge(request);
       } catch (error) {

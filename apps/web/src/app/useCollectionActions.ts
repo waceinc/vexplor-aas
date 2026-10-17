@@ -3,12 +3,26 @@
  * Split out of App.tsx (componentization, 2026-10-13) — the code is verbatim from before the move,
  * and the state and actions it uses arrive under the same names (taken from c).
  */
+import { useEffect } from 'react';
 import { api } from '../api.js';
 import { fill, tr } from '../i18n.js';
 import type { Core } from './context.js';
 
 export function useCollectionActions(c: Pick<Core, 'equipmentName' | 'loadPackage' | 'packageId' | 'run' | 'setAdding' | 'setLastCycle' | 'setNotice' | 'setValues' | 'shell' | 'submodels'>) {
   const { equipmentName, loadPackage, packageId, run, setAdding, setLastCycle, setNotice, setValues, shell, submodels } = c;
+  /*
+   * Values that arrive without anyone pressing "Collect" — a remote collector (VEXPLOR Edge) or the server's automatic
+   * collection — show up on their own: while a file with a collection link is open, its values are read every 10 s.
+   */
+  const hasAid = submodels.some((submodel) => submodel.idShort === 'AssetInterfacesDescription');
+  useEffect(() => {
+    if (!packageId || !hasAid) return;
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      void api.values(packageId).then((samples) => setValues(samples.result), () => undefined);
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [packageId, hasAid, setValues]);
   /**
    * Delete a collection link (AID) — when it was created by mistake or is no longer used.
    * Deletes the submodel together with the AAS reference. Important: already collected values (time series) remain —

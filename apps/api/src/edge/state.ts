@@ -11,6 +11,10 @@
  * Important: the idempotency memory is bounded. Per boot it keeps `floor` (every seq up to it was stored) and the few seqs
  *    above it, for the last few boots — a device cannot grow it by sending long or many boot ids (review H2).
  * Important: registration codes are stored as SHA-256 only. A code is a bearer secret until it is used.
+ * Important: activity (last batch, values stored, the status a batch carries) lives in memory and is written at most once
+ *    a minute — it is for the screen, not a record. A restart may lose the last minute of it; values are never lost.
+ * Important: a code made with a pre-approved list hands the device exactly the list the person saw at that moment, even
+ *    if the files change before the device registers — the screen then shows "changed since approval".
  * Important: a device never "sees all". It belongs to the workspace of the person who made its code, with
  *    `seesAll: false` even when that person is an admin — a machine in a factory must not read other workspaces.
  */
@@ -21,6 +25,10 @@ import type { ReadListInterface } from './read-list.js';
 
 const CODES = 'edge.codes';
 const DEVICES = 'edge.devices';
+const ENABLED = 'edge.enabled';
+const ACTIVITY = 'edge.activity';
+/** Activity is kept in memory and written at most this often — a batch every 5 s must not rewrite the store each time */
+const ACTIVITY_WRITE_MS = 60_000;
 const seenKey = (deviceId: string): string => `edge.seen.${deviceId}`;
 /** Boots remembered per device, and out-of-order seqs remembered per boot */
 const BOOTS_KEPT = 8;
@@ -49,13 +57,24 @@ export interface EdgeDevice {
   registeredAt: string;
   state: EdgeState;
   approved?: ApprovedList;
+  /** 'code' — approved by the person who made its registration code (one-click); 'person' — approved afterwards */
+  approvedVia?: 'code' | 'person';
   revokedAt?: string;
+}
+
+/** What the device last told the server (batch `status`), and when */
+export interface EdgeActivity {
+  lastSeenAt: string;
+  samplesReceived: number;
+  lastStatus: Record<string, unknown> | null;
 }
 
 interface CodeRecord {
   workspace: string | null;
   createdAt: string;
   expiresAt: string;
+  /** The list the person saw and approved when making the code — the device gets exactly this on registering */
+  preapproved?: ApprovedList;
 }
 
 interface BootWindow {
@@ -83,6 +102,8 @@ export class EdgeRegistry {
   private readonly lock = new Lock();
   private readonly deviceLocks = new Map<string, Lock>();
   private loaded: Promise<{ codes: Map<string, CodeRecord>; devices: Map<string, EdgeDevice> }> | undefined;
+  private activityLoaded: Promise<Map<string, EdgeActivity>> | undefined;
+  private activityWrittenAt = 0;
 
   constructor(
     private readonly store: RuntimeState,
@@ -106,15 +127,52 @@ export class EdgeRegistry {
     await this.store.putRuntimeState(DEVICES, Object.fromEntries(devices));
   }
 
-  /** A new one-time code, returned once in clear */
-  createCode(workspace: string | null, ttlHours = 24): Promise<{ code: string; expiresAt: string }> {
+  /** Whether the edge is switched on from the screen (used only when EDGE is not set) */
+  async enabled(): Promise<boolean> {
+    return (await this.store.getRuntimeState(ENABLED)) === true;
+  }
+
+  setEnabled(enabled: boolean): Promise<void> {
+    return this.lock.run(() => this.store.putRuntimeState(ENABLED, enabled));
+  }
+
+  private activities() {
+    this.activityLoaded ??= (async () => {
+      const saved = (await this.store.getRuntimeState(ACTIVITY)) as Record<string, EdgeActivity> | undefined;
+      return new Map(Object.entries(saved ?? {}));
+    })();
+    return this.activityLoaded;
+  }
+
+  async activity(deviceId: string): Promise<EdgeActivity | undefined> {
+    return (await this.activities()).get(deviceId);
+  }
+
+  /** A batch arrived: when, how many values were stored, and the status it carried */
+  async recordActivity(deviceId: string, stored: number, status: Record<string, unknown> | undefined): Promise<void> {
+    const all = await this.activities();
+    const before = all.get(deviceId);
+    const now = this.now();
+    all.set(deviceId, {
+      lastSeenAt: now.toISOString(),
+      samplesReceived: (before?.samplesReceived ?? 0) + stored,
+      lastStatus: status ?? before?.lastStatus ?? null,
+    });
+    if (now.getTime() - this.activityWrittenAt >= ACTIVITY_WRITE_MS) {
+      this.activityWrittenAt = now.getTime();
+      await this.store.putRuntimeState(ACTIVITY, Object.fromEntries(all));
+    }
+  }
+
+  /** A new one-time code, returned once in clear. With `preapproved`, the device it registers reads that list at once */
+  createCode(workspace: string | null, ttlHours = 24, preapproved?: ApprovedList): Promise<{ code: string; expiresAt: string }> {
     return this.lock.run(async () => {
       const { codes } = await this.load();
       const chars = [...randomBytes(12)].map((byte) => CODE_ALPHABET[byte % 32]).join('');
       const code = `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8, 12)}`;
       const createdAt = this.now();
       const expiresAt = new Date(createdAt.getTime() + ttlHours * 3600_000).toISOString();
-      codes.set(sha256(normaliseCode(code)), { workspace, createdAt: createdAt.toISOString(), expiresAt });
+      codes.set(sha256(normaliseCode(code)), { workspace, createdAt: createdAt.toISOString(), expiresAt, ...(preapproved ? { preapproved } : {}) });
       await this.saveCodes(codes);
       return { code, expiresAt };
     });
@@ -143,7 +201,9 @@ export class EdgeRegistry {
         deviceId: `dev_${randomBytes(8).toString('hex')}`,
         workspace: record.workspace,
         registeredAt: now.toISOString(),
-        state: 'pending-approval',
+        ...(record.preapproved
+          ? { state: 'approved' as const, approved: { ...record.preapproved, approvedAt: now.toISOString() }, approvedVia: 'code' as const }
+          : { state: 'pending-approval' as const }),
       };
       devices.set(created.deviceId, created);
       codes.delete(hash);

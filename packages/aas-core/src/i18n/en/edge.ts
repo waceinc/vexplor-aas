@@ -32,4 +32,13 @@ export const EN_EDGE: Record<string, string> = {
   "intervals 는 { id: 밀리초 } 형태여야 합니다.": "intervals must be { id: milliseconds }.",
   "{0} 의 주기는 100ms 에서 1시간 사이 정수(밀리초)여야 합니다.": "The interval of {0} must be a whole number of milliseconds between 100 ms and 1 hour.",
   "목록에 없는 id 입니다: {0}": "Not in the list: {0}",
+  "원격 수집이 꺼져 있습니다 — 관리자가 「원격 수집기」 화면에서 켜십시오.": "Remote collection is off — an admin turns it on in the \"Remote collectors\" screen.",
+  "서버 설정 EDGE 가 정해 두었습니다 — 화면에서 바꿀 수 없습니다.": "The server setting EDGE decides this — it cannot be changed on the screen.",
+  "enabled 는 true 또는 false 여야 합니다.": "enabled must be true or false.",
+  "approve.revision 이 필요합니다(원격 수집 상태에서 받은 값).": "approve.revision is required (the value from the remote collection status).",
+  "작업 공간을 알 수 없어 미리 승인할 수 없습니다.": "The workspace is unknown, so the list cannot be approved in advance.",
+  "미리 본 뒤 목록이 바뀌었습니다 — 다시 보고 승인하십시오.": "The list changed after you looked at it — look again and approve.",
+  "읽을 태그가 없습니다 — AID(설비 연결 정보)가 있는 AASX 를 먼저 올리십시오.": "There are no tags to read — upload an AASX with an AID (machine connection) first.",
+  "해지된 장치는 다시 시작할 수 없습니다 — 새 코드로 다시 연결하십시오.": "A revoked device cannot resume — connect it again with a new code.",
+  "승인한 목록이 없습니다 — 먼저 읽을 목록을 승인하십시오.": "There is no approved list — approve its read list first.",
 };

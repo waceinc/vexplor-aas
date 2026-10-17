@@ -38,6 +38,9 @@ VERSION="${1:-$(grep -o "PRODUCT_VERSION = '[^']*'" packages/aas-core/src/versio
 TARGET="${2:-all}"
 EDITION="${3:-apache2}"
 TIMESCALE=2.30.2
+# The remote collector is its own program (github.com/waceinc/vexplor-edge) — the Linux bundle carries this release of
+# it, checked against that release's SHA256SUMS
+EDGE_VERSION=1.0.0
 case "${EDITION}" in
   apache2)   DB_IMAGE="timescale/timescaledb:${TIMESCALE}-pg17-oss"; EDITION_NAME="TimescaleDB Apache-2 Edition"; SUFFIX="" ;;
   community) DB_IMAGE="timescale/timescaledb:${TIMESCALE}-pg17"; EDITION_NAME="TimescaleDB Community Edition"; SUFFIX="-community" ;;
@@ -121,10 +124,15 @@ build_one() {
     # The licence notice is on the first page of the install guide (review §4 (가))
     { sed "s/@TIMESCALE@/${TIMESCALE}/" "scripts/install/licenses/NOTICE-${EDITION}.txt"; echo; echo; cat scripts/install/README-리눅스.txt; } > "${stage}/먼저읽어보세요.txt"
     cp docs/현장설치.md "${stage}/현장설치.md"; cp docs/site-install.md "${stage}/site-install.md"
-    local edge_platform=linux-x64 edge_flag=""
-    [ "${kind}" = "linux-arm64" ] && { edge_platform=linux-arm64; edge_flag=--arm64; }
-    node scripts/pack-edge.mjs ${edge_flag} >/dev/null
-    cp "out/edge/vexplor-edge-${VERSION}-${edge_platform}.tar.gz" "${stage}/"
+    local edge_platform=linux-x64
+    [ "${kind}" = "linux-arm64" ] && edge_platform=linux-arm64
+    local edge_file="vexplor-edge-${EDGE_VERSION}-${edge_platform}.tar.gz" edge_dir="out/edge-release/${EDGE_VERSION}"
+    local edge_base="https://github.com/waceinc/vexplor-edge/releases/download/v${EDGE_VERSION}"
+    mkdir -p "${edge_dir}"
+    [ -f "${edge_dir}/${edge_file}" ] || curl -fsSL "${edge_base}/${edge_file}" -o "${edge_dir}/${edge_file}"
+    curl -fsSL "${edge_base}/SHA256SUMS" -o "${edge_dir}/SHA256SUMS"
+    (cd "${edge_dir}" && grep " ${edge_file}\$" SHA256SUMS | shasum -a 256 -c - >/dev/null) || { echo "[FAIL] ${edge_file} does not match SHA256SUMS of vexplor-edge v${EDGE_VERSION}"; exit 1; }
+    cp "${edge_dir}/${edge_file}" "${stage}/"
   elif [ "${kind}" = "windows" ]; then
     cp scripts/install/설치.bat "${stage}/설치.bat"
     cp scripts/install/실행.bat "${stage}/실행.bat"

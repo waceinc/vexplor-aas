@@ -69,7 +69,7 @@ It checks Docker and enables it at boot, puts the program in `/opt/vexplor-aas`,
 database administrator password, an app account, a secret key and a first-admin code, loads the images, starts them and
 waits until the server answers. With `--with-edge` it registers the collector to this AAS Studio and starts it as a
 service. Other options: `--port 8080`, `--dir /opt/vexplor-aas`, `--edge-credentials <file>` (PLC passwords,
-[edge-install.md](edge-install.md) §4).
+[the collector's install guide](https://github.com/waceinc/vexplor-edge/blob/main/docs/install.md) §4).
 
 It ends with the address and the first-admin code. The collector reads nothing until **a person approves** its read list
 on the server.
@@ -102,7 +102,7 @@ with `sudo docker compose up -d`.
 
 ```bash
 cd /opt/vexplor-aas && sudo docker compose down -v      # -v deletes the data too (irreversible)
-sudo systemctl disable --now vexplor-edge                # if the collector was installed — the rest in edge-install.md §6
+sudo systemctl disable --now vexplor-edge                # if the collector was installed — the rest in the collector's install guide §6
 ```
 
 ## 8. What was checked

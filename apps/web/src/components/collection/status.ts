@@ -19,7 +19,17 @@ export function latestValues(values: readonly CollectedValueView[]): Map<string,
   return latest;
 }
 
-export function connectionStatus(name: string, cycle: CycleReportView | undefined, auto: AutoCollect | undefined, packageId: string | undefined): ConnectionStatus {
+/** Values that arrived this recently count as "receiving" even when this server did not read them (remote collector) */
+export const RECEIVING_WINDOW_MS = 3 * 60_000;
+
+export function connectionStatus(
+  name: string,
+  cycle: CycleReportView | undefined,
+  auto: AutoCollect | undefined,
+  packageId: string | undefined,
+  latest?: ReadonlyMap<string, CollectedValueView>,
+  nowMs: number = Date.now(),
+): ConnectionStatus {
   /*
   * Connection state — judged by **the result of the last real connection**.
   * Important: no guessing: if it has never connected yet, it says "not collected yet".
@@ -52,6 +62,11 @@ export function connectionStatus(name: string, cycle: CycleReportView | undefine
     if (mine.errors.some((message) => message.startsWith(`${name}:`)))
       return { kind: 'bad', label: tr('접속 실패 (자동)') };
     if (mine.collected > 0) return { kind: 'ok', label: tr('연결됨 (자동)') };
+  }
+  // (3) Fresh values without this server reading them — a remote collector (VEXPLOR Edge) is sending them (2.7.0)
+  for (const [key, value] of latest ?? []) {
+    if (!key.startsWith(`${name}/`)) continue;
+    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) <= RECEIVING_WINDOW_MS) return { kind: 'ok', label: tr('받는 중') };
   }
   return { kind: 'idle', label: tr('수집 전') };
 }

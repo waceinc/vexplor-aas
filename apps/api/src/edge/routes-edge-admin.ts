@@ -2,20 +2,26 @@
  * Edge management for people (normal login or API key): make a registration code, list devices, preview and approve
  * what a device may read, pause it, revoke it.
  *
- *     POST /edge/registration-codes                    → { code, expiresAt } — shown once
+ *     GET  /edge/status                                → on or off, whether the screen may switch it, the list now
+ *     POST /edge/enable  { enabled }                   → admin session only, when EDGE is not set
+ *     POST /edge/registration-codes  { approve? }      → { code, expiresAt, preapproved? } — shown once
  *     GET  /edge/devices                               → devices of this workspace, with "list changed since approval"
+ *                                                        and their last batch (time, values, connection status)
  *     GET  /edge/devices/:deviceId/read-list-preview   → what approving now would grant, with its revision
  *     POST /edge/devices/:deviceId/approve  { revision } → the device starts reading exactly that list
- *     POST /edge/devices/:deviceId/pause | /revoke
+ *     POST /edge/devices/:deviceId/pause | /resume | /revoke
  *
  * Important: approval names the revision the person looked at. If the files changed between the preview and the click,
  *    the revisions differ and the approval is refused (409) — nobody approves a list they have not seen.
+ * Important: one-click — `approve: { revision }` on the code is the same approval, made before the device exists. The
+ *    revision must be the one the person was shown (GET /edge/status), or the code is refused (409).
  * Important: a device's list is always computed in the device's workspace, not the approver's. An admin who sees
  *    everything must not hand a device the files of other workspaces by approving it.
  */
 import { fill, tr } from '@aas/core';
 import { currentWorkspace, runInWorkspace, type AasStore } from '@aas/store';
 import { ApiError, json } from '../http.js';
+import { requireAdminSession } from '../integration/route-support.js';
 import type { Route } from '../router.js';
 import { currentInterfaces, revisionOf, type ReadListInterface } from './read-list.js';
 import { deviceWorkspace, servedList } from './routes-edge.js';
@@ -27,6 +33,8 @@ export interface EdgeAdminOptions {
   intervalMs: number;
   /** The server splits workspaces (AAS_WORKSPACE=private or demo) */
   partitioned?: boolean;
+  /** 'on' — EDGE=on decides; 'switchable' — EDGE is not set and an admin switches it on the screen. Default 'on' */
+  mode?: 'on' | 'switchable';
   now?: () => Date;
 }
 
@@ -73,6 +81,17 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
     if (!device || !visible(device)) throw new ApiError(404, 'NotFound', fill(tr('장치 {0}을(를) 찾을 수 없습니다.'), { 0: deviceId }));
     return device;
   };
+  const mode = options.mode ?? 'on';
+  const isOn = async (): Promise<boolean> => mode === 'on' || (await options.registry.enabled());
+  const requireOn = async (): Promise<void> => {
+    if (!(await isOn())) throw new ApiError(409, 'Conflict', tr('원격 수집이 꺼져 있습니다 — 관리자가 「원격 수집기」 화면에서 켜십시오.'));
+  };
+  /** The list a device of the caller's workspace would read now */
+  const currentList = async () => {
+    const workspace = currentWorkspace();
+    const interfaces = await currentInterfaces(options.store, options.intervalMs, workspace?.key ?? null);
+    return { revision: revisionOf(interfaces), interfaces };
+  };
   const preview = (device: EdgeDevice) =>
     runInWorkspace(deviceWorkspace(device), async () => {
       const interfaces = await currentInterfaces(options.store, options.intervalMs, device.workspace);
@@ -81,6 +100,7 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
   const summary = async (device: EdgeDevice) => {
     const { publicKey: _key, approved, ...rest } = device;
     const current = await preview(device);
+    const activity = await options.registry.activity(device.deviceId);
     return {
       ...rest,
       served: servedList(device).revision,
@@ -88,6 +108,10 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       currentRevision: current.revision,
       changedSinceApproval: approved !== undefined && (approved.basis ?? approved.revision) !== current.revision,
       tags: current.interfaces.reduce((sum, iface) => sum + iface.tags.length, 0),
+      approvedVia: rest.approvedVia ?? (approved ? 'person' : null),
+      lastSeenAt: activity?.lastSeenAt ?? null,
+      samplesReceived: activity?.samplesReceived ?? 0,
+      lastStatus: activity?.lastStatus ?? null,
     };
   };
   const change = async (deviceId: string, edit: (device: EdgeDevice) => EdgeDevice) => {
@@ -98,11 +122,56 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
 
   return [
     {
+      method: 'GET',
+      pattern: '/edge/status',
+      async handle() {
+        const current = await currentList();
+        return json(200, {
+          enabled: await isOn(),
+          switchable: mode === 'switchable',
+          current: {
+            revision: current.revision,
+            interfaces: current.interfaces.length,
+            tags: current.interfaces.reduce((sum, iface) => sum + iface.tags.length, 0),
+            items: current.interfaces.map((iface) => ({ interfaceName: iface.interfaceName, packageId: iface.packageId, protocol: iface.protocol, tags: iface.tags.length })),
+          },
+        });
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/edge/enable',
+      async handle({ request }) {
+        requireAdminSession(request);
+        if (mode !== 'switchable') throw new ApiError(409, 'Conflict', tr('서버 설정 EDGE 가 정해 두었습니다 — 화면에서 바꿀 수 없습니다.'));
+        const enabled = (request.body as { enabled?: unknown } | undefined)?.enabled;
+        if (typeof enabled !== 'boolean') throw new ApiError(400, 'BadRequest', tr('enabled 는 true 또는 false 여야 합니다.'));
+        await options.registry.setEnabled(enabled);
+        return json(200, { enabled, switchable: true });
+      },
+    },
+    {
       method: 'POST',
       pattern: '/edge/registration-codes',
-      async handle() {
-        const created = await options.registry.createCode(currentWorkspace()?.key ?? null);
-        return json(201, created);
+      async handle({ request }) {
+        await requireOn();
+        const approve = (request.body as { approve?: { revision?: unknown } } | undefined)?.approve;
+        if (approve === undefined) return json(201, await options.registry.createCode(currentWorkspace()?.key ?? null));
+        if (typeof approve?.revision !== 'string') throw new ApiError(400, 'BadRequest', tr('approve.revision 이 필요합니다(원격 수집 상태에서 받은 값).'));
+        if (options.partitioned && currentWorkspace() === undefined) {
+          throw new ApiError(409, 'Conflict', tr('작업 공간을 알 수 없어 미리 승인할 수 없습니다.'));
+        }
+        const current = await currentList();
+        if (current.revision !== approve.revision) throw new ApiError(409, 'Conflict', tr('미리 본 뒤 목록이 바뀌었습니다 — 다시 보고 승인하십시오.'));
+        if (current.interfaces.length === 0) throw new ApiError(409, 'Conflict', tr('읽을 태그가 없습니다 — AID(설비 연결 정보)가 있는 AASX 를 먼저 올리십시오.'));
+        const created = await options.registry.createCode(currentWorkspace()?.key ?? null, 24, {
+          revision: current.revision,
+          basis: current.revision,
+          approvedAt: now().toISOString(),
+          interfaces: current.interfaces,
+        });
+        const tags = current.interfaces.reduce((sum, iface) => sum + iface.tags.length, 0);
+        return json(201, { ...created, preapproved: { revision: current.revision, interfaces: current.interfaces.length, tags } });
       },
     },
     {
@@ -142,6 +211,7 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
           ...d,
           state: 'approved',
           approved: { revision: revisionOf(interfaces), basis: revision, approvedAt, interfaces },
+          approvedVia: 'person',
         }));
       },
     },
@@ -150,6 +220,16 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       pattern: '/edge/devices/:deviceId/pause',
       async handle({ params }) {
         return change(params['deviceId']!, (d) => ({ ...d, state: 'paused' }));
+      },
+    },
+    {
+      method: 'POST',
+      pattern: '/edge/devices/:deviceId/resume',
+      async handle({ params }) {
+        const device = await deviceOf(params['deviceId']!);
+        if (device.revokedAt) throw new ApiError(409, 'Conflict', tr('해지된 장치는 다시 시작할 수 없습니다 — 새 코드로 다시 연결하십시오.'));
+        if (!device.approved) throw new ApiError(409, 'Conflict', tr('승인한 목록이 없습니다 — 먼저 읽을 목록을 승인하십시오.'));
+        return change(device.deviceId, (d) => ({ ...d, state: 'approved' }));
       },
     },
     {
