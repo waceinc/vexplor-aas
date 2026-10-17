@@ -117,4 +117,19 @@ node scripts/make-third-party-notices.mjs      # exit code 1 if a copyleft licen
 - Commit messages are in **English** and say *why* before *what*.
 - Security problems go through [SECURITY.md](SECURITY.md) first, not a public pull request.
 
+## Releasing a version
+
+When `PRODUCT_VERSION` goes up, the same release updates everything that describes the product — a release is not
+done while any of these still shows the old version or misses what changed:
+
+1. **Version strings** — `packages/aas-core/src/version.ts`, install guides (`docs/install.md` · `docs/설치.md`), the
+   library URL in both READMEs, `docs/edge/examples/registration.json`; regenerate the sample bundle
+   (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
+2. **What changed** — the "What's new" table in `README.md` / `README.ko.md` and the guide that covers the feature
+   (usage, integration, edge contract), in English and Korean.
+3. **Release** — tag `vX.Y.Z`, the four library tarballs, the Linux collector packages and `SHA256SUMS`.
+4. **Website** — the product page on wace.me (Korean, English, Japanese): version label, "What's new", and screenshots
+   when the screens changed. A daily check compares the latest release with the README and the website and reports a
+   mismatch.
+
 Contributions are distributed under this repository's [Apache License 2.0](LICENSE).
