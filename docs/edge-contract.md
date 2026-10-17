@@ -104,6 +104,23 @@ What to read, already resolved from the AAS by the server. Response **200** `vex
 
 An interface whose protocol the edge does not support is skipped and reported in the next batch's `status`.
 
+### 4.1 Tag hints (added in 2.5.0 — optional, advisory)
+
+Each tag may carry three hints for a receiver that shows the list to a person before approval (another product
+building its own read list with `aidReadList` from `@aas/bundle` gets the same):
+
+- `semanticId` — the semanticId of the model element the tag's value belongs to (found by the same rule as the live
+  overlay and runtime events). Absent when the property resolves to no element, or to more than one.
+- `suggestedRole` — `run_state` · `counter` · `alarm_source` · `meter` · `condition` · `quality` · `value`, from a
+  table of semanticIds (`apps/api/src/edge/tag-hints.ts`, exact match). Unknown semanticIds suggest `value`.
+- `limits[]` — `{ bound: "usl" | "lsl", value, semanticId, source }` from properties of the same file that bound this
+  value (e.g. TechnicalData `MaxSettingForce` for `SettingForce`). A value may have several (a performance limit and a
+  safety limit); all are listed with their `source` (`<submodel idShort>:<idShortPath>`).
+
+Hints are **not part of `revision`**: a server update that adds or changes hints never asks a site to approve again,
+and an edge never restarts for one. An edge ignores them. A person confirms every role and limit — a hint decides
+nothing on its own.
+
 ## 5. Batches — `POST /edge/v1/batches`
 
 Request `vexplor.edge.batch/1`:

@@ -61,7 +61,7 @@ exposed as a policy the user decides.
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 and 2.4
+## What's new in 2.3 – 2.5
 
 | Feature | Release | Detail |
 |---|---|---|
@@ -70,6 +70,7 @@ exposed as a policy the user decides.
 | **Values from an outage** | 2.3.0 | Batches read while the link was down are sent oldest first and kept up to `maxQueueDays` (default 30) |
 | **Factory server install** | 2.4.0 | One command puts AAS Studio, the database and the remote collector on one Linux server; it comes back after a reboot ([site install](docs/site-install.md)) |
 | **Compression · aggregates** | 2.4.0 | With TimescaleDB Community Edition: values older than 7 days are compressed, 1-minute and 1-hour aggregates are built. Measured 1,000 tags · 1 s · 1 h: 1,099 MB → 50 MB |
+| **Tag hints** | 2.5.0 | Each read-list tag names its model element's `semanticId`, a suggested role (state · counter · alarm · meter · condition · quality) and limits from the same file, so a receiver such as Logic Studio pre-fills roles and SPC limits for a person to confirm ([contract §4.1](docs/edge-contract.md)) |
 | **Read list without a server** | 2.3.0 | `aidReadList` in `@aas/bundle` turns the AID inside an AASX into the tag list a collector reads — no AID parser needed in other products |
 
 Full notes: [Releases](https://github.com/waceinc/vexplor-aas/releases).
