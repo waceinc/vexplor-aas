@@ -5,7 +5,7 @@
 **Author, validate, serve and collect live values for AAS (Asset Administration Shell) — in one web app.**
 Upload one machine's AASX, see exactly which rules it breaks, and fix what can be fixed in one step.
 
-![VEXPLOR AAS Studio — tree, summary and live collection on one screen](docs/images/manual/en/m02-layout.png)
+![VEXPLOR AAS Studio — tree, summary and live collection on one screen](docs/images/workspace-dark-en.png)
 
 This used to take three tools. VEXPLOR AAS Studio brings the work together and is built so that
 **people new to AAS** can follow along.
@@ -60,6 +60,36 @@ exposed as a policy the user decides.
 | **MES · ERP · CMMS integration** | A pull feed of every change and runtime event (CloudEvents), signed webhooks and MQTT, equipment / BOM / hierarchy / maintenance / document exports in JSON or CSV, ERP numbers kept next to the AASX, and server-side state, alarm, counter and threshold rules. A secure OPC UA server (accounts + encryption). See [docs/integration.md](docs/integration.md) |
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
+
+## What's new in 2.3 and 2.4
+
+| Feature | Release | Detail |
+|---|---|---|
+| **Remote collector (VEXPLOR Edge)** | 2.3.0 | One program on the factory PC reads PLCs and sends signed batches out over HTTPS — read only, outbound only. Linux x64 · arm64 ([install](docs/edge-install.md)); Windows will be covered later |
+| **Send changes only** | 2.4.0 | OPC UA subscriptions with a deadband. Measured 6 tags · 1 s · 5 min: 283 KB polling → 88 KB |
+| **Values from an outage** | 2.3.0 | Batches read while the link was down are sent oldest first and kept up to `maxQueueDays` (default 30) |
+| **Factory server install** | 2.4.0 | One command puts AAS Studio, the database and the remote collector on one Linux server; it comes back after a reboot ([site install](docs/site-install.md)) |
+| **Compression · aggregates** | 2.4.0 | With TimescaleDB Community Edition: values older than 7 days are compressed, 1-minute and 1-hour aggregates are built. Measured 1,000 tags · 1 s · 1 h: 1,099 MB → 50 MB |
+| **Read list without a server** | 2.3.0 | `aidReadList` in `@aas/bundle` turns the AID inside an AASX into the tag list a collector reads — no AID parser needed in other products |
+
+Full notes: [Releases](https://github.com/waceinc/vexplor-aas/releases).
+
+## Works with VEXPLOR Logic Studio
+
+AASX files authored and checked here import straight into
+[VEXPLOR Logic Studio](https://wace.me/en-platform-logic-studio) (WACE's factory platform — MES · PLM · ERP · QMS) — nothing to install in the factory,
+no conversion step.
+
+1. Author the equipment AASX here and pass the 43-rule check.
+2. Drop the file on the equipment screen of Logic Studio Cloud.
+3. Check types, equipment, plant and line in the preview, then import — each machine enters the equipment register
+   linked to its type.
+
+- Type files and Instance files are imported separately.
+- Dropping the same file again ends with "Nothing changes" — no duplicate equipment.
+- **Live values are in preparation:** the same remote collector is being prepared to send machine values to
+  Logic Studio Cloud as well. The two endpoints any receiver implements are in [docs/edge-contract.md](docs/edge-contract.md).
+  Not offered yet.
 
 ## Quick start
 

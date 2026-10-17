@@ -43,6 +43,13 @@ decision here is [design/integration-v1.md](design/integration-v1.md).
 - It holds **no costs**, and it **never invents** maintenance intervals, locations or units. A value the model does not
   hold is exported as empty (`null`) and named in `missing`.
 
+### VEXPLOR Logic Studio
+
+[VEXPLOR Logic Studio](https://wace.me/en-platform-logic-studio) Cloud imports the AASX files themselves — drop a file
+on its equipment screen, check the preview, import. Type and Instance files are imported separately, and dropping the
+same file again changes nothing. No subscription, export or factory install is needed for this. Sending live values
+from the remote collector to Logic Studio Cloud is in preparation and not offered yet.
+
 ## 2. Turning it on
 
 The event log and the pull feed **always work** — every model change is recorded whether or not integrations are on.
