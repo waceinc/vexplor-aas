@@ -154,7 +154,7 @@ server — `buildBundle`) are attached to each GitHub release as npm tarballs (`
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.4.0/aas-aasx-2.4.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.5.0/aas-aasx-2.5.0.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would
