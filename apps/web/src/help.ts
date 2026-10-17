@@ -6,7 +6,7 @@
  *    the way a manual (PPT) does.
  * Important: exposed as functions — switching language re-reads the screen, so each call translates into the current language (tr).
  */
-import { tr } from './i18n.js';
+import { currentLang, tr } from './i18n.js';
 
 export type HelpContext = 'start' | 'open' | 'edit' | 'check';
 
@@ -17,7 +17,13 @@ export interface HelpTopic {
   steps: string[];
   /** Extra things to know — caveats · tips */
   note?: string;
+  /** A guide outside the screen, opened in a new window */
+  link?: { label: string; href: string };
 }
+
+const GUIDE = 'https://github.com/waceinc/vexplor-aas/blob/main/docs/';
+// i18n-ignore — file names of the guide in this repository, not UI text
+const LOGIC_STUDIO_GUIDE = { ko: '로직스튜디오.md', en: 'logic-studio.md' } as const;
 
 export function helpTopics(): HelpTopic[] {
   return [
@@ -91,6 +97,21 @@ export function helpTopics(): HelpTopic[] {
         tr('「AASX 내려받기」 — 지금 파일을 .aasx로(회원만)'),
       ],
       note: tr('완성본은 위반 0건 상태에서 내려받으세요.'),
+    },
+    {
+      id: 'logic-studio',
+      title: tr('VEXPLOR Logic Studio에서 쓰기'),
+      summary: tr('검사를 마친 AASX를 Logic Studio Cloud 설비 화면에 끌어 놓으면 설비 대장이 됩니다. 공장에 설치할 것도, 변환할 것도 없습니다.'),
+      steps: [
+        tr('「AASX 내려받기」로 위반 0건인 완성본을 받습니다'),
+        tr('Logic Studio Cloud 설비 화면에 그 파일을 끌어 놓습니다'),
+        tr('미리 보기에서 기종 · 설비 · 공장 · 라인을 확인하고 가져오면 설비가 기종에 연결된 채로 설비 대장에 들어갑니다'),
+        tr('같은 파일을 다시 놓으면 바뀌는 것이 없고, 고친 파일을 놓으면 바뀐 것만 「변경 제안」으로 나옵니다'),
+      ],
+      note: tr('원격 수집기가 Logic Studio Cloud로 실시간 값을 보내는 연결은 준비 중입니다.'),
+      // Important: the guide is a document in this repository, not a page of the product it describes — it says what
+      //    this tool hands over (an AASX file) and nothing this tool does not do
+      link: { label: tr('Logic Studio 연계 안내'), href: `${GUIDE}${LOGIC_STUDIO_GUIDE[currentLang()]}` },
     },
     {
       id: 'process',

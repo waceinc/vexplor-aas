@@ -93,6 +93,11 @@ export function HelpPanel({ context, onClose, onTour, onChecklist, t }: Props): 
                     ))}
                   </ol>
                   {topic.note && <p className="help-note">💡 {topic.note}</p>}
+                  {topic.link && (
+                    <p>
+                      <a href={topic.link.href} target="_blank" rel="noopener noreferrer">{topic.link.label} →</a>
+                    </p>
+                  )}
                 </div>
               )}
             </section>
