@@ -86,7 +86,7 @@ services:
       INTEGRATION_PROXY: ${INTEGRATION_PROXY:-}
       INTEGRATION_NO_PROXY: ${INTEGRATION_NO_PROXY:-}
       # Remote collectors (docs/edge-contract.md)
-      EDGE: ${EDGE:-off}
+      EDGE: ${EDGE:-}
       # Rule conflict ⑤ — keep the semanticId of standard templates (AID etc.) or follow KOSMO
       LINT_STANDARD_TERMS: ${LINT_STANDARD_TERMS:-kosmo-first}
       AASX_MAX_TOTAL_MB: ${AASX_MAX_TOTAL_MB:-}

@@ -863,6 +863,25 @@ For other systems to **receive changes and runtime events** instead of polling v
 
 Settings, signatures, CSV columns and the acceptance checklist: **[integration.md](integration.md)**.
 
+### 8-8. Remote collectors — when the server is outside the factory (one-click)
+
+When this server sits on **another network than the machines** (cloud, head office), put **VEXPLOR Edge** (its own
+open source, [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge)) on one factory PC. That PC reads only the
+machines of an approved list and sends to this server over HTTPS — outbound only, nothing connects into the factory.
+
+![The remote collectors screen — one command line and the connected collectors](images/manual/en/m15-edge.png)
+
+1. **Settings → Remote collectors (VEXPLOR Edge)**. If it is off, an admin presses **"Turn on remote collection"**.
+2. **"+ Connect a collector"** — check this server's address as the factory PC reaches it (**https**) and the read
+   list, then **"Make the connect command"**. With "Approve this list so it reads at once" ticked, approval is done too.
+3. **Paste the one line into a terminal on the factory Linux PC** — download, hash check, install, register and start
+   in one go.
+4. Done when the screen shows the PC's name and **"Receiving"**. Values come into this file's "Collect" pane every 10 s.
+
+After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
+revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and
+certificates on the factory PC: the collector's [install guide](https://github.com/waceinc/vexplor-edge/blob/main/docs/install.md).
+
 ---
 
 ## 9. File management

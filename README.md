@@ -67,10 +67,14 @@ months whenever machines change. Evidence and sources: [docs/background.md](docs
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 – 2.6
+## What's new in 2.3 – 2.7
 
 | Feature | Release | Detail |
 |---|---|---|
+| **One-click remote collector** | 2.7.0 | **Settings → Remote collectors → "+ Connect a collector"** — check the server address and the read list, press one button, and you get one line to paste on the factory Linux PC. That line downloads, checks the hash, installs, registers and approves; the screen turns to "Receiving" the moment the PC connects. The same screen shows the last batch, values received and machine connections, and pauses, resumes or revokes. Admins turn remote collection on right there (servers with `EDGE` empty) |
+| **VEXPLOR Edge, its own open source** | 2.7.0 | The remote collector now ships from its own repository [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge) (Apache-2.0) with its own version (1.0.0). The canonical contract `vexplor.edge/1` lives there; this server receives it as is |
+| **Collect pane refreshes itself** | 2.7.0 | With a file that has a collection link open, values come in every 10 s, and while a remote collector's values arrive the connection shows "Receiving" |
+| **Equipment reader libraries** | 2.7.0 | The release packages add `@aas/collector`, `@aas/fieldbus` and `@aas/opcua` — the remote collector reads OPC UA, Modbus TCP and MQTT with exactly this server's code |
 | **Remote collector (VEXPLOR Edge)** | 2.3.0 | One program on the factory PC reads PLCs and sends signed batches out over HTTPS — read only, outbound only. Linux x64 · arm64 ([install](docs/edge-install.md)); Windows will be covered later |
 | **Send changes only** | 2.4.0 | OPC UA subscriptions with a deadband. Measured 6 tags · 1 s · 5 min: 283 KB polling → 88 KB |
 | **Values from an outage** | 2.3.0 | Batches read while the link was down are sent oldest first and kept up to `maxQueueDays` (default 30) |
@@ -157,12 +161,13 @@ A TypeScript monorepo — one language for the front end and the server.
 
 ### Using the libraries in another product
 
-`@aas/core`, `@aas/aasx`, `@aas/linter` and `@aas/bundle` (the integration bundle built from AASX files without a
-server — `buildBundle`) are attached to each GitHub release as npm tarballs (`node scripts/pack-libraries.mjs`,
+`@aas/core`, `@aas/aasx`, `@aas/linter`, `@aas/bundle` (the integration bundle built from AASX files without a
+server — `buildBundle`) and `@aas/collector`, `@aas/fieldbus`, `@aas/opcua` (equipment readers — the remote collector
+uses them) are attached to each GitHub release as npm tarballs (`node scripts/pack-libraries.mjs`,
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.6.0/aas-aasx-2.6.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.7.0/aas-aasx-2.7.0.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would
@@ -171,9 +176,11 @@ enough.
 
 ### Remote collector
 
-`vexplor-edge` (`packages/edge`) reads PLCs inside the factory and sends signed batches out over HTTPS — read only,
-outbound only, no remote stop. Contract: [docs/edge-contract.md](docs/edge-contract.md); install:
-[docs/edge-install.md](docs/edge-install.md); packages: `node scripts/pack-edge.mjs` (Linux — Windows will be covered later).
+When the server is outside the factory (cloud, head office), put **VEXPLOR Edge** on one factory PC — its own open
+source, [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge). It reads only the PLCs of an approved list and
+sends signed batches out over HTTPS — outbound only, no remote stop. Connecting is one button and one pasted line under
+**Settings → Remote collectors → "+ Connect a collector"** (Linux x64 · arm64; Windows in preparation). This server's
+side: [docs/edge-install.md](docs/edge-install.md); the contract copy: [docs/edge-contract.md](docs/edge-contract.md).
 
 ## Standards
 

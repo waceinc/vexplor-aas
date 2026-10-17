@@ -67,10 +67,14 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 그
 | **계정** | 관리자 · 편집자 · 열람자. 변경 이력에 누가 고쳤는지 남습니다 |
 | **한국어 · 영어, 밝은 · 어두운 화면** | 화면 글자**와** 서버가 만드는 글(지적 문구 · 규칙 설명 · 검증 결과서 · 번들 README · 오류)이 한국어와 영어로 나옵니다. 고른 적이 없으면 브라우저 언어를 따릅니다(한국어 브라우저는 한국어, 그 밖은 영어). 밝은 화면과 어두운 화면이 있습니다 |
 
-## 2.3 ~ 2.6 에서 새로 생긴 것
+## 2.3 ~ 2.7 에서 새로 생긴 것
 
 | 기능 | 판 | 내용 |
 |---|---|---|
+| **원격 수집기 원클릭 연결** | 2.7.0 | **설정 → 원격 수집기 → 「+ 수집기 연결」** — 서버 주소와 읽을 목록을 확인하고 단추 하나를 누르면, 공장 Linux PC에 붙여 넣을 명령 한 줄이 나옵니다. 그 한 줄이 내려받기 · 해시 대조 · 설치 · 등록 · 승인까지 끝내고, 화면은 공장 PC가 붙는 순간 「받는 중」으로 바뀝니다. 같은 화면에서 마지막 수신 · 받은 값 · 설비 연결 상태를 보고 일시 정지 · 다시 시작 · 해지합니다. 관리자는 이 화면에서 원격 수집을 켭니다(`EDGE` 를 비워 둔 서버) |
+| **VEXPLOR Edge 별도 오픈소스** | 2.7.0 | 원격 수집기는 이제 자기 저장소 [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge)(Apache-2.0)에서 자기 판(1.0.0)으로 나옵니다. 규격 `vexplor.edge/1` 정본도 그곳에 있고, 이 서버는 그 규격을 그대로 받습니다 |
+| **수집 칸이 저절로 갱신** | 2.7.0 | 수집 연결이 있는 파일을 열어 두면 값이 10초마다 새로 들어오고, 원격 수집기가 보낸 값이 들어오는 동안 연결 상태가 「받는 중」으로 나옵니다 |
+| **설비 읽기 라이브러리** | 2.7.0 | 릴리스 꾸러미에 `@aas/collector` · `@aas/fieldbus` · `@aas/opcua` 를 더했습니다 — 원격 수집기가 이 서버와 똑같은 코드로 OPC UA · Modbus TCP · MQTT 를 읽습니다 |
 | **원격 수집기 (VEXPLOR Edge)** | 2.3.0 | 공장 PC에 프로그램 하나만 두고 PLC 값을 읽어 서명한 묶음을 HTTPS로 밖에만 보냅니다 — 읽기 전용 · 밖으로만. Linux x64 · arm64 ([설치](docs/엣지설치.md)), Windows는 추후 |
 | **바뀐 값만 보내기** | 2.4.0 | OPC UA 구독과 불감대(deadband). 태그 6개 · 1초 · 5분 실측: 주기 읽기 283 KB → 88 KB |
 | **끊긴 동안 쌓인 값** | 2.3.0 | 통신이 끊긴 동안 읽은 묶음을 오래된 것부터 다시 보내고, 최대 `maxQueueDays`(기본 30일) 보관합니다 |
@@ -154,12 +158,12 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 
 ### 다른 제품에서 라이브러리로 쓰기
 
-`@aas/core` · `@aas/aasx` · `@aas/linter` · `@aas/bundle`(서버 없이 AASX 에서 연동 묶음을 만드는 `buildBundle`)은
-GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
+`@aas/core` · `@aas/aasx` · `@aas/linter` · `@aas/bundle`(서버 없이 AASX 에서 연동 묶음을 만드는 `buildBundle`) ·
+`@aas/collector` · `@aas/fieldbus` · `@aas/opcua`(설비 읽기 — 원격 수집기가 사용합니다)는 GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
 (`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.6.0/aas-aasx-2.6.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.7.0/aas-aasx-2.7.0.tgz"
 ```
 
 버전 번호로 설치하지 마십시오 — 공개 npm 저장소의 `@aas` 이름 공간은 우리 것이 아니어서 `"@aas/core": "^2.0.0"` 이라고
@@ -167,9 +171,11 @@ GitHub 릴리스마다 npm 꾸러미 파일로 붙습니다
 
 ### 원격 수집기
 
-`vexplor-edge`(`packages/edge`)는 공장 안에서 PLC 를 읽어 서명한 묶음을 HTTPS 로 밖에 보냅니다 — 읽기만 하고, 밖으로만
-연결하며, 원격 정지가 없습니다. 규격: [docs/엣지계약.md](docs/엣지계약.md), 설치: [docs/엣지설치.md](docs/엣지설치.md),
-꾸러미: `node scripts/pack-edge.mjs`(Linux — Windows 판은 추후 안내).
+서버가 공장 밖(클라우드 · 본사)에 있으면 공장 PC 한 대에 **VEXPLOR Edge** 를 둡니다 — 별도 오픈소스
+[waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge). 승인한 목록의 PLC 만 읽어 서명한 묶음을 HTTPS 로 밖에만
+보내고, 원격 정지가 없습니다. 연결은 화면 **설정 → 원격 수집기 → 「+ 수집기 연결」**에서 단추 하나와 붙여 넣기 한 줄로
+끝납니다(Linux x64 · arm64, Windows 는 준비 중). 이 서버 쪽 안내: [docs/엣지설치.md](docs/엣지설치.md), 규격 사본:
+[docs/엣지계약.md](docs/엣지계약.md).
 
 ## 표준 대응
 

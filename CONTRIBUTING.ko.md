@@ -122,7 +122,9 @@ node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 �
    주소, `docs/edge/examples/registration.json`. 견본 묶음을 다시 만듭니다
    (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
 2. **바뀐 내용** — `README.md` / `README.ko.md` 의 「새로 생긴 것」 표와 그 기능을 다루는 안내(사용법 · 연동 · 엣지 계약), 영어와 한국어 모두.
-3. **릴리스** — 태그 `vX.Y.Z`, 라이브러리 꾸러미 4개, Linux 수집기 꾸러미, `SHA256SUMS`.
+3. **릴리스** — 태그 `vX.Y.Z`, 라이브러리 꾸러미 7개(`node scripts/pack-libraries.mjs --verify`), `SHA256SUMS`. 원격 수집기는
+   자기 저장소(waceinc/vexplor-edge, 자기 판 · 자기 점검표)에서 나옵니다. 수집기가 이번 판 라이브러리를 쓰면 이 릴리스를 먼저 냅니다.
+   현장 설치 묶음은 `scripts/make-release.sh` 의 `EDGE_VERSION` 으로 수집기 판을 고정합니다.
 4. **홈페이지** — wace.me 제품 페이지(한국어 · 영어 · 일본어)와 `gh-pages` 의 공식 프로젝트 페이지(waceinc.github.io/vexplor-aas)의
    판 표기 · 새 기능 · 릴리스 노트 링크 · 화면이 바뀌었으면 캡처. 새 기능 문장은 판을 올리는 사람이 코드로 확인해 직접 씁니다. 매일 점검이 최신
    릴리스와 README · 홈페이지 판을 대조해 다르면 알립니다.

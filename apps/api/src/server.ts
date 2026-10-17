@@ -484,8 +484,11 @@ export function createHttpServer(options: ServerOptions = {}): Server {
     integrationServices: integrations.services,
     loginThrottle,
     ...(collectIntervalMs ? { collectIntervalMs } : {}),
-    // Remote collectors (docs/edge-contract.md) — off unless EDGE=on; createApi keeps it off in demo mode
-    ...(process.env['EDGE'] === 'on' ? { edge: collectIntervalMs ? { intervalMs: collectIntervalMs } : {} } : {}),
+    // Remote collectors (docs/edge-contract.md) — EDGE=on: on · EDGE=off: off · not set: an admin switches it on in the
+    // screen (off until then). createApi keeps it off in demo mode
+    ...(process.env['EDGE'] === 'off'
+      ? {}
+      : { edge: { ...(collectIntervalMs ? { intervalMs: collectIntervalMs } : {}), mode: process.env['EDGE'] === 'on' ? ('on' as const) : ('switchable' as const) } }),
     routes: [
       {
         /** What is being exposed externally — where the UI and operators check */

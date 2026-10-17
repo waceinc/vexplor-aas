@@ -1,6 +1,8 @@
 /**
- * Packs the reusable libraries — the AAS model, AASX reading/writing, the validation rules and the integration bundle
- * builder — as npm tarballs that another product installs **from the GitHub release**, without a registry.
+ * Packs the reusable libraries — the AAS model, AASX reading/writing, the validation rules, the integration bundle
+ * builder and the equipment readers (AID, OPC UA, Modbus TCP, MQTT) — as npm tarballs that another product installs
+ * **from the GitHub release**, without a registry. The remote collector (github.com/waceinc/vexplor-edge) is built on
+ * the readers, so it reads equipment exactly as this server's own collector does.
  *
  *     npx tsc -b && node scripts/pack-libraries.mjs                 # → out/libraries/*.tgz + SHA256SUMS
  *     node scripts/pack-libraries.mjs --verify                     # + install them in an empty project and run them
@@ -39,6 +41,9 @@ const LIBRARIES = [
   { name: '@aas/core', dir: 'packages/aas-core' },
   { name: '@aas/aasx', dir: 'packages/aasx' },
   { name: '@aas/linter', dir: 'packages/linter' },
+  { name: '@aas/collector', dir: 'packages/collector' },
+  { name: '@aas/fieldbus', dir: 'packages/fieldbus' },
+  { name: '@aas/opcua', dir: 'packages/opcua' },
   {
     name: '@aas/bundle',
     bundled: {
@@ -203,6 +208,9 @@ import { PRODUCT_VERSION } from '@aas/core';
 import { readAasx } from '@aas/aasx';
 import { ALL_RULES, lint } from '@aas/linter';
 import { aidReadList, buildBundle } from '@aas/bundle';
+import { buildAidSubmodel } from '@aas/collector';
+import { ModbusReader, MqttReader } from '@aas/fieldbus';
+import { OpcUaReader } from '@aas/opcua';
 const pkg = readAasx(new Uint8Array(readFileSync(${JSON.stringify(fixture)})));
 const shells = pkg.environment.assetAdministrationShells ?? [];
 const result = lint(pkg.environment, ALL_RULES);
@@ -212,7 +220,13 @@ const bundle = await buildBundle([{ name: 'unit.aasx', data: new Uint8Array(read
 if (bundle.manifest.schema !== 'vexplor.integrationBundle/1' || !bundle.files['equipment.json']) throw new Error('no bundle built');
 const readList = aidReadList(pkg.environment, 'pkg_1');
 if (!Array.isArray(readList)) throw new Error('aidReadList did not run');
-console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length, readListInterfaces: readList.length }));
+// The readers the remote collector is built on: an AID from tags, and one reader per protocol
+const aid = buildAidSubmodel({ assetName: 'Unit', iriBase: 'https://example.com/ids', endpoint: 'opc.tcp://127.0.0.1:4840', tags: [{ name: 'Speed', href: 'ns=2;s=Speed', type: 'float' }] });
+pkg.environment.submodels.push(aid);
+const aidList = aidReadList(pkg.environment, 'pkg_1');
+if (aidList.length !== 1 || aidList[0].tags.length !== 1) throw new Error('the AID built by @aas/collector was not read back');
+for (const [name, reader] of Object.entries({ OpcUaReader, ModbusReader, MqttReader })) if (typeof reader?.connect !== 'function') throw new Error(name + ' missing');
+console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length, readListInterfaces: readList.length, readers: 3 }));
 `,
   );
   const result = execFileSync('node', ['check.mjs'], { cwd: project, encoding: 'utf8' }).trim();

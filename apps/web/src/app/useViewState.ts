@@ -60,7 +60,8 @@ export function useViewState() {
   const [showOpcua, setShowOpcua] = useState(false);
   /** MES / ERP / CMMS integration window (Settings → Integrations) — what it shows depends on the role */
   const [showIntegrations, setShowIntegrations] = useState(false);
+  const [showEdge, setShowEdge] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const bundleInput = useRef<HTMLInputElement>(null);
-  return { expanded, setExpanded, selectedKey, setSelectedKey, query, setQuery, reveal, setReveal, filesOpen, setFilesOpen, pickedFiles, setPickedFiles, submodelTarget, setSubmodelTarget, hierAdder, setHierAdder, historyFor, setHistoryFor, historyEntries, setHistoryEntries, adding, setAdding, showRules, setShowRules, showFindings, setShowFindings, showSettings, setShowSettings, showAccounts, setShowAccounts, fixPlans, setFixPlans, showOpcua, setShowOpcua, showIntegrations, setShowIntegrations, fileInput, bundleInput };
+  return { expanded, setExpanded, selectedKey, setSelectedKey, query, setQuery, reveal, setReveal, filesOpen, setFilesOpen, pickedFiles, setPickedFiles, submodelTarget, setSubmodelTarget, hierAdder, setHierAdder, historyFor, setHistoryFor, historyEntries, setHistoryEntries, adding, setAdding, showRules, setShowRules, showFindings, setShowFindings, showSettings, setShowSettings, showAccounts, setShowAccounts, fixPlans, setFixPlans, showOpcua, setShowOpcua, showIntegrations, setShowIntegrations, showEdge, setShowEdge, fileInput, bundleInput };
 }

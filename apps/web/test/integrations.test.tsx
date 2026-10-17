@@ -143,6 +143,7 @@ describe('Integrations — who sees what', () => {
       setShowAccounts: () => undefined,
       setConfirmQuit: () => undefined,
       setShowRules: () => undefined,
+      setShowEdge: () => undefined,
     };
     const opened = vi.fn();
     const items = settingsMenuItems({ ...base, auth: user('viewer'), setShowIntegrations: opened });

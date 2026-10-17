@@ -127,7 +127,10 @@ done while any of these still shows the old version or misses what changed:
    (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
 2. **What changed** — the "What's new" table in `README.md` / `README.ko.md` and the guide that covers the feature
    (usage, integration, edge contract), in English and Korean.
-3. **Release** — tag `vX.Y.Z`, the four library tarballs, the Linux collector packages and `SHA256SUMS`.
+3. **Release** — tag `vX.Y.Z`, the seven library tarballs (`node scripts/pack-libraries.mjs --verify`) and
+   `SHA256SUMS`. The remote collector is released from its own repository (waceinc/vexplor-edge, its own version and
+   checklist); when it needs this release's libraries, release this one first. The site bundle pins `EDGE_VERSION` in
+   `scripts/make-release.sh`.
 4. **Website** — the product page on wace.me (Korean, English, Japanese) and the project page on the `gh-pages` branch
    (waceinc.github.io/vexplor-aas): version label, "What's new", release-notes link, and screenshots when the screens
    changed. Whoever bumps the version writes the What's new text, checked against the code. A daily check compares the latest release with the README and the website and reports a

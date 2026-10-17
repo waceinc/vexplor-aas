@@ -182,7 +182,7 @@ export function Collection({
         <InterfaceCard
           key={descriptor.name}
           descriptor={descriptor}
-          status={connectionStatus(descriptor.name, cycle, auto, packageId)}
+          status={connectionStatus(descriptor.name, cycle, auto, packageId, latest, nowMs)}
           latest={latest}
           waitingTags={waitingTags}
           failedTags={failedTags}

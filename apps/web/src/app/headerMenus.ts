@@ -80,9 +80,10 @@ export interface SettingsMenuContext {
   setConfirmQuit: (open: boolean) => void;
   setShowRules: (open: boolean) => void;
   setShowIntegrations: (open: boolean) => void;
+  setShowEdge: (open: boolean) => void;
 }
 
-export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations }: SettingsMenuContext): MenuItem[] {
+export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, bootstrap, setShowSettings, setStartAccounts, setShowAccounts, setConfirmQuit, setShowRules, setShowIntegrations, setShowEdge }: SettingsMenuContext): MenuItem[] {
   return [
     {
       label: fill(tr('언어 — {0}'), { 0: lang === 'en' ? 'English' : tr('한국어') }),
@@ -179,6 +180,11 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
             title: tr('MES · ERP · CMMS 가 이 도구의 설비 정보와 가동 사건을 받아 가게 설정합니다'),
             onClick: () => setShowIntegrations(true),
             separated: true,
+          },
+          {
+            label: t('원격 수집기 (VEXPLOR Edge)'),
+            title: tr('공장 PC 한 대를 단추 하나와 붙여 넣기 한 줄로 이 서버에 연결해 설비 값을 받습니다'),
+            onClick: () => setShowEdge(true),
           },
         ]
       : []),

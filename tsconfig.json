@@ -20,9 +20,6 @@
       "path": "./packages/fieldbus"
     },
     {
-      "path": "./packages/edge"
-    },
-    {
       "path": "./packages/store"
     },
     {

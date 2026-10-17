@@ -10,6 +10,7 @@ export interface MockEdgeStats {
 export interface MockReadList {
   revision: string;
   state: 'pending-approval' | 'approved' | 'paused';
+  pollSeconds: number;
   interfaces: { interfaceId: string; intervalMs: number; tags: { tagId: string; type?: string }[] }[];
 }
 
