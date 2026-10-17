@@ -128,8 +128,9 @@ done while any of these still shows the old version or misses what changed:
 2. **What changed** — the "What's new" table in `README.md` / `README.ko.md` and the guide that covers the feature
    (usage, integration, edge contract), in English and Korean.
 3. **Release** — tag `vX.Y.Z`, the four library tarballs, the Linux collector packages and `SHA256SUMS`.
-4. **Website** — the product page on wace.me (Korean, English, Japanese): version label, "What's new", and screenshots
-   when the screens changed. A daily check compares the latest release with the README and the website and reports a
+4. **Website** — the product page on wace.me (Korean, English, Japanese) and the project page on the `gh-pages` branch
+   (waceinc.github.io/vexplor-aas): version label, "What's new", release-notes link, and screenshots when the screens
+   changed. Whoever bumps the version writes the What's new text, checked against the code. A daily check compares the latest release with the README and the website and reports a
    mismatch.
 
 Contributions are distributed under this repository's [Apache License 2.0](LICENSE).
