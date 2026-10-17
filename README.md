@@ -29,17 +29,23 @@ This used to take three tools. VEXPLOR AAS Studio brings the work together and i
 
 ## Why
 
-An AASX file can pass every standard check and still be **rejected by the validator of the body
-you submit it to.**
+**AAS is in place as a standard. Putting it into a factory is still work left outside the specification.**
 
-Passing the AAS metamodel constraints (aas-core), the official JSON schema and a BaSyx import does
-not help when the receiving side enforces its own business rules — an allow-list of semantic IDs,
-mandatory submodels, package-structure requirements. In Korea that receiving side is the KOSMO
-Validator. Those rules are not in the standard, so you learn about them by failing.
+A review of ten years of AAS research (IEEE Access, 2025) names integration with existing machines and
+systems as a key challenge holding back adoption. Several studies point to the effort of building an AAS by
+hand, and the open tools are split into editors, servers and libraries, so collecting field values means
+mapping it yourself in configuration files. VEXPLOR AAS Studio lets software take on that work, so an AAS
+does not end as a document but becomes **operating data with live values from the machines on the floor.**
 
-This tool implements such rules as a linter and reports them **before** submission. Where the
-standard and the receiving validator disagree, it does not silently pick a side: the conflict is
-exposed as a policy the user decides.
+| What people hit on the floor | In VEXPLOR AAS Studio |
+|---|---|
+| Attaching to machines and PLCs that already run | Collects from OPC UA, Modbus TCP and MQTT per the AID in the AAS. The remote collector sends outward only; PLC programs are not changed |
+| Building an AAS by hand | Start from a filled sample, fill values at once from tables or CSV; 43 rules point out problems and 19 fix them automatically |
+| One tool per job | Open, edit, check, Part 2 REST, field value collection and OPC UA publishing in one screen |
+| Passing the standard, failing the receiver | Checks the Korean receiving validator's (KOSMO Validator) business rules — semantic ID allow-list, mandatory submodels, package structure — before submission, and shows conflicts with the standard as a policy the user decides |
+
+There are real line deployments (Bosch Rexroth and others). They too report that integration can take
+months whenever machines change. Evidence and sources: [docs/background.md](docs/background.md).
 
 > The receiving validator remains the only authority on acceptance. This tool is a pre-check.
 
