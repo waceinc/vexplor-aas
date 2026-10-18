@@ -688,7 +688,7 @@ The AID defines **where to connect and what to read** (address, NodeId, register
 |---|---|---|---|
 | OPC UA | `opc.tcp://host:4840` | NodeId `ns=1;s=Machine.MotorSpeed` | "Load from equipment" browses the tags |
 | Modbus TCP | `modbus+tcp://host:502/1` (last number = unit ID) | `40` · `1/40` · `1/40?quantity=2` | Choose the register kind (holding · input · coil · discrete input) and data type per row. Conventional addresses like `40001` are converted to kind + zero-based address |
-| MQTT | `mqtt://user:password@host:1883` · `mqtts://…` | topic `plant/press/temp` (no wildcards) | Reads the **last value** the device sent. A topic that has not arrived yet shows "Waiting for a value" |
+| MQTT | `mqtt://host:1883` · `mqtts://…` | topic `plant/press/temp` (no wildcards) | Reads the **last value** the device sent. A topic that has not arrived yet shows "Waiting for a value". For a broker that wants a login, turn on "Login required" (8-1) — never put the user name and password in the address |
 
 The Modbus and MQTT notation follows the W3C WoT bindings (used by the AID), and the tool reads them itself without external libraries (read only — it never writes to the machine).
 Vendor-specific protocols such as LS XGT FEnet are not supported yet — enable the machine's Modbus TCP or OPC UA server instead.
@@ -705,7 +705,22 @@ Without an AID, the right pane shows **"Create collection link"**.
 
 1. **① Endpoint of the machine (PLC)** — e.g. `opc.tcp://192.168.0.50:4840` · `modbus+tcp://192.168.0.20:502/1` · `mqtt://broker:1883`. **This is not the address the tool itself serves on (8-6)** — the tool blocks that
 2. **"Load from equipment"** (OPC UA) — connects to the machine and browses its tags. Current values and data types are shown so you can check what each one is. Nothing is changed. Modbus TCP and MQTT have no browse; add them by hand or by pattern in step 3
+   - Once an address is entered, a **how to connect** line appears below it (2.8.0). OPC UA has **"Security mode"** (None · Sign · SignAndEncrypt) and **"Security policy"** (Basic256Sha256 · Aes128_Sha256_RsaOaep · Aes256_Sha256_RsaPss), OPC UA and MQTT have **"Login required"**, and every protocol has **"Read period (s)"**. "Load from equipment" connects with the chosen security and login too — a machine without a None endpoint can be browsed
+
+   ![How to connect — security mode, login, read period](images/manual/en/m42-aid-security.png)
+
+   - **The user name and password are not entered on this screen.** The equipment file only records that a login is needed; the values go into the server's `OPCUA_CLIENT_CREDENTIALS` file (shared by OPC UA and MQTT — [integration.md](integration.md) settings table) and, with a remote collector, into `credentials.json` on the factory PC — **keyed by the endpoint**
+   - A user name or password in the address (`mqtt://user:password@host`) shows a warning and locks "Create". **"Take it out and turn on Login required"** removes it from the address and turns on "Login required". A link made like this in an earlier version is left out of the remote collector list, and rule `AID-1` warns about it
+
+   ![Password in the address](images/manual/en/m44-aid-password-warning.png)
+
+   - Sign and SignAndEncrypt use the server's certificate folder (`OPCUA_CLIENT_PKI_DIR`). A machine certificate seen for the first time is refused and put in `rejected` — move it to `trusted/certs`, or for a test only start the server with `OPCUA_CLIENT_TRUST=first-use`
+   - An empty "Read period (s)" uses the server default (5 s for a remote collector, `COLLECT_INTERVAL` for automatic collection). 0.1 – 3600 s. A remote collector reads at that period; automatic collection on the server keeps only periods longer than `COLLECT_INTERVAL` (8-4)
 3. Tick the tags you need and click **"Add N selected"**. To type them in, use "+ Enter manually" (tag name · NodeId `ns=1;s=Machine.MotorSpeed` · unit)
+   - Every row has a **unit** field (optional, UCUM codes: rpm · Cel · bar · L/min · kW)
+   - A Modbus register row has a **byte and word order** field — `ABCD` (high first, default) · `CDAB` (words swapped) · `BADC` (bytes swapped) · `DCBA` (both swapped). If floats or 32-bit integers come out as nonsense, pick the order the device manual gives
+
+   ![Modbus order, unit and read period](images/manual/en/m43-aid-modbus-order.png)
    - For many tags of the same shape, use **"+ Many from a pattern"** — name template (`Zone{i}_Temp`) · address template (`ns=1;s=Zone{n:2}.Temp`, `{n}` for Modbus) · start · end · step. `{n}` is the number (from start, by step), `{i}` is the position (from 1), `{n:2}` pads the number with zeros to two digits
 
    ![Many from a pattern](images/manual/en/m38-tag-pattern.png)
@@ -714,7 +729,7 @@ Without an AID, the right pane shows **"Create collection link"**.
 > **Note:** name tags **the same as the model elements (idShort).** Then they land in the right place when served through the standard API (8-5).
 > If names do not match, the tool tells you how many of the tags match a model element.
 
-With an existing link, use "Edit link" to change it, or "Delete link" if you no longer need it (values already collected are kept).
+With an existing link, use "Edit link" to change it, or "Delete link" if you no longer need it (values already collected are kept). "Edit link" opens filled in with the current address, security, read period and tags, units and order included (2.8.0) — change one thing and press "Create".
 
 ### 8-2. Collecting
 
@@ -725,12 +740,16 @@ Click **"Collect"** to read immediately; the table shows the latest values and t
 | Status | Meaning |
 |---|---|
 | (green) **Connected** | The last collection connected and read successfully |
-| (yellow) **Connected · N bad tag(s)** | Connected, but some tags could not be read (NodeId typo etc.). That row shows **"Read failed — reason"** |
+| (yellow) **Connected · N bad tag(s)** | Connected, but some tags could not be read (NodeId typo etc.). That row shows **"Read failed — reason"**. Automatic collection shows "Connected (auto) · N bad tag(s)", a remote collector "Receiving · N bad tag(s)" |
 | (red) **Connection failed** | Could not reach the server — address or firewall |
 | (grey) **Not collected yet** | Never connected yet |
 | "Waiting for a value" | Connected and read, but no value has arrived yet — **this is not a fault** |
 
 The status is **the result of the last real connection attempt** — nothing is guessed. Times are this PC's local time.
+
+**Why a read failed is stored with the values** (2.8.0). A tag that automatic collection or a remote collector could not read still shows "Read failed — reason" on its row after the screen is opened again. Protocols without a quality code, Modbus and MQTT, show the reason too (e.g. Modbus `IllegalDataAddress` — no such register). A failed read is not a value: it does not count as live, and it is not used for values placed on the model (8-5) or for state detection.
+
+![A stored read failure](images/manual/en/m45-collect-read-failed.png)
 "Address list" exports the current table as CSV — the list you hand over for commissioning and acceptance.
 
 #### Value freshness — live · stale · no value
@@ -793,6 +812,7 @@ node scripts/plc-simulator.mjs 14850 --from press-01.aasx --from welder-02.aasx
 ### 8-4. Automatic collection · cleaning up old values
 
 With `COLLECT_INTERVAL=30` (seconds) the server collects every 30 seconds while it runs (*"Automatic collection on — every 30 s · last …"*).
+A collection link with a longer "Read period (s)" is read only when that period has passed (e.g. 600 s → every 10 minutes). A shorter period is read every `COLLECT_INTERVAL` — for short periods use a remote collector or lower `COLLECT_INTERVAL`.
 With `COLLECT_RETENTION_DAYS=180`, older values are deleted (Docker default 180 days; started directly, values are kept forever). The model is not touched.
 Age is judged by **the time this tool received the value** — a constant tag keeps an old equipment timestamp, so judging by equipment time would delete values just received.
 
@@ -877,6 +897,9 @@ machines of an approved list and sends to this server over HTTPS — outbound on
 3. **Paste the one line into a terminal on the factory Linux PC** — download, hash check, install, register and start
    in one go.
 4. Done when the screen shows the PC's name and **"Receiving"**. Values come into this file's "Collect" pane every 10 s.
+
+An MQTT broker that wants a login ("Login required") is read by **collector 1.0.2 or later** — 1.0.1 and earlier do not use
+`credentials.json` for MQTT, connect anonymously and are refused by the broker (code 4).
 
 After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
 revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and

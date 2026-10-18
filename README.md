@@ -67,10 +67,13 @@ months whenever machines change. Evidence and sources: [docs/background.md](docs
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 – 2.7
+## What's new in 2.3 – 2.8
 
 | Feature | Release | Detail |
 |---|---|---|
+| **Security and login on collection links** | 2.8.0 | "Create collection link" picks the OPC UA security mode (Sign · SignAndEncrypt) and policy, and "Login required" for OPC UA and MQTT. The user name and password never go into the equipment file — they stay in the server's credentials file and the factory PC's `credentials.json`, keyed by the endpoint. "Load from equipment" connects with the chosen security and login. An old MQTT link with a password in its address is left out of the remote collector list and rule `AID-1` says so (MQTT login needs collector 1.0.2 or later) |
+| **Why a read failed is kept** | 2.8.0 | Automatic collection and remote collectors store the reason with the value. The row keeps "Read failed — reason" after the screen is opened again, and Modbus and MQTT, which have no quality code, show it too |
+| **Units, Modbus order, read period** | 2.8.0 | A unit on every tag row, byte and word order (ABCD · CDAB · BADC · DCBA) on Modbus rows and a read period per machine, all on the screen. Remote collectors read at that period, and "Edit link" opens filled in with the current link |
 | **One-click remote collector** | 2.7.0 | **Settings → Remote collectors → "+ Connect a collector"** — check the server address and the read list, press one button, and you get one line to paste on the factory Linux PC. That line downloads, checks the hash, installs, registers and approves; the screen turns to "Receiving" the moment the PC connects. The same screen shows the last batch, values received and machine connections, and pauses, resumes or revokes. Admins turn remote collection on right there (servers with `EDGE` empty) |
 | **VEXPLOR Edge, its own open source** | 2.7.0 | The remote collector now ships from its own repository [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge) (Apache-2.0) with its own version (1.0.0). The canonical contract `vexplor.edge/1` lives there; this server receives it as is |
 | **Collect pane refreshes itself** | 2.7.0 | With a file that has a collection link open, values come in every 10 s, and while a remote collector's values arrive the connection shows "Receiving" |

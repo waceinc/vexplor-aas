@@ -1381,7 +1381,7 @@ export const EN_MORE: Record<string, string> = {
   '기본': 'Default',
   '이 설비를 몇 초마다 읽을지 — 비우면 서버 기본값(원격 수집기 5초, 서버 자동 수집은 COLLECT_INTERVAL). 0.1 ~ 3600초': 'How often to read this equipment, in seconds — empty uses the server default (5 s for a remote collector, COLLECT_INTERVAL for automatic collection). 0.1 – 3600 s',
   '사용자 이름 · 암호는 이 화면에 넣지 않습니다. 서버의 {0} 파일과 공장 PC 의 {1} 에 이 주소({2})로 적으십시오 — 설비 파일에는 「로그인이 필요하다」는 것만 남습니다.': 'The user name and password are not entered here. Write them under this address ({2}) in the server\'s {0} file and in {1} on the factory PC — the equipment file only records that a login is needed.',
-  'Sign · SignAndEncrypt 는 서버의 인증서 폴더(OPCUA_CLIENT_PKI_DIR)를 씁니다. 설비 인증서를 처음 볼 때는 거절되니, rejected 폴더의 인증서를 trusted/certs 로 옮기거나 OPCUA_CLIENT_TRUST=first-use 로 띄우십시오.': 'Sign and SignAndEncrypt use the server\'s certificate folder (OPCUA_CLIENT_PKI_DIR). A device certificate seen for the first time is refused — move it from the rejected folder to trusted/certs, or start the server with OPCUA_CLIENT_TRUST=first-use.',
+  'Sign · SignAndEncrypt 는 서버의 인증서 폴더(OPCUA_CLIENT_PKI_DIR)를 사용합니다. 설비 인증서를 처음 볼 때는 거절되니, rejected 폴더의 인증서를 trusted/certs 로 옮기거나 OPCUA_CLIENT_TRUST=first-use 로 띄우십시오.': 'Sign and SignAndEncrypt use the server\'s certificate folder (OPCUA_CLIENT_PKI_DIR). A device certificate seen for the first time is refused — move it from the rejected folder to trusted/certs, or start the server with OPCUA_CLIENT_TRUST=first-use.',
   '읽기 주기는 {0} ~ {1}초 사이의 숫자로 적습니다.': 'Enter the read period as a number between {0} and {1} seconds.',
   'ABCD — 상위 먼저(기본)': 'ABCD — high first (default)',
   'CDAB — 워드 바꿈': 'CDAB — words swapped',
@@ -1392,4 +1392,6 @@ export const EN_MORE: Record<string, string> = {
   '태그 {0} 단위': 'Tag {0} unit',
   '단위(선택) — UCUM 표기: rpm · Cel · bar · L/min · kW': 'Unit (optional) — UCUM codes: rpm · Cel · bar · L/min · kW',
   '주소에 사용자 이름 · 암호가 들어 있습니다 — 원격 수집기 목록에서 빠집니다. 「연결수정」에서 떼고 「로그인 필요」를 켜십시오.': 'The address carries a user name and password — it is left out of the remote collector list. In "Edit link", take them out and turn on "Login required".',
+
+  '연결됨 (자동) · 나쁜 태그 {0}': 'Connected (auto) · {0} bad tag(s)',
 };

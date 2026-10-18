@@ -1921,4 +1921,4 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .add-aid .aid-connection-line input:not([type='checkbox']) { width: 88px; }
 .add-aid .aid-connection .self-warn { margin-top: 0; }
 .picked-list li .unit-input { flex: 0 0 72px; min-width: 0; }
-.picked-list li.modbus select:nth-of-type(3) { width: 168px; }
+.picked-list li.modbus select:nth-of-type(3) { width: 208px; }

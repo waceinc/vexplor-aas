@@ -51,3 +51,11 @@ describe('a stored read failure', () => {
     expect(connectionStatus('Modbus', undefined, undefined, 'pkg_1', latestValues([good]), now)).toEqual({ kind: 'ok', label: '받는 중' });
   });
 });
+
+describe('automatic collection with a tag it could not read', () => {
+  it('is connected with bad tags, not plain "connected (auto)"', () => {
+    const auto = { running: true, intervalMs: 10_000, lastSweep: { startedAt: at, collected: 1, results: [{ packageId: 'pkg_1', collected: 1, errors: [] }] } } as never;
+    expect(connectionStatus('Modbus', undefined, auto, 'pkg_1', latestValues([failed, good]), now)).toEqual({ kind: 'warn', label: '연결됨 (자동) · 나쁜 태그 1' });
+    expect(connectionStatus('Modbus', undefined, auto, 'pkg_1', latestValues([good]), now)).toEqual({ kind: 'ok', label: '연결됨 (자동)' });
+  });
+});

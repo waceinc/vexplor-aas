@@ -69,6 +69,9 @@ export function connectionStatus(
   if (mine) {
     if (mine.errors.some((message) => message.startsWith(`${name}:`)))
       return { kind: 'bad', label: tr('접속 실패 (자동)') };
+    // Tags the automatic cycle could not read keep their reason (2.8.0) — counted like the bad tags of a run on screen
+    const failing = freshFailures(name, latest, nowMs, receivingMs);
+    if (mine.collected > 0 && failing > 0) return { kind: 'warn', label: fill(tr('연결됨 (자동) · 나쁜 태그 {0}'), { 0: failing }) };
     if (mine.collected > 0) return { kind: 'ok', label: tr('연결됨 (자동)') };
   }
   // (3) Fresh values without this server reading them — a remote collector (VEXPLOR Edge) is sending them (2.7.0).
@@ -84,6 +87,15 @@ export function connectionStatus(
   if (failed > 0) return { kind: 'warn', label: fill(tr('받는 중 · 나쁜 태그 {0}'), { 0: failed }) };
   if (fresh > 0) return { kind: 'ok', label: tr('받는 중') };
   return { kind: 'idle', label: tr('수집 전') };
+}
+
+/** Latest rows of this interface that are a stored read failure (2.8.0) and still within the window */
+function freshFailures(name: string, latest: ReadonlyMap<string, CollectedValueView> | undefined, nowMs: number, windowMs: number): number {
+  let count = 0;
+  for (const [key, value] of latest ?? []) {
+    if (key.startsWith(`${name}/`) && value.error !== undefined && nowMs - Date.parse(value.receivedAt ?? value.observedAt) <= windowMs) count += 1;
+  }
+  return count;
 }
 
 /** What happened to each tag in the last collection — waiting for value · read failure (reason) */

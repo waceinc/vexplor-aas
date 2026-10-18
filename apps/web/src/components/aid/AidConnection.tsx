@@ -115,7 +115,7 @@ export function AidConnection({ protocol, endpoint, setEndpoint, security, setSe
         </p>
       )}
       {mode !== 'None' && (
-        <p className="hint">{tr('Sign · SignAndEncrypt 는 서버의 인증서 폴더(OPCUA_CLIENT_PKI_DIR)를 씁니다. 설비 인증서를 처음 볼 때는 거절되니, rejected 폴더의 인증서를 trusted/certs 로 옮기거나 OPCUA_CLIENT_TRUST=first-use 로 띄우십시오.')}</p>
+        <p className="hint">{tr('Sign · SignAndEncrypt 는 서버의 인증서 폴더(OPCUA_CLIENT_PKI_DIR)를 사용합니다. 설비 인증서를 처음 볼 때는 거절되니, rejected 폴더의 인증서를 trusted/certs 로 옮기거나 OPCUA_CLIENT_TRUST=first-use 로 띄우십시오.')}</p>
       )}
       {badPeriod && <p className="hint warn">{fill(tr('읽기 주기는 {0} ~ {1}초 사이의 숫자로 적습니다.'), { 0: 0.1, 1: 3600 })}</p>}
     </div>

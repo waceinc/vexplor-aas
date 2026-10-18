@@ -10,7 +10,12 @@
  * that the rest of the collection keeps going when it happens.
  *
  * Usage: node scripts/plc-simulator.mjs [port]
+ *        node scripts/plc-simulator.mjs [port] --user operator:secret
  *        node scripts/plc-simulator.mjs [port] --from machine1.aasx --from machine2.aasx …
+ *
+ * With `--user name:password` the roll-forming demo refuses anonymous sessions and offers only Sign and SignAndEncrypt
+ * (Basic256Sha256 and newer) — to try "Login required" and a security mode in "Create collection link" (2.8.0).
+ * Client certificates are accepted on first sight, which a real PLC would not do.
  *
  * With `--from`, tags are created **after the names in those machines' OperationalData** (2026-09-30).
  * Imitates the N machines of a reference bundle at one address — one object per machine, tag name = model idShort.
@@ -20,11 +25,12 @@
 import { readFileSync } from 'node:fs';
 import { readAasx } from '@aas/aasx';
 import { SimulatorServer } from '@aas/opcua';
-import { DataType, OPCUAServer, StatusCodes, Variant } from 'node-opcua';
+import { DataType, MessageSecurityMode, OPCUACertificateManager, OPCUAServer, SecurityPolicy, StatusCodes, Variant } from 'node-opcua';
 
 const args = process.argv.slice(2);
 const sources = args.flatMap((arg, index) => (args[index - 1] === '--from' ? [arg] : []));
-const port = Number(args.find((arg, index) => /^\d+$/.test(arg) && args[index - 1] !== '--from') ?? 14840);
+const port = Number(args.find((arg, index) => /^\d+$/.test(arg) && args[index - 1] !== '--from' && args[index - 1] !== '--user') ?? 14840);
+const login = args.flatMap((arg, index) => (args[index - 1] === '--user' ? [arg] : []))[0];
 const started = Date.now();
 const seconds = () => (Date.now() - started) / 1000;
 
@@ -50,10 +56,21 @@ if (sources.length > 0) {
 
 /** The original roll-forming machine demo — started when no arguments are given (chapter 7 of the usage guide uses this address) */
 async function rollFormingDemo() {
+const [user, password] = login ? [login.slice(0, login.indexOf(':')), login.slice(login.indexOf(':') + 1)] : [];
+const secured = login
+  ? {
+      securityModes: [MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt],
+      securityPolicies: [SecurityPolicy.Basic256Sha256, SecurityPolicy.Aes128_Sha256_RsaOaep, SecurityPolicy.Aes256_Sha256_RsaPss],
+      allowAnonymous: false,
+      userManager: { isValidUser: (name, secret) => name === user && secret === password },
+      serverCertificateManager: new OPCUACertificateManager({ automaticallyAcceptUnknownCertificate: true }),
+    }
+  : {};
 const server = new OPCUAServer({
   port,
   resourcePath: '/UA/RollFormingMachine',
   buildInfo: { productName: 'Roll Forming Machine Simulator', buildNumber: '1', buildDate: new Date(0) },
+  ...secured,
 });
 await server.initialize();
 const addressSpace = server.engine.addressSpace;
@@ -105,7 +122,7 @@ variable('BrokenSensor', 's=Machine.BrokenSensor', 'Double', () => StatusCodes.B
 
 await server.start();
 
-console.log('Virtual PLC (OPC UA) is up.');
+console.log(login ? `Virtual PLC (OPC UA) is up — Sign / SignAndEncrypt only, user ${user}.` : 'Virtual PLC (OPC UA) is up.');
 console.log(`  Endpoint: opc.tcp://127.0.0.1:${port}/UA/RollFormingMachine`);
 console.log('  Tags: MotorSpeed · LineSpeed · MotorTemperature · ProductionCount · AlarmActive · MachineState · BrokenSensor (faulty)');
 console.log('  Press Ctrl+C to stop');

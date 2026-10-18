@@ -68,7 +68,7 @@ Pushing (webhooks, MQTT), state detection and master-data notifications start on
 | `INTEGRATION_NO_PROXY` | — | Targets that go direct even with a proxy (same syntax as `AAS_INTEGRATION_ALLOW`) |
 | `OPCUA_CLIENT_PKI_DIR` | `<AAS_DATA_DIR>/opcua-client-pki`, else `./opcua-client-pki` | The collector's OPC UA certificate store. Security mode, policy and whether a user name is needed come from the AID (AID 1.1 `securityDefinitions`). An unknown server certificate is refused and kept in `rejected/` until moved to `trusted/certs` |
 | `OPCUA_CLIENT_TRUST` | — | `first-use` accepts a server certificate the first time it is seen |
-| `OPCUA_CLIENT_CREDENTIALS` | — | JSON file `{ "<endpoint>": { "userName", "password" } }` for servers whose AID asks for a user name. Passwords never go into the AAS |
+| `OPCUA_CLIENT_CREDENTIALS` | — | JSON file `{ "<endpoint>": { "userName", "password" } }` for equipment whose AID asks for a user name. Shared by OPC UA and, from 2.8.0, MQTT brokers with "Login required" (key e.g. `mqtt://10.0.0.7:1883`). "Load from equipment" logs in with it too. Passwords never go into the AAS |
 | `EDGE` | empty | Empty: an admin turns it on in Settings → Remote collectors (off until then). `on` always on, `off` always off (docs/edge-install.md) |
 | `AAS_PUBLIC_URL` (existing) | — | Public address; event `dataschema`, links and document URLs become absolute when set |
 

@@ -101,7 +101,12 @@ What to read, already resolved from the AAS by the server. Response **200** `vex
   interface's for that tag.
 - `security` — `mode` (`None` · `Sign` · `SignAndEncrypt` for OPC UA; `None` · `TLS` otherwise), optional `policy`, and
   optional `credentialRef`. **The list never carries a password or a key.** `credentialRef` names a credential the
-  installer stored on the edge machine; the edge looks it up locally.
+  installer stored on the edge machine; the edge looks it up locally. AAS Studio puts the endpoint in `credentialRef`
+  when the AID asks for a login (OPC UA UserName, and from 2.8.0 an MQTT login). An interface whose address carries a
+  user name or password (`mqtt://user:password@host`) is not listed.
+- AAS Studio turns the read period an AID form states (`modv_pollingTime`; `vxp_pollingTime` for OPC UA and MQTT, in
+  ms) into `intervalMs` (2.8.0): the interface's when every tag states the same value, otherwise each tag's own.
+  `intervals` on the approve API comes before it.
 
 An interface whose protocol the edge does not support is skipped and reported in the next batch's `status`.
 
@@ -130,7 +135,9 @@ Request `vexplor.edge.batch/1`:
 - `seq` — integer from 1, +1 for every new batch within the boot. **(device, `bootId`, `seq`) is the idempotency key.**
 - `readListRevision` — the list the values were read with.
 - `createdAt`, `samples[]` — `tagId`, `observedAt` (device time when known, else read time), `receivedAt` (when the
-  edge read it), `value` (number, string, boolean or null), optional `quality` and `error`.
+  edge read it), `value` (number, string, boolean or null), optional `quality` and `error`. From AAS Studio 2.8.0 the
+  `error` is stored with the value and shown on that tag's row as "Read failed — reason" (earlier versions dropped it).
+  The contract itself is unchanged.
 - optional `status` — `startedAt`, `queuedBatches`, `droppedBatches`, `software`, and per interface `connected` and
   `lastError`. A batch with no samples is a valid heartbeat.
 
