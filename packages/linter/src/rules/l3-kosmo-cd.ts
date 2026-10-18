@@ -270,7 +270,7 @@ export const kosmoCd5Duplicate: Rule = {
             ? fill(tr('같은 이름의 표준 사전 항목이 {0}곳에 있습니다: {1}'), { 0: indices.length, 1: idShort })
             : fill(tr('idShort가 같은 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: idShort }),
           remedy: allExternal
-            ? tr('🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.')
+            ? tr('고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.')
             : tr('서로 다른 개념이면 idShort를 구분하고, 같은 개념이면 하나로 합치십시오.'),
           fixable: false,
           ...(allExternal

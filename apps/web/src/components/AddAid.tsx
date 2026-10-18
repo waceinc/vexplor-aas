@@ -128,7 +128,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
         conflicted.length > 0 ? fill(tr(' · 모델에 이미 있어 그대로 연결: {0}'), { 0: conflicted.join(', ') }) : '';
       const misses =
         result.nameMisses.length > 0
-          ? fill(tr(' · ⚠ 모델과 이름이 안 맞는 태그 {0}개(표의 「모델연결」 열 참조)'), { 0: result.nameMisses.length })
+          ? fill(tr(' · 주의 — 모델과 이름이 안 맞는 태그 {0}개(표의 「모델연결」 열 참조)'), { 0: result.nameMisses.length })
           : '';
       onDone(fill(tr('수집 연결을 {0}{1}{2}{3}'), { 0: result.replaced ? tr('바꿨습니다') : tr('만들었습니다'), 1: made, 2: clash, 3: misses }));
     } catch (caught) {
@@ -221,7 +221,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
               {tr('+ 패턴으로 여러 개')}
             </button>
             {misses > 0 && (
-              <span className="hint warn"><T k={'⚠ {0}개는 모델에 없는 이름 — {1}'} v={[misses, makeElements ? tr('자리를 함께 만듭니다') : tr('값이 밖으로 안 나갑니다')]} />
+              <span className="hint warn"><T k={'주의 — {0}개는 모델에 없는 이름 — {1}'} v={[misses, makeElements ? tr('자리를 함께 만듭니다') : tr('값이 밖으로 안 나갑니다')]} />
               </span>
             )}
           </div>

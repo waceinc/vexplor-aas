@@ -25,6 +25,8 @@ export const EN_BUNDLE: Record<string, string> = {
   '{0} (공정 구성 — 사전 점검)': '{0} (process structure — pre-check)',
   '{0} (사전 점검)': '{0} (pre-check)',
   '# 데이터 연계 — 확인할 점': '# Data linkage — points to check',
+  '[확인]': '[Check]',
+  '[참고]': '[Note]',
   '분석 대상: 설비 {0}대의 OperationalData · 공통 항목(2대 이상) {1}개':
     'Analyzed: OperationalData of {0} machines · {1} common items (shared by 2 or more)',
   '분석에서 빠진 설비(파일 없음): {0}': 'Machines left out of the analysis (no file): {0}',
@@ -49,7 +51,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '아래 설비마다 작성한 가이던스를 넣습니다. 참조모델과 **같은 버전**이어야 합니다.':
     'Add the guidance written for each machine below. It must have **the same version** as the reference model.',
   '샘플 데이터 (KPI 산출용)': 'Sample data (for KPI calculation)',
-  '- 🔴 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).':
+  '- 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).':
     '- Add real data only **after company consent and de-identification** (it is published on GitHub).',
   '- 가상 PLC 데이터는 파일명과 본문에 **「시뮬레이션」** 을 표기합니다.':
     '- Mark virtual PLC data as **"simulation"** in the file name and the content.',
@@ -76,11 +78,11 @@ export const EN_BUNDLE: Record<string, string> = {
   '| 파일 | 버전 | SHA256(앞 12자) | 원본 | 사전 점검 |': '| File | Version | SHA256 (first 12) | Original | Pre-check |',
   '| {0} | {1}.{2} | `{3}` | {4} | {5} · 경고 {6} |': '| {0} | {1}.{2} | `{3}` | {4} | {5} · {6} warnings |',
   '올린 파일 그대로': 'As uploaded',
-  '⚠ 도구에서 고쳐 다시 포장': 'Edited in the tool and repackaged',
+  '도구에서 고쳐 다시 포장': 'Edited in the tool and repackaged',
   통과: 'Passed',
   '위반 {0}': '{0} violations',
   '**파일이 없는 설비(예정)**: {0} — 번들 완성 전에 채웁니다.': '**Machines without a file (planned)**: {0} — fill them in before the bundle is complete.',
-  '> ⚡ **시연본 포함**: {0} — 수집 연결(AID)이 붙어 있습니다.': '> **Includes demo copies**: {0} — a collection link (AID) is attached.',
+  '> **시연본 포함**: {0} — 수집 연결(AID)이 붙어 있습니다.': '> **Includes demo copies**: {0} — a collection link (AID) is attached.',
   '> 정식 번들에는 수집 연결이 없는 **원본 참조모델**을 넣으십시오.': '> For the official bundle, include the **original reference models** without collection links.',
   '## 실동작 증빙': '## Operation evidence',
   '> 이전 번들({0} v{1})에서 **이어받은 수집 기록**입니다 — 이번에 새로 모은 값은 없습니다.':
@@ -96,8 +98,8 @@ export const EN_BUNDLE: Record<string, string> = {
     '1. Start the AAS authoring tool (installed edition) and open this ZIP with **"Open bundle"** — the notice bar shows the hash match',
   '2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 만들고 수집 연결을 만듭니다':
     '2. Open a machine in the process tree and press **"Connect a virtual PLC"** in the collection panel on the right — the built-in virtual PLC (simulation) creates tags named after the machine\'s operational data and makes a collection link',
-  '3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오':
-    '3. Press **"Collect"** and values come in (connected). To leave the original untouched, first make a unit with "Split by unit" and do it there',
+  '3. **「수집」**을 누르면 값이 들어옵니다(상태 「연결됨」). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오':
+    '3. Press **"Collect"** and values come in (status "Connected"). To leave the original untouched, first make a unit with "Split by unit" and do it there',
   '## 사람이 넣은 문서': '## Documents added by people',
   '| 파일 | 크기 |': '| File | Size |',
   '아직 없습니다 — Use-Case 문서와 장비별 가이던스를 해당 폴더에 넣으십시오(도구 「레퍼런스 번들 → 문서·첨부」에서 올리면 다시 열어도 보존됩니다).':

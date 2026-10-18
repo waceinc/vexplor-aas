@@ -73,7 +73,7 @@ export function InspectorFacts({ node, busy, trail, linkedFileName, onClose, onS
         </button>
       )}
       {linkedFileName && (
-        <p className="linked-banner"><T k={'🔗 <b>{0}</b> 파일의 요소입니다 — 저장하면 <b>그 파일이</b> 바뀝니다. 지적(위반)은 그 파일을 열었을 때 보입니다.'} v={[linkedFileName]} /></p>
+        <p className="linked-banner"><T k={'<b>{0}</b> 파일의 요소입니다 — 저장하면 <b>그 파일이</b> 바뀝니다. 지적(위반)은 그 파일을 열었을 때 보입니다.'} v={[linkedFileName]} /></p>
       )}
       {trail && trail.length > 0 && (
         <div className="trail">

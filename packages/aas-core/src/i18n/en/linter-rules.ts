@@ -336,7 +336,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Standard dictionary entries with the same name exist in {0} places: {1}',
   'idShort가 같은 ConceptDescription이 {0}건 있습니다: {1}':
     '{0} ConceptDescriptions have the same idShort: {1}',
-  '🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.':
+  '고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.':
     'Do not fix this. Different standard dictionaries (IEC CDD, ECLASS, etc.) gave the same name to the same concept, and each is referenced by a different submodel. Merging them would leave one side no longer pointing to its standard dictionary.',
   '서로 다른 개념이면 idShort를 구분하고, 같은 개념이면 하나로 합치십시오.':
     'If they are different concepts, give them distinct idShorts; if they are the same concept, merge them into one.',

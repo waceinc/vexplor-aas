@@ -519,7 +519,7 @@ export async function buildBundle(
   const linkage = await linkageFor(store, resolved);
   // i18n-ignore — submission package folder/file name (spec structure)
   put(`${FOLDERS.linkage}/연계항목_초안.csv`, linkageCsv(linkage));
-  const findingLines = linkage.findings.map((f) => `- ${f.severity === 'warning' ? '⚠' : 'ℹ'} ${f.message}`);
+  const findingLines = linkage.findings.map((f) => `- ${f.severity === 'warning' ? tr('[확인]') : tr('[참고]')} ${f.message}`);
   put(
     // i18n-ignore — submission package folder/file name (spec structure)
     `${FOLDERS.linkage}/연계_확인사항.md`,
@@ -573,7 +573,7 @@ export async function buildBundle(
     // i18n-ignore — submission package folder/file name (spec structure)
     `${FOLDERS.samples}/_작성안내.md`,
     pendingNote(tr('샘플 데이터 (KPI 산출용)'), [
-      tr('- 🔴 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).'),
+      tr('- 실데이터는 **기업 동의·비식별화 후**에만 넣습니다(GitHub 공개 대상).'),
       tr('- 가상 PLC 데이터는 파일명과 본문에 **「시뮬레이션」** 을 표기합니다.'),
     ]),
   );
@@ -658,7 +658,7 @@ export async function buildBundle(
             1: m.version ?? '-',
             2: m.revision ?? '-',
             3: m.sha256.slice(0, 12),
-            4: m.original ? tr('올린 파일 그대로') : tr('⚠ 도구에서 고쳐 다시 포장'),
+            4: m.original ? tr('올린 파일 그대로') : tr('도구에서 고쳐 다시 포장'),
             5: m.lint.passed ? tr('통과') : fill(tr('위반 {0}'), { 0: m.lint.error }),
             6: m.lint.warning,
           }),
@@ -669,7 +669,7 @@ export async function buildBundle(
       ...(models.some((m) => m.demo)
         ? [
             '',
-            fill(tr('> ⚡ **시연본 포함**: {0} — 수집 연결(AID)이 붙어 있습니다.'), {
+            fill(tr('> **시연본 포함**: {0} — 수집 연결(AID)이 붙어 있습니다.'), {
               0: [...new Set(models.filter((m) => m.demo).map((m) => m.sourceName))].join(', '),
             }),
             tr('> 정식 번들에는 수집 연결이 없는 **원본 참조모델**을 넣으십시오.'),
@@ -707,7 +707,7 @@ export async function buildBundle(
       '',
       tr('1. AAS 저작 도구(설치판)를 띄우고 **「번들 열기」**로 이 ZIP을 엽니다 — 알림 띠에 해시 일치가 나옵니다'),
       tr('2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 만들고 수집 연결을 만듭니다'),
-      tr('3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오'),
+      tr('3. **「수집」**을 누르면 값이 들어옵니다(상태 「연결됨」). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오'),
       '',
       tr('## 사람이 넣은 문서'),
       '',

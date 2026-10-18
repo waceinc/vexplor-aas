@@ -75,7 +75,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
     'An unknown dataType cannot be expressed without a unit — enter the unit manually.',
   '{0} dataType은 단위를 빼고 표현할 수 없습니다 — 단위를 직접 넣으십시오.':
     'dataType {0} cannot be expressed without a unit — enter the unit manually.',
-  '단위를 모르므로 dataType을 {0} → {1}로 낮췄습니다. 🔴 실제로 단위가 있는 측정값이라면 unit을 넣고 {0}로 되돌리십시오.':
+  '단위를 모르므로 dataType을 {0} → {1}로 낮췄습니다. 주의 — 실제로 단위가 있는 측정값이라면 unit을 넣고 {0}로 되돌리십시오.':
     'The unit is unknown, so dataType was downgraded from {0} to {1}. Important: if this is a measured value that has a unit, enter the unit and change the dataType back to {0}.',
   '대상 Property를 찾을 수 없습니다.': 'The target Property could not be found.',
   'semanticId가 없습니다. KOSMO-SME-3을 먼저 고치십시오.': 'There is no semanticId. Fix KOSMO-SME-3 first.',
@@ -178,8 +178,8 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '값 동기화': 'Value synchronization',
   'A안 — 파일(AASX)이 원본. 수집값은 시계열에만 쌓이고 모델로 되쓰지 않는다':
     'Option A — the AASX file is the source of truth. Collected values go only to the time series and are not written back to the model',
-  '🔴 공식 판정 주체. 오류 0건이 기준이다': 'Official verdict authority. The criterion is zero errors',
-  '🔴 합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다':
+  '공식 판정 주체. 오류 0건이 기준이다': 'Official verdict authority. The criterion is zero errors',
+  '합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다':
     'Pass/fail authority (standard). Its verdict can differ from KOSMO — AASd-120 is an example',
   '이 도구의 린터': "This tool's linter",
   '미리 걸러 주는 사전 점검. 위 둘을 대신하지 않는다': 'A pre-submission check that screens in advance. It does not replace the two above',

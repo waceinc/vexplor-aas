@@ -759,7 +759,7 @@ describe('Collection screen (M8)', () => {
 
     // When all names match, it finishes in one line with no warning
     const toast = await screen.findByText(/수집 연결을 만들었습니다/);
-    expect(toast.textContent).not.toMatch(/⚠/);
+    expect(toast.textContent).not.toMatch(/주의/);
 
     // Important: the file now has a real AID and parseAid can read it back
     const environment = await store.getEnvironment('pkg_1');
@@ -873,7 +873,7 @@ describe('Collection screen (M8)', () => {
 
     // The item that was not in the model is placed in OperationalData, so the names do not mismatch
     const toast = await screen.findByText(/요소 1개 새로 만듦/);
-    expect(toast.textContent).not.toMatch(/⚠/);
+    expect(toast.textContent).not.toMatch(/주의/);
   });
 
   it('browsing and picking from equipment means no typing NodeIds', async () => {
@@ -915,7 +915,7 @@ describe('Collection screen (M8)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /자리도 함께 만들기/ }));
     fireEvent.click(screen.getByRole('button', { name: /^만들기/ }));
 
-    expect(await screen.findByText(/⚠ 모델과 이름이 안 맞는 태그 1개/)).toBeTruthy();
+    expect(await screen.findByText(/주의 — 모델과 이름이 안 맞는 태그 1개/)).toBeTruthy();
   });
 
   it('with an AID it shows the interface and address', async () => {

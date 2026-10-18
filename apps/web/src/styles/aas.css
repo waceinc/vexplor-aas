@@ -204,7 +204,7 @@ body:has(.splitter:active) { user-select: none; cursor: col-resize; }
 .badge.warning { background: var(--warn); color: var(--on-accent); }
 /* Separating violation/warning by color alone fails for color-blind users and grayscale print — add a text prefix too */
 .badge.error::before { content: '✕ '; }
-.badge.warning::before { content: '⚠ '; }
+.badge.warning::before { content: '! '; }
 .badge.info { background: var(--muted-foreground); color: var(--on-accent); }
 
 .inspector { padding: var(--space-pane); overflow: auto; border-right: 1px solid var(--border); }
@@ -1394,7 +1394,7 @@ table.matrix td.cell.split, .cell-demo.split { color: var(--fail); font-weight: 
 .demo-card li { padding-left: calc(var(--spacing) * 5); position: relative; line-height: var(--leading-relaxed); }
 .demo-card li::before { content: '✓'; position: absolute; left: calc(var(--spacing) * 0.5); color: var(--teal); }
 .demo-card li.locked { color: var(--warn); }
-.demo-card li.locked::before { content: '🔒'; left: 0; font-size: var(--text-xs); }
+.demo-card li.locked::before { content: '✕'; color: var(--warn); }
 
 /* Sign-up consent to personal data collection and use — what, why and for how long, right above the consent field (2026-10-06) */
 .login-form .consent {

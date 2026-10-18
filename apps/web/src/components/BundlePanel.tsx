@@ -138,7 +138,7 @@ export function BundlePanel({ packageId, onOpenPackage, onClose }: Props): React
         />
 
         {demos.length > 0 && (
-          <p className="bundle-demo-note"><T k={'⚡ <b>시연본 {0}대 포함</b> — 수집 연결(AID)이 붙어 있습니다. 시연용으로는 맞지만,<b> 정식 번들</b>에는 연결이 없는 원본 참조모델을 넣으십시오. 내보내면 README와 manifest에도 표시됩니다.'} v={[demos.length]} /></p>
+          <p className="bundle-demo-note"><T k={'<b>시연본 {0}대 포함</b> — 수집 연결(AID)이 붙어 있습니다. 시연용으로는 맞지만,<b> 정식 번들</b>에는 연결이 없는 원본 참조모델을 넣으십시오. 내보내면 README와 manifest에도 표시됩니다.'} v={[demos.length]} /></p>
         )}
 
         {/* At a glance — five numbers */}
