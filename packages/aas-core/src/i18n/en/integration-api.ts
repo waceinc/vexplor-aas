@@ -85,7 +85,7 @@ export const EN_INTEGRATION_API: Record<string, string> = {
     'This port has no authentication (OPCUA_ALLOW_INSECURE=on). Do not expose it outside the plant network.',
 
   // Security review hardening
-  '이전 비밀값이 {0}까지 아직 유효합니다 — 수신 측이 새 비밀값으로 바꿀 시간을 주려고, 그때까지는 다시 바꿀 수 없습니다.':
+  '이전 비밀값이 {0}까지 아직 유효합니다 — 받는 쪽이 새 비밀값으로 바꿀 시간을 두려고 그때까지는 다시 바꿀 수 없습니다.':
     'The previous secret stays valid until {0} so the receiver has time to switch — the secret cannot be rotated again before then.',
   '전송이 끝난 기록(성공·실패)만 다시 보낼 수 있습니다. 지금 상태: {0}': 'Only finished deliveries (succeeded or dead) can be sent again. Current status: {0}',
   '비밀 키 파일 {0}을(를) 다른 사용자도 읽을 수 있었습니다({1}) — 0600으로 바꿨습니다.':

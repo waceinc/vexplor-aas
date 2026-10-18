@@ -23,7 +23,7 @@ export function RightPane(props: Pick<Screen, 'adding' | 'autoCollect' | 'busy' 
           <div className="collection empty">
             <h3>{tr('← 수집 — 설비에서 받아 오기')}</h3>
             <p className="hint">
-              {tr('새 파일을 만들고 있습니다. 수집 연결은 파일이 만들어진 뒤 이 자리에서 잇습니다.')}
+              {tr('새 파일을 만들고 있습니다. 수집 연결은 파일이 만들어진 뒤 이 자리에서 연결합니다.')}
             </p>
           </div>
         )}

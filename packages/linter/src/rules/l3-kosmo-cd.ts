@@ -148,7 +148,7 @@ export const kosmoCd4DataType: Rule = {
   id: 'KOSMO-CD-4',
   layer: 'L3',
   get title() {
-    return tr('DataType 설정 검사 — 존재 여부 및 KOSMO 허용 목록');
+    return tr('DataType 설정 검사 — 값 유무와 KOSMO 허용 목록');
   },
   get source() {
     return fill(tr('{0} (실측 3·4차 위반)'), { 0: SOURCE });
@@ -228,7 +228,7 @@ export const kosmoCd5Duplicate: Rule = {
           key: cds[i]?.idShort ?? id,
           pointer: `/conceptDescriptions/${i}/id`,
           kosmoPath: `/conceptDescriptions/${i}(${cds[i]?.idShort ?? id})/id`,
-          message: fill(tr('동일한 id를 가진 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: id }),
+          message: fill(tr('id가 같은 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: id }),
           remedy: tr('중복된 CD를 하나로 합치십시오.'),
           fixable: true,
         });
@@ -268,7 +268,7 @@ export const kosmoCd5Duplicate: Rule = {
           kosmoPath: `/conceptDescriptions/${i}(${idShort})/idShort`,
           message: allExternal
             ? fill(tr('같은 이름의 표준 사전 항목이 {0}곳에 있습니다: {1}'), { 0: indices.length, 1: idShort })
-            : fill(tr('동일한 idShort를 가진 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: idShort }),
+            : fill(tr('idShort가 같은 ConceptDescription이 {0}건 있습니다: {1}'), { 0: indices.length, 1: idShort }),
           remedy: allExternal
             ? tr('🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.')
             : tr('서로 다른 개념이면 idShort를 구분하고, 같은 개념이면 하나로 합치십시오.'),

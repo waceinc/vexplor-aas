@@ -194,7 +194,7 @@ export function subscriptionRoutes(rawStore: AasStore, deps: IntegrationRouteDep
           throw new ApiError(
             409,
             'RotationInProgress',
-            fill(tr('이전 비밀값이 {0}까지 아직 유효합니다 — 수신 측이 새 비밀값으로 바꿀 시간을 주려고, 그때까지는 다시 바꿀 수 없습니다.'), { 0: current.secrets.previousUntil }),
+            fill(tr('이전 비밀값이 {0}까지 아직 유효합니다 — 받는 쪽이 새 비밀값으로 바꿀 시간을 두려고 그때까지는 다시 바꿀 수 없습니다.'), { 0: current.secrets.previousUntil }),
           );
         }
         const secret = newSigningSecret();

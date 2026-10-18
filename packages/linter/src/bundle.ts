@@ -203,7 +203,7 @@ export function bundleLinkage(
       kind: 'shared-semantic',
       severity: 'warning',
       message:
-        fill(tr('semanticId 하나를 서로 다른 이름 {0}개가 씁니다: {1}. 같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.'), {
+        fill(tr('semanticId 하나를 서로 다른 이름 {0}개가 함께 사용합니다: {1}. 같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.'), {
           0: item.names.length,
           1: item.names.join(', '),
         }),

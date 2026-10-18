@@ -31,15 +31,15 @@
 
 **AAS는 표준으로는 갖춰졌습니다. 공장에 붙이는 일은 아직 명세서 바깥에 남아 있습니다.**
 
-10년 치 AAS 연구를 정리한 리뷰 논문(IEEE Access, 2025)은 기존 설비 · 시스템과의 통합을 도입을 늦추는
-핵심 과제로 꼽습니다. AAS를 손으로 만드는 부담도 여러 연구가 지적하고, 공개 도구는 편집기 · 서버 ·
+10년 치 AAS 연구를 정리한 리뷰 논문(IEEE Access, 2025)은 기존 설비 · 시스템과의 통합이 도입을 늦추는
+핵심 과제라고 짚습니다. AAS를 손으로 만드는 부담도 여러 연구가 지적하고, 공개 도구는 편집기 · 서버 ·
 라이브러리로 나뉘어 있어 현장 값 수집은 설정 파일로 직접 맞춰야 합니다. VEXPLOR AAS Studio는 이 일을
 소프트웨어가 맡게 해서, AAS가 문서에서 끝나지 않고 **현장 설비의 값이 흐르는 운영 데이터**가 되도록
 만들었습니다.
 
 | 현장에서 부딪히는 일 | VEXPLOR AAS Studio에서 |
 |---|---|
-| 이미 돌고 있는 설비 · PLC에 붙이기 | AAS 안의 AID대로 OPC UA · Modbus TCP · MQTT에서 값을 모읍니다. 원격 수집기는 밖으로만 보내고, PLC 프로그램은 고치지 않습니다 |
+| 이미 가동 중인 설비 · PLC에 붙이기 | AAS 안의 AID대로 OPC UA · Modbus TCP · MQTT에서 값을 모읍니다. 원격 수집기는 밖으로만 보내고, PLC 프로그램은 고치지 않습니다 |
 | AAS를 손으로 만드는 부담 | 다 채운 견본에서 출발하고, 값 표 · CSV로 한 번에 채우며, 규칙 43종이 짚고 19종은 자동으로 고칩니다 |
 | 일마다 나뉜 도구 | 열기 · 고치기 · 검사 · Part 2 REST · 현장 값 수집 · OPC UA 내주기를 화면 하나에서 |
 | 표준을 통과해도 제출처에서 떨어짐 | 국내 제출처 검증기(KOSMO Validator)의 사업 규칙(semanticId 허용 목록 · 필수 서브모델 · 패키지 구조)을 제출 전에 거르고, 표준과 어긋나는 곳은 정책으로 드러내 사용자가 정합니다 |
@@ -81,7 +81,7 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 그
 | **공장 서버 한 번에 설치** | 2.4.0 | Linux 서버 1대에 AAS Studio · 데이터베이스 · 원격 수집기를 명령 하나로 설치하고, 재부팅 뒤 스스로 다시 올라옵니다 ([현장 설치](docs/현장설치.md)) |
 | **수집값 압축 · 집계** | 2.4.0 | TimescaleDB Community Edition에서 7일 지난 값을 압축하고 1분 · 1시간 집계를 만듭니다. 태그 1,000개 · 1초 · 1시간 실측: 1,099 MB → 50 MB |
 | **Logic Studio 연계 안내** | 2.6.0 | **? 도움말 → VEXPLOR Logic Studio에서 쓰기**와 [docs/로직스튜디오.md](docs/로직스튜디오.md): 검사를 마친 AASX 를 내려받아 Logic Studio Cloud 설비 화면에 끌어 놓으면 설비 대장이 됩니다 — 설치도 변환도 없습니다 |
-| **태그 힌트** | 2.5.0 | 읽을 목록의 태그마다 모델 요소의 `semanticId`, 제안 역할(상태 · 카운터 · 알람 · 계량 · 설비 상태 · 품질), 같은 파일의 한계값이 붙어, Logic Studio 같은 받는 쪽이 역할과 SPC 규격 한계를 미리 채워 사람이 확인하게 합니다([계약 §4.1](docs/엣지계약.md)) |
+| **태그 힌트** | 2.5.0 | 읽을 목록의 태그마다 모델 요소의 `semanticId`, 제안 역할(상태 · 카운터 · 알람 · 계량 · 설비 상태 · 품질), 같은 파일의 한계값이 붙습니다. 그래서 Logic Studio 같은 받는 쪽이 역할과 SPC 규격 한계를 미리 채워 두고 사람은 확인하면 됩니다([계약 §4.1](docs/엣지계약.md)) |
 | **서버 없이 읽을 목록 만들기** | 2.3.0 | `@aas/bundle` 의 `aidReadList` 가 AASX 안의 AID에서 수집기가 읽을 태그 목록을 만듭니다 — 다른 제품이 AID 해석기를 따로 만들 필요가 없습니다 |
 
 전체 내용: [Releases](https://github.com/waceinc/vexplor-aas/releases)
@@ -115,8 +115,8 @@ docker compose up -d --build
 [현장설치.md](docs/현장설치.md).
 
 데이터베이스 이미지 `timescale/timescaledb` 는 Tiger Data 의 **TimescaleDB Community Edition** 이며 이 저장소의 라이선스가
-아니라 Timescale License(https://www.tigerdata.com/legal/licenses)가 적용됩니다 — Docker 가 쓰는 쪽 PC 에서 Docker Hub
-로부터 직접 받습니다. `-oss` 이미지는 TimescaleDB Apache-2 Edition 입니다(압축 · 연속 집계 없음).
+아니라 Timescale License(https://www.tigerdata.com/legal/licenses)가 적용됩니다 — 사용하는 쪽 PC 의 Docker 가 Docker Hub
+에서 직접 받습니다. `-oss` 이미지는 TimescaleDB Apache-2 Edition 입니다(압축 · 연속 집계 없음).
 
 ### 소스에서 — Node.js 24 LTS 권장(22 이상이면 동작)
 
@@ -190,12 +190,12 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 
 ## 알아 둘 것
 
-- **인증은 켜야 걸립니다.** 계정도 API 키도 없으면 서버는 스스로 그 컴퓨터에서만 문을 엽니다
-- **OPC UA 내주는 포트(4840)는 계정 로그인과 암호화(Sign · SignAndEncrypt)가 필요합니다.** 기본은 꺼져 있고, `OPCUA_ALLOW_INSECURE=on` 으로 예전의 인증 없는 포트를 켜는 것은 떨어진 시험망에서만 하십시오
+- **인증은 켜야 적용됩니다.** 계정도 API 키도 없으면 서버는 스스로 그 컴퓨터에서만 문을 엽니다
+- **OPC UA 내주는 포트(4840)는 계정 로그인과 암호화(Sign · SignAndEncrypt)가 필요합니다.** 기본은 꺼져 있고, `OPCUA_ALLOW_INSECURE=on` 으로 예전의 인증 없는 포트를 켜는 것은 외부와 분리된 시험망에서만 하십시오
 - 사람이 로그인하기 시작하면 **HTTPS를 앞에 두십시오** — [`Caddyfile.example`](Caddyfile.example)
 - **영어 화면에서 그대로 남는 것**은 내 파일에서 온 이름 · 값과, 제출 구조가 정한 레퍼런스 번들의 폴더 이름뿐입니다
 - 서버 기동 로그는 기본이 한국어이고, `AAS_LANG=en`이면 영어입니다
-- 보안 문제는 공개 이슈가 아니라 [SECURITY.ko.md](SECURITY.ko.md)의 길로 알려 주십시오
+- 보안 문제는 공개 이슈가 아니라 [SECURITY.ko.md](SECURITY.ko.md)에 적힌 방법으로 알려 주십시오
 
 ## 개발에 참여하기
 
@@ -203,12 +203,12 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 bash scripts/ci.sh      # 빌드 → 타입 → 시험 → 규격 대조 → 생성 문서 → 라이선스 → 번역. 올리기 전에 한 번
 ```
 
-CI는 Node.js 22와 24에서 돕니다. [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md)에 약속 몇 가지가 있습니다.
+CI는 Node.js 22와 24에서 실행됩니다. 지켜 주실 약속 몇 가지는 [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md)에 있습니다.
 
 ## 라이선스
 
 [Apache License 2.0](LICENSE). 고쳐 쓰고 상용 제품에 넣어도 됩니다.
 
 Copyright 2026 WACE. 「VEXPLOR」「WACE」 이름과 로고는 WACE의 상표이며 라이선스가 사용을 허락하지 않습니다 — [NOTICE](NOTICE).
-기대어 쓰는 오픈소스는 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)에 있습니다.
+이 프로젝트가 사용하는 오픈소스는 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)에 있습니다.
 `docs/spec/part2/`는 IDTA가 CC BY 4.0으로 발행한 규격 원문입니다.

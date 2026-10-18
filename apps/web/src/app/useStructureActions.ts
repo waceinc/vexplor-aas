@@ -82,7 +82,7 @@ export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'l
           : '') +
         // Important: field test (2026-09-07): the manufacturer and serial number on an imported nameplate are **the source equipment's**, yet with
         //    0 violations it is easy to think it is done. Say here that the values must be changed
-        fill(tr(' — 값은 「{0}」의 것입니다. 트리에서 골라 이 설비 값으로 바꾸십시오.'), { 0: sourceName }),
+        fill(tr(' — 값은 「{0}」에서 가져온 그대로입니다. 트리에서 골라 이 설비 값으로 바꾸십시오.'), { 0: sourceName }),
     );
     await loadPackage(packageId);
   };

@@ -101,7 +101,7 @@ export const pkgThumbnailParts: Rule = {
         key,
         pointer: '/assetAdministrationShells/0/assetInformation/defaultThumbnail',
         kosmoPath: `/assetAdministrationShells/0(${key})/assetInformation/defaultThumbnail`,
-        message: fill(tr('썸네일 {0}에 대해 누락된 항목이 있습니다: {1}'), { 0: normalized, 1: missing.join(', ') }),
+        message: fill(tr('썸네일 {0}에서 빠진 항목이 있습니다: {1}'), { 0: normalized, 1: missing.join(', ') }),
         remedy: tr('세 곳이 모두 있어야 Validator를 통과합니다. 하나라도 빠지면 열리기는 하나 검증에서 떨어집니다.'),
         fixable: true,
       });

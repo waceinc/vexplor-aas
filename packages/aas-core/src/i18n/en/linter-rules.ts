@@ -16,7 +16,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Thumbnail {0} is declared by the extension default (Default .{1}) rather than per file (Override).',
   'OPC 규격상 유효한 선언입니다. 이 도구로 저장하면 파일별 선언이 함께 들어갑니다(writeAasx). Validator가 이 형태를 떨어뜨린 실측은 아직 없습니다.':
     'This declaration is valid under OPC. Saving with this tool also adds a per-file declaration (writeAasx). No Validator run has rejected this form so far.',
-  '썸네일 {0}에 대해 누락된 항목이 있습니다: {1}':
+  '썸네일 {0}에서 빠진 항목이 있습니다: {1}':
     'Thumbnail {0} is missing entries: {1}',
   '세 곳이 모두 있어야 Validator를 통과합니다. 하나라도 빠지면 열리기는 하나 검증에서 떨어집니다.':
     'All three must be present to pass the Validator. If any one is missing, the file still opens but fails validation.',
@@ -44,7 +44,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Only revision is set, without version.',
   'administration에 version을 함께 입력하십시오.':
     'Enter a version in administration as well.',
-  'SelfManagedEntity는 globalAssetId 또는 specificAssetId를 가져야 한다':
+  'SelfManagedEntity에는 globalAssetId 또는 specificAssetId가 있어야 한다':
     'A SelfManagedEntity must have a globalAssetId or a specificAssetId',
   'SelfManagedEntity에 globalAssetId도 specificAssetIds도 없습니다.':
     'The SelfManagedEntity has neither a globalAssetId nor specificAssetIds.',
@@ -72,7 +72,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Use a single value type within the list.',
   '직계 자식들의 semanticId가 서로 다릅니다: {0}종':
     'Direct children have different semanticIds: {0} kinds',
-  '리스트 자식은 모두 같은 semanticId를 가져야 합니다(AASd-114).':
+  '리스트 자식은 semanticId가 모두 같아야 합니다(AASd-114).':
     'All list children must have the same semanticId (AASd-114).',
   '자식의 semanticId가 semanticIdListElement와 다릅니다: {0} (선언값 {1})':
     'Child semanticId differs from semanticIdListElement: {0} (declared {1})',
@@ -102,7 +102,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'From the second key on, keys must be element types such as Property or SubmodelElementCollection (AASd-125).',
   'ExternalReference의 첫 키가 GlobalReference가 아닙니다: {0}':
     'The first key of the ExternalReference is not GlobalReference: {0}',
-  'GlobalReference로 바꾸십시오. Submodel로 두면 AASd-122 위반이며 basyx가 해당 서브모델을 통째로 드롭합니다(실측 7→5).':
+  'GlobalReference로 바꾸십시오. Submodel로 두면 AASd-122 위반이며 basyx가 해당 서브모델을 통째로 버립니다(실측 7→5).':
     'Change it to GlobalReference. Leaving it as Submodel violates AASd-122, and basyx drops the whole submodel (measured: 7 to 5).',
   'ExternalReference의 마지막 키가 GlobalReference가 아닙니다: {0}':
     'The last key of the ExternalReference is not GlobalReference: {0}',
@@ -120,9 +120,9 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'A MEASURE/CURRENCY dataType requires unit or unitId',
   'dataType이 {0}인데 unit도 unitId도 없습니다.':
     'dataType is {0}, but there is neither unit nor unitId.',
-  '단위를 지정하십시오. 무차원 값(개수·비율·역률)이라면 단위를 억지로 붙이지 말고 dataType을 REAL_COUNT / INTEGER_COUNT로 바꾸는 것이 옳습니다.':
+  '단위를 지정하십시오. 무차원 값(개수·비율·역률)이라면 단위를 억지로 붙이지 말고 dataType을 REAL_COUNT / INTEGER_COUNT로 바꿔야 맞습니다.':
     'Specify a unit. For dimensionless values (counts, ratios, power factor), do not force a unit; change dataType to REAL_COUNT / INTEGER_COUNT instead.',
-  'SubmodelElementList 직계 자식은 idShort를 가질 수 없다':
+  'SubmodelElementList 직계 자식에는 idShort를 붙일 수 없다':
     'Direct children of a SubmodelElementList must not have an idShort',
   'AAS V3.0 메타모델 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측':
     'AAS V3.0 metamodel AASd-120 (aas-core-meta v3) · measured with aas-test-engines 1.0.3',
@@ -192,7 +192,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'ArcheType is missing, so the direction in which the hierarchy was written is unknown.',
   'ArcheType Property를 두고 Full · OneDown · OneUp 중 하나를 값으로 넣으십시오.':
     'Add an ArcheType Property with one of Full, OneDown or OneUp as its value.',
-  'ArcheType 값이 규격에 없는 것입니다: {0}':
+  'ArcheType 값이 규격에 없습니다: {0}':
     'The ArcheType value is not defined in the specification: {0}',
   'Full · OneDown · OneUp 중 하나여야 합니다.':
     'It must be one of Full, OneDown or OneUp.',
@@ -214,7 +214,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Part relationship check: every child must have a HasPart relationship',
   '이 자식에 대응하는 HasPart 관계가 없습니다.':
     'There is no HasPart relationship for this child.',
-  'second가 {0}를 가리키는 RelationshipElement를 두어 부모와 이어 주십시오.':
+  'second가 {0}를 가리키는 RelationshipElement를 두어 부모와 연결해 주십시오.':
     'Add a RelationshipElement whose second points to {0} to link it to the parent.',
   '관계가 가리키는 자식이 없습니다: {0}':
     'The child referenced by the relationship does not exist: {0}',
@@ -310,7 +310,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Shown only for reference because the policy (allow-empty) follows KTL §8 (leave empty if there is no definition). The KOSMO Validator treats this as an error.',
   'KTL §8은 임의 입력을 금지하나 KOSMO는 영문 정의를 요구합니다. 정책(require-en)에 따라 위반으로 봅니다.':
     'KTL §8 forbids arbitrary input, but KOSMO requires an English definition. The policy (require-en) treats this as an error.',
-  'DataType 설정 검사 — 존재 여부 및 KOSMO 허용 목록':
+  'DataType 설정 검사 — 값 유무와 KOSMO 허용 목록':
     'DataType check: presence and the KOSMO allow list',
   '{0} (실측 3·4차 위반)':
     '{0} (violated in Validator runs 3 and 4)',
@@ -328,13 +328,13 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Normalize it to STRING. FILE, BLOB and HTML are allowed by AASc-3a-006, but KOSMO is stricter.',
   'ConceptDescription id·idShort 중복 검사':
     'ConceptDescription id and idShort duplicate check',
-  '동일한 id를 가진 ConceptDescription이 {0}건 있습니다: {1}':
+  'id가 같은 ConceptDescription이 {0}건 있습니다: {1}':
     '{0} ConceptDescriptions have the same id: {1}',
   '중복된 CD를 하나로 합치십시오.':
     'Merge the duplicate CDs into one.',
   '같은 이름의 표준 사전 항목이 {0}곳에 있습니다: {1}':
     'Standard dictionary entries with the same name exist in {0} places: {1}',
-  '동일한 idShort를 가진 ConceptDescription이 {0}건 있습니다: {1}':
+  'idShort가 같은 ConceptDescription이 {0}건 있습니다: {1}':
     '{0} ConceptDescriptions have the same idShort: {1}',
   '🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.':
     'Do not fix this. Different standard dictionaries (IEC CDD, ECLASS, etc.) gave the same name to the same concept, and each is referenced by a different submodel. Merging them would leave one side no longer pointing to its standard dictionary.',
@@ -366,7 +366,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Set the Submodel\'s own Id as its semanticId.',
   'ExternalReference의 키 타입이 GlobalReference가 아닙니다: {0}':
     'The key type of the ExternalReference is not GlobalReference: {0}',
-  'GlobalReference로 되돌리십시오. Submodel로 바꾸면 AASd-122/124 위반이 되고 basyx가 해당 서브모델을 예외 없이 통째로 드롭합니다(실측 7→5).':
+  'GlobalReference로 되돌리십시오. Submodel로 바꾸면 AASd-122/124 위반이 되고 basyx가 해당 서브모델을 예외 없이 통째로 버립니다(실측 7→5).':
     'Change it back to GlobalReference. Changing it to Submodel violates AASd-122/124, and basyx drops the whole submodel without exception (measured: 7 to 5).',
   'semanticId가 허용 목록 밖입니다: {0}':
     'semanticId is not on the allow list: {0}',
@@ -402,7 +402,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'This element type is not used in this program: {0}',
   'Property·SubmodelElementCollection 등 표현 가능한 요소로 대체하십시오.':
     'Replace it with an element that can express the same thing, such as Property or SubmodelElementCollection.',
-  'ConceptDescription 매핑 검사 — semanticId 존재 및 동일 id의 CD 존재':
+  'ConceptDescription 매핑 검사 — semanticId 유무와 같은 id의 CD 유무':
     'ConceptDescription mapping check: semanticId exists and a CD with the same id exists',
   '{0} (실측 최다 결함, 3·4차 위반)':
     '{0} (most frequent defect measured; violated in Validator runs 3 and 4)',
@@ -412,7 +412,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'No ConceptDescription matches the semanticId: {0}',
   '표준 템플릿의 용어입니다. 그대로 두십시오 — 자체 CD로 바꾸면 템플릿의 의미가 깨집니다.':
     'This is a standard template term. Leave it as is; replacing it with your own CD breaks the template\'s meaning.',
-  '해당 id를 가진 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.':
+  '그 id의 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.':
     'Create a ConceptDescription with this id, or point it to the id of an existing CD.',
   '정책(preserve) — IDTA·W3C 표준 용어라 교정 대상에서 뺐습니다. KOSMO Validator가 이를 어떻게 판정하는지는 실측 자료가 없으니 Validator로 확인하십시오.':
     'Policy (preserve): excluded from correction because it is an IDTA or W3C standard term. There is no measured data on how the KOSMO Validator judges this, so check it with the Validator.',

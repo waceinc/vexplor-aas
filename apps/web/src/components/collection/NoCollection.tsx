@@ -21,7 +21,7 @@ export function NoCollection({ busy, onCreateAid, onSimulate, t }: Props): React
       <button
         className="primary"
         disabled={busy}
-        title={tr('설비의 접속 주소(OPC UA · Modbus TCP · MQTT)와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 지어 줍니다')}
+        title={tr('설비의 접속 주소(OPC UA · Modbus TCP · MQTT)와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 만들어 줍니다')}
         onClick={onCreateAid}
       >
         {t('수집 연결 만들기')}

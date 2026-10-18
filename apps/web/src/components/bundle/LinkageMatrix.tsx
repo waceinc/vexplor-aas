@@ -68,7 +68,7 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
       <h3><T k={'② 데이터 연계 — 운전 데이터 공통 항목{0}'} v={[<span className="seg">
           <button
           className={scope === 'common' ? 'on' : ''}
-          title={tr('설비 둘 이상이 함께 가진 항목만 봅니다 — 연계에 쓸 수 있는 것들입니다')}
+          title={tr('설비 둘 이상에 공통으로 있는 항목만 봅니다 — 연계에 쓸 수 있는 것들입니다')}
           onClick={() => setScope('common')}
         ><T k={'2대 이상 공통 ({0})'} v={[common]} /></button>
           <button
@@ -84,7 +84,7 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
       ) : rows.length === 0 && columns.length === 1 ? (
         <p className="dim small"><T k={'설비가 <b>1대</b>라 「공통」 항목이 생길 수 없습니다 — 연계는 설비 2대 이상부터 봅니다(계획서: 공정당 3~5대). 「전부」로 이 설비의 운전 데이터 {0}개를 보십시오.'} v={[view?.linkage.items.length ?? 0]} /></p>
       ) : rows.length === 0 ? (
-        <p className="dim small">{tr('2대 이상이 함께 가진 항목이 없습니다 — 「전부」로 설비별 항목을 보십시오.')}</p>
+        <p className="dim small">{tr('2대 이상에 공통으로 있는 항목이 없습니다 — 「전부」로 설비별 항목을 보십시오.')}</p>
       ) : (
         <div className="matrix-wrap">
           <table className="matrix">

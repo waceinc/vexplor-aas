@@ -85,7 +85,7 @@ export const hier1EntryNode: Rule = {
             key: 'ArcheType',
             pointer: `${pointer}/submodelElements`,
             kosmoPath: `${pointer}(${key})/submodelElements/ArcheType`,
-            message: fill(tr('ArcheType 값이 규격에 없는 것입니다: {0}'), { 0: value }),
+            message: fill(tr('ArcheType 값이 규격에 없습니다: {0}'), { 0: value }),
             remedy: tr('Full · OneDown · OneUp 중 하나여야 합니다.'),
             fixable: false,
           });
@@ -207,7 +207,7 @@ export const hier3HasPart: Rule = {
             pointer: `${pointer}/submodelElements`,
             kosmoPath: `${pointer}(${submodel.idShort})/submodelElements/${entry.idShort}/${key}`,
             message: tr('이 자식에 대응하는 HasPart 관계가 없습니다.'),
-            remedy: fill(tr('second가 {0}를 가리키는 RelationshipElement를 두어 부모와 이어 주십시오.'), { 0: key }),
+            remedy: fill(tr('second가 {0}를 가리키는 RelationshipElement를 두어 부모와 연결해 주십시오.'), { 0: key }),
             fixable: false,
           });
         }

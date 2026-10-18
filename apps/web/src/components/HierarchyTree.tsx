@@ -124,7 +124,7 @@ export function HierarchyTree({
               type="button"
               className="act"
               disabled={busy}
-              title={tr('공정을 묶는 층(라인)을 만듭니다 — 회사 → 라인 → 공정 → 설비')}
+              title={tr('공정을 묶는 단계(라인)를 만듭니다 — 회사 → 라인 → 공정 → 설비')}
               onClick={() => open([], 'line')}
             >
               ＋ {t(terms.line)}
@@ -134,7 +134,7 @@ export function HierarchyTree({
             type="button"
             className="act"
             disabled={busy}
-            title={tr('파일 없는 층(공정·라인)을 만듭니다')}
+            title={tr('파일 없는 단계(공정·라인)를 만듭니다')}
             onClick={() => open([], 'group')}
           >
             ＋ {t(terms.group)}

@@ -95,7 +95,7 @@ export const kosmoSme3ConceptMapping: Rule = {
   id: 'KOSMO-SME-3',
   layer: 'L3',
   get title() {
-    return tr('ConceptDescription 매핑 검사 — semanticId 존재 및 동일 id의 CD 존재');
+    return tr('ConceptDescription 매핑 검사 — semanticId 유무와 같은 id의 CD 유무');
   },
   get source() {
     return fill(tr('{0} (실측 최다 결함, 3·4차 위반)'), { 0: SOURCE });
@@ -143,7 +143,7 @@ export const kosmoSme3ConceptMapping: Rule = {
           message: fill(tr('semanticId에 대응하는 ConceptDescription이 없습니다: {0}'), { 0: value }),
           remedy: standard
             ? tr('표준 템플릿의 용어입니다. 그대로 두십시오 — 자체 CD로 바꾸면 템플릿의 의미가 깨집니다.')
-            : tr('해당 id를 가진 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.'),
+            : tr('그 id의 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.'),
           fixable: !standard,
           ...(standard
             ? {

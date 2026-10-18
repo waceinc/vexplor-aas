@@ -61,7 +61,7 @@ export const EN_MORE: Record<string, string> = {
   '예: RollFormingSafety': 'e.g. RollFormingSafety',
   '버전 · 리비전 (administration){0}': 'Version · revision (administration){0}',
   '필수 서브모델 4종 중 하나입니다(KOSMO-AAS-4).': 'This is one of the four mandatory submodels (KOSMO-AAS-4).',
-  '이미 「{0}」이(가) 있습니다 — 같은 이름이 둘이면 어느 것이 맞는 것인지 정해지지 않습니다.':
+  '이미 「{0}」이(가) 있습니다 — 같은 이름이 둘이면 어느 쪽이 맞는지 가릴 수 없습니다.':
     '"{0}" already exists — with two of the same name it is undefined which one is the right one.',
   '지금 {0}종입니다 — 하나 더 넣으면 KOSMO 상한(8종)을 넘어 위반(KOSMO-AAS-4)이 됩니다.':
     'There are {0} now — one more exceeds the KOSMO limit of 8 and becomes an error (KOSMO-AAS-4).',
@@ -222,14 +222,14 @@ export const EN_MORE: Record<string, string> = {
   '같은 자리에 같은 {0}이(가) 이미 있습니다 — 대수를 올리십시오.': 'The same {0} already exists at this position — raise the quantity instead.',
   '이 줄 아래에 설비(또는 부품)를 넣습니다': 'Adds equipment (or a part) under this row',
   '{0} — 올려 둔 파일': '{0} — uploaded file',
-  '{0} — 이름만. 같은 이름으로 파일을 만들면 이어집니다': '{0} — name only. Create a file with the same name and it links up',
+  '{0} — 이름만. 같은 이름으로 파일을 만들면 연결됩니다': '{0} — name only. Create a file with the same name and it links up',
   '{0} — 파일이 열려 있지 않습니다': '{0} — the file is not open',
-  '같은 이름으로 설비 파일을 만들면 저절로 이어집니다': 'Create an equipment file with the same name and it links up automatically',
-  '이 설비 파일이 올라와 있지 않습니다 — 올리면 이어집니다': 'This equipment file has not been uploaded — upload it and it links up',
+  '같은 이름으로 설비 파일을 만들면 저절로 연결됩니다': 'Create an equipment file with the same name and it links up automatically',
+  '이 설비 파일이 올라와 있지 않습니다 — 올리면 연결됩니다': 'This equipment file has not been uploaded — upload it and it links up',
   '파일 안 열림': 'File not open',
-  '{0}을(를) 빼면 그 밑 {1}은(는) 한 층 위로 올라옵니다': 'Removing {0} moves the {1} below it up one level',
+  '{0}을(를) 빼면 그 밑 {1}은(는) 한 단계 위로 올라옵니다': 'Removing {0} moves the {1} below it up one level',
   '이 목록에서 뺍니다 — 파일은 지워지지 않습니다': 'Removes it from this list — the file is not deleted',
-  '파일 없는 층(공정·라인)을 만듭니다': 'Creates a level without a file (process, line)',
+  '파일 없는 단계(공정·라인)를 만듭니다': 'Creates a level without a file (process, line)',
   '설비(또는 부품)를 넣습니다': 'Adds equipment (or a part)',
   // ── Collection — field value collection ──────────────────────────────────────────
   '이 설비 파일을 엽니다 — 지금 보는 공정 파일 대신 그 파일로 바뀝니다':
@@ -246,7 +246,7 @@ export const EN_MORE: Record<string, string> = {
   '열기 →': 'Open →',
   '🔴 연결하면 그 설비 파일에 수집 연결(AID)이 더해져 <b>시연본</b>이 됩니다. 원본 참조모델은 그대로 두고 「호기별로 나누기」로 만든 호기에서 연결하는 것을 권합니다. 모은 값은 「레퍼런스 번들」의 <b>실동작 증빙</b>으로 실립니다.':
     '🔴 Connecting adds a collection link (AID) to that equipment file and turns it into a <b>demo copy</b>. Keep the original reference model as it is, and connect from the units created by "Split into units" instead. Collected values are included in the reference bundle as <b>operation evidence</b>.',
-  '설비의 OPC UA 주소와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 지어 줍니다':
+  '설비의 OPC UA 주소와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 만들어 줍니다':
     'Enter the equipment\'s OPC UA address and tags, and an AID submodel is built to the specification (IDTA-02017)',
   '도구 안의 가상 PLC가 이 설비의 운전 데이터 이름대로 값을 흉내 냅니다 — 시연·재현용이며 값은 시뮬레이션입니다':
     'The built-in virtual PLC imitates values under this equipment\'s operational data names — for demos and reproduction; the values are simulated',
@@ -286,7 +286,7 @@ export const EN_MORE: Record<string, string> = {
   '회사·공정으로 설비들을 묶는 파일 — 설비 상세는 담지 않고 주소로 가리킵니다':
     'A file that groups equipment by company or process — it holds no equipment detail and refers to it by address',
   '그룹(회사/공정)': 'Group (company/process)',
-  '여러 설비·공정을 담는 단위입니다 — 회사·공정·라인 무엇이든 이름으로 정해집니다. 설비 내용은 각 설비 파일에 있고, 이 파일은 그것을 잇습니다.':
+  '여러 설비·공정을 담는 단위입니다 — 회사·공정·라인 무엇이든 이름으로 정해집니다. 설비 내용은 각 설비 파일에 있고, 이 파일은 그것을 연결합니다.':
     'A unit that holds several pieces of equipment or processes — company, process or line, whatever the name says. Equipment content lives in each equipment file; this file links them.',
   '설비 한 대의 AAS입니다. 필수 서브모델 4종이 자동으로 들어갑니다.': 'The AAS of one piece of equipment. The four mandatory submodels are added automatically.',
   '① 이름 (회사·공정·라인)': '① Name (company, process, line)',
@@ -318,7 +318,7 @@ export const EN_MORE: Record<string, string> = {
   '이 이름으로 새 파일을 만들어 서버에 올립니다': 'Creates a new file with this name and uploads it to the server',
   만들기: 'Create',
   // ── AddAid — create collection link ──────────────────────────────────────────
-  ' · 요소 {0}개 새로 세움': ' · {0} element(s) newly created',
+  ' · 요소 {0}개 새로 만듦': ' · {0} element(s) newly created',
   ' · 모델에 이미 있어 그대로 연결: {0}': ' · already in the model, linked as is: {0}',
   ' · ⚠ 모델과 이름이 안 맞는 태그 {0}개(표의 「모델연결」 열 참조)': ' · ⚠ {0} tag(s) do not match the model by name (see the "Model link" column)',
   '수집 연결을 {0}{1}{2}{3}': 'Collection link {0}{1}{2}{3}',
@@ -371,7 +371,7 @@ export const EN_MORE: Record<string, string> = {
     'They are created under OperationalData, grouped by these two fields. Existing names are left untouched, and value fields get an example value (the specification treats an empty value as an error).',
   '⚠ 이렇게 만든 항목은 나중에 <b>「연결삭제」로 지워지지 않습니다.</b> 필요 없어지면 트리에서 직접 지워야 합니다.':
     '⚠ Items created this way are <b>not removed by "Delete link"</b> later. When they are no longer needed, delete them in the tree yourself.',
-  '적은 주소와 태그로 AID 서브모델(IDTA-02017)을 규격대로 만듭니다 — 이미 있으면 바꿔치웁니다':
+  '적은 주소와 태그로 AID 서브모델(IDTA-02017)을 규격대로 만듭니다 — 이미 있으면 새로 만든 것으로 바꿉니다':
     'Builds an AID submodel (IDTA-02017) to the specification from the entered address and tags — replaces an existing one',
   '만들기{0}': 'Create{0}',
   ' ({0}개)': ' ({0})',
@@ -459,7 +459,7 @@ export const EN_MORE: Record<string, string> = {
   '최근 30분': 'Last 30 minutes',
   '최근 1시간': 'Last hour',
   '최근 24시간': 'Last 24 hours',
-  '공정 구성 + 설비 AASX + manifest(SHA256) + 폴더 골격을 ZIP 하나로 받습니다':
+  '공정 구성 + 설비 AASX + manifest(SHA256) + 폴더 구조를 ZIP 하나로 받습니다':
     'Downloads the process structure, the equipment AASX files, the manifest (SHA256) and the folder skeleton as one ZIP',
   '번들 내보내기 (.zip)': 'Export bundle (.zip)',
   '⚡ <b>시연본 {0}대 포함</b> — 수집 연결(AID)이 붙어 있습니다. 시연용으로는 맞지만,<b> 정식 번들</b>에는 연결이 없는 원본 참조모델을 넣으십시오. 내보내면 README와 manifest에도 표시됩니다.':
@@ -485,7 +485,7 @@ export const EN_MORE: Record<string, string> = {
     'This process has no equipment yet. Add equipment under "What it consists of".',
   '(최상위)': '(top level)',
   '눌러서 이 설비 파일을 엽니다': 'Click to open this equipment file',
-  '파일이 없습니다 — 같은 이름으로 설비 파일을 만들면 이어집니다': 'No file — create an equipment file with the same name and it links up',
+  '파일이 없습니다 — 같은 이름으로 설비 파일을 만들면 연결됩니다': 'No file — create an equipment file with the same name and it links up',
   '파일 없음': 'No file',
   '수집 연결(AID)이 붙은 시연본입니다 — 정식 번들에는 원본 참조모델을 넣으십시오':
     'A demo copy with a collection link (AID) — use the original reference model in the official bundle',
@@ -495,7 +495,7 @@ export const EN_MORE: Record<string, string> = {
   '✓ 통과 · 경고 {0}': '✓ Pass · {0} warnings',
   '✕ 위반 {0}': '✕ {0} errors',
   '② 데이터 연계 — 운전 데이터 공통 항목{0}': '② Data linkage — common operational data items{0}',
-  '설비 둘 이상이 함께 가진 항목만 봅니다 — 연계에 쓸 수 있는 것들입니다': 'Shows only items shared by two or more equipment — the ones usable for linkage',
+  '설비 둘 이상에 공통으로 있는 항목만 봅니다 — 연계에 쓸 수 있는 것들입니다': 'Shows only items shared by two or more equipment — the ones usable for linkage',
   '2대 이상 공통 ({0})': 'Shared by 2+ ({0})',
   '설비 하나에만 있는 항목까지 모두 봅니다': 'Shows everything, including items found in only one equipment',
   '전부 ({0})': 'All ({0})',
@@ -504,7 +504,7 @@ export const EN_MORE: Record<string, string> = {
   '열린 설비 파일이 없어 분석할 수 없습니다.': 'No equipment file is open, so nothing can be analysed.',
   '설비가 <b>1대</b>라 「공통」 항목이 생길 수 없습니다 — 연계는 설비 2대 이상부터 봅니다(계획서: 공정당 3~5대). 「전부」로 이 설비의 운전 데이터 {0}개를 보십시오.':
     'With only <b>one</b> equipment there can be no "common" items — linkage starts at two (plan: 3–5 per process). Use "All" to see this equipment\'s {0} operational data items.',
-  '2대 이상이 함께 가진 항목이 없습니다 — 「전부」로 설비별 항목을 보십시오.': 'No item is shared by two or more equipment — use "All" to see items per equipment.',
+  '2대 이상에 공통으로 있는 항목이 없습니다 — 「전부」로 설비별 항목을 보십시오.': 'No item is shared by two or more equipment — use "All" to see items per equipment.',
   '항목 (semanticId)': 'Item (semanticId)',
   보유: 'Held by',
   '확인할 점이 있습니다 — 아래 목록': 'There are points to check — see the list below',
@@ -583,7 +583,7 @@ export const EN_MORE: Record<string, string> = {
     ' Note: this equipment has a collection link (AID) — added as ×{0}, the collected values cannot be told apart by unit. If you need per-unit values, split it into one file per unit.',
   '「{0}」을(를) {1} 밑에 넣었습니다.': 'Added "{0}" under {1}.',
   '「{0}」을(를) 넣었습니다.': 'Added "{0}".',
-  '호기별로 넣다 실패: {0}': 'Failed while adding per unit: {0}',
+  '호기별로 넣지 못했습니다: {0}': 'Failed while adding per unit: {0}',
   '{0}_1 … _{1} 파일을 복제해 나눠 넣었습니다 — 서브모델까지 그대로 담겨 있습니다. 호기마다 값·수집 주소를 따로 고치면 됩니다.':
     'Cloned the file into {0}_1 … _{1} and added them — the submodels are copied as they are. Edit the values and collection addresses per unit.',
   '공정 「{0}」을(를) 만들었습니다. 그 줄의 「＋ 설비」로 설비를 넣으십시오.': 'Created the process "{0}". Add equipment with "+ Equipment" on that row.',
@@ -605,7 +605,7 @@ export const EN_MORE: Record<string, string> = {
   ' · 같은 이름의 옛것 {0}건을 지웠습니다': ' · deleted {0} old one(s) with the same name',
   ' · 이름은 「{0}」로 두었습니다': ' · kept the name "{0}"',
   ' · ConceptDescription {0}건 동반': ' · with {0} ConceptDescription(s)',
-  ' — 값은 「{0}」의 것입니다. 트리에서 골라 이 설비 값으로 바꾸십시오.': ' — the values are those of "{0}". Pick them in the tree and change them to this equipment\'s values.',
+  ' — 값은 「{0}」에서 가져온 그대로입니다. 트리에서 골라 이 설비 값으로 바꾸십시오.': ' — the values are those of "{0}". Pick them in the tree and change them to this equipment\'s values.',
   '서브모델 {0}': 'Submodel {0}',
   '요소 {0}': 'Element {0}',
   '{0}을(를) 지웁니다. 잘못 지웠으면 「↶ 되돌리기」(Ctrl+Z)로 돌아옵니다.': 'Delete {0}. If it was a mistake, bring it back with "↶ Undo" (Ctrl+Z).',
@@ -700,7 +700,7 @@ export const EN_MORE: Record<string, string> = {
   '자동으로 고칠 지적이 없습니다 — {0}건은 사람이 판단할 몫입니다(지적 목록 참조)':
     'Nothing to fix automatically — {0} finding(s) need a human decision (see the findings)',
   '자동으로 고칠 지적이 없습니다': 'Nothing to fix automatically',
-  '고칠 수 있는 지적을 규약대로 교정합니다 — 설비 파일 것은 그 설비 파일에 저장됩니다':
+  '고칠 수 있는 지적을 규약대로 교정합니다 — 설비 파일의 교정은 그 설비 파일에 저장됩니다':
     'Fix the fixable findings by the conventions — those of an equipment file are saved to that file',
   '고칠 수 있는 지적(경고 포함)을 규약대로 자동 교정합니다': 'Automatically fix the fixable findings (warnings included) by the conventions',
   '검증 결과서 · 문서용 자료 · 번들을 내보냅니다': 'Export the validation report, document material and bundles',
@@ -744,7 +744,7 @@ export const EN_MORE: Record<string, string> = {
   '밑에 펼쳐진 서브모델·요소는 여기서 바로 고칠 수 있습니다 — 저장하면 이 설비 파일이 바뀝니다.':
     'The submodels and elements expanded below can be edited right here — saving changes this equipment file.',
   '오른쪽 칸': 'Right pane',
-  '새 파일을 만들고 있습니다. 수집 연결은 파일이 만들어진 뒤 이 자리에서 잇습니다.':
+  '새 파일을 만들고 있습니다. 수집 연결은 파일이 만들어진 뒤 이 자리에서 연결합니다.':
     'Creating a new file. The collection link is set up here once the file exists.',
   '내주는 중': 'Serving',
   '내주기 창 닫기': 'Close the serving window',
@@ -866,7 +866,7 @@ export const EN_MORE: Record<string, string> = {
   '회원은 로그인, 처음이면 회원가입. 가입 없이 데모 계정으로도 둘러볼 수 있습니다.': 'Members sign in; newcomers sign up. You can also look around with the demo account without signing up.',
   '회원 — 로그인 이름과 비밀번호를 넣고 「로그인」': 'Members — enter your login name and password, then "Sign in"',
   '처음이면 — 「처음이신가요? 회원가입」. 가입하면 작업한 파일을 내려받을 수 있습니다': 'New here — "New here? Sign up". Members can download their work',
-  '데모 계정 — 공용 계정이라 파일 내려받기와 견본 열기가 막혀 있고, 일정 시간 후 초기화 됩니다': 'Demo account — a shared account: downloads and the sample are locked, and it is reset after a while',
+  '데모 계정 — 공용 계정이라 파일 내려받기와 견본 열기가 막혀 있고, 일정 시간 후 초기화됩니다': 'Demo account — a shared account: downloads and the sample are locked, and it is reset after a while',
   '비밀번호를 5번 틀리면 5분 동안 그 계정으로 로그인할 수 없습니다.': 'After 5 wrong passwords the account is blocked for 5 minutes.',
   '화면 구성': 'Screen layout',
   '머리줄 아래에 트리 · 내용 · 수집 세 칸이 있습니다.': 'Below the header are three panes: tree · content · collection.',
@@ -966,17 +966,17 @@ export const EN_MORE: Record<string, string> = {
   '{0} 반영': 'Apply {0}',
   '고른 {0}줄 반영': 'Apply {0} selected row(s)',
   '라인 「{0}」을(를) 만들었습니다. 그 줄의 「＋ 공정」으로 공정을 넣으십시오.': 'Created line "{0}". Use "+ Process" on that row to add processes.',
-  '공정을 묶는 층(라인)을 만듭니다 — 회사 → 라인 → 공정 → 설비': 'Creates a level that groups processes (a line) — company → line → process → equipment',
+  '공정을 묶는 단계(라인)를 만듭니다 — 회사 → 라인 → 공정 → 설비': 'Creates a level that groups processes (a line) — company → line → process → equipment',
   '라인': 'Line',
   '이 라인 아래에 공정을 만듭니다': 'Creates a process under this line',
-  '라인 — 공정을 묶는 층(회사 바로 밑)': 'Line — a level that groups processes (directly under the company)',
+  '라인 — 공정을 묶는 단계(회사 바로 밑)': 'Line — a level that groups processes (directly under the company)',
   '라인 이름 — 예: BodyLine (Enter로 연달아)': 'Line name — e.g. BodyLine (press Enter to add more)',
   'CSV 값 반영 — 파일 {0}개 중 {1}개 실패: {2}': 'CSV values — {1} of {0} files failed: {2}',
   'CSV 값 {0}개를 파일 {1}개에 반영했습니다 — 파일마다 「되돌리기」로 되돌릴 수 있습니다': 'Applied {0} CSV values to {1} files — use "Undo" in each file to reverse',
   'CSV에서 채우기': 'Fill from CSV',
   'CSV에서 채우기 닫기': 'Close fill from CSV',
   'CSV에서 채우기 — {0}': 'Fill from CSV — {0}',
-  '설비 대장처럼 한 줄에 설비 한 대인 표를 붙여 넣으십시오. 설비 이름 열로 파일을 찾아, 이 서브모델을 가진 파일마다 값을 채웁니다. 빈 칸은 지우지 않습니다.': 'Paste a table with one machine per row, like an equipment register. Files are found by the machine-name column, and values are filled into every file that has this submodel. Empty cells do not clear values.',
+  '설비 대장처럼 한 줄에 설비 한 대인 표를 붙여 넣으십시오. 설비 이름 열로 파일을 찾아, 이 서브모델이 있는 파일마다 값을 채웁니다. 빈 칸은 지우지 않습니다.': 'Paste a table with one machine per row, like an equipment register. Files are found by the machine-name column, and values are filled into every file that has this submodel. Empty cells do not clear values.',
   'CSV 내용': 'CSV content',
   'CSV 파일 고르기': 'Choose a CSV file',
   '열': 'Column',
@@ -996,7 +996,7 @@ export const EN_MORE: Record<string, string> = {
   '못 넣는 줄 {0}개는 건너뜁니다.': '{0} rows that cannot be applied are skipped.',
   '반영 중…': 'Applying…',
   '파일 {0}개에 값 {1}개 반영': 'Apply {1} values to {0} files',
-  '설비 대장 CSV 로 이 서브모델을 가진 여러 설비 파일의 값을 한 번에 채웁니다': 'Fill values in every machine file with this submodel at once from an equipment-register CSV',
+  '설비 대장 CSV 로 이 서브모델이 있는 여러 설비 파일의 값을 한 번에 채웁니다': 'Fill values in every machine file with this submodel at once from an equipment-register CSV',
   'CSV에서 채우기…': 'Fill from CSV…',
   '이 설비': 'This machine',
   '가동': 'Running',
@@ -1035,7 +1035,7 @@ export const EN_MORE: Record<string, string> = {
   '관례 주소(앞자리가 종류)를 레지스터 종류와 0 기준 주소로 바꿉니다': 'Converts a conventional address (first digit = kind) to a register kind and zero-based address',
   '{0} → {1} {2}번': '{0} → {1} #{2}',
   '이 파일에는 아직 수집 연결(AID 서브모델)이 없습니다. 설비의 접속 주소(OPC UA · Modbus TCP · MQTT)와 태그 목록만 있으면 바로 만들 수 있습니다.': 'This file has no collection link (AID submodel) yet. All you need is the equipment address (OPC UA · Modbus TCP · MQTT) and a tag list.',
-  '설비의 접속 주소(OPC UA · Modbus TCP · MQTT)와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 지어 줍니다': 'Enter the equipment address (OPC UA · Modbus TCP · MQTT) and tags to build an AID submodel per the spec (IDTA-02017)',
+  '설비의 접속 주소(OPC UA · Modbus TCP · MQTT)와 태그를 적으면 규격(IDTA-02017)대로 AID 서브모델을 만들어 줍니다': 'Enter the equipment address (OPC UA · Modbus TCP · MQTT) and tags to build an AID submodel per the spec (IDTA-02017)',
   '이름 · 주소 틀과 번호 범위로 같은 꼴의 태그를 여러 개 만듭니다': 'Creates many tags of the same shape from name and address templates and a number range',
   '+ 패턴으로 여러 개': '+ Many from a pattern',
   '이름 틀에 {n} 또는 {i} 가 있어야 이름이 겹치지 않습니다': 'The name template needs {n} or {i} so names do not collide',

@@ -200,7 +200,7 @@ const fixSubmodelSemanticId: Fixer = ({ environment, finding, ledger }) => {
     if (before === 'GlobalReference') return skipped(tr('이미 GlobalReference입니다.'));
     key.type = 'GlobalReference';
     return applied(
-      tr('semanticId 키 타입을 GlobalReference로 되돌렸습니다(basyx 서브모델 드롭 방지).'),
+      tr('semanticId 키 타입을 GlobalReference로 되돌렸습니다(basyx가 서브모델을 버리지 않게).'),
       before,
       'GlobalReference',
     );
@@ -444,7 +444,7 @@ const fixValueTypeMatch: Fixer = ({ environment, finding, policy }) => {
     if (before === valueType) return skipped(tr('이미 일치합니다.'));
     prop.valueType = valueType;
     return applied(
-      fill(tr('외부 표준 사전 CD를 존중해 Property의 valueType을 {0}로 맞췄습니다.'), { 0: valueType }),
+      fill(tr('외부 표준 사전 CD는 그대로 두고 Property의 valueType을 {0}로 맞췄습니다.'), { 0: valueType }),
       before,
       valueType,
     );

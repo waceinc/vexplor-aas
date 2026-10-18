@@ -872,7 +872,7 @@ describe('Collection screen (M8)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^만들기/ }));
 
     // The item that was not in the model is placed in OperationalData, so the names do not mismatch
-    const toast = await screen.findByText(/요소 1개 새로 세움/);
+    const toast = await screen.findByText(/요소 1개 새로 만듦/);
     expect(toast.textContent).not.toMatch(/⚠/);
   });
 

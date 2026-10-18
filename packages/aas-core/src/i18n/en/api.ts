@@ -59,7 +59,7 @@ export const EN_API: Record<string, string> = {
     'The demo account cannot be deleted — without it nobody can get into the public server.',
   '마지막 관리자는 지울 수 없습니다 — 다른 관리자를 먼저 만드십시오.':
     'The last administrator cannot be deleted — create another administrator first.',
-  '데모 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.':
+  '데모 계정은 바꿀 수 없습니다 — 공개 서버에 누구나 이 계정으로 들어옵니다.':
     'The demo account cannot be changed — it is the way into the public server.',
   '마지막 관리자입니다 — 다른 관리자를 먼저 만드십시오. 아무도 계정을 다룰 수 없게 됩니다.':
     'This is the last administrator — create another administrator first. Otherwise nobody could manage accounts.',
@@ -266,7 +266,7 @@ export const EN_API: Record<string, string> = {
   '보존 기간 없음(영구 보관) — 오래된 값을 지우려면 COLLECT_RETENTION_DAYS=<일>':
     'No retention period (kept forever) — to delete old values, COLLECT_RETENTION_DAYS=<DAYS>',
   '수집값 보존 기간 {0}일 — 기동 때 {1}개 정리': 'Collected value retention {0} days — pruned {1} at startup',
-  'OPC UA 노출(M6·M7) — 🔴 **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).':
+  'OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).':
     'OPC UA exposure (M6·M7) — **not enabled.** It is not started on the trial server (the port has no authentication).',
   'OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신':
     'OPC UA exposure (M6·M7) on — opc.tcp://<this server>:{0}/UA/AAS · refreshed every {1} s',
@@ -294,7 +294,7 @@ export const EN_API: Record<string, string> = {
     'Administrators and API keys see everything. Files uploaded before this are read-only for everyone.',
   'OPC UA 노출이 켜져 있습니다 — 그 포트로는 **모든 사람의 값**이 인증 없이 나갑니다.':
     'OPC UA exposure is on — **everyone\'s values** go out on that port without authentication.',
-  '계정도 API 키도 없어 사람을 가를 수 없습니다 — 첫 관리자를 만들기 전까지 파일 요청을 받지 않습니다.':
+  '계정도 API 키도 없어 사람을 구분할 수 없습니다 — 첫 관리자를 만들기 전까지 파일 요청을 받지 않습니다.':
     'No accounts and no API keys, so people cannot be told apart — file requests are refused until the first administrator is created.',
   '스스로 가입할 수 있습니다 — 새 계정의 역할: {0}': 'Self sign-up is open — role of new accounts: {0}',
   'AAS_SIGNUP_ROLE=admin은 받지 않습니다 — 가입하면 누구나 관리자가 됩니다. editor로 둡니다.':

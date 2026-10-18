@@ -345,7 +345,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/0(DigitalNameplate)/submodelElements/9(Markings)</td>
       <td>
         semanticId에 대응하는 ConceptDescription이 없습니다: 0112/2///61360_7#AAS006#001
-        <div class="remedy">해당 id를 가진 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.</div>
+        <div class="remedy">그 id의 ConceptDescription을 생성하거나, 기존 CD의 id를 가리키도록 고치십시오.</div>
         
       </td>
       <td>자동 교정 가능</td>
@@ -497,7 +497,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 </table>
 
 <h2>적용한 규정 해석</h2>
-<p class="sub">KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책으로 갈린다. 어느 쪽을 골랐는지 함께 남긴다.</p>
+<p class="sub">KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책에 따라 판정이 달라진다. 어느 쪽을 골랐는지 함께 남긴다.</p>
 <table>
   <tr><th>① IRI 충돌</th><td>KOSMO 우선 — 화이트리스트 밖 IRI를 위반으로 본다</td></tr>
   <tr><th>② CD 정의</th><td>영문 definition 필수</td></tr>

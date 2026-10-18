@@ -38,7 +38,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   'kind를 Template으로 바꿨습니다.': 'Changed kind to Template.',
   'semanticId 키가 없습니다.': 'The semanticId has no key.',
   '이미 GlobalReference입니다.': 'Already GlobalReference.',
-  'semanticId 키 타입을 GlobalReference로 되돌렸습니다(basyx 서브모델 드롭 방지).':
+  'semanticId 키 타입을 GlobalReference로 되돌렸습니다(basyx가 서브모델을 버리지 않게).':
     'Reverted the semanticId key type to GlobalReference (prevents BaSyx from dropping the submodel).',
   '이미 자신의 id를 가리키고 있습니다.': 'It already points to its own id.',
   'semanticId를 자신의 id({0})로 지정했습니다.': 'Set semanticId to its own id ({0}).',
@@ -85,7 +85,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   'dataType {0}에 대응하는 valueType이 없습니다. 사람이 판단해야 합니다.':
     'No valueType corresponds to dataType {0}. This needs a human decision.',
   '이미 일치합니다.': 'Already consistent.',
-  '외부 표준 사전 CD를 존중해 Property의 valueType을 {0}로 맞췄습니다.':
+  '외부 표준 사전 CD는 그대로 두고 Property의 valueType을 {0}로 맞췄습니다.':
     'Kept the external standard dictionary CD as is and set the Property valueType to {0}.',
   '자체 CD에 IEC 61360 명세가 없습니다. KOSMO-CD-4를 먼저 고치십시오.':
     'The in-house CD has no IEC 61360 data specification. Fix KOSMO-CD-4 first.',
@@ -214,7 +214,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '내용과 조치': 'Finding and remedy',
   교정: 'Fix',
   '적용한 규정 해석': 'Applied rule interpretations',
-  'KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책으로 갈린다. 어느 쪽을 골랐는지 함께 남긴다.':
+  'KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책에 따라 판정이 달라진다. 어느 쪽을 골랐는지 함께 남긴다.':
     'The 5 points where the KTL regulation, the KOSMO Validator and the standard tools disagree are decided by policy. The choices made are recorded here.',
   '① IRI 충돌': '① IRI conflict',
   'KOSMO 우선 — 화이트리스트 밖 IRI를 위반으로 본다': 'KOSMO first — IRIs outside the allowed list are errors',
@@ -267,7 +267,7 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   '… 그 밖 {0}개': '… {0} more',
 
   // ── bundle.ts — data linkage definition table · linkage findings ──────────
-  'semanticId 하나를 서로 다른 이름 {0}개가 씁니다: {1}. 같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.':
+  'semanticId 하나를 서로 다른 이름 {0}개가 함께 사용합니다: {1}. 같은 개념인지 확인하십시오 — 연계 매핑은 semanticId만으로 잡지 말고 경로를 함께 적습니다.':
     'One semanticId is used by {0} different names: {1}. Check that they are the same concept — record the path in the linkage mapping instead of relying on the semanticId alone.',
   '「{0}」 — 이름은 같은데 semanticId가 {1}종입니다. KPI를 모을 때 하나로 볼지 매핑표에서 정하십시오.':
     '"{0}" — the same name has {1} different semanticIds. Decide in the mapping table whether to treat them as one when aggregating KPIs.',

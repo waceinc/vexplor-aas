@@ -79,7 +79,7 @@ export function checkSemanticId(
       notes.push({
         level: 'ok',
         message: COMPOUND_IRDI_RE.test(trimmed)
-          ? t('표준 사전 IRDI 복합형입니다 — 「속성/클래스」를 이은 형식으로, IDTA 템플릿이 리스트 항목에 씁니다.')
+          ? t('표준 사전 IRDI 복합형입니다 — 「속성/클래스」를 연결한 형식으로, IDTA 템플릿이 리스트 항목에 사용합니다.')
           : t('표준 사전 IRDI 형식입니다.'),
       });
     } else {
@@ -91,7 +91,7 @@ export function checkSemanticId(
     if (/-00(#|$)/.test(trimmed)) {
       notes.push({
         level: 'warning',
-        message: t('eCl@ss 말미 -00 코드는 CDP에 존재하지 않습니다. 리프 클래스까지 전개해 재확인하십시오.'),
+        message: t('eCl@ss 끝자리가 -00인 코드는 CDP에 없습니다. 리프 클래스까지 펼쳐 다시 확인하십시오.'),
       });
     }
   } else if (trimmed.startsWith(`${policy.iriBase}/`)) {
@@ -113,7 +113,7 @@ export function checkSemanticId(
   if (!hasConceptDescription && scope === 'element') {
     notes.push({
       level: 'warning',
-      message: t('이 id를 가진 ConceptDescription이 파일에 없습니다. 「자동 고치기」가 규약대로 만들어 줍니다.'),
+      message: t('이 id의 ConceptDescription이 파일에 없습니다. 「자동 고치기」가 규약대로 만들어 줍니다.'),
     });
   }
   return notes;

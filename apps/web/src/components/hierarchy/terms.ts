@@ -44,12 +44,12 @@ export const TERMS = {
   composite: {
     group: tr('공정'),
     asset: tr('설비'),
-    groupMark: tr('공정·라인 — 파일 없는 층'),
+    groupMark: tr('공정·라인 — 파일 없는 단계'),
     groupPlaceholder: tr('공정 이름 — 예: WeldingProcess (Enter로 연달아)'),
     assetPlaceholder: tr('이름만 — 예: PressMachine2'),
     /** Line — the level between company and process. Absent in part composition (equipment) */
     line: tr('라인') as string | undefined,
-    lineMark: tr('라인 — 공정을 묶는 층(회사 바로 밑)'),
+    lineMark: tr('라인 — 공정을 묶는 단계(회사 바로 밑)'),
     linePlaceholder: tr('라인 이름 — 예: BodyLine (Enter로 연달아)'),
     /** "Planned" / "file not opened" badge on equipment without a file — meaning equipment must have its own file */
     fileBadges: true,
@@ -57,7 +57,7 @@ export const TERMS = {
   equipment: {
     group: tr('조립체'),
     asset: tr('부품'),
-    groupMark: tr('조립체·모듈 — 부품을 묶는 층'),
+    groupMark: tr('조립체·모듈 — 부품을 묶는 단계'),
     groupPlaceholder: tr('조립체 이름 — 예: DriveUnit (Enter로 연달아)'),
     assetPlaceholder: tr('부품 이름 — 예: MainMotor'),
     line: undefined as string | undefined,

@@ -119,7 +119,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
       });
       // Important: the notice bar is one line — joining three sentences went over 200 characters and nobody read it (measured in a demo).
       //    Good news stays short; only bad news (what could not be created · mismatched names) is appended. The table on the right shows the details
-      const made = result.elementsAdded?.length > 0 ? fill(tr(' · 요소 {0}개 새로 세움'), { 0: result.elementsAdded.length }) : '';
+      const made = result.elementsAdded?.length > 0 ? fill(tr(' · 요소 {0}개 새로 만듦'), { 0: result.elementsAdded.length }) : '';
       /* elementsConflicted = no new slot was made because another submodel **already has** the same name.
          Matching tag names to model elements (e.g. Nameplate/SerialNumber) is the normal path, so this is not a warning —
          it used to show as a warning sign and led to "why wasn't it created?" (measured in a demo). The value lands on that existing element */
@@ -255,7 +255,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
           <button
             className="primary"
             disabled={busy || working || isOurOwn || filled.length === 0}
-            title={tr('적은 주소와 태그로 AID 서브모델(IDTA-02017)을 규격대로 만듭니다 — 이미 있으면 바꿔치웁니다')}
+            title={tr('적은 주소와 태그로 AID 서브모델(IDTA-02017)을 규격대로 만듭니다 — 이미 있으면 새로 만든 것으로 바꿉니다')}
             onClick={() => void create()}
           >
             {working ? tr('만드는 중…') : fill(tr('만들기{0}'), { 0: filled.length > 0 ? fill(tr(' ({0}개)'), { 0: filled.length }) : '' })}

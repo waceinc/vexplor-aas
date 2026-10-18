@@ -2,7 +2,7 @@
 
 # 기여 안내
 
-고쳐 주시려는 마음에 감사드립니다. 약속은 많지 않습니다.
+고쳐 주시려는 마음에 감사드립니다. 지켜 주실 약속은 많지 않습니다.
 
 ## 시작하기
 
@@ -15,7 +15,7 @@ npx vitest run          # 시험
 bash scripts/ci.sh      # CI와 같은 10단계 — 올리기 전에 한 번
 ```
 
-`npx tsc -b`와 `npx vitest run`을 **동시에 돌리지 마십시오.** 같은 파일을 잡아 서로 막힙니다.
+`npx tsc -b`와 `npx vitest run`을 **동시에 돌리지 마십시오.** 둘이 같은 파일을 잡고 서로를 막습니다.
 
 화면을 보며 고칠 때는 창 두 개로 띄웁니다.
 
@@ -29,7 +29,7 @@ npm run dev:web     # 화면 5173
 ### 1. 시험이 결함을 **실제로 잡는지** 확인합니다
 
 결함을 고쳤다면, 고치기 전 코드에서 그 시험이 **떨어지는지** 한 번 봐 주십시오.
-고쳐도 안 고쳐도 통과하는 시험은 없는 것만 못합니다 — 지켜 주고 있다고 믿게 만들기 때문입니다.
+고쳐도 안 고쳐도 통과하는 시험은 없는 것만 못합니다 — 결함을 막고 있다고 착각하게 하기 때문입니다.
 
 ### 2. 저장소 구현 셋은 **같은 시험**을 통과합니다
 
@@ -43,7 +43,7 @@ DB 표를 바꾸면 `schema.ts`의 `SCHEMA_SQL`(최신 완성형)과 `MIGRATIONS
 npx tsc -b && node scripts/make-rule-list.mjs      # docs/rules.md(영어) · docs/규칙_목록.md(한국어)
 ```
 
-`docs/rules.md` · `docs/규칙_목록.md` · `THIRD-PARTY-NOTICES.md`는 코드에서 뽑아내는 파일입니다. 손으로 고치지 마십시오.
+`docs/rules.md` · `docs/규칙_목록.md` · `THIRD-PARTY-NOTICES.md`는 코드에서 생성하는 파일입니다. 손으로 고치지 마십시오.
 CI가 코드와 어긋났는지 확인합니다.
 
 ### 4. 시험 파일에 **실제 설비 자료를 넣지 않습니다**
@@ -64,7 +64,7 @@ python scripts/scan-fixture-names.py tests/fixtures     # 찾으면 종료코드
 
 ### 6. 사람이 읽는 문장은 모두 번역기를 거칩니다 — 화면도 서버도
 
-이 프로그램은 한국어와 영어로 나갑니다. 한국어 문장 자체가 사전의 열쇠라, 번역이 빠지면 빈칸 대신 한국어 원문이 나옵니다.
+이 프로그램은 한국어와 영어 두 언어로 나옵니다. 한국어 문장이 그대로 사전의 키라서, 번역이 빠지면 빈칸이 아니라 한국어 원문이 보입니다.
 
 ```tsx
 <button title={tr('이 파일 열기')}>{tr('열기')}</button>          // 글자 하나
@@ -91,17 +91,17 @@ margin · padding · gap · 위치에 픽셀 숫자를 쓰지 않습니다. 이�
 node scripts/spacing-scan.mjs --check
 ```
 
-## 표준을 다루는 자리
+## 표준을 다룰 때
 
 - AAS 메타모델은 **V3.0에 고정**돼 있습니다. 3.1의 것을 섞지 말아 주십시오 — 무손실 왕복이 깨집니다
 - Part 2 REST API는 `docs/spec/part2/`의 규격 원문(OpenAPI)이 기준입니다.
   `node scripts/part2-coverage.mjs`가 어긋남을 잡습니다
-- 표준과 제출처 검증기가 부딪히는 자리는 한쪽을 고르지 말고 **정책**으로 드러내 주십시오
+- 표준과 제출처 검증기가 어긋나는 곳은 한쪽을 고르지 말고 **정책**으로 드러내 주십시오
 
 ## 의존성을 더할 때
 
-실행에 딸려 가는 의존성은 허용형 라이선스(MIT · Apache-2.0 · BSD · ISC)만 받습니다.
-GPL · LGPL · AGPL은 받지 않습니다 — 이 프로그램을 Apache-2.0으로 받아 쓰는 사람이 조건을 지킬 수 없게 됩니다.
+실행할 때 필요한 의존성은 허용형 라이선스(MIT · Apache-2.0 · BSD · ISC)만 받습니다.
+GPL · LGPL · AGPL은 받지 않습니다 — 이 프로그램을 Apache-2.0으로 가져다 쓰는 사람이 조건을 지킬 수 없게 됩니다.
 
 ```bash
 node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 종료코드 1
@@ -111,11 +111,11 @@ node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 �
 
 - `bash scripts/ci.sh`가 통과합니다
 - 커밋 글은 **영어**로 적고, 무엇을 바꿨는지보다 **왜**를 먼저 적습니다
-- 보안 문제라면 공개 PR이 아니라 [SECURITY.ko.md](SECURITY.ko.md)의 길로 먼저 알려 주십시오
+- 보안 문제라면 공개 PR이 아니라 [SECURITY.ko.md](SECURITY.ko.md)에 적힌 방법으로 먼저 알려 주십시오
 
 ## 판을 올릴 때
 
-`PRODUCT_VERSION` 이 오르면 같은 릴리스에서 제품을 설명하는 곳을 모두 고칩니다. 아래 가운데 하나라도 옛 판을 보이거나
+`PRODUCT_VERSION` 이 오르면 같은 릴리스에서 제품을 설명하는 곳을 모두 고칩니다. 아래 항목 가운데 하나라도 옛 판이 남아 있거나
 바뀐 내용이 빠져 있으면 릴리스가 끝난 것이 아닙니다.
 
 1. **판 표기** — `packages/aas-core/src/version.ts`, 설치 안내(`docs/install.md` · `docs/설치.md`), 두 README 의 라이브러리
@@ -128,8 +128,8 @@ node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 �
 4. **홈페이지** — wace.me 제품 페이지(한국어 · 영어 · 일본어)와 `gh-pages` 의 공식 프로젝트 페이지(waceinc.github.io/vexplor-aas)의
    판 표기 · 새 기능 · 릴리스 노트 링크 · 화면이 바뀌었으면 캡처. 새 기능 문장은 판을 올리는 사람이 코드로 확인해 직접 씁니다. 매일 점검이 최신
    릴리스와 README · 홈페이지 판을 대조해 다르면 알립니다.
-   검색과 AI 답변은 wace.me 의 두 곳을 더 읽습니다 — 제품 페이지 구조화 데이터의 `softwareVersion` 과 `/opensource` 프로젝트 카드의 판.
-   둘 다 `wace-home/scripts/oss_seo.py` 의 `VERSIONS` 에서 만들어집니다(명령 4개는 사이트 저장소 README). 배포 전에 두 번 돌려
-   두 번째에 바뀌는 것이 없는지 보고, 배포 뒤 바뀐 주소를 IndexNow 로 알립니다.
+   검색 엔진과 AI 답변이 읽는 곳이 wace.me 에 두 군데 더 있습니다 — 제품 페이지 구조화 데이터의 `softwareVersion` 과 `/opensource` 프로젝트 카드의 판.
+   둘 다 `wace-home/scripts/oss_seo.py` 의 `VERSIONS` 에서 만들어집니다(명령 4개는 사이트 저장소 README). 배포 전에 두 번 실행해
+   두 번째 실행에서 바뀌는 것이 없는지 보고, 배포 뒤 바뀐 주소를 IndexNow 로 알립니다.
 
 기여하신 코드는 이 저장소의 [Apache License 2.0](LICENSE)으로 배포됩니다.
