@@ -136,7 +136,7 @@ const EN: Record<string, string> = {
   '아이디': 'ID',
   '데모 계정으로 들어가기': 'Enter with the demo account',
   '열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다': 'Open, edit, validate and quick-fix — all available',
-  '체험판은 일정 시간 후 초기화 됩니다': 'The trial is reset after a while',
+  '체험판은 일정 시간 후 초기화됩니다': 'The trial is reset after a while',
   '견본은 회원가입 후 사용할 수 있습니다.': 'Samples are available after you sign up.',
   '파일 내려받기는 회원가입 후에 됩니다': 'Downloading files requires signing up',
   '또는 내 계정으로 로그인': 'or sign in with your own account',
@@ -275,16 +275,16 @@ const EN: Record<string, string> = {
   '예: mm · kg · °C': 'e.g. mm · kg · °C',
   // semanticId validation messages (model.ts)
   '표준 사전 IRDI 형식입니다.': 'Valid IRDI from a standard dictionary.',
-  '표준 사전 IRDI 복합형입니다 — 「속성/클래스」를 이은 형식으로, IDTA 템플릿이 리스트 항목에 씁니다.':
+  '표준 사전 IRDI 복합형입니다 — 「속성/클래스」를 연결한 형식으로, IDTA 템플릿이 리스트 항목에 사용합니다.':
     'Compound IRDI from a standard dictionary — property/class joined, as IDTA templates use for list items.',
   'IRDI 접두는 맞지만 형식이 표준과 다릅니다. 사전에서 코드를 다시 확인하십시오.':
     'The IRDI prefix is right but the shape is not standard. Check the code in the dictionary again.',
-  'eCl@ss 말미 -00 코드는 CDP에 존재하지 않습니다. 리프 클래스까지 전개해 재확인하십시오.':
+  'eCl@ss 끝자리가 -00인 코드는 CDP에 없습니다. 리프 클래스까지 펼쳐 다시 확인하십시오.':
     'An eCl@ss code ending in -00 does not exist in CDP. Expand to the leaf class and check again.',
   '자체 IRI 규약에 맞습니다.': 'Matches the own-IRI convention.',
   'IDTA 공식 IRI입니다. KOSMO Validator는 이를 거부합니다(규정 충돌 ①).':
     'This is an official IDTA IRI. The KOSMO Validator rejects it (rule conflict ①).',
-  '이 id를 가진 ConceptDescription이 파일에 없습니다. 「자동 고치기」가 규약대로 만들어 줍니다.':
+  '이 id의 ConceptDescription이 파일에 없습니다. 「자동 고치기」가 규약대로 만들어 줍니다.':
     'No ConceptDescription with this id exists in the file. Auto-fix will create one per the convention.',
   // ── Summary pane · BoM · tree (2026-10-02, round 3) ───────────
   '이 파일에 넣기': 'Add to this file',
@@ -308,11 +308,11 @@ const EN: Record<string, string> = {
   '이 설비를 이루는 부품(BoM) — HierarchicalStructures에 들어갑니다':
     'Parts that make up this equipment (BoM) — stored in HierarchicalStructures',
   '올려 둔 설비 .aasx를 이 공정에 넣습니다': 'Puts an uploaded equipment .aasx into this process',
-  '파일 없는 층 — 공정·라인. 회사 바로 밑에 만듭니다':
+  '파일 없는 단계 — 공정·라인. 회사 바로 밑에 만듭니다':
     'A layer without a file — a process or line, created right under the company',
   '이 공정 자체의 내용(명판 등)': 'Content of the process itself (nameplate and so on)',
   '설비 한 대의 AAS — 서브모델과 부품을 넣습니다': 'AAS of one piece of equipment — holds submodels and parts',
-  '공정·회사(묶음)의 AAS — 설비와 층을 넣습니다': 'AAS of a process or company — holds equipment and layers',
+  '공정·회사(묶음)의 AAS — 설비와 공정·라인을 넣습니다': 'AAS of a process or company — holds equipment and layers',
   '공정·회사': 'Process / company',
   설비: 'Equipment',
   '장비 정보 없음': 'No equipment information',
@@ -339,8 +339,8 @@ const EN: Record<string, string> = {
   공정: 'Process',
   조립체: 'Assembly',
   부품: 'Part',
-  '공정·라인 — 파일 없는 층': 'Process or line — a layer without a file',
-  '조립체·모듈 — 부품을 묶는 층': 'Assembly or module — a layer that groups parts',
+  '공정·라인 — 파일 없는 단계': 'Process or line — a layer without a file',
+  '조립체·모듈 — 부품을 묶는 단계': 'Assembly or module — a layer that groups parts',
   '공정 이름 — 예: WeldingProcess (Enter로 연달아)': 'Process name — e.g. WeldingProcess (Enter to add another)',
   '조립체 이름 — 예: DriveUnit (Enter로 연달아)': 'Assembly name — e.g. DriveUnit (Enter to add another)',
   '이름만 — 예: PressMachine2': 'Name only — e.g. PressMachine2',

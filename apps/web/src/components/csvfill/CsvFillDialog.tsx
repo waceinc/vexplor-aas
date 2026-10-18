@@ -105,7 +105,7 @@ export function CsvFillDialog({ submodel, busy, onClose, onDone }: Props): React
   return (
     <Dialog className="wide csv-fill" label={tr('CSV에서 채우기')} onClose={onClose} close={{ text: tr('닫기'), label: tr('CSV에서 채우기 닫기') }}>
       <h3>{fill(tr('CSV에서 채우기 — {0}'), { 0: idShort })}</h3>
-      <p className="hint">{tr('설비 대장처럼 한 줄에 설비 한 대인 표를 붙여 넣으십시오. 설비 이름 열로 파일을 찾아, 이 서브모델을 가진 파일마다 값을 채웁니다. 빈 칸은 지우지 않습니다.')}</p>
+      <p className="hint">{tr('설비 대장처럼 한 줄에 설비 한 대인 표를 붙여 넣으십시오. 설비 이름 열로 파일을 찾아, 이 서브모델이 있는 파일마다 값을 채웁니다. 빈 칸은 지우지 않습니다.')}</p>
       <div className="csv-input">
         <textarea aria-label={tr('CSV 내용')} rows={5} value={text} placeholder={'Name,SerialNumber,YearOfConstruction\nRollFormingMachine_1,SN-0001,2026'} onChange={(event) => setText(event.target.value)} />
         <input type="file" accept=".csv,.txt,text/csv" aria-label={tr('CSV 파일 고르기')} onChange={(event) => void readFile(event.target.files?.[0])} />

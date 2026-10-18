@@ -79,7 +79,7 @@ export function BundleForm({ view, busy, readyCount, code, setCode, title, setTi
         className="primary"
         disabled={busy || !view || readyCount === 0}
         onClick={() => void onExport()}
-        title={tr('공정 구성 + 설비 AASX + manifest(SHA256) + 폴더 골격을 ZIP 하나로 받습니다')}
+        title={tr('공정 구성 + 설비 AASX + manifest(SHA256) + 폴더 구조를 ZIP 하나로 받습니다')}
       >
         {busy ? tr('만드는 중…') : tr('번들 내보내기 (.zip)')}
       </button>

@@ -147,7 +147,7 @@ export const kosmoSm3SemanticId: Rule = {
             kosmoPath: `${kosmoPath}/semanticId`,
             message: fill(tr('ExternalReference의 키 타입이 GlobalReference가 아닙니다: {0}'), { 0: keyType ?? tr('없음') }),
             remedy: tr(
-              'GlobalReference로 되돌리십시오. Submodel로 바꾸면 AASd-122/124 위반이 되고 basyx가 해당 서브모델을 예외 없이 통째로 드롭합니다(실측 7→5).',
+              'GlobalReference로 되돌리십시오. Submodel로 바꾸면 AASd-122/124 위반이 되고 basyx가 해당 서브모델을 예외 없이 통째로 버립니다(실측 7→5).',
             ),
             fixable: true,
           });

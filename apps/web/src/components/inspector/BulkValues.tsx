@@ -81,7 +81,7 @@ export function BulkValues({ node, busy, requirement, collectedNames, onBulkSave
           <button
             className="link csv-open"
             disabled={busy}
-            title={tr('설비 대장 CSV 로 이 서브모델을 가진 여러 설비 파일의 값을 한 번에 채웁니다')}
+            title={tr('설비 대장 CSV 로 이 서브모델이 있는 여러 설비 파일의 값을 한 번에 채웁니다')}
             onClick={() => setCsvOpen(true)}
           >
             {tr('CSV에서 채우기…')}

@@ -73,7 +73,7 @@ export const aasd014Entity: Rule = {
   id: 'AASd-014',
   layer: 'L2',
   get title() {
-    return tr('SelfManagedEntity는 globalAssetId 또는 specificAssetId를 가져야 한다');
+    return tr('SelfManagedEntity에는 globalAssetId 또는 specificAssetId가 있어야 한다');
   },
   get source() {
     return fill(tr('{0} 1장'), { 0: SPEC });
@@ -228,7 +228,7 @@ export const aasdSubmodelElementList: Rule = {
             pointer: `${v.pointer}/value`,
             kosmoPath: v.kosmoPath,
             message: fill(tr('직계 자식들의 semanticId가 서로 다릅니다: {0}종'), { 0: distinct.length }),
-            remedy: tr('리스트 자식은 모두 같은 semanticId를 가져야 합니다(AASd-114).'),
+            remedy: tr('리스트 자식은 semanticId가 모두 같아야 합니다(AASd-114).'),
             fixable: false,
           });
         } else if (declared !== undefined && distinct[0] !== declared) {
@@ -371,7 +371,7 @@ export const aasdReferenceKeys: Rule = {
             kosmoPath,
             message: fill(tr('ExternalReference의 첫 키가 GlobalReference가 아닙니다: {0}'), { 0: first.type }),
             remedy: tr(
-              'GlobalReference로 바꾸십시오. Submodel로 두면 AASd-122 위반이며 basyx가 해당 서브모델을 통째로 드롭합니다(실측 7→5).',
+              'GlobalReference로 바꾸십시오. Submodel로 두면 AASd-122 위반이며 basyx가 해당 서브모델을 통째로 버립니다(실측 7→5).',
             ),
             fixable: true,
           });
@@ -458,7 +458,7 @@ export const aasc3a009UnitRequired: Rule = {
         kosmoPath: `/conceptDescriptions/${i}(${key})/unit`,
         message: fill(tr('dataType이 {0}인데 unit도 unitId도 없습니다.'), { 0: content.dataType }),
         remedy: tr(
-          '단위를 지정하십시오. 무차원 값(개수·비율·역률)이라면 단위를 억지로 붙이지 말고 dataType을 REAL_COUNT / INTEGER_COUNT로 바꾸는 것이 옳습니다.',
+          '단위를 지정하십시오. 무차원 값(개수·비율·역률)이라면 단위를 억지로 붙이지 말고 dataType을 REAL_COUNT / INTEGER_COUNT로 바꿔야 맞습니다.',
         ),
         fixable: true,
       });
@@ -485,7 +485,7 @@ export const aasd120SmlChildIdShort: Rule = {
   id: 'AASd-120',
   layer: 'L2',
   get title() {
-    return tr('SubmodelElementList 직계 자식은 idShort를 가질 수 없다');
+    return tr('SubmodelElementList 직계 자식에는 idShort를 붙일 수 없다');
   },
   get source() {
     return tr('AAS V3.0 메타모델 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측');

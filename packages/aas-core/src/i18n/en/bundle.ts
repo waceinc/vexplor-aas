@@ -94,7 +94,7 @@ export const EN_BUNDLE: Record<string, string> = {
   '### 재현 방법 — 누구나 직접 돌려 볼 수 있습니다': '### How to reproduce — anyone can run it',
   '1. AAS 저작 도구(설치판)를 띄우고 **「번들 열기」**로 이 ZIP을 엽니다 — 알림 띠에 해시 일치가 나옵니다':
     '1. Start the AAS authoring tool (installed edition) and open this ZIP with **"Open bundle"** — the notice bar shows the hash match',
-  '2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 세우고 수집 연결을 만듭니다':
+  '2. 공정 트리에서 설비를 열고, 오른쪽 수집 칸의 **「가상 PLC로 연결」**을 누릅니다 — 도구 안의 가상 PLC(시뮬레이션)가 그 설비의 운전 데이터 이름대로 태그를 만들고 수집 연결을 만듭니다':
     '2. Open a machine in the process tree and press **"Connect a virtual PLC"** in the collection panel on the right — the built-in virtual PLC (simulation) creates tags named after the machine\'s operational data and makes a collection link',
   '3. **「수집」**을 누르면 값이 들어옵니다(🟢 연결됨). 원본을 건드리지 않으려면 먼저 「호기별로 나누기」로 호기를 만들어 그쪽에서 하십시오':
     '3. Press **"Collect"** and values come in (connected). To leave the original untouched, first make a unit with "Split by unit" and do it there',

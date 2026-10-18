@@ -82,9 +82,9 @@ export function readHierarchyItems(
       warnings.push(`${readinessMessage('INT-4')} (${nodeKey(node)} ×${node.bulkCount})`);
     }
     if (level === 'WorkUnit' && globalAssetId === null) warnings.push(tr('WorkUnit 노드에 globalAssetId가 없습니다.'));
-    if (node.depth > 0 && globalAssetId !== null && !holder) warnings.push(tr('이 자산을 가진 파일이 서버에 없습니다.'));
+    if (node.depth > 0 && globalAssetId !== null && !holder) warnings.push(tr('이 자산의 파일이 서버에 없습니다.'));
     if (holders.length > 1) {
-      warnings.push(fill(tr('같은 자산을 가진 파일이 {0}개입니다 — 가장 낮은 패키지 id를 씁니다.'), { 0: holders.length }));
+      warnings.push(fill(tr('같은 자산의 파일이 {0}개입니다 — 패키지 id가 가장 낮은 파일을 씁니다.'), { 0: holders.length }));
     }
     items.push({
       id: nodeKey(node),

@@ -85,7 +85,7 @@ export function useHierarchyActions(c: Pick<Core, 'loadPackage' | 'packageId' | 
     await loadPackage(packageId);
     setNotice(
       failed.length > 0
-        ? fill(tr('호기별로 넣다 실패: {0}'), { 0: failed.join(' · ') })
+        ? fill(tr('호기별로 넣지 못했습니다: {0}'), { 0: failed.join(' · ') })
         : fill(tr('{0}_1 … _{1} 파일을 복제해 나눠 넣었습니다 — 서브모델까지 그대로 담겨 있습니다. 호기마다 값·수집 주소를 따로 고치면 됩니다.'), { 0: base, 1: count }),
     );
   };

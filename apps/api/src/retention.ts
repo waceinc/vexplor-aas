@@ -36,7 +36,7 @@ export function startRetention(
   options: { sweepMs?: number; now?: () => number; onError?: (error: unknown) => void } = {},
 ): RetentionHandle {
   const now = options.now ?? Date.now;
-  const onError = options.onError ?? ((error: unknown) => console.error('  ⚠️  ' + tr('수집값 정리 실패:'), error));
+  const onError = options.onError ?? ((error: unknown) => console.error('  [WARN] ' + tr('수집값 정리 실패:'), error));
   if (days <= 0) return { pruneNow: async () => 0, stop: () => undefined };
 
   const pruneNow = () => store.pruneValues(new Date(now() - days * DAY_MS).toISOString());

@@ -154,7 +154,7 @@ ${
 ${
   policy
     ? `<h2>${escapeHtml(tr('적용한 규정 해석'))}</h2>
-<p class="sub">${escapeHtml(tr('KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책으로 갈린다. 어느 쪽을 골랐는지 함께 남긴다.'))}</p>
+<p class="sub">${escapeHtml(tr('KTL 규정·KOSMO Validator·표준 도구가 서로 어긋나는 5건은 정책에 따라 판정이 달라진다. 어느 쪽을 골랐는지 함께 남긴다.'))}</p>
 <table>
   ${summaryRow(tr('① IRI 충돌'), policy.iriConflict === 'kosmo-first' ? tr('KOSMO 우선 — 화이트리스트 밖 IRI를 위반으로 본다') : tr('IDTA 보존 — 공식 IRI는 경고로만'))}
   ${summaryRow(tr('② CD 정의'), policy.cdDefinition === 'require-en' ? tr('영문 definition 필수') : tr('공란 허용(KTL §8)'))}

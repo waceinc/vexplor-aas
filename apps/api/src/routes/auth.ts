@@ -575,7 +575,7 @@ export function buildAuthRoutes(store: AasStore, options: AuthRouteOptions): Rou
         // Important: not even admins can change the demo account (2026-10-06 security review). Promoting it to admin would make
         //    **anyone** logging in with admin/1234 an admin, and changing its password or locking it closes the public server's door
         if (demoLogin !== undefined && target.login.toLowerCase() === demoLogin) {
-          throw new ApiError(403, 'Forbidden', tr('데모 계정은 바꿀 수 없습니다 — 공개 서버의 입구입니다.'));
+          throw new ApiError(403, 'Forbidden', tr('데모 계정은 바꿀 수 없습니다 — 공개 서버에 누구나 이 계정으로 들어옵니다.'));
         }
         const body = (request.body ?? {}) as Record<string, unknown>;
 

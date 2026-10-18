@@ -40,7 +40,7 @@ export function BundleMembers({ view, members, onOpenPackage }: Props): React.JS
                 className={`bundle-card ${member.packageId ? (member.lint?.passed ? 'ok' : 'bad') : 'planned'}`}
                 disabled={!member.packageId}
                 onClick={() => member.packageId && onOpenPackage(member.packageId)}
-                title={member.packageId ? tr('눌러서 이 설비 파일을 엽니다') : tr('파일이 없습니다 — 같은 이름으로 설비 파일을 만들면 이어집니다')}
+                title={member.packageId ? tr('눌러서 이 설비 파일을 엽니다') : tr('파일이 없습니다 — 같은 이름으로 설비 파일을 만들면 연결됩니다')}
               >
                 <span className="card-name">
                   ⚙ {member.name}

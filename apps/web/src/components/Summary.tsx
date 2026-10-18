@@ -90,7 +90,7 @@ export function Summary({
           title={
             unit === 'equipment'
               ? t('설비 한 대의 AAS — 서브모델과 부품을 넣습니다')
-              : t('공정·회사(묶음)의 AAS — 설비와 층을 넣습니다')
+              : t('공정·회사(묶음)의 AAS — 설비와 공정·라인을 넣습니다')
           }
         >
           {unit === 'equipment' ? t('설비') : t('공정·회사')}
@@ -109,7 +109,7 @@ export function Summary({
         ) : (
           <>
             <button onClick={onAddAsset} title={t('올려 둔 설비 .aasx를 이 공정에 넣습니다')}>{t('＋ 설비')}</button>
-            <button onClick={onAddGroup} title={t('파일 없는 층 — 공정·라인. 회사 바로 밑에 만듭니다')}>{t('＋ 공정')}</button>
+            <button onClick={onAddGroup} title={t('파일 없는 단계 — 공정·라인. 회사 바로 밑에 만듭니다')}>{t('＋ 공정')}</button>
             <button onClick={onAddSubmodel} title={t('이 공정 자체의 내용(명판 등)')}>{t('＋ 서브모델')}</button>
           </>
         )}

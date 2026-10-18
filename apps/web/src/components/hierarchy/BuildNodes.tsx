@@ -63,7 +63,7 @@ export function BuildNodes(props: Props): React.JSX.Element {
                       node.kind === 'file'
                         ? fill(tr('{0} — 올려 둔 파일'), { 0: t(terms.asset) })
                         : node.kind === 'planned'
-                          ? fill(tr('{0} — 이름만. 같은 이름으로 파일을 만들면 이어집니다'), { 0: t(terms.asset) })
+                          ? fill(tr('{0} — 이름만. 같은 이름으로 파일을 만들면 연결됩니다'), { 0: t(terms.asset) })
                           : fill(tr('{0} — 파일이 열려 있지 않습니다'), { 0: t(terms.asset) })
                     }
                   >
@@ -75,12 +75,12 @@ export function BuildNodes(props: Props): React.JSX.Element {
                   )}
                   {node.kind === 'file' && <span className="dim pick-file">{node.fileName}</span>}
                   {node.kind === 'planned' && terms.fileBadges && (
-                    <span className="hier-count planned" title={tr('같은 이름으로 설비 파일을 만들면 저절로 이어집니다')}>
+                    <span className="hier-count planned" title={tr('같은 이름으로 설비 파일을 만들면 저절로 연결됩니다')}>
                       {tr('예정')}
                     </span>
                   )}
                   {node.kind === 'unopened' && terms.fileBadges && (
-                    <span className="hier-count unopened" title={tr('이 설비 파일이 올라와 있지 않습니다 — 올리면 이어집니다')}>
+                    <span className="hier-count unopened" title={tr('이 설비 파일이 올라와 있지 않습니다 — 올리면 연결됩니다')}>
                       {tr('파일 안 열림')}
                     </span>
                   )}
@@ -91,7 +91,7 @@ export function BuildNodes(props: Props): React.JSX.Element {
                 type="button"
                 className="act danger"
                 disabled={busy}
-                title={node.kind === 'group' ? fill(tr('{0}을(를) 빼면 그 밑 {1}은(는) 한 층 위로 올라옵니다'), { 0: t(terms.group), 1: t(terms.asset) }) : tr('이 목록에서 뺍니다 — 파일은 지워지지 않습니다')}
+                title={node.kind === 'group' ? fill(tr('{0}을(를) 빼면 그 밑 {1}은(는) 한 단계 위로 올라옵니다'), { 0: t(terms.group), 1: t(terms.asset) }) : tr('이 목록에서 뺍니다 — 파일은 지워지지 않습니다')}
                 onClick={() => onRemove(here, node)}
               >
                 ✕

@@ -90,11 +90,11 @@ export async function planImport(store: AasStore, rows: readonly ImportRow[], no
     const error = (message: string): void => void plan.errors.push({ row, message });
     const owners = byAsset.get(values['globalAssetId'] ?? '') ?? [];
     if (owners.length === 0) {
-      error(fill(tr('이 globalAssetId를 가진 패키지가 없습니다: {0}'), { 0: values['globalAssetId'] ?? '' }));
+      error(fill(tr('이 globalAssetId의 패키지가 없습니다: {0}'), { 0: values['globalAssetId'] ?? '' }));
       continue;
     }
     if (owners.length > 1) {
-      error(fill(tr('이 globalAssetId를 가진 패키지가 여럿입니다: {0}'), { 0: owners.join(', ') }));
+      error(fill(tr('이 globalAssetId의 패키지가 여럿입니다: {0}'), { 0: owners.join(', ') }));
       continue;
     }
     const packageId = owners[0]!;
