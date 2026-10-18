@@ -186,11 +186,11 @@ exports[`English server text — linter core · report · fixes > Korean (the de
  "verdict": [
   {
    "who": "KOSMO Validator",
-   "role": "🔴 공식 판정 주체. 오류 0건이 기준이다"
+   "role": "공식 판정 주체. 오류 0건이 기준이다"
   },
   {
    "who": "aas-test-engines",
-   "role": "🔴 합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다"
+   "role": "합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다"
   },
   {
    "who": "이 도구의 린터",
@@ -477,7 +477,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/conceptDescriptions/18(ManufacturerName)/idShort</td>
       <td>
         같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
-        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="remedy">고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
         <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
       </td>
       <td>사람 판단</td>
@@ -489,7 +489,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/conceptDescriptions/21(ManufacturerProductDesignation)/idShort</td>
       <td>
         같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerProductDesignation
-        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="remedy">고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
         <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
       </td>
       <td>사람 판단</td>
@@ -712,7 +712,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/conceptDescriptions/18(ManufacturerName)/idShort</td>
       <td>
         같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
-        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="remedy">고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
         <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
       </td>
       <td>사람 판단</td>
@@ -724,7 +724,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/conceptDescriptions/21(ManufacturerProductDesignation)/idShort</td>
       <td>
         같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerProductDesignation
-        <div class="remedy">🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
+        <div class="remedy">고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.</div>
         <div class="policy">※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.</div>
       </td>
       <td>사람 판단</td>
@@ -1013,7 +1013,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 
 [참고] The ConceptDescription "ManufacturerName" violates the L3 rules [KOSMO-CD-5]: @ /conceptDescriptions/18(ManufacturerName)/idShort
 - 같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
-- 🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
+- 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
   ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
 
 ... 외 13건",
@@ -1029,12 +1029,12 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 
 [참고] The ConceptDescription "ManufacturerName" violates the L3 rules [KOSMO-CD-5]: @ /conceptDescriptions/18(ManufacturerName)/idShort
 - 같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerName
-- 🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
+- 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
   ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
 
 [참고] The ConceptDescription "ManufacturerProductDesignation" violates the L3 rules [KOSMO-CD-5]: @ /conceptDescriptions/21(ManufacturerProductDesignation)/idShort
 - 같은 이름의 표준 사전 항목이 2곳에 있습니다: ManufacturerProductDesignation
-- 🔴 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
+- 고치지 마십시오. 서로 다른 표준 사전(IEC CDD·ECLASS 등)이 같은 개념에 같은 이름을 붙인 것이고, 각각 다른 서브모델이 참조합니다. 합치면 한쪽이 표준 사전을 못 가리키게 됩니다.
   ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
 
 [경고] The SubmodelElementCollection "MarkingsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort

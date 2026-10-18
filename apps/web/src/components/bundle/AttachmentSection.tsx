@@ -16,7 +16,7 @@ interface Props {
 
 export function AttachmentSection({ packageId, view, onChanged }: Props): React.JSX.Element {
   /** Errors from attachment actions — do not turn the whole screen into an error */
-  const [note, setNote] = useState<string>();
+  const [note, setNote] = useState<{ text: string; error: boolean }>();
   // i18n-ignore — not screen text but **folder names inside the bundle ZIP**. Translating them would make folders the server does not know
   const [uploadFolder, setUploadFolder] = useState('01_UseCase문서');
   const fileInput = useRef<HTMLInputElement>(null);
@@ -25,10 +25,10 @@ export function AttachmentSection({ packageId, view, onChanged }: Props): React.
     setNote(undefined);
     try {
       await api.putBundleFile(packageId, `${uploadFolder}/${file.name}`, file);
-      setNote(fill(tr('「{0}」을(를) {1}에 넣었습니다 — 번들을 다시 열어도 남습니다.'), { 0: file.name, 1: uploadFolder }));
+      setNote({ text: fill(tr('「{0}」을(를) {1}에 넣었습니다 — 번들을 다시 열어도 남습니다.'), { 0: file.name, 1: uploadFolder }), error: false });
       onChanged();
     } catch (reason) {
-      setNote(`⚠ ${(reason as Error).message}`);
+      setNote({ text: (reason as Error).message, error: true });
     }
   };
   const onRemove = async (path: string): Promise<void> => {
@@ -38,7 +38,7 @@ export function AttachmentSection({ packageId, view, onChanged }: Props): React.
       await api.deleteBundleFile(packageId, path);
       onChanged();
     } catch (reason) {
-      setNote(`⚠ ${(reason as Error).message}`);
+      setNote({ text: (reason as Error).message, error: true });
     }
   };
 
@@ -71,7 +71,7 @@ export function AttachmentSection({ packageId, view, onChanged }: Props): React.
       >
           {tr('파일 넣기…')}
         </button>
-        {note && <span className={note.startsWith('⚠') ? 'error-text small' : 'dim small'}>{note}</span>}
+        {note && <span className={note.error ? 'error-text small' : 'dim small'}>{note.text}</span>}
       </div>
       {attachments.length === 0 ? (
         <p className="dim"><T k={'아직 없습니다. 계획서의 번들 구성은 <b>Use-Case 문서 + 참조모델 + 가이던스</b>입니다 — Use-Case 문서와 장비별 가이던스를 넣으십시오.'} /></p>

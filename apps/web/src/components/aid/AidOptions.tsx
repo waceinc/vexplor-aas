@@ -40,7 +40,7 @@ export function AidOptions({ makeElements, setMakeElements, group, setGroup, sub
             {tr('OperationalData 아래 이 두 칸으로 묶어 만듭니다. 이미 있는 이름은 건드리지 않고, 값 칸에는 예시값이 들어갑니다(규격이 빈 칸을 위반으로 봅니다).')}
           </p>
           {/* Important: the fact that there is no undo must be said **before creating** */}
-          <p className="hint warn"><T k={'⚠ 이렇게 만든 항목은 나중에 <b>「연결삭제」로 지워지지 않습니다.</b> 필요 없어지면 트리에서 직접 지워야 합니다.'} /></p>
+          <p className="hint warn"><T k={'주의 — 이렇게 만든 항목은 나중에 <b>「연결삭제」로 지워지지 않습니다.</b> 필요 없어지면 트리에서 직접 지워야 합니다.'} /></p>
         </>
       )}
     </details>

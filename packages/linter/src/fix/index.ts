@@ -406,7 +406,7 @@ const fixMeasureUnit: Fixer = ({ environment, finding }) => {
   }
   content.dataType = after;
   return applied(
-    fill(tr('단위를 모르므로 dataType을 {0} → {1}로 낮췄습니다. 🔴 실제로 단위가 있는 측정값이라면 unit을 넣고 {0}로 되돌리십시오.'), { 0: before, 1: after }),
+    fill(tr('단위를 모르므로 dataType을 {0} → {1}로 낮췄습니다. 주의 — 실제로 단위가 있는 측정값이라면 unit을 넣고 {0}로 되돌리십시오.'), { 0: before, 1: after }),
     before,
     after,
   );

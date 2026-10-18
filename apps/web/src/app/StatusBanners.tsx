@@ -38,7 +38,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
       {/* Account-deletion confirmation — irreversible. State what stays and what disappears */}
       {props.confirmQuit && (
         <Banner kind="demo-bar" role="alertdialog">
-          ⚠️ <b>{t('정말 탈퇴하시겠습니까?')}</b>{' '}
+          <b>{t('정말 탈퇴하시겠습니까?')}</b>{' '}
           {t('계정과 연락처가 지워집니다. 올린 파일과 변경 이력은 서버에 그대로 남습니다.')}{' '}
           <button className="link" onClick={props.onQuit}>
             {t('탈퇴합니다')}
@@ -57,7 +57,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
       */}
       {props.demoLocked && (
         <Banner kind="demo-bar">
-          🧪 <b>{t('체험판입니다')}</b> —{' '}
+          <b>{t('체험판입니다')}</b> —{' '}
           {t('올린 파일은 다른 방문자에게 보이지 않습니다. 한동안 쓰지 않으면 지워지고, 로그인을 새로 하면 빈 칸에서 시작합니다.')}{' '}
           <button className="link" onClick={props.onSignup}>
             {t('회원가입하면 내려받을 수 있습니다')}
@@ -67,7 +67,7 @@ export function StatusBanners(props: Props): React.JSX.Element {
 
       {props.sampleLocked && (
         <Banner kind="demo-bar" role="alertdialog">
-          🔒 <b>{t('견본은 회원가입 후 사용할 수 있습니다.')}</b>{' '}
+          <b>{t('견본은 회원가입 후 사용할 수 있습니다.')}</b>{' '}
           {props.signupAllowed && (
             <button
               className="link"

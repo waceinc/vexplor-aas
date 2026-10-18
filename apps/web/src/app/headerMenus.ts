@@ -48,7 +48,7 @@ export function fileMenuItems({ t, busy, demoLocked, packages, fileInput, bundle
     },
     {
       // If this lived only on the start screen it could not be reopened once any file exists — it is also the way to restore a deleted sample
-      label: demoLocked ? `🔒 ${t('견본 열기')}` : t('견본 열기'),
+      label: demoLocked ? `${t('견본 열기')} (${t('잠김')})` : t('견본 열기'),
       title: tr('다 채워진 설비 1종과 공정 구성을 열어 둘러봅니다 — 고쳐도 되는 연습용입니다'),
       onClick: () => void onOpenSample(),
       disabled: busy,

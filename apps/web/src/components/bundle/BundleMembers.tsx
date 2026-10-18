@@ -49,7 +49,7 @@ export function BundleMembers({ view, members, onOpenPackage }: Props): React.JS
                 <span className="card-file">{member.fileName ?? tr('파일 없음')}</span>
                 {member.demo && (
                   <span className="card-demo" title={tr('수집 연결(AID)이 붙은 시연본입니다 — 정식 번들에는 원본 참조모델을 넣으십시오')}>
-                    {tr('⚡ 수집 연결 · 시연본')}
+                    {tr('수집 연결 · 시연본')}
                   </span>
                 )}
                 {(member.lint?.aasd120 ?? 0) > 0 && (

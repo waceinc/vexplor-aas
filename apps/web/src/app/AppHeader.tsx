@@ -276,7 +276,7 @@ export function AppHeader({
                   : tr('지금 파일을 .aasx로 내려받습니다')
             }
           >
-            {demoLocked ? `🔒 ${t('AASX 내려받기')}` : t('AASX 내려받기')}
+            {demoLocked ? `${t('AASX 내려받기')} (${t('잠김')})` : t('AASX 내려받기')}
           </button>
           </span>
         </div>

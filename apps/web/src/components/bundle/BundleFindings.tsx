@@ -25,7 +25,7 @@ export function BundleFindings({ view, setFocus }: Props): React.JSX.Element {
               onMouseEnter={() => setFocus(finding.semanticIds[0])}
               onMouseLeave={() => setFocus(undefined)}
             >
-              <span className="badge">{finding.severity === 'warning' ? tr('⚠ 확인') : tr('ℹ 참고')}</span> {finding.message}
+              <span className="badge">{finding.severity === 'warning' ? tr('확인') : tr('참고')}</span> {finding.message}
             </li>
           ))}
         </ul>

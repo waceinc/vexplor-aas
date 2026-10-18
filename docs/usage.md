@@ -138,7 +138,7 @@ There are three panes. Drag the handle between panes to change their width; **sp
 
 | Pane | Contents |
 |---|---|
-| **Left — tree** | Everything in the file: AAS → AssetInformation · submodels → elements · ConceptDescriptions (term definitions). Type names (Property · SubmodelElementList …) are **exactly as in the specification** — the same words as KOSMO findings and Package Explorer, so you can compare them. The `✕ 3` · `⚠ 2` badges count errors and warnings below that node |
+| **Left — tree** | Everything in the file: AAS → AssetInformation · submodels → elements · ConceptDescriptions (term definitions). Type names (Property · SubmodelElementList …) are **exactly as in the specification** — the same words as KOSMO findings and Package Explorer, so you can compare them. The `✕ 3` · `! 2` badges count errors and warnings below that node |
 | **Middle — summary / editor** | With nothing selected: the file summary (counts, verdict) and structure panels. With an element selected: its properties and edit fields |
 | **Right — collection** | Connection status and the current value of each tag (chapter 8). Leave it empty if you do not collect values |
 
@@ -613,7 +613,7 @@ The process file is the backbone of the bundle. In a process file: **Export ▾ 
 | Section | Shows |
 |---|---|
 | Five numbers | Machines (files, planned) · pre-check (+ **standard AASd-120** count) · shared items · points to confirm · evidence of real operation |
-| ① Structure and readiness | A card per machine and process — file, version, pre-check. Dashed = **planned**, ⚡ = a **demo copy** with a collection link |
+| ① Structure and readiness | A card per machine and process — file, version, pre-check. Dashed = **planned**, "Collection link · demo copy" = a **demo copy** with a collection link |
 | ② Data linkage | A **matrix that joins operating data by semanticId** — ● same name · orange ● different name · **≠** same name with different semanticIds (not joined) |
 | ③ Evidence of real operation | Collection records — material that stands in for a live demo (below) |
 | ④ Documents and attachments | Where Use-Case documents, guidance and references go (below) |

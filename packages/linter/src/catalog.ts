@@ -213,11 +213,11 @@ export function ruleCatalog(policy: Partial<LinterPolicy> = {}): RuleCatalog {
   const verdict = [
     {
       who: 'KOSMO Validator',
-      role: tr('🔴 공식 판정 주체. 오류 0건이 기준이다'),
+      role: tr('공식 판정 주체. 오류 0건이 기준이다'),
     },
     {
       who: 'aas-test-engines',
-      role: tr('🔴 합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다'),
+      role: tr('합격 판정 주체(표준). KOSMO와 판정이 다를 수 있다 — AASd-120이 그 예다'),
     },
     {
       who: tr('이 도구의 린터'),

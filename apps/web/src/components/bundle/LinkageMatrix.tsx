@@ -52,7 +52,7 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
     return index;
   }, [view]);
 
-  /** semanticIds with an open point to check — marked ⚠ on the matrix row */
+  /** semanticIds with an open point to check — marked "Check" on the matrix row */
   const flagged = useMemo(() => {
     const map = new Map<string, 'warning' | 'info'>();
     for (const finding of view?.linkage.findings ?? []) {
@@ -110,7 +110,7 @@ export function LinkageMatrix({ view, common, focus, setFocus }: Props): React.J
                     onMouseLeave={() => setFocus(undefined)}
                   >
                     <td className="item-col" title={item.semanticId}>
-                      {flag && <span className={`flag ${flag}`} title={tr('확인할 점이 있습니다 — 아래 목록')}>{flag === 'warning' ? '⚠' : 'ℹ'}</span>}
+                      {flag && <span className={`flag ${flag}`} title={tr('확인할 점이 있습니다 — 아래 목록')}>{flag === 'warning' ? tr('확인') : tr('참고')}</span>}
                       <b>{item.label}</b>
                       {item.unit && <span className="dim"> [{item.unit}]</span>}
                       {item.names.length > 1 && <span className="warn-text">{' '}<T k={'외 {0}'} v={[item.names.slice(1).join(', ')]} /></span>}

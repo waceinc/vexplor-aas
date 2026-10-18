@@ -133,7 +133,7 @@ describe('reference bundle — an English request gives human-readable text in E
     for (const file of HUMAN_FILES) {
       let body = text(file);
       // Finding lines in the linkage checklist are sentences written by the linter (bundleLinkage) — outside this area, so excluded
-      if (file.endsWith('연계_확인사항.md')) body = body.split('\n').filter((line) => !/^- [⚠ℹ] /.test(line)).join('\n');
+      if (file.endsWith('연계_확인사항.md')) body = body.split('\n').filter((line) => !/^- \[(?:Check|Note)\] /.test(line)).join('\n');
       expect({ file, leftovers: leftovers(body, FROM_FILE) }).toEqual({ file, leftovers: [] });
     }
     const readme = text('README.md');

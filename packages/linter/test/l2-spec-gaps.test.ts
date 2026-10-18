@@ -270,7 +270,7 @@ describe('AASd-130 — characters forbidden in XML', () => {
 
   it('Hangul, newlines, tabs and emoji pass', () => {
     const env = submodel([
-      { modelType: 'Property', idShort: 'P', valueType: 'xs:string', value: '줄1\n줄2\t끝 🏭 한글' },
+      { modelType: 'Property', idShort: 'P', valueType: 'xs:string', value: '줄1\n줄2\t끝 \u{1F3ED} 한글' },
     ]);
     expect(hit(env, 'AASd-130')).toHaveLength(0);
   });

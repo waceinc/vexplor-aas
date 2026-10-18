@@ -42,7 +42,7 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     const fresh = opened.files.filter((f) => !f.reused).length;
     const verified = opened.files.filter((f) => f.hashOk === true).length;
     const head = fill(tr('번들 {0} v{1} — 파일 {2}개(새로 {3}) · 해시 일치 {4}/{5}'), { 0: opened.bundle.code ?? '', 1: opened.bundle.version ?? '?', 2: opened.files.length, 3: fresh, 4: verified, 5: opened.files.length });
-    setNotice(opened.problems.length > 0 ? `${head} · ⚠ ${opened.problems.join(' · ')}` : head);
+    setNotice(opened.problems.length > 0 ? `${head} · ${tr('주의')} — ${opened.problems.join(' · ')}` : head);
     if (opened.processPackageId) await loadPackage(opened.processPackageId);
   };
   /**
