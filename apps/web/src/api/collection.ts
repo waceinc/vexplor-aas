@@ -2,7 +2,7 @@
  * API client — collection — connections (AID) · collected values · standard API export · auto collection · OPC UA serving · virtual PLC
  * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
-import type { AidInterfaceView, CollectedValueView, LiveMapping, CycleReportView } from './types.js';
+import type { AidInterfaceView, AidSecurityChoice, CollectedValueView, LiveMapping, CycleReportView } from './types.js';
 import { request } from './http.js';
 
 export const collectionApi = {
@@ -36,6 +36,10 @@ export const collectionApi = {
       endpoint: string;
       title?: string;
       tags: { name: string; href: string; key?: string; type?: string; unit?: string; form?: Record<string, string> }[];
+      /** Security the device wants (2.8.0) — OPC UA mode · policy, a login for OPC UA and MQTT. Never a password */
+      security?: AidSecurityChoice;
+      /** Read period of this connection, ms (2.8.0). Absent: the server's default */
+      intervalMs?: number;
       /** Also create slots in OperationalData for tags missing from the model. If absent, nothing is created */
       createMissing?: { group: string; subgroup: string };
     },
@@ -74,6 +78,8 @@ export const collectionApi = {
    */
   browseDevice: (
     endpoint: string,
+    /** The security chosen on the screen (2.8.0) — the server adds the login from its credentials file */
+    security?: AidSecurityChoice,
   ): Promise<{
     endpoint: string;
     truncated: boolean;
@@ -89,7 +95,7 @@ export const collectionApi = {
     request('/opcua/browse', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ endpoint }),
+      body: JSON.stringify(security ? { endpoint, security } : { endpoint }),
     }),
   /**
    * OPC UA exposure status (M6·M7) — what we are currently serving to the outside.

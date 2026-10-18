@@ -321,4 +321,5 @@ export const EN_API: Record<string, string> = {
   '인증 켜짐 — 전체 토큰 {0}개 · 읽기 전용 {1}개': 'Authentication on — {0} full token(s) · {1} read-only',
   '토큰 {0}개에 ASCII 밖 문자가 있습니다 — 영문·숫자·기호로 바꾸기를 권합니다.':
     '{0} token(s) contain non-ASCII characters — letters, digits and symbols are recommended.',
+  "저장소가 제때 답하지 않았습니다.": "The store did not answer in time.",
 };

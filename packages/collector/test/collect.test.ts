@@ -95,6 +95,26 @@ describe('Collection run', () => {
     ]);
   });
 
+  it('stores a failed read with its reason and no value — so the screen can say why after a reload (2.8.0)', async () => {
+    const target = sink();
+    const report = await collectOnce(descriptor, reader([{ source: 'ns=2;s=Speed', value: 10 }]), target, {
+      packageId: 'pkg_1',
+      now: () => '2026-10-18T00:00:00.000Z',
+    });
+    // `collected` counts values only — a reason is not a value
+    expect(report.collected).toBe(1);
+    const failed = target.samples.find((sample) => sample.propertyName === 'AlarmActive');
+    expect(failed).toEqual({
+      packageId: 'pkg_1',
+      interfaceName: 'InterfaceTemplateForOPCUA',
+      propertyName: 'AlarmActive',
+      source: 'ns=2;s=Alarm',
+      observedAt: '2026-10-18T00:00:00.000Z',
+      receivedAt: '2026-10-18T00:00:00.000Z',
+      error: '응답 없음',
+    });
+  });
+
   it('does not touch the store when there is nothing to read', async () => {
     const target = sink();
     const empty: AidInterface = { name: 'X', protocol: 'OPCUA', properties: [] };

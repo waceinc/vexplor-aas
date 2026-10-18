@@ -306,6 +306,28 @@ async function guardCycle(store: AasStore, targetId: string, sourceId: string): 
 }
 
 /** For history summaries — element count of that revision (recursive) */
+/** What "Load from equipment" connects with (2.8.0) */
+export interface BrowseSecurity {
+  mode: 'None' | 'Sign' | 'SignAndEncrypt';
+  policy?: string;
+  /** The device wants a user name — the server looks it up by address in its credentials file */
+  login: boolean;
+}
+
+/**
+ * Security and read period from a "create collection link" body (2.8.0) — passed through as given; the AID builder
+ * refuses anything it cannot write (AidBuildError → 400). Only the shape is taken here, never a password.
+ */
+function aidExtras(body: Record<string, unknown>): { security?: unknown; intervalMs?: unknown } {
+  const security = body['security'];
+  return {
+    ...(security && typeof security === 'object' && !Array.isArray(security)
+      ? { security: { mode: (security as Record<string, unknown>)['mode'], policy: (security as Record<string, unknown>)['policy'], login: (security as Record<string, unknown>)['login'] === true } }
+      : {}),
+    ...(body['intervalMs'] !== undefined ? { intervalMs: body['intervalMs'] } : {}),
+  };
+}
+
 function countElements(content: Record<string, unknown>): number {
   let count = 0;
   const walk = (list: unknown): void => {
@@ -391,7 +413,8 @@ export interface PackageRouteOptions {
    */
   openReader?: (descriptor: AidInterface) => Promise<ProtocolReader>;
   /** Device browsing. Injected for the same reason — @aas/opcua is the only place that knows the protocol */
-  browseDevice?: (endpoint: string) => Promise<unknown>;
+  /** `options.security` = the screen's choice (2.8.0) — mode · policy, and whether the device wants a login */
+  browseDevice?: (endpoint: string, options?: { security: BrowseSecurity }) => Promise<unknown>;
   /**
    * Built-in virtual PLC — given an equipment AASX, creates tags named after its operational data and returns the endpoint and tags.
    * If absent, "Connect to virtual PLC" answers 501 (deployment with collection off)
@@ -1397,8 +1420,18 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         if (!/^opc\.tcp:\/\/.+/.test(endpoint)) {
           throw new ApiError(400, 'BadRequest', fill(tr('접속 주소는 opc.tcp:// 로 시작해야 합니다: {0}'), { 0: endpoint }));
         }
+        // The security the screen chose (2.8.0) — the server adds the login from its credentials file, never from the body
+        const raw = body['security'];
+        const security: BrowseSecurity | undefined =
+          raw && typeof raw === 'object' && !Array.isArray(raw)
+            ? {
+                mode: ['Sign', 'SignAndEncrypt'].includes(String((raw as Record<string, unknown>)['mode'])) ? ((raw as Record<string, unknown>)['mode'] as 'Sign' | 'SignAndEncrypt') : 'None',
+                ...(typeof (raw as Record<string, unknown>)['policy'] === 'string' ? { policy: (raw as Record<string, unknown>)['policy'] as string } : {}),
+                login: (raw as Record<string, unknown>)['login'] === true,
+              }
+            : undefined;
         try {
-          return json(200, await options.browseDevice(endpoint));
+          return json(200, await (security ? options.browseDevice(endpoint, { security }) : options.browseDevice(endpoint)));
         } catch (error) {
           /*
            * Important: pointing at itself (or the same tool) is **blocked.** A warning is not enough:
@@ -1453,6 +1486,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
             endpoint: String(body['endpoint'] ?? ''),
             title: typeof body['title'] === 'string' ? body['title'] : undefined,
             tags: Array.isArray(body['tags']) ? (body['tags'] as never[]) : [],
+            // Security the device wants and the read period (2.8.0) — checked by the builder, never a secret
+            ...aidExtras(body),
           } as never);
         } catch (error) {
           if (error instanceof AidBuildError) throw new ApiError(400, 'BadRequest', error.message);
@@ -1467,6 +1502,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           iriBase: (options.policy?.iriBase ?? DEFAULT_POLICY.iriBase) as string,
           endpoint: String(body['endpoint'] ?? ''),
           tags: Array.isArray(body['tags']) ? (body['tags'] as never[]) : [],
+          ...aidExtras(body),
         } as never)) {
           const cid = String(concept['id']);
           const already = await store.getIdentifiable(packageId, 'ConceptDescription', cid);

@@ -17,7 +17,7 @@ export interface MockReadList {
 export interface MockEdge {
   register(code: string, name?: string): Promise<{ deviceId: string }>;
   readList(): Promise<MockReadList>;
-  enqueue(list: MockReadList, extraSamples?: unknown[]): Record<string, unknown> & { seq: number };
+  enqueue(list: MockReadList, extraSamples?: unknown[], statusExtra?: Record<string, unknown>): Record<string, unknown> & { seq: number };
   flush(options?: { maxAttempts?: number }): Promise<string>;
   readonly stats: MockEdgeStats;
   readonly bootId: string;

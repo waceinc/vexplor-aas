@@ -1909,5 +1909,53 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .edge-command code { flex: 1; min-width: 0; font-family: var(--aas-mono); font-size: var(--text-sm); line-height: var(--leading-normal); padding: calc(var(--spacing) * 3); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: break-word; user-select: all; font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 .edge-command button { flex: none; }
 .edge-arrived p { margin: 0; }
+/* Collector health (2.8.0) — the server's verdict and the numbers behind it. Colours carry meaning only:
+   OK teal · Attention warn · Problem fail, each with its light background (drive.css tokens). The word is always shown too */
+.edge-badge.edge-verdict-ok { background: var(--okbg); color: var(--teal); }
+.edge-badge.edge-verdict-attention { background: var(--warnbg); color: var(--warn); }
+.edge-badge.edge-verdict-problem { background: var(--failbg); color: var(--fail); }
+.edge-first-reason { margin: 0; }
+.edge-reason-attention { color: var(--warn); }
+.edge-reason-problem { color: var(--fail); }
+.edge-device button.edge-more { align-self: flex-start; font-size: var(--text-xs); }
+.edge-health { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 3); background: var(--muted); border-radius: var(--radius); }
+.edge-health h4 { margin: 0 0 calc(var(--spacing) * 2); font-size: var(--text-sm); }
+.edge-reasons { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); font-size: var(--text-sm); }
+.edge-facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); }
+.edge-fact { display: flex; flex-direction: column; gap: calc(var(--spacing) * 0.5); min-width: 0; }
+.edge-fact dt { font-size: var(--text-xs); color: var(--muted-foreground); }
+.edge-fact dd { margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.edge-table-wrap { overflow-x: auto; }
+.edge-links { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+.edge-links th, .edge-links td { text-align: start; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.edge-links th { color: var(--muted-foreground); font-weight: 600; }
+.edge-links td.ok { color: var(--teal); }
+.edge-links td.edge-link-error { white-space: normal; overflow-wrap: anywhere; min-width: 12rem; }
+.edge-links td.warn { color: var(--fail); }
+.edge-trend { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
+.edge-trend p { margin: 0; }
+.edge-trend-row { display: grid; grid-template-columns: 10rem minmax(0, 1fr); align-items: end; gap: calc(var(--spacing) * 1) calc(var(--spacing) * 3); }
+.edge-trend-label { font-size: var(--text-xs); color: var(--muted-foreground); }
+.edge-trend-bars { display: flex; align-items: flex-end; gap: 0; height: 2rem; border-bottom: 1px solid var(--border); }
+.edge-trend-bar { flex: 1; min-width: 0; background: var(--cb); opacity: 0.75; }
+.edge-trend-bar.empty { background: transparent; }
+.edge-trend-summary { grid-column: 2; }
+@media (max-width: 640px) { .edge-trend-row { grid-template-columns: 1fr; } .edge-trend-summary { grid-column: 1; } }
+/* The server's own state (Settings, admins) */
+.server-status { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); }
+.server-status .wide { grid-column: 1 / -1; }
+.server-status dd.ok { color: var(--teal); }
+.server-status dd.fail { color: var(--fail); }
 .edge-arrived { flex-direction: column; align-items: flex-start; }
 .edge-command .edge-word { white-space: nowrap; }
+
+/* Create collection link — how to connect (2.8.0): security, login, read period on one line; units on every tag row */
+.add-aid .aid-connection { margin-top: calc(var(--spacing) * 2); }
+.add-aid .aid-connection-line { display: flex; flex-wrap: wrap; align-items: flex-end; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 3); font-size: var(--text-xs); color: var(--muted-foreground); }
+.add-aid .aid-connection-line label { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
+.add-aid .aid-connection-line label.check-line { flex-direction: row; margin: 0; padding-bottom: calc(var(--spacing) * 1.5); color: var(--foreground); }
+.add-aid .aid-connection-line select { width: 168px; }
+.add-aid .aid-connection-line input:not([type='checkbox']) { width: 88px; }
+.add-aid .aid-connection .self-warn { margin-top: 0; }
+.picked-list li .unit-input { flex: 0 0 72px; min-width: 0; }
+.picked-list li.modbus select:nth-of-type(3) { width: 208px; }

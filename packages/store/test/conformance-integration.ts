@@ -731,6 +731,24 @@ export function describeStoreIntegration(name: string, create: () => Promise<Aas
       await expect(store.putRuntimeState('k', 1, 'pkg_missing')).rejects.toBeInstanceOf(NotFoundError);
     });
 
+    it('runtime state keeps a remote collector trend — a day of points with nested lists — and a shorter one replaces it (2.8.0)', async () => {
+      const store = await fresh();
+      // The shape apps/api/src/edge/history.ts writes: 289 points, numbers with decimals, negative values, a nested list
+      const day = Array.from({ length: 289 }, (_, i) => ({
+        at: new Date(Date.parse(T0) + i * 300_000).toISOString(),
+        values: i,
+        cpu: 12.5,
+        disk: 9.9,
+        clock: -1200,
+        links: [{ id: 'pkg_1:InterfaceOPCUA', up: i % 2 === 0, ratio: 0.875, ms: 14 }],
+      }));
+      await store.putRuntimeState('edge.history.dev_1', day);
+      expect(await store.getRuntimeState('edge.history.dev_1')).toEqual(day);
+      await store.putRuntimeState('edge.history.dev_1', day.slice(-3));
+      expect(await store.getRuntimeState('edge.history.dev_1')).toEqual(day.slice(-3));
+      expect(await store.getRuntimeState('edge.history.dev_2')).toBeUndefined();
+    });
+
     it('deletePackage removes its config, refs (and keys) and runtime state — other packages and server rows stay', async () => {
       const store = await fresh();
       const gone = (await store.importPackage({ name: 'a', package: tinyPackage('a') })).id;

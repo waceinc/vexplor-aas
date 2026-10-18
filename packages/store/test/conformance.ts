@@ -576,6 +576,21 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(all.every((v) => !('key' in v))).toBe(true);
     });
 
+    it('a failed read keeps its reason — the value is absent, the reason is not lost (2.8.0)', async () => {
+      const { store, packageId } = await seeded();
+      await store.appendValues(packageId, [
+        { packageId, interfaceName: 'I', propertyName: 'Pressure', observedAt: '2026-10-18T09:00:00.000Z', receivedAt: '2026-10-18T09:00:00.000Z', error: 'Modbus exception 2 (illegal data address)' },
+        { packageId, interfaceName: 'I', propertyName: 'Pressure', observedAt: '2026-10-18T09:00:05.000Z', receivedAt: '2026-10-18T09:00:05.000Z', valueNumber: 3.5 },
+      ]);
+      const [good, failed] = await store.readValues(packageId, { propertyName: 'Pressure' });
+      expect(failed!.error).toBe('Modbus exception 2 (illegal data address)');
+      expect(failed!.valueNumber).toBeUndefined();
+      expect(failed!.valueText).toBeUndefined();
+      // A value that was read has no error field at all — absent stays absent
+      expect(good!.valueNumber).toBe(3.5);
+      expect('error' in good!).toBe(false);
+    });
+
     it('receivedAt is stored separately from the device time — absent stays absent (legacy records)', async () => {
       const { store, packageId } = await seeded();
       await store.appendValues(packageId, [

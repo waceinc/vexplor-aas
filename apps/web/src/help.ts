@@ -80,7 +80,7 @@ export function helpTopics(): HelpTopic[] {
     {
       id: 'check',
       title: tr('검사와 자동 고치기'),
-      summary: tr('파일을 열면 규칙 43종으로 바로 검사합니다. 위반은 반드시 고칩니다.'),
+      summary: tr('파일을 열면 규칙 44종으로 바로 검사합니다. 위반은 반드시 고칩니다.'),
       steps: [
         tr('머리줄의 「위반 · 경고」를 누르면 검사 결과가 열립니다'),
         tr('위반(빨강) — KOSMO 규칙에 어긋남. 0건이 되도록 고칩니다'),
@@ -145,6 +145,7 @@ export function helpTopics(): HelpTopic[] {
         tr('「+ 수집기 연결」 — 서버 주소와 읽을 목록을 확인하고 「연결 명령 만들기」'),
         tr('나온 한 줄을 공장 Linux PC의 터미널에 붙여 넣습니다 — 설치 · 등록 · 시작이 한 번에 끝납니다'),
         tr('화면에 「받는 중」이 뜨면 끝입니다. 이후 마지막 수신 · 설비 연결 상태를 같은 화면에서 봅니다'),
+        tr('줄마다 정상 · 주의 · 위험 배지와 이유가 나오고, 「상태 자세히」를 누르면 공장 PC · 서버 통신 · 설비별 숫자와 최근 24시간 추이가 보입니다(수집기 1.1.0 이상)'),
       ],
       note: tr('수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. 지금은 Linux(x64 · arm64)용이고 Windows용은 준비 중입니다.'),
       link: { label: tr('VEXPLOR Edge 안내'), href: EDGE_GUIDE[currentLang()] },
@@ -193,7 +194,7 @@ export function fileTour(): TourStep[] {
   return [
     { sel: '.tree-pane', title: tr('트리'), body: tr('AAS → 서브모델 → 요소 순서입니다. 고르면 가운데에 내용이 나옵니다.') },
     { sel: '.middle', title: tr('내용'), body: tr('요약 · 값 고치기 · 부품 구성이 여기에 나옵니다. 값을 바꾸고 「저장」을 누르세요.') },
-    { sel: 'header .status.chip', title: tr('검사 결과'), body: tr('파일을 열면 규칙 43종으로 바로 검사합니다. 누르면 무엇이 어긋났는지 보입니다.') },
+    { sel: 'header .status.chip', title: tr('검사 결과'), body: tr('파일을 열면 규칙 44종으로 바로 검사합니다. 누르면 무엇이 어긋났는지 보입니다.') },
     { sel: 'header button', text: tr('자동 고치기'), title: tr('자동 고치기'), body: tr('고칠 수 있는 항목을 전 / 후로 미리 보고, 고른 것만 고칩니다.') },
     { sel: 'header .menu-trigger', text: tr('내보내기'), title: tr('내보내기'), body: tr('검증 결과서 · 문서용 자료 · 레퍼런스 번들을 만듭니다.') },
     { sel: 'header button', text: tr('AASX 내려받기'), title: tr('내려받기'), body: tr('지금 파일을 .aasx로 받습니다(회원). 완성본은 위반 0건 상태에서 받으세요.') },

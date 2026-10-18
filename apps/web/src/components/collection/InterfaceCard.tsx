@@ -7,7 +7,8 @@ import { fill, tr } from '../../i18n.js';
 import { localTime } from '../../model.js';
 import { T } from '../T.js';
 import { displayValue, shortReason } from './helpers.js';
-import { ageLabel, arrivedAt, freshnessOf, tallyFreshness } from './freshness.js';
+import { ageLabel, arrivedAt, freshnessOf, freshWindowMs, tallyFreshness } from './freshness.js';
+import { hasUserInfo, maskedEndpoint, statedPollingMs } from '../aid/protocol.js';
 import type { ConnectionStatus } from './status.js';
 
 interface Props {
@@ -22,7 +23,10 @@ interface Props {
   windowMs: number;
 }
 
-export function InterfaceCard({ descriptor, status, latest, waitingTags, failedTags, nowMs, windowMs }: Props): React.JSX.Element {
+export function InterfaceCard({ descriptor, status, latest, waitingTags, failedTags, nowMs, windowMs: serverWindowMs }: Props): React.JSX.Element {
+  // A link that states a slow read period (2.8.0) keeps "receiving" for three of its periods, not the server's window
+  const stated = statedPollingMs(descriptor.properties);
+  const windowMs = stated === undefined ? serverWindowMs : Math.max(serverWindowMs, freshWindowMs(stated));
   // Freshness per item — the header total and the row markers use the same judgement
   const fresh = new Map(
     descriptor.properties.map((property) => [property.name, freshnessOf(latest.get(`${descriptor.name}/${property.name}`), nowMs, windowMs)]),
@@ -48,7 +52,11 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
           {sum.none > 0 && <span className="fresh none">{fill(tr('값 없음 {0}'), { 0: sum.none })}</span>}
         </span>
       </div>
-      <div className="mono base">{descriptor.base ?? tr('주소 없음')}</div>
+      {/* The password never shows — and the link it is in is left out of the remote collector list (2.8.0, linter AID-1) */}
+      <div className="mono base">{descriptor.base ? maskedEndpoint(descriptor.base) : tr('주소 없음')}</div>
+      {descriptor.base && hasUserInfo(descriptor.base) && (
+        <p className="note warn">{tr('주소에 사용자 이름 · 암호가 들어 있습니다 — 원격 수집기 목록에서 빠집니다. 「연결수정」에서 떼고 「로그인 필요」를 켜십시오.')}</p>
+      )}
 
       <table>
         <thead>
@@ -61,8 +69,10 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
         <tbody>
           {descriptor.properties.map((property) => {
             const key = `${descriptor.name}/${property.name}`;
-            const value = latest.get(key);
-            const failed = failedTags.get(key);
+            const stored = latest.get(key);
+            // A stored failure (2.8.0 — remote collector, automatic collection) shows like a failure of the run just made
+            const value = stored?.error === undefined ? stored : undefined;
+            const failed = failedTags.get(key) ?? stored?.error;
             const waiting = waitingTags.has(key);
             const badValue = value?.quality !== undefined && value.quality !== 'Good';
             return (
@@ -103,11 +113,11 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
                 </td>
                 <td
                   className={`unit time-col${fresh.get(property.name)?.kind === 'stale' ? ' stale' : ''}`}
-                  {...(value
-                    ? { title: fill(tr('받은 시각 {0} · 장비 시각 {1}'), { 0: localTime(arrivedAt(value)), 1: localTime(value.observedAt) }) }
+                  {...(stored
+                    ? { title: fill(tr('받은 시각 {0} · 장비 시각 {1}'), { 0: localTime(arrivedAt(stored)), 1: localTime(stored.observedAt) }) }
                     : {})}
                 >
-                  {value && fresh.get(property.name)?.ageMs !== undefined ? (
+                  {stored && fresh.get(property.name)?.ageMs !== undefined ? (
                     <>
                       {fresh.get(property.name)?.kind === 'stale' && <span className="fresh stale">{tr('끊김')}</span>}{' '}
                       {ageLabel(fresh.get(property.name)!.ageMs!)}

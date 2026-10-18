@@ -12,7 +12,7 @@
  * Important: keep the result of the last cycle — we must be able to answer "is it actually running?".
  */
 import type { AidInterface, CycleReport, ProtocolReader, ValueSample } from '@aas/collector';
-import { CollectionRunner, parseAid } from '@aas/collector';
+import { CollectionRunner, parseAid, statedIntervalMs } from '@aas/collector';
 import type { Environment } from '@aas/core';
 import type { AasStore, PackageRecord } from '@aas/store';
 
@@ -78,6 +78,10 @@ export class CollectSupervisor {
   private sweeping = false;
   private stopped = false;
   private lastSweep: SweepReport | undefined;
+  /** When each interface (package \0 interface) was last read — for a read period the AID states (2.8.0) */
+  private readonly lastRead = new Map<string, number>();
+  /** Each package's last result — repeated while none of its interfaces is due, so the screen keeps "connected (auto)" */
+  private readonly lastResult = new Map<string, SweepPackageResult>();
 
   constructor(private readonly options: SupervisorOptions) {}
 
@@ -123,8 +127,26 @@ export class CollectSupervisor {
         for (const record of page.items) {
           try {
             const environment = await this.options.store.getEnvironment(record.id);
-            const interfaces = parseAid(environment);
-            if (interfaces.length === 0) continue;
+            const all = parseAid(environment);
+            if (all.length === 0) continue;
+            /*
+             * Important: a read period the AID states (2.8.0) is honoured at the sweep's own step — an interface is read
+             *    when that long has passed since its last read, never more often. A period shorter than the sweep cannot
+             *    be met here (the edge can); it is read every sweep, as before.
+             */
+            const nowMs = Date.parse(now());
+            const interfaces = all.filter((descriptor) => {
+              const stated = statedIntervalMs(descriptor);
+              const last = this.lastRead.get(`${record.id}\0${descriptor.name}`);
+              return stated === undefined || stated <= this.options.intervalMs || last === undefined || nowMs - last >= stated - 250;
+            });
+            if (interfaces.length === 0) {
+              const kept = this.lastResult.get(record.id);
+              results.push(kept ?? { packageId: record.id, ...(record.name === undefined ? {} : { name: record.name }), collected: 0, errors: [] });
+              continue;
+            }
+            for (const descriptor of interfaces) this.lastRead.set(`${record.id}\0${descriptor.name}`, nowMs);
+            const statedMax = Math.max(this.options.intervalMs, ...interfaces.map((descriptor) => statedIntervalMs(descriptor) ?? 0));
 
             // What the sink stored this cycle — only kept when someone listens
             const stored: ValueSample[] = [];
@@ -136,8 +158,9 @@ export class CollectSupervisor {
               sink: {
                 append: async (samples) => {
                   await this.options.store.appendValues(record.id, samples);
-                  // Only after the store accepted them — the detector must never judge values the time series lacks
-                  if (listening) stored.push(...samples);
+                  // Only after the store accepted them — the detector must never judge values the time series lacks.
+                  // A failed read (no value, only its reason — 2.8.0) is not a value to judge
+                  if (listening) stored.push(...samples.filter((sample) => sample.error === undefined));
                 },
               },
               intervalMs: 0,
@@ -159,18 +182,21 @@ export class CollectSupervisor {
                     samples: stored,
                     startedAt: cycleStart,
                     finishedAt: now(),
-                    intervalMs: this.options.intervalMs,
+                    // The period these values really arrive at — the detector's freshness window follows it
+                    intervalMs: statedMax,
                   });
                 } catch (error) {
                   errors.push(`integration: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
-              results.push({
+              const result = {
                 packageId: record.id,
                 ...(record.name === undefined ? {} : { name: record.name }),
                 collected: report.collected,
                 errors,
-              });
+              };
+              this.lastResult.set(record.id, result);
+              results.push(result);
             } finally {
               await runner.stop();
             }

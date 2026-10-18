@@ -1,5 +1,5 @@
 /**
- * Settings — currently just the language.
+ * Settings — the language, and for admins the server's own state (2.8.0).
  *
  * Important: **state first how far English goes.** Screen text and the text the server produces (finding messages, rule descriptions,
  *    validation reports, bundle notes, errors) all have English (2026-10-14). What stays Korean on the English screen is only
@@ -12,15 +12,18 @@
 import type { Lang } from '../i18n.js';
 import { tr } from '../i18n.js';
 import { T } from './T.js';
+import { ServerStatusSection } from './ServerStatusSection.js';
 
 interface Props {
   lang: Lang;
   onChange: (lang: Lang) => void;
   onClose: () => void;
   t: (text: string) => string;
+  /** An admin session — shows the server's state */
+  admin?: boolean;
 }
 
-export function Settings({ lang, onChange, onClose, t }: Props): React.JSX.Element {
+export function Settings({ lang, onChange, onClose, t, admin = false }: Props): React.JSX.Element {
   return (
     <div className="settings">
       <h2>{t('설정')}</h2>
@@ -52,6 +55,8 @@ export function Settings({ lang, onChange, onClose, t }: Props): React.JSX.Eleme
           {tr('언어를 바꾸면 화면을 새로 읽습니다 — 파일은 그대로 있고, 저장하지 않은 입력만 사라집니다.')}
         </p>
       </section>
+
+      {admin && <ServerStatusSection />}
 
       <div className="row-buttons actions">
         <button className="primary" onClick={onClose}>

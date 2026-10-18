@@ -12,6 +12,11 @@
  */
 import type { SubmodelElement } from '@aas/core';
 import { fill, tr } from '@aas/core';
+import { AidBuildError, prop, ref, smc } from './aid-build-parts.js';
+import { checkSecurity, securityElements, securityTerms, type AidSecurityInput } from './aid-build-security.js';
+
+export { AidBuildError } from './aid-build-parts.js';
+export { OPCUA_POLICIES, type AidSecurityInput } from './aid-build-security.js';
 
 /** Standard semanticIds from the IDTA-02017-1-0 template */
 const TERM = {
@@ -76,6 +81,14 @@ const PROTOCOL_LABEL: Record<AidBuildProtocol, string> = { OPCUA: 'OPC UA', MODB
  */
 const MODBUS_NS = 'https://www.w3.org/2019/wot/modbus';
 const MQTT_NS = 'https://www.w3.org/2019/wot/mqtt';
+/**
+ * Read period of an interface (2.8.0) — on every form, in ms. Modbus has the binding's own term (`modv:pollingTime`);
+ * the OPC UA and MQTT bindings have none, so they carry ours (`vxp_pollingTime`, this tool's vocabulary).
+ */
+export const POLLING_FIELD: Record<AidBuildProtocol, string> = { MODBUS: 'modv_pollingTime', OPCUA: 'vxp_pollingTime', MQTT: 'vxp_pollingTime' };
+const POLLING_NS: Record<string, string> = { modv_pollingTime: MODBUS_NS, vxp_pollingTime: 'urn:vexplor:aid:pollingTime' };
+/** The bounds the edge approval accepts for a read interval (routes-edge-admin.ts) */
+export const POLLING_MS = { min: 100, max: 3_600_000 } as const;
 const FORM_FIELDS: Record<string, { protocol: AidBuildProtocol; ns: string; values?: readonly string[] }> = {
   modv_entity: { protocol: 'MODBUS', ns: MODBUS_NS, values: ['Coil', 'DiscreteInput', 'HoldingRegister', 'InputRegister'] },
   modv_function: { protocol: 'MODBUS', ns: MODBUS_NS, values: ['readCoil', 'readDeviceDiscreteInput', 'readHoldingRegisters', 'readInputRegisters'] },
@@ -98,38 +111,11 @@ export interface AidBuildInput {
   tags: readonly AidTagInput[];
   /** Interface display name. Defaults to "{equipment name} control panel (OPC UA)" */
   title?: string;
+  /** Security the device wants (2.8.0) — OPC UA mode · policy, and a login for OPC UA and MQTT. Never a secret */
+  security?: AidSecurityInput;
+  /** How often to read this interface, ms (2.8.0). Absent: the server's default */
+  intervalMs?: number;
 }
-
-export class AidBuildError extends Error {}
-
-const ref = (value: string) => ({
-  type: 'ExternalReference',
-  keys: [{ type: 'GlobalReference', value }],
-});
-
-/**
- * Important: kosmo-first pair — semanticId is our own IRI (cd/{idShort}); the IDTA original is kept as supplemental.
- * Previously the IDTA IRI was used directly as the semanticId, so an AID created by the tool violated the tool's own rule
- * (KOSMO-SME-3: own CD required) 13 times right from creation (observed). Aligned with the same pattern as the
- * hierarchy (hierarchy.ts) — this also removes the problem of the IDTA marking disappearing when "Fix" migrates it.
- */
-const pair = (iriBase: string, idShort: string, idtaTerm: string) => ({
-  semanticId: ref(`${iriBase}/cd/${idShort}/1/0`),
-  supplementalSemanticIds: [ref(idtaTerm)],
-});
-const smc = (iriBase: string, idShort: string, idtaTerm: string, value: unknown[]) => ({
-  modelType: 'SubmodelElementCollection',
-  idShort,
-  ...pair(iriBase, idShort, idtaTerm),
-  value,
-});
-const prop = (iriBase: string, idShort: string, idtaTerm: string, value: string) => ({
-  modelType: 'Property',
-  idShort,
-  ...pair(iriBase, idShort, idtaTerm),
-  valueType: 'xs:string',
-  value,
-});
 
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 const TYPES = new Set(['float', 'integer', 'string', 'boolean']);
@@ -141,6 +127,14 @@ export function checkAidInput(input: AidBuildInput): void {
     throw new AidBuildError(
       fill(tr('접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// 중 하나로 시작해야 합니다: {0}'), { 0: input.endpoint }),
     );
+  }
+  // Important: a user name or password in the address would be stored in the file and handed out in the edge read list
+  if (/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*@/i.test(input.endpoint.trim())) {
+    throw new AidBuildError(tr('접속 주소에 사용자 이름 · 암호를 넣지 마십시오 — 「로그인 필요」를 켜고, 사용자 이름 · 암호는 서버의 credentials 파일(OPCUA_CLIENT_CREDENTIALS)과 공장 PC 의 credentials.json 에 이 주소로 적습니다.'));
+  }
+  checkSecurity(protocol, input.security);
+  if (input.intervalMs !== undefined && (!Number.isInteger(input.intervalMs) || input.intervalMs < POLLING_MS.min || input.intervalMs > POLLING_MS.max)) {
+    throw new AidBuildError(fill(tr('읽기 주기는 {0}ms ~ {1}ms 사이의 정수여야 합니다: {2}'), { 0: POLLING_MS.min, 1: POLLING_MS.max, 2: String(input.intervalMs) }));
   }
   if (input.tags.length === 0) throw new AidBuildError(tr('태그가 하나도 없습니다.'));
   const seen = new Set<string>();
@@ -203,6 +197,7 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
         smc(base, 'EndpointMetadata', TERM.endpointMetadata, [
           prop(base, 'base', TERM.base, input.endpoint),
           prop(base, 'contentType', TERM.contentType, 'application/json'),
+          ...securityElements(base, id, INTERFACE_NAME[protocol], protocol, input.security),
         ]),
         smc(base, 'InteractionMetadata', TERM.interactionMetadata, [
           smc(
@@ -219,6 +214,9 @@ export function buildAidSubmodel(input: AidBuildInput): Record<string, unknown> 
                 smc(base, 'forms', TERM.forms, [
                   prop(base, 'href', TERM.href, tag.href),
                   ...Object.entries(tag.form ?? {}).map(([key, value]) => prop(base, key, FORM_FIELDS[key]!.ns, value)),
+                  ...(input.intervalMs !== undefined
+                    ? [prop(base, POLLING_FIELD[protocol], POLLING_NS[POLLING_FIELD[protocol]]!, String(input.intervalMs))]
+                    : []),
                 ]),
               ]),
             ),
@@ -278,6 +276,9 @@ export function aidConceptDescriptions(input: AidBuildInput): Record<string, unk
   // Terms for the form fields used — once each
   const formKeys = [...new Set(input.tags.flatMap((tag) => Object.keys(tag.form ?? {})))].filter((key) => FORM_FIELDS[key]);
   for (const key of formKeys) fixed.push([key, FORM_FIELDS[key]!.ns]);
+  if (input.intervalMs !== undefined) fixed.push([POLLING_FIELD[protocol], POLLING_NS[POLLING_FIELD[protocol]]!]);
+  // Security terms once each — `scheme` and `title`-like shared names are skipped when already present
+  for (const [name, term] of securityTerms(protocol, input.security)) if (!fixed.some(([known]) => known === name)) fixed.push([name, term]);
   const out = fixed.map(([idShort, term]) => aidConcept(input.iriBase, idShort, term));
   for (const tag of input.tags) {
     out.push(aidConcept(input.iriBase, tag.name, TERM.propertyDefinition));

@@ -207,7 +207,8 @@ CREATE TABLE IF NOT EXISTS collected_value (
   value_text     text,
   quality        text,
   received_at    timestamptz,
-  value_key      text
+  value_key      text,
+  error          text
 );
 
 CREATE INDEX IF NOT EXISTS collected_value_idx ON collected_value (package_id, property_name, observed_at DESC);
@@ -230,7 +231,7 @@ ${INTEGRATION_SCHEMA_SQL}`;
  *    ③ bump `SCHEMA_VERSION`. A migration must turn the previous version's tables into the new version and must be idempotent.
  *  - An existing DB without `schema_version` is treated as version 1 (the tables as of 2026-09-04, when version numbers were introduced, are version 1).
  */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const SCHEMA_VERSION_SQL = `
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -364,6 +365,19 @@ ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS received_at timestamptz;
     sql: `
 ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS value_key text;
 CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx ON collected_value (package_id, value_key, observed_at);
+`,
+  },
+  {
+    /**
+     * Version 11 (2026-10-18) — why a read failed (remote collector and the server's own collector).
+     *
+     * Important: NULL is allowed and means "read fine" (or an old record). A row with an error has no value — the
+     *    reason is what the screen shows instead of an empty value. A nullable column without a default is also what a
+     *    compressed TimescaleDB hypertable accepts.
+     */
+    version: 11,
+    sql: `
+ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS error text;
 `,
   },
 ];

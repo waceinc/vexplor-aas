@@ -203,7 +203,7 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
     if ((request.rawBody?.length ?? 0) > limits.maxBatchBytes) return edgeError(413, 'PayloadTooLarge', tr('묶음이 크기 상한을 넘었습니다.'));
     const body = request.body as Record<string, unknown> | undefined;
     if (checkSchema(EDGE_SCHEMAS['batch']!, body).length > 0) return edgeError(422, 'SchemaMismatch', tr('묶음이 규격과 맞지 않습니다.'));
-    const input = body as { bootId: string; seq: number; samples: Sample[]; status?: Record<string, unknown> };
+    const input = body as { bootId: string; seq: number; createdAt: string; samples: Sample[]; status?: Record<string, unknown> };
     if (!UUID.test(input.bootId)) return edgeError(422, 'SchemaMismatch', tr('bootId 는 UUID 여야 합니다.'));
     if (input.samples.length > limits.maxSamplesPerBatch) return edgeError(413, 'PayloadTooLarge', tr('묶음의 값 개수가 상한을 넘었습니다.'));
 
@@ -235,6 +235,8 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
         ...(typeof sample.value === 'number' ? { valueNumber: sample.value } : {}),
         ...(typeof sample.value === 'string' || typeof sample.value === 'boolean' ? { valueText: String(sample.value) } : {}),
         ...(sample.quality !== undefined ? { quality: sample.quality } : {}),
+        // Why the edge could not read it (2.8.0) — Modbus and MQTT have no quality, so without this the row was only empty
+        ...(sample.error !== undefined && sample.error !== '' ? { error: sample.error } : {}),
         // The store skips a key it already has — a crash after storing and before recording the batch cannot double it
         key: `edge:${device.deviceId}:${input.bootId}:${input.seq}:${index}`,
       };
@@ -247,7 +249,7 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
       for (const [packageId, values] of byPackage) await options.store.appendValues(packageId, values);
     });
     // For the screen: when it last sent, how many values, and what it said about its connections
-    await options.registry.recordActivity(device.deviceId, stored ? accepted : 0, input.status);
+    await options.registry.recordActivity(device.deviceId, stored ? accepted : 0, input.status, input.createdAt);
     return ok(200, {
       schema: 'vexplor.edge.batchResult/1',
       bootId: input.bootId,

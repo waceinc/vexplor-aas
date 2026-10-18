@@ -84,3 +84,41 @@ describe('Modbus / MQTT collection — from creating the AID to values', () => {
     expect(values.map((v) => [v.propertyName, v.valueNumber])).toEqual([['Temperature', 36.6]]);
   });
 });
+
+describe('collection link with security and a read period (2.8.0)', () => {
+  it('OPC UA Sign + login + period, and MQTT login — the created AID adds no rule violations', async () => {
+    const h = await harness();
+    const before = await h.errors();
+    const ua = await h.call('POST', `/packages/${h.id}/aid`, {
+      endpoint: 'opc.tcp://192.168.0.50:4840',
+      security: { mode: 'SignAndEncrypt', policy: 'Basic256Sha256', login: true },
+      intervalMs: 1000,
+      tags: [{ name: 'MotorSpeed', href: 'ns=1;s=Machine.MotorSpeed', type: 'float', unit: 'rpm' }],
+    });
+    expect(ua.status).toBe(201);
+    expect(await h.errors()).toEqual(before);
+    const listed = (await h.call('GET', `/packages/${h.id}/interfaces`)).body['interfaces'] as { security?: unknown }[];
+    expect(listed[0]!.security).toEqual({ mode: 'SignAndEncrypt', policy: 'Basic256Sha256', userIdentityToken: 'UserName' });
+
+    const mqtt = await h.call('POST', `/packages/${h.id}/aid`, { endpoint: 'mqtt://broker.local:1883', security: { login: true }, tags: [{ name: 'Temperature', href: 'plant/m1/temp', type: 'float' }] });
+    expect(mqtt.status).toBe(201);
+    expect(await h.errors()).toEqual(before);
+  });
+
+  it('refuses a password in the address with a reason (400), and the file stays as it was', async () => {
+    const h = await harness();
+    const refused = await h.call('POST', `/packages/${h.id}/aid`, { endpoint: 'mqtt://aas:secret@broker.local:1883', tags: [{ name: 'T', href: 'a/b' }] });
+    expect(refused.status).toBe(400);
+    expect(JSON.stringify(await h.store.getEnvironment(h.id))).not.toContain('secret');
+  });
+
+  it('"Load from equipment" connects with the security the screen chose', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    const seen: unknown[] = [];
+    const handle = createApi(store, { browseDevice: async (endpoint: string, options?: unknown) => (seen.push({ endpoint, options }), { endpoint, truncated: false, nodes: [] }) } as never);
+    const response = await handle({ method: 'POST', path: '/opcua/browse', query: {}, queryAll: {}, headers: { 'content-type': 'application/json' }, body: { endpoint: 'opc.tcp://10.0.0.5:4840', security: { mode: 'Sign', policy: 'Basic256Sha256', login: true } } } as ApiRequest);
+    expect(response.status).toBe(200);
+    expect(seen).toEqual([{ endpoint: 'opc.tcp://10.0.0.5:4840', options: { security: { mode: 'Sign', policy: 'Basic256Sha256', login: true } } }]);
+  });
+});

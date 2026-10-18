@@ -10,6 +10,7 @@
  *    Where it stopped is reported via `truncated` — silently cutting off leads to "why is that tag missing?".
  */
 import { fill, tr } from '@aas/core';
+import { secureClient, type SecureClientOptions } from './client-security.js';
 import { PRODUCT_URI } from './server.js';
 import {
   AttributeIds,
@@ -18,6 +19,8 @@ import {
   OPCUAClient,
   StatusCodes,
   type ClientSession,
+  type OPCUACertificateManager,
+  type UserIdentityInfo,
 } from 'node-opcua';
 
 export interface BrowsedNode {
@@ -60,7 +63,11 @@ export class SelfBrowseError extends Error {
   }
 }
 
-export interface BrowseOptions {
+/**
+ * Security, login, certificate store and trust — as the collector connects (2.8.0). Absent: None and anonymous, as
+ * before. A factory server without a None endpoint could not be browsed at all until this.
+ */
+export interface BrowseOptions extends Omit<SecureClientOptions, 'connectTimeoutMs'> {
   endpoint: string;
   /**
    * applicationUri of the OPC UA server started by this process.
@@ -144,11 +151,19 @@ export async function browseDevice(options: BrowseOptions): Promise<BrowseResult
   const maxDepth = options.maxDepth ?? 6;
   const maxNodes = options.maxNodes ?? 500;
 
-  const client = OPCUAClient.create({
-    endpointMustExist: false,
-    connectionStrategy: { maxRetry: 0, initialDelay: 200, maxDelay: 1000 },
-    requestedSessionTimeout: Math.max(timeout, 10_000),
-  });
+  const secure = (options.security?.mode ?? 'None') !== 'None' || options.user !== undefined;
+  let certificates: OPCUACertificateManager | undefined;
+  let userIdentity: UserIdentityInfo | undefined;
+  let client: OPCUAClient;
+  if (secure) {
+    ({ client, certificates, identity: userIdentity } = await secureClient({ ...options, connectTimeoutMs: timeout }));
+  } else {
+    client = OPCUAClient.create({
+      endpointMustExist: false,
+      connectionStrategy: { maxRetry: 0, initialDelay: 200, maxDelay: 1000 },
+      requestedSessionTimeout: Math.max(timeout, 10_000),
+    });
+  }
 
   let session: ClientSession | undefined;
   try {
@@ -172,7 +187,7 @@ export async function browseDevice(options: BrowseOptions): Promise<BrowseResult
       );
     }
 
-    session = await client.createSession();
+    session = await (userIdentity ? client.createSession(userIdentity) : client.createSession());
 
     const nodes: BrowsedNode[] = [];
     let truncated = false;
@@ -260,5 +275,6 @@ export async function browseDevice(options: BrowseOptions): Promise<BrowseResult
   } finally {
     await session?.close().catch(() => undefined);
     await client.disconnect().catch(() => undefined);
+    await certificates?.dispose().catch(() => undefined);
   }
 }

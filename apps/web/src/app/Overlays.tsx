@@ -11,6 +11,7 @@ import { Accounts } from '../components/Accounts.js';
 import { Settings } from '../components/Settings.js';
 import { Integrations } from '../components/integrations/Integrations.js';
 import { EdgePanel } from '../components/edge/EdgePanel.js';
+import { integrationAccess } from '../components/integrations/common.js';
 import { writeLang, tr } from '../i18n.js';
 import { describeError } from './describeError.js';
 import { OpcuaDialog } from './OpcuaDialog.js';
@@ -81,12 +82,13 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
         </Dialog>
       )}
 
-      {/* Settings — currently just the language. Applied immediately on selection and remembered in this browser */}
+      {/* Settings — the language (and the server's state for admins). The language is applied immediately on selection and remembered in this browser */}
       {showSettings && (
         <Dialog label={tr('설정')} onClose={() => setShowSettings(false)}>
             <Settings
               lang={lang}
               t={t}
+              admin={integrationAccess(auth).admin}
               onChange={(next) => {
                 if (next === lang) return;
                 writeLang(next);

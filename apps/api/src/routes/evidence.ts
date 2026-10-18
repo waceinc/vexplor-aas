@@ -201,7 +201,8 @@ export function propertyStats(values: CollectedValue[]): PropertyStat[] {
   for (const value of values) byName.set(value.propertyName, [...(byName.get(value.propertyName) ?? []), value]);
   // Sort by name — so units can be placed side by side and compared
   return [...byName.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, list]) => {
-    const good = list.filter((v) => isGood(v.quality));
+    // A failed read (2.8.0) has no value — counted as a sample, never as a good one
+    const good = list.filter((v) => isGood(v.quality) && v.error === undefined);
     const numbers = good.map((v) => v.valueNumber).filter((n): n is number => typeof n === 'number');
     const stat: PropertyStat = { name, samples: list.length, good: good.length, latest: valueOf(list[list.length - 1]!) };
     if (numbers.length > 0 && numbers.length === good.length) {

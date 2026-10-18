@@ -15,6 +15,7 @@ import type { AidInterfaceView, CollectedValueView, LiveMapping } from './api.js
 import { localTime } from './model.js';
 import { tr, fill } from './i18n.js';
 import { csvCell } from '@aas/linter';
+import { maskedEndpoint } from './components/aid/protocol.js';
 
 export interface AddressRow {
   interfaceName: string;
@@ -96,14 +97,15 @@ export function addressRows(
       rows.push({
         interfaceName: descriptor.title ?? descriptor.name,
         protocol: descriptor.protocol,
-        endpoint: descriptor.base ?? '',
+        // The password never goes into the CSV (2.8.0)
+        endpoint: descriptor.base ? maskedEndpoint(descriptor.base) : '',
         propertyName: property.name,
         address: property.href ?? '',
         dataType: property.type ?? '',
         unit: property.unit ?? '',
         observable: property.observable ? tr('예') : tr('아니오'),
-        latestValue: value ? displayValue(value) : '',
-        quality: value?.quality ?? (pending.has(property.name) ? tr('값 대기') : ''),
+        latestValue: value && value.error === undefined ? displayValue(value) : '',
+        quality: value?.error !== undefined ? fill(tr('읽기 실패 — {0}'), { 0: value.error }) : (value?.quality ?? (pending.has(property.name) ? tr('값 대기') : '')),
         observedAt: value ? localTime(value.observedAt) : '',
         modelLink: modelLinkOf(property.name, live),
       });

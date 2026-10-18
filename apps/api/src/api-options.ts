@@ -17,6 +17,8 @@ import type { LoginThrottle, SessionStore, SignupThrottle } from './session.js';
 import type { UndoStack } from './undo.js';
 import type { EdgeLimits } from './edge/routes-edge.js';
 import type { EdgeRegistry } from './edge/state.js';
+import type { EdgeTraffic } from './edge/traffic.js';
+import type { ServerStoreKind } from './routes/server-status.js';
 
 export interface ApiOptions {
   /** Extra routes — extension point for tests */
@@ -29,7 +31,7 @@ export interface ApiOptions {
    * Equipment browse — connects and fetches the tag list. 501 if absent.
    * Important: only @aas/opcua knows the protocol, so this is injected too (same principle as openReader).
    */
-  browseDevice?: (endpoint: string) => Promise<unknown>;
+  browseDevice?: (endpoint: string, options?: { security: import('./routes/packages.js').BrowseSecurity }) => Promise<unknown>;
   /** Built-in virtual PLC (simulation). Without it, "connect to virtual PLC" is 501 */
   simulate?: PackageRouteOptions['simulate'];
   /** Server default linter policy (rule-conflict choice). A query parameter takes precedence */
@@ -105,6 +107,10 @@ export interface ApiOptions {
   edge?: EdgeConfig;
   /** The device registry — createApi creates it from `edge` and passes it to the route table */
   edgeRegistry?: EdgeRegistry;
+  /** Batches taken and refused in the last hour — createApi creates it with the registry (admin server status) */
+  edgeTraffic?: EdgeTraffic;
+  /** What the admin's server status reports about this deployment (2.8.0). The store kind is derived when omitted */
+  server?: { storeKind?: ServerStoreKind; dataDir?: string; startedAt?: Date };
 }
 
 export interface EdgeConfig {

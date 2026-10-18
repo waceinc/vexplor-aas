@@ -125,12 +125,131 @@
                   "string",
                   "null"
                 ]
+              },
+              "responseMs": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "1.1.0. Average time of the last good reads (up to 100), ms. Absent before the first"
+              },
+              "readOkRatio": {
+                "type": "number",
+                "minimum": 0,
+                "description": "1.1.0. Share of the last 100 reads and connection attempts that succeeded, 0-1. Absent before the first"
+              },
+              "reconnects": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "1.1.0. Times the connection was opened again after it was lost, since the read list was applied"
+              },
+              "lastDisconnectAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "1.1.0. ISO 8601 date-time, UTC (Z); when the connection was last found lost"
               }
             },
             "required": [
               "interfaceId",
               "connected"
             ]
+          }
+        },
+        "host": {
+          "type": "object",
+          "description": "1.1.0. The PC the edge runs on, measured at most every 30 s. A value the OS cannot give is left out",
+          "properties": {
+            "cpuPercent": {
+              "type": "number",
+              "minimum": 0,
+              "description": "CPU busy, 0-100, average since the previous measurement"
+            },
+            "memoryUsedPercent": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Memory in use, 0-100 (Linux: MemTotal - MemAvailable)"
+            },
+            "diskFreeBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Free bytes on the file system of the state folder (queue), for the edge's user"
+            },
+            "diskFreePercent": {
+              "type": "number",
+              "minimum": 0,
+              "description": "The same as a share of the file system, 0-100"
+            },
+            "uptimeSeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Seconds since the PC started"
+            },
+            "processUptimeSeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Seconds since the edge process started"
+            },
+            "clockOffsetMs": {
+              "type": "integer",
+              "description": "Server clock minus edge clock in ms, from the Date header of the server's answers; positive when the server is ahead. Absent until an answer with a Date header arrived"
+            },
+            "queuedInMemory": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Batches waiting in memory because the disk took none (sent from there; written to disk once it takes them again)"
+            },
+            "queueWriteError": {
+              "type": "string",
+              "description": "The last failed write of a batch to the queue on disk (e.g. ENOSPC). Absent if writing never failed since the process started"
+            },
+            "queueWriteErrorAt": {
+              "type": "string",
+              "description": "ISO 8601 date-time, UTC (Z); when that write failed"
+            }
+          }
+        },
+        "server": {
+          "type": "object",
+          "description": "1.1.0. The edge's line to the server",
+          "properties": {
+            "lastSendOkAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "ISO 8601 date-time, UTC (Z); when a batch last got a 2xx"
+            },
+            "lastSendError": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Why the last batch that did not get a 2xx failed: no answer, or the status and code"
+            },
+            "lastSendErrorAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "ISO 8601 date-time, UTC (Z)"
+            },
+            "sendFailuresSinceOk": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Batch requests without a 2xx since the last one with"
+            },
+            "roundTripMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Average time from request to full answer over the last 10 answered requests (connection and TLS included). Absent before the first answer"
+            },
+            "oldestQueuedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "ISO 8601 date-time, UTC (Z); when the oldest batch still on disk was made"
+            }
           }
         }
       },

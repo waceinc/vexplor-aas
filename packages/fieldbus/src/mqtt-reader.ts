@@ -3,7 +3,9 @@
  *
  * MQTT is not request/response; devices push. So each collection cycle samples "the last value received so far",
  * and a topic that has never arrived is not a failure but pending — the collector does not fabricate values.
- * On the first read it briefly allows time for retained messages to arrive. Accepts mqtt:// and mqtts:// (TLS). Username/password go in the URL.
+ * On the first read it briefly allows time for retained messages to arrive. Accepts mqtt:// and mqtts:// (TLS).
+ * A login comes from `options.user` (2.8.0) — the AID only says one is needed; a user name and password in the URL
+ * still work for old files, but the linter warns (AID-1) because the file would carry the password.
  * The body is read as text; if it is JSON, numbers and booleans are used as-is, and for the {"value": ...} shape the value is extracted.
  */
 import { connect as tlsConnect } from 'node:tls';
@@ -18,6 +20,8 @@ export interface MqttReaderOptions {
   settleMs?: number;
   guard?: (url: string) => void;
   clientId?: string;
+  /** Broker login, kept apart from the address (2.8.0). Wins over a user name in the URL */
+  user?: { userName: string; password: string };
 }
 
 /** Property address -> topic. For an absolute address (mqtt://host/topic) the path; otherwise as-is (one leading / is stripped) */
@@ -80,7 +84,7 @@ export class MqttReader implements ProtocolReader {
       });
     });
     const reader = new MqttReader(descriptor, socket, options.settleMs ?? 400);
-    await reader.handshake(url, options.clientId ?? `vexplor-aas-${Math.random().toString(16).slice(2, 10)}`, timeoutMs);
+    await reader.handshake(url, options.clientId ?? `vexplor-aas-${Math.random().toString(16).slice(2, 10)}`, timeoutMs, options.user);
     return reader;
   }
 
@@ -100,9 +104,9 @@ export class MqttReader implements ProtocolReader {
     this.socket.destroy();
   }
 
-  private handshake(url: URL, clientId: string, timeoutMs: number): Promise<void> {
-    const user = decodeURIComponent(url.username);
-    const pass = decodeURIComponent(url.password);
+  private handshake(url: URL, clientId: string, timeoutMs: number, login?: { userName: string; password: string }): Promise<void> {
+    const user = login ? login.userName : decodeURIComponent(url.username);
+    const pass = login ? login.password : decodeURIComponent(url.password);
     const flags = 0x02 | (user ? 0x80 : 0) | (pass ? 0x40 : 0);
     const keepAlive = 60;
     const header = Buffer.concat([utf8('MQTT'), Buffer.from([4, flags, keepAlive >> 8, keepAlive & 0xff])]);

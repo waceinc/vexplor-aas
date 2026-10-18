@@ -65,4 +65,13 @@ describe('MQTT collection — test broker', () => {
     reader = await MqttReader.connect(descriptorFor(port, 'aas:secret@'), { settleMs: 50 });
     expect((await reader.read(['plant/m1/temp']))[0]!.pending).toBe(true);
   });
+
+  it('logs in with a user given apart from the address — the password never has to live in the AAS (2.8.0)', async () => {
+    broker = new MqttTestBroker({ username: 'aas', password: 'p@ss:/word' });
+    const port = await broker.listen();
+    broker.publish('plant/m1/temp', '30.5', true);
+    await expect(MqttReader.connect(descriptorFor(port), { timeoutMs: 1000 })).rejects.toThrow(/거절.*4/);
+    reader = await MqttReader.connect(descriptorFor(port), { settleMs: 100, user: { userName: 'aas', password: 'p@ss:/word' } });
+    expect((await reader.read(['plant/m1/temp']))[0]!.value).toBe(30.5);
+  });
 });

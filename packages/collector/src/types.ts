@@ -32,6 +32,11 @@ export interface ValueSample {
   valueText?: string;
   /** Quality (OPC UA StatusCode, etc.). Bad values are kept and flagged, not discarded */
   quality?: string;
+  /**
+   * Why the read failed — such a sample has no value (2.8.0). Stored so the screen can still say why after a reload or
+   * an automatic cycle; Modbus and MQTT have no quality code that would carry it otherwise.
+   */
+  error?: string;
 }
 
 /** Shape that the one-shot reader side (protocol adapter) must satisfy */

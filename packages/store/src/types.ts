@@ -120,6 +120,11 @@ export interface CollectedValue {
   /** Quality (OPC UA StatusCode, etc.). Bad values are not discarded but kept with their marking */
   quality?: string;
   /**
+   * Why the read failed — then there is no value (2.8.0). Modbus and MQTT have no quality code, so before this the
+   * reason was dropped and the screen showed only an empty value. Absent when the read succeeded.
+   */
+  error?: string;
+  /**
    * Idempotency key — a value with a key already stored for the package is skipped (remote collector, plan gap 8:
    * `edge:<device>:<bootId>:<seq>:<index>`). A batch sent again after a lost answer, or after a crash between storing
    * and recording it, adds nothing. Values without a key (the server's own collector) are never deduplicated.

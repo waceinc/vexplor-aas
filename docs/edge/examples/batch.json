@@ -13,6 +13,10 @@
     "queuedBatches": 0,
     "droppedBatches": 0,
     "software": { "name": "vexplor-edge", "version": "0.1.0" },
-    "interfaces": [{ "interfaceId": "pkg_2:InterfaceOPCUA", "connected": true, "lastError": null }]
+    "interfaces": [
+      { "interfaceId": "pkg_2:InterfaceOPCUA", "connected": true, "lastError": null, "responseMs": 12, "readOkRatio": 0.99, "reconnects": 1, "lastDisconnectAt": "2026-10-16T08:59:40.000Z" }
+    ],
+    "host": { "cpuPercent": 6.5, "memoryUsedPercent": 41.2, "diskFreeBytes": 52613349376, "diskFreePercent": 71.4, "uptimeSeconds": 864012, "processUptimeSeconds": 70, "clockOffsetMs": -180, "queuedInMemory": 0 },
+    "server": { "lastSendOkAt": "2026-10-16T09:00:05.020Z", "lastSendError": null, "lastSendErrorAt": null, "sendFailuresSinceOk": 0, "roundTripMs": 64, "oldestQueuedAt": null }
   }
 }

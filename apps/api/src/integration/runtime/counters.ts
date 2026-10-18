@@ -22,6 +22,8 @@ export interface RuntimeSample {
   valueNumber?: number;
   valueText?: string;
   quality?: string;
+  /** A failed read (2.8.0) — no value; never the latest good sample */
+  error?: string;
 }
 
 /**

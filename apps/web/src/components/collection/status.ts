@@ -4,6 +4,7 @@
  */
 import type { CollectedValueView, CycleReportView } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
+import { statedPollingMs } from '../aid/protocol.js';
 
 export type ConnectionStatus = { kind: 'ok' | 'warn' | 'bad' | 'idle'; label: string };
 export type AutoCollect = { running: boolean; intervalMs?: number; lastSweep?: { startedAt: string; collected: number } };
@@ -22,6 +23,12 @@ export function latestValues(values: readonly CollectedValueView[]): Map<string,
 /** Values that arrived this recently count as "receiving" even when this server did not read them (remote collector) */
 export const RECEIVING_WINDOW_MS = 3 * 60_000;
 
+/** The receiving window of one link — longer when its stated read period is slow (2.8.0): three periods, at least 3 min */
+export function receivingWindowMs(descriptor: { properties: readonly { formFields?: Record<string, string> }[] }): number {
+  const stated = statedPollingMs(descriptor.properties);
+  return stated === undefined ? RECEIVING_WINDOW_MS : Math.max(RECEIVING_WINDOW_MS, stated * 3);
+}
+
 export function connectionStatus(
   name: string,
   cycle: CycleReportView | undefined,
@@ -29,6 +36,7 @@ export function connectionStatus(
   packageId: string | undefined,
   latest?: ReadonlyMap<string, CollectedValueView>,
   nowMs: number = Date.now(),
+  receivingMs: number = RECEIVING_WINDOW_MS,
 ): ConnectionStatus {
   /*
   * Connection state — judged by **the result of the last real connection**.
@@ -61,14 +69,33 @@ export function connectionStatus(
   if (mine) {
     if (mine.errors.some((message) => message.startsWith(`${name}:`)))
       return { kind: 'bad', label: tr('접속 실패 (자동)') };
+    // Tags the automatic cycle could not read keep their reason (2.8.0) — counted like the bad tags of a run on screen
+    const failing = freshFailures(name, latest, nowMs, receivingMs);
+    if (mine.collected > 0 && failing > 0) return { kind: 'warn', label: fill(tr('연결됨 (자동) · 나쁜 태그 {0}'), { 0: failing }) };
     if (mine.collected > 0) return { kind: 'ok', label: tr('연결됨 (자동)') };
   }
-  // (3) Fresh values without this server reading them — a remote collector (VEXPLOR Edge) is sending them (2.7.0)
+  // (3) Fresh values without this server reading them — a remote collector (VEXPLOR Edge) is sending them (2.7.0).
+  //     Rows it could not read carry their reason (2.8.0) — counted like the bad tags of a collection run here
+  let fresh = 0;
+  let failed = 0;
   for (const [key, value] of latest ?? []) {
     if (!key.startsWith(`${name}/`)) continue;
-    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) <= RECEIVING_WINDOW_MS) return { kind: 'ok', label: tr('받는 중') };
+    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) > receivingMs) continue;
+    if (value.error !== undefined) failed += 1;
+    else fresh += 1;
   }
+  if (failed > 0) return { kind: 'warn', label: fill(tr('받는 중 · 나쁜 태그 {0}'), { 0: failed }) };
+  if (fresh > 0) return { kind: 'ok', label: tr('받는 중') };
   return { kind: 'idle', label: tr('수집 전') };
+}
+
+/** Latest rows of this interface that are a stored read failure (2.8.0) and still within the window */
+function freshFailures(name: string, latest: ReadonlyMap<string, CollectedValueView> | undefined, nowMs: number, windowMs: number): number {
+  let count = 0;
+  for (const [key, value] of latest ?? []) {
+    if (key.startsWith(`${name}/`) && value.error !== undefined && nowMs - Date.parse(value.receivedAt ?? value.observedAt) <= windowMs) count += 1;
+  }
+  return count;
 }
 
 /** What happened to each tag in the last collection — waiting for value · read failure (reason) */

@@ -6,6 +6,8 @@
  */
 import { fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
+  FolderStore,
+  PostgresStore,
   ConflictError,
   ExternalRefConflictError,
   ForbiddenError,
@@ -31,6 +33,8 @@ import { compile, match, type Route } from './router.js';
 import { createEdgeHandler, edgeErrorFrom } from './edge/routes-edge.js';
 import { edgeAdminRoutes } from './edge/routes-edge-admin.js';
 import { EdgeRegistry } from './edge/state.js';
+import { EdgeTraffic } from './edge/traffic.js';
+import { serverStatusRoutes } from './routes/server-status.js';
 import { hasIntegrationStore } from './integration/exports/store.js';
 
 const DEFAULT_EDGE_INTERVAL_MS = 5000;
@@ -109,6 +113,14 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
           mode: options.edge?.mode ?? 'on',
         })
       : []),
+    // The server's own state for admins (2.8.0) — store, disk, collector traffic, version
+    ...serverStatusRoutes({
+      store,
+      storeKind: options.server?.storeKind ?? (store instanceof PostgresStore ? 'postgres' : store instanceof FolderStore ? 'folder' : 'memory'),
+      ...(options.server?.dataDir ? { dataDir: options.server.dataDir } : {}),
+      ...(options.server?.startedAt ? { startedAt: options.server.startedAt } : {}),
+      ...(options.edgeTraffic ? { traffic: options.edgeTraffic } : {}),
+    }),
     ...(options.routes ?? []),
     ...undoRoutes(options.undo ?? new UndoStack(store)),
     {
@@ -168,7 +180,18 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       })
     : undefined;
   // Audit events go to the unscoped store — a workspace may not write the server log itself (integration/deps.ts)
-  const routes = compile(buildRoutes(store, { ...options, sessions, undo, integrationAuditStore: base, ...(edgeRegistry ? { edgeRegistry } : {}) }));
+  const edgeTraffic = edge ? new EdgeTraffic() : undefined;
+  const routes = compile(
+    buildRoutes(store, {
+      ...options,
+      sessions,
+      undo,
+      integrationAuditStore: base,
+      ...(edgeRegistry ? { edgeRegistry } : {}),
+      ...(edgeTraffic ? { edgeTraffic } : {}),
+      server: { storeKind: options.server?.storeKind ?? (base instanceof PostgresStore ? 'postgres' : base instanceof FolderStore ? 'folder' : 'memory'), ...options.server },
+    }),
+  );
 
   const auth = options.auth ?? OPEN_ACCESS;
   /**
@@ -188,12 +211,15 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     // Important: the edge's signature is its identity — answered before the login / API-key check, which an edge
     //    cannot pass (edge/routes-edge.ts). Only when edge is on; otherwise these paths fall through to a 404
     if (edge && request.path.startsWith('/edge/v1/') && (options.edge?.mode !== 'switchable' || (await edgeRegistry!.enabled()))) {
+      let answer: ApiResponse;
       try {
-        return await edge(request);
+        answer = await edge(request);
       } catch (error) {
         // In the edge error envelope, whatever went wrong — the edge reads only that shape (review H1)
-        return edgeErrorFrom(toErrorResponse(error));
+        answer = edgeErrorFrom(toErrorResponse(error));
       }
+      if (request.method === 'POST' && request.path === '/edge/v1/batches') edgeTraffic?.record(answer.status, answer.body);
+      return answer;
     }
     // Important: logged-in people first, machine API keys after (the order design in auth.ts).
     //    With no session, undefined is passed, and then tokens are checked as before.

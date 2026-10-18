@@ -22,7 +22,7 @@ This used to take three tools. VEXPLOR AAS Studio brings the work together and i
 
 **Website:** [wace.me/en-platform-aas-studio](https://wace.me/en-platform-aas-studio)
 
-**Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 43 rules](docs/rules.md) · [Using it with Logic Studio](docs/logic-studio.md)
+**Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 44 rules](docs/rules.md) · [Using it with Logic Studio](docs/logic-studio.md)
 — every document is also available in Korean.
 
 ---
@@ -40,7 +40,7 @@ does not end as a document but becomes **operating data with live values from th
 | What people hit on the floor | In VEXPLOR AAS Studio |
 |---|---|
 | Attaching to machines and PLCs that already run | Collects from OPC UA, Modbus TCP and MQTT per the AID in the AAS. The remote collector sends outward only; PLC programs are not changed |
-| Building an AAS by hand | Start from a filled sample, fill values at once from tables or CSV; 43 rules point out problems and 19 fix them automatically |
+| Building an AAS by hand | Start from a filled sample, fill values at once from tables or CSV; 44 rules point out problems and 19 fix them automatically |
 | One tool per job | Open, edit, check, Part 2 REST, field value collection and OPC UA publishing in one screen |
 | Passing the standard, failing the receiver | Checks the Korean receiving validator's (KOSMO Validator) business rules — semantic ID allow-list, mandatory submodels, package structure — before submission, and shows conflicts with the standard as a policy the user decides |
 
@@ -54,7 +54,7 @@ months whenever machines change. Evidence and sources: [docs/background.md](docs
 | | |
 |---|---|
 | **Open & edit** | Load AASX (JSON or XML), browse it as a tree, edit values, elements, submodels and concept descriptions. Fill many values at once from a submodel value table or from a CSV equipment list |
-| **Lint** | [43 rules](docs/rules.md) in three layers — package structure (L1), metamodel constraints (L2), submission business rules (L3) |
+| **Lint** | [44 rules](docs/rules.md) in three layers — package structure (L1), metamodel constraints (L2), submission business rules (L3) |
 | **Auto-fix** | Preview the fixable findings (19 rules), choose, apply at once. Every relocation is recorded |
 | **Report** | A printable HTML validation report |
 | **What to fill** | With the IDTA templates installed, every value row shows required · collected · optional, and "Show only what to fill" hides the rest |
@@ -67,10 +67,14 @@ months whenever machines change. Evidence and sources: [docs/background.md](docs
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 – 2.7
+## What's new in 2.3 – 2.8
 
 | Feature | Release | Detail |
 |---|---|---|
+| **Security and login on collection links** | 2.8.0 | "Create collection link" picks the OPC UA security mode (Sign · SignAndEncrypt) and policy, and "Login required" for OPC UA and MQTT. The user name and password never go into the equipment file — they stay in the server's credentials file and the factory PC's `credentials.json`, keyed by the endpoint. "Load from equipment" connects with the chosen security and login. An old MQTT link with a password in its address is left out of the remote collector list and rule `AID-1` says so (MQTT login needs VEXPLOR Edge 1.1.0 or later) |
+| **Why a read failed is kept** | 2.8.0 | Automatic collection and remote collectors store the reason with the value. The row keeps "Read failed — reason" after the screen is opened again, and Modbus and MQTT, which have no quality code, show it too |
+| **Units, Modbus order, read period** | 2.8.0 | A unit on every tag row, byte and word order (ABCD · CDAB · BADC · DCBA) on Modbus rows and a read period per machine, all on the screen. Remote collectors read at that period, and "Edit link" opens filled in with the current link |
+| **Collector health and server status** | 2.8.0 | Each row of the remote collector list carries the server's **OK · Warning · Problem** badge and its reason in one line (free disk space, failed sending, clock offset, read success rate, queue, silence, no equipment connected). "Show state" opens the factory PC (CPU, memory, disk, uptime, clock offset), the line to the server, response time, success rate and reconnects per equipment, and the last 24 hours (values sent by VEXPLOR Edge 1.1.0 or later). Admins see the server's own state in Settings (store connection, disk, batches of the last hour, version). [Usage §8-8](docs/usage.md#8-8-remote-collectors--when-the-server-is-outside-the-factory-one-click) |
 | **One-click remote collector** | 2.7.0 | **Settings → Remote collectors → "+ Connect a collector"** — check the server address and the read list, press one button, and you get one line to paste on the factory Linux PC. That line downloads, checks the hash, installs, registers and approves; the screen turns to "Receiving" the moment the PC connects. The same screen shows the last batch, values received and machine connections, and pauses, resumes or revokes. Admins turn remote collection on right there (servers with `EDGE` empty) |
 | **VEXPLOR Edge, its own open source** | 2.7.0 | The remote collector now ships from its own repository [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge) (Apache-2.0) with its own version (1.0.0). The canonical contract `vexplor.edge/1` lives there; this server receives it as is |
 | **Collect pane refreshes itself** | 2.7.0 | With a file that has a collection link open, values come in every 10 s, and while a remote collector's values arrive the connection shows "Receiving" |
@@ -167,7 +171,7 @@ uses them) are attached to each GitHub release as npm tarballs (`node scripts/pa
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.7.0/aas-aasx-2.7.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.8.0/aas-aasx-2.8.0.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would

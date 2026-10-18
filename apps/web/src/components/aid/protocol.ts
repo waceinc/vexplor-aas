@@ -35,3 +35,39 @@ export function fromModiconAddress(text: string): { entity: ModbusEntityChoice; 
   const entity = ({ '0': 'Coil', '1': 'DiscreteInput', '3': 'InputRegister', '4': 'HoldingRegister' } as const)[match[1] as '0' | '1' | '3' | '4'];
   return { entity, address: offset - 1 };
 }
+
+/** Word and byte order → the two Modbus binding flags. ABCD = high word first, high byte first (the binding default) */
+export const MODBUS_ORDERS = ['ABCD', 'CDAB', 'BADC', 'DCBA'] as const;
+export function orderFields(order: (typeof MODBUS_ORDERS)[number] | undefined): Record<string, string> {
+  if (order === undefined || order === 'ABCD') return {};
+  return {
+    modv_mostSignificantWord: order === 'CDAB' || order === 'DCBA' ? 'false' : 'true',
+    modv_mostSignificantByte: order === 'BADC' || order === 'DCBA' ? 'false' : 'true',
+  };
+}
+export function orderOf(fields: Record<string, string>): (typeof MODBUS_ORDERS)[number] {
+  const word = (fields['modv_mostSignificantWord'] ?? 'true').toLowerCase() !== 'false';
+  const byte = (fields['modv_mostSignificantByte'] ?? 'true').toLowerCase() !== 'false';
+  return word ? (byte ? 'ABCD' : 'BADC') : byte ? 'CDAB' : 'DCBA';
+}
+
+/**
+ * A user name or password inside an address (`mqtt://user:pass@host`, 2.8.0). The file would carry it and the server
+ * leaves such a link out of the remote collector list, so the screen asks to take it out.
+ */
+const USER_INFO = /^([a-z][a-z0-9+.-]*:\/\/)([^/?#]*)@/i;
+export const hasUserInfo = (endpoint: string): boolean => USER_INFO.test(endpoint.trim());
+/** The address without its user name and password */
+export const withoutUserInfo = (endpoint: string): string => endpoint.trim().replace(USER_INFO, '$1');
+/** For display and exports — the password never shows on screen or in a CSV */
+export const maskedEndpoint = (endpoint: string): string => endpoint.replace(USER_INFO, '$1***@');
+
+/** The read period a link states, ms — the Modbus binding term or ours (`vxp_pollingTime`) on its forms */
+export function statedPollingMs(properties: readonly { formFields?: Record<string, string> }[]): number | undefined {
+  const stated = properties.flatMap((property) => {
+    const text = property.formFields?.['modv_pollingTime'] ?? property.formFields?.['vxp_pollingTime'];
+    const ms = Number(text);
+    return text !== undefined && Number.isInteger(ms) && ms >= 100 ? [ms] : [];
+  });
+  return stated.length > 0 ? Math.min(...stated) : undefined;
+}

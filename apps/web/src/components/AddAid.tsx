@@ -9,7 +9,7 @@
  *    The slot-creation settings were folded into "Details" — the defaults suit most people.
  * Important: shown as a popup. Squeezed into the right panel it lacks width and the layout breaks (measured).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from '../ui/Dialog.js';
 import { api } from '../api.js';
 import { tr, fill } from '../i18n.js';
@@ -33,15 +33,11 @@ import { AidOptions } from './aid/AidOptions.js';
 import { BrowsedTags } from './aid/BrowsedTags.js';
 import { PickedTags } from './aid/PickedTags.js';
 import { AidPattern } from './aid/AidPattern.js';
-import { protocolOfEndpoint } from './aid/protocol.js';
+import { AidConnection, periodMs } from './aid/AidConnection.js';
+import { createdSummary, editableInterface, formFor, periodTextOf, rowsOf, securityOf, securityToSend } from './aid/linkInput.js';
+import { hasUserInfo, protocolOfEndpoint } from './aid/protocol.js';
 import { EMPTY, type TagRow } from './aid/types.js';
-
-/** Protocol-specific form items (AID binding) — Modbus: register kind · data type, MQTT: subscription. OPC UA: none */
-function formFor(protocol: string | undefined, row: TagRow): { form?: Record<string, string> } {
-  if (protocol === 'MODBUS') return { form: { modv_entity: row.entity ?? 'HoldingRegister', modv_type: row.dataType ?? 'xsd:unsignedShort' } };
-  if (protocol === 'MQTT') return { form: { mqv_controlPacket: 'subscribe' } };
-  return {};
-}
+import type { AidSecurityChoice } from '../api.js';
 
 /** Tidies it so it can be used as an element name — otherwise "Create" is blocked */
 function asElementName(raw: string): string {
@@ -66,6 +62,31 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
   const [makeElements, setMakeElements] = useState(true);
   const [group, setGroup] = useState('ProcessMonitoring');
   const [subgroup, setSubgroup] = useState('CollectedValues');
+  /** How to connect (2.8.0) — OPC UA security, a login, and the read period in seconds ('' = server default) */
+  const [security, setSecurity] = useState<AidSecurityChoice>({});
+  const [periodText, setPeriodText] = useState('');
+
+  /**
+   * "Edit link" starts from the link that is there (2.8.0) — "Create" replaces the whole AID, so an empty form meant
+   * typing every tag again to change one unit. Once, on open; a person's typing is never overwritten.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void api.interfaces(packageId).then(
+      ({ interfaces }) => {
+        const existing = editableInterface(interfaces);
+        if (cancelled || !existing) return;
+        setEndpoint((current) => (current === 'opc.tcp://' ? (existing.base ?? current) : current));
+        setRows((current) => (current.length === 0 ? rowsOf(existing) : current));
+        setSecurity(securityOf(existing));
+        setPeriodText(periodTextOf(existing));
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [packageId]);
 
   /** Important: was an address we serve pasted in as is — this incident actually happened */
   const isOurOwn =
@@ -74,13 +95,17 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
   /** Protocol decided by the endpoint address — loading from equipment works only for OPC UA (for Modbus · MQTT the address is typed) */
   const protocol = protocolOfEndpoint(endpoint);
   const filled = rows.filter((row) => row.name.trim() !== '' && row.href.trim() !== '');
+  const period = periodMs(periodText);
+  /** A password in the address or an impossible read period — the server would refuse it, so say it here */
+  const blocked = hasUserInfo(endpoint) || period === 'bad';
   const misses = filled.filter((row) => !leafNames.includes(row.name.trim())).length;
 
   const browse = async (): Promise<void> => {
     setBrowsing(true);
     setError(undefined);
     try {
-      setFound(await api.browseDevice(endpoint.trim()));
+      const chosen = securityToSend(protocol, security).security;
+      setFound(await api.browseDevice(endpoint.trim(), chosen));
       setPicked(new Set());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -112,25 +137,15 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
           name: row.name.trim(),
           href: row.href.trim(),
           type: row.type,
-          // Protocol-specific form items (AID binding) — Modbus: register kind · data type, MQTT: subscription
+          ...(row.unit?.trim() ? { unit: row.unit.trim() } : {}),
+          // Protocol-specific form items (AID binding) — Modbus: register kind · data type · order, MQTT: subscription
           ...formFor(protocol, row),
         })),
+        ...securityToSend(protocol, security),
+        ...(typeof period === 'number' ? { intervalMs: period } : {}),
         ...(makeElements ? { createMissing: { group: group.trim(), subgroup: subgroup.trim() } } : {}),
       });
-      // Important: the notice bar is one line — joining three sentences went over 200 characters and nobody read it (measured in a demo).
-      //    Good news stays short; only bad news (what could not be created · mismatched names) is appended. The table on the right shows the details
-      const made = result.elementsAdded?.length > 0 ? fill(tr(' · 요소 {0}개 새로 만듦'), { 0: result.elementsAdded.length }) : '';
-      /* elementsConflicted = no new slot was made because another submodel **already has** the same name.
-         Matching tag names to model elements (e.g. Nameplate/SerialNumber) is the normal path, so this is not a warning —
-         it used to show as a warning sign and led to "why wasn't it created?" (measured in a demo). The value lands on that existing element */
-      const conflicted = result.elementsConflicted ?? [];
-      const clash =
-        conflicted.length > 0 ? fill(tr(' · 모델에 이미 있어 그대로 연결: {0}'), { 0: conflicted.join(', ') }) : '';
-      const misses =
-        result.nameMisses.length > 0
-          ? fill(tr(' · 주의 — 모델과 이름이 안 맞는 태그 {0}개(표의 「모델연결」 열 참조)'), { 0: result.nameMisses.length })
-          : '';
-      onDone(fill(tr('수집 연결을 {0}{1}{2}{3}'), { 0: result.replaced ? tr('바꿨습니다') : tr('만들었습니다'), 1: made, 2: clash, 3: misses }));
+      onDone(createdSummary(result));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -174,6 +189,15 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
               {browsing ? tr('훑는 중…') : tr('설비에서 불러오기')}
             </button>
           </div>
+          <AidConnection
+            {...(protocol ? { protocol } : {})}
+            endpoint={endpoint}
+            setEndpoint={setEndpoint}
+            security={security}
+            setSecurity={setSecurity}
+            periodText={periodText}
+            setPeriodText={setPeriodText}
+          />
           {(protocol === 'MODBUS' || protocol === 'MQTT') && (
             <p className="hint">
               {protocol === 'MODBUS'
@@ -254,7 +278,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
         <div className="row-buttons modal-actions">
           <button
             className="primary"
-            disabled={busy || working || isOurOwn || filled.length === 0}
+            disabled={busy || working || isOurOwn || blocked || filled.length === 0}
             title={tr('적은 주소와 태그로 AID 서브모델(IDTA-02017)을 규격대로 만듭니다 — 이미 있으면 새로 만든 것으로 바꿉니다')}
             onClick={() => void create()}
           >

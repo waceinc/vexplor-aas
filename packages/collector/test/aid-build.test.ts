@@ -116,6 +116,22 @@ describe('AID building — Modbus TCP / MQTT (2026-10-14)', () => {
     expect(descriptor!.properties[0]).toMatchObject({ href: 'plant/press/temp', formFields: { mqv_controlPacket: 'subscribe' } });
   });
 
+  it('MQTT login — the AID says a user name is needed (WoT basic scheme); the secret stays out of it (2.8.0)', () => {
+    const submodel = buildAidSubmodel({ ...base, endpoint: 'mqtt://broker.local:1883', security: { login: true }, tags: [{ name: 'Temp', href: 'plant/press/temp' }] });
+    const [descriptor] = parseAid({ submodels: [submodel] } as never);
+    expect(descriptor!.security).toEqual({ userIdentityToken: 'UserName' });
+    expect(JSON.stringify(submodel)).toContain('https://www.w3.org/2019/wot/security#BasicSecurityScheme');
+    // Without login nothing is stated — the same AID as before
+    expect(parseAid({ submodels: [buildAidSubmodel({ ...base, endpoint: 'mqtt://broker.local:1883', tags: [{ name: 'Temp', href: 'a/b' }] })] } as never)[0]!.security).toBeUndefined();
+  });
+
+  it('refuses a user name or password inside the address — it would be stored in the file and handed out (2.8.0)', () => {
+    const tags = [{ name: 'Temp', href: 'plant/press/temp' }];
+    expect(() => buildAidSubmodel({ ...base, endpoint: 'mqtt://aas:secret@broker.local:1883', tags })).toThrow(/사용자 이름 · 암호/);
+    expect(() => buildAidSubmodel({ ...base, endpoint: 'mqtts://aas@broker.local', tags })).toThrow(AidBuildError);
+    expect(() => buildAidSubmodel({ ...base, endpoint: 'opc.tcp://op:pw@10.0.0.5:4840', tags: [{ name: 'A', href: 'ns=1;s=A' }] })).toThrow(AidBuildError);
+  });
+
   it('stops on invalid input before building — other-protocol form fields, values, address shape, wildcards', () => {
     const modbus = (tag: AidBuildInput['tags'][number]) => () => buildAidSubmodel({ ...base, endpoint: 'modbus+tcp://h', tags: [tag] });
     expect(modbus({ name: 'A', href: '40', form: { mqv_qos: '0' } })).toThrow(AidBuildError);

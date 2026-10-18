@@ -78,6 +78,17 @@ export async function collectOnce(
     if (!property) continue;
     if (result.error !== undefined) {
       failures.push({ propertyName: property.name, source: result.source, reason: result.error });
+      // Important: kept with its reason and **no value** — the time series then says "could not read at that time"
+      //    instead of nothing, and the screen shows why after a reload (2.8.0). Not counted in `collected`.
+      samples.push({
+        packageId: options.packageId,
+        interfaceName: descriptor.name,
+        propertyName: property.name,
+        source: result.source,
+        observedAt: receivedAt,
+        receivedAt,
+        error: result.error.slice(0, 512),
+      });
       continue;
     }
     // Important: values not yet available are **not turned into samples.** `toSample(null)` leaves an empty string,
@@ -108,7 +119,7 @@ export async function collectOnce(
 
   if (samples.length > 0) await sink.append(samples);
   return {
-    collected: samples.length,
+    collected: samples.filter((sample) => sample.error === undefined).length,
     failures,
     ...(pending.length > 0 ? { pending } : {}),
     skipped,
