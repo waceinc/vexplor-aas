@@ -3,6 +3,8 @@
  * Split out of App.tsx (componentization, 2026-10-13) — markup, class names and comments are verbatim from before the move,
  * and the state and actions it uses arrive as props with the same names.
  */
+import { useEffect, useState } from 'react';
+
 import { FindingsPanel } from '../components/FindingsPanel.js';
 import { FixPreview } from '../components/FixPreview.js';
 import { Accounts } from '../components/Accounts.js';
@@ -21,6 +23,12 @@ import type { Screen } from './context.js';
 
 export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap' | 'busy' | 'fixPlans' | 'fixReport' | 'helpContext' | 'inside' | 'lang' | 'onApplyFix' | 'onSelectFinding' | 'opcua' | 'packageId' | 'packages' | 'selected' | 'setFixPlans' | 'setShowAccounts' | 'setShowFindings' | 'setShowHelp' | 'setShowIntegrations' | 'setShowEdge' | 'setShowOpcua' | 'setShowSettings' | 'setStart' | 'setTour' | 'showAccounts' | 'showFindings' | 'showHelp' | 'showIntegrations' | 'showEdge' | 'showOpcua' | 'showSettings' | 'start' | 'startItems' | 'startTour' | 't' | 'tour'>): React.JSX.Element {
   const { allFindings, auth, bootstrap, busy, fixPlans, fixReport, helpContext, inside, lang, onApplyFix, onSelectFinding, opcua, packageId, packages, selected, setFixPlans, setShowAccounts, setShowFindings, setShowHelp, setShowIntegrations, setShowEdge, setShowOpcua, setShowSettings, setStart, setTour, showAccounts, showFindings, showHelp, showIntegrations, showEdge, showOpcua, showSettings, start, startItems, startTour, t, tour } = props;
+
+  // The topic a window's "More" link asked for; dropped when help closes so the header button opens the screen's own
+  const [helpTopic, setHelpTopic] = useState<string>();
+  useEffect(() => {
+    if (!showHelp) setHelpTopic(undefined);
+  }, [showHelp]);
 
   return (
     <>
@@ -106,6 +114,7 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
             onClose={() => setShowEdge(false)}
             onHelp={() => {
               setShowEdge(false);
+              setHelpTopic('edge');
               setShowHelp(true);
             }}
           />
@@ -134,6 +143,7 @@ export function Overlays(props: Pick<Screen, 'allFindings' | 'auth' | 'bootstrap
       {showHelp && (
         <HelpPanel
           context={helpContext}
+          {...(helpTopic ? { topic: helpTopic } : {})}
           t={t}
           onClose={() => setShowHelp(false)}
           onTour={() => startTour(packageId ? 'file' : 'welcome')}
