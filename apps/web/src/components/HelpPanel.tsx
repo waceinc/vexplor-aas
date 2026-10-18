@@ -12,6 +12,8 @@ import { tr } from '../i18n.js';
 
 interface Props {
   context: HelpContext;
+  /** A topic to open first instead of the current screen's — a window's own "More" link names its topic */
+  topic?: string;
   onClose: () => void;
   /** Replay the guided tour — the one for the current screen */
   onTour: () => void;
@@ -20,9 +22,9 @@ interface Props {
   t: (text: string) => string;
 }
 
-export function HelpPanel({ context, onClose, onTour, onChecklist, t }: Props): React.JSX.Element {
+export function HelpPanel({ context, topic, onClose, onTour, onChecklist, t }: Props): React.JSX.Element {
   const topics = useMemo(() => helpTopics(), []);
-  const first = topicFor(context);
+  const first = topic && topics.some((item) => item.id === topic) ? topic : topicFor(context);
   const [open, setOpen] = useState<string>(first);
   const [query, setQuery] = useState('');
   const panel = useRef<HTMLElement>(null);
