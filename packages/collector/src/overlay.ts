@@ -147,19 +147,31 @@ export interface ValuedElementLocation {
  *    of its candidates, exactly as the overlay refuses to write it.
  */
 export function findValuedElement(environment: Environment, name: string): ValuedElementLocation | 'ambiguous' | undefined {
-  const found: ValuedElementLocation[] = [];
+  return valuedElementIndex(environment)(name);
+}
+
+/**
+ * The same lookup as {@link findValuedElement} for many names: the Environment is walked once, and each name is then a
+ * map lookup (2.8.1). A read list of 1,000 tags looked each one up with its own walk of the whole file — the remote
+ * collector list took minutes at 200 devices (load test 2026-10-18).
+ * Important: same rule, same answers — a name found twice is 'ambiguous', never one of its candidates.
+ */
+export function valuedElementIndex(environment: Environment): (name: string) => ValuedElementLocation | 'ambiguous' | undefined {
+  const found = new Map<string, ValuedElementLocation | 'ambiguous'>();
   type Step = ValuedElementLocation['steps'][number];
   const walk = (submodelId: string, elements: readonly SubmodelElement[], prefix: string, inList: boolean, steps: Step[]): void => {
     elements.forEach((element, index) => {
       const path = inList ? `${prefix}[${index}]` : prefix === '' ? (element.idShort ?? '') : `${prefix}.${element.idShort ?? ''}`;
       const chain = [...steps, { modelType: element.modelType, value: inList ? String(index) : (element.idShort ?? '') }];
-      if (element.idShort === name && VALUED.has(element.modelType)) found.push({ submodelId, idShortPath: path, element, steps: chain });
+      const name = element.idShort;
+      if (name !== undefined && VALUED.has(element.modelType)) {
+        found.set(name, found.has(name) ? 'ambiguous' : { submodelId, idShortPath: path, element, steps: chain });
+      }
       walk(submodelId, childrenOf(element), path, element.modelType === 'SubmodelElementList', chain);
     });
   };
   for (const submodel of environment.submodels ?? []) walk(submodel.id, submodel.submodelElements ?? [], '', false, []);
-  if (found.length === 0) return undefined;
-  return found.length === 1 ? found[0] : 'ambiguous';
+  return (name) => found.get(name);
 }
 
 /**

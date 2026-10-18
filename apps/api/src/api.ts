@@ -119,6 +119,7 @@ export function buildRoutes(store: AasStore, options: ApiOptions = {}): Route[] 
       storeKind: options.server?.storeKind ?? (store instanceof PostgresStore ? 'postgres' : store instanceof FolderStore ? 'folder' : 'memory'),
       ...(options.server?.dataDir ? { dataDir: options.server.dataDir } : {}),
       ...(options.server?.startedAt ? { startedAt: options.server.startedAt } : {}),
+      ...(options.server?.storeTimeoutMs !== undefined ? { storeTimeoutMs: options.server.storeTimeoutMs } : {}),
       ...(options.edgeTraffic ? { traffic: options.edgeTraffic } : {}),
     }),
     ...(options.routes ?? []),
@@ -154,6 +155,12 @@ const SIDECAR_PATTERNS = new Set(['/packages/:packageId/derivation/apply']);
  * they are dropped too — otherwise undoing an earlier edit would silently remove published ids (review L9).
  */
 const UNDO_BARRIER_PATTERNS = new Set(['/packages/:packageId/external-refs']);
+
+/**
+ * How long the admin's server status waits for the store to resolve who is asking (2.8.1). With the store check's own
+ * 5 s the page answers within about 7 s when the database is paused — it did not answer at all before.
+ */
+const SESSION_WAIT_MS = 2_000;
 
 export function createApi(base: AasStore, options: ApiOptions = {}): (request: ApiRequest) => Promise<ApiResponse> {
   // Important: wrap the store in a workspace layer. Routes see **only this layer** — if even one route held
@@ -199,10 +206,29 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
    * A server with a key never opens anyway, so it doesn't ask.
    */
   let accountsExist = false;
-  const accountsNow = async (): Promise<boolean> => {
-    if (!accountsExist && isOpen(auth)) accountsExist = (await store.countUsers()) > 0;
-    return accountsExist;
+  /**
+   * `waitMs` (server status only, 2.8.1): a store that does not answer by then counts as having accounts — the strict
+   * answer (log in first), never "open".
+   */
+  const accountsNow = async (waitMs?: number): Promise<boolean> => {
+    if (accountsExist || !isOpen(auth)) return accountsExist;
+    const counted = store.countUsers().then((count) => count > 0);
+    if (waitMs === undefined) return (accountsExist = await counted);
+    let timer: NodeJS.Timeout | undefined;
+    const late = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(true), waitMs);
+    });
+    try {
+      const exist = await Promise.race([counted.catch(() => true), late]);
+      // Only an answer from the store is remembered
+      void counted.then((answer) => (accountsExist ||= answer), () => undefined);
+      return exist;
+    } finally {
+      clearTimeout(timer);
+    }
   };
+  /** How long the server status waits for the store before using what the session knows (2.8.1) */
+  const sessionWaitMs = options.server?.sessionWaitMs ?? SESSION_WAIT_MS;
 
   // Important: set the language at the very outside — even auth rejections and unknown-path errors go out in the request's language (lang.ts)
   return (request: ApiRequest): Promise<ApiResponse> => runInLang(langOf(request), () => handle(request));
@@ -223,7 +249,10 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
     }
     // Important: logged-in people first, machine API keys after (the order design in auth.ts).
     //    With no session, undefined is passed, and then tokens are checked as before.
-    const principal = await principalOf(store, sessions, request);
+    // Important: the admin's server status must answer while the store does not (2.8.1) — it waits a bounded time
+    //    here and then uses the person the session was last seen as. Every other request waits for the store as before
+    const status = request.method === 'GET' && request.path === '/server/status';
+    const principal = await principalOf(store, sessions, request, status ? sessionWaitMs : undefined);
     // Important: CSRF — only **writes** arriving via cookie have their origin checked. The risk comes from the browser
     //    attaching cookies on its own; API keys cannot be attached by another site, so they are not affected
     if (principal) {
@@ -231,7 +260,7 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
       if (blocked) return blocked;
     }
     // Block **before** matching the path. Reduces probing tokens against nonexistent paths
-    const allowed = authorize(auth, request, principal, principal ? true : await accountsNow());
+    const allowed = authorize(auth, request, principal, principal ? true : await accountsNow(status ? sessionWaitMs : undefined));
     if (!allowed.ok) return allowed.response!;
     // Important: separating workspaces needs a way to tell people apart. With no accounts and no keys everyone is
     //    "anonymous" and would silently share one workspace while believing it private (red-team L10, 2026-10-16).

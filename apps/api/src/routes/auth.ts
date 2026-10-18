@@ -715,21 +715,45 @@ function requireAdmin(request: ApiRequest): void {
   throw new ApiError(403, 'Forbidden', tr('관리자만 계정을 다룰 수 있습니다.'));
 }
 
-/** Resolves the person from the request's session. Returns undefined if none — then it is the token's turn */
+/**
+ * Resolves the person from the request's session. Returns undefined if none — then it is the token's turn.
+ *
+ * `waitMs` (2.8.1, the admin's server status only): when the store has not answered by then, or fails, the person the
+ * session was last seen as is used. A paused or overloaded database otherwise held the status page until it came back.
+ */
 export async function principalOf(
   store: AasStore,
   sessions: SessionStore,
   request: ApiRequest,
+  waitMs?: number,
 ): Promise<Principal | undefined> {
   const session = sessions.get(sessionKeyOf(request));
   if (!session) return undefined;
-  const user = await store.getUser(session.userId);
-  if (!user || user.disabled) return undefined;
-  return {
-    userId: user.id,
-    login: user.login,
-    role: user.role,
-    displayName: user.displayName,
-    visitor: session.visitor,
-  };
+  const lookup = store.getUser(session.userId).then((user): Principal | undefined => {
+    if (!user || user.disabled) {
+      delete session.known;
+      return undefined;
+    }
+    session.known = {
+      userId: user.id,
+      login: user.login,
+      role: user.role,
+      displayName: user.displayName,
+      visitor: session.visitor,
+    };
+    return session.known;
+  });
+  const known = session.known;
+  if (waitMs === undefined || known === undefined) return lookup;
+  // A store that fails outright is the same as one that does not answer: the person seen last, and the page says why
+  const answered = lookup.catch(() => known);
+  let timer: NodeJS.Timeout | undefined;
+  const fallback = new Promise<Principal>((resolve) => {
+    timer = setTimeout(() => resolve(known), waitMs);
+  });
+  try {
+    return await Promise.race([answered, fallback]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

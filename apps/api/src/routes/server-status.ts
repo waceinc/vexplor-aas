@@ -9,7 +9,9 @@
  * Important: the disk is the one this server writes to — the data folder of a folder store, otherwise the folder the
  *    server runs in. A PostgreSQL database may sit on another machine; its disk is not visible from here and the answer
  *    says so instead of guessing.
- * Important: the store check is one cheap read with a time limit. A store that hangs must not hang this page too.
+ * Important: the store check is one cheap read with a time limit. A store that hangs must not hang this page too —
+ *    nor may the login check in front of it: api.ts resolves the session for this path with a time limit as well, and
+ *    falls back on who the session was last seen as (2.8.1; before, a paused database held this page past 10 s).
  */
 import { statfsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -32,7 +34,7 @@ export interface ServerStatusOptions {
   traffic?: EdgeTraffic;
   startedAt?: Date;
   now?: () => Date;
-  /** Tests only — the store check waits this long at most */
+  /** The store check waits this long at most (default 5 s) */
   storeTimeoutMs?: number;
 }
 

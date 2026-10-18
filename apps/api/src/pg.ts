@@ -23,6 +23,24 @@ export interface PostgresOptions {
   timescale?: boolean;
   /** Compression and aggregates on top of the hypertable (timescale.ts). Absent = none */
   features?: { settings: TimescaleFeatures; retentionDays: number };
+  /** Connections the server keeps open at most (`PG_POOL_MAX`). Default {@link DEFAULT_POOL_MAX} */
+  poolMax?: number;
+}
+
+/** pg's own default — what every server before 2.8.1 used */
+export const DEFAULT_POOL_MAX = 10;
+
+/**
+ * `PG_POOL_MAX` — how many connections to PostgreSQL the server opens at most (2.8.1). A whole number from 1 to 1,000;
+ * anything else is the default, so a typo does not stop the server.
+ * Important: more is not simply faster. Since 2.8.1 a batch is one statement, and 10 connections were enough for the
+ *    load test's limit (2026-10-19). Raise it for many people working at once, and keep the sum over every server below
+ *    the database's `max_connections` (100 by default).
+ */
+export function poolMaxFromEnv(env: NodeJS.ProcessEnv): number {
+  const text = env['PG_POOL_MAX']?.trim() ?? '';
+  const value = Number(text);
+  return text !== '' && Number.isInteger(value) && value >= 1 && value <= 1_000 ? value : DEFAULT_POOL_MAX;
 }
 
 /**
@@ -58,7 +76,7 @@ export async function connectPostgres(
   options: PostgresOptions,
 ): Promise<{ store: PostgresStore; timescale: string }> {
   const { default: pg } = await import('pg');
-  const pool = new pg.Pool({ connectionString: options.connectionString });
+  const pool = new pg.Pool({ connectionString: options.connectionString, max: options.poolMax ?? DEFAULT_POOL_MAX });
 
   if (options.schema) {
     const path = `"${options.schema}", public`;
@@ -75,6 +93,8 @@ export async function connectPostgres(
     },
     transaction: async (work) => {
       const connection = await pool.connect();
+      // A connection whose ROLLBACK failed is broken — it is closed, not handed to the next caller mid-transaction
+      let broken: Error | undefined;
       try {
         await connection.query('BEGIN');
         const outcome = await work({
@@ -86,10 +106,13 @@ export async function connectPostgres(
         await connection.query('COMMIT');
         return outcome;
       } catch (error) {
-        await connection.query('ROLLBACK');
+        // Important: the error of the work is the one to report — a failed ROLLBACK must not replace it
+        await connection.query('ROLLBACK').catch((rollback: unknown) => {
+          broken = rollback instanceof Error ? rollback : new Error(String(rollback));
+        });
         throw error;
       } finally {
-        connection.release();
+        connection.release(broken);
       }
     },
   };

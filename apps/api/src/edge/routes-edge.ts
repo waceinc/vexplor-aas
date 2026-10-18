@@ -8,7 +8,10 @@
  * Important: values never go into the AAS. Accepted samples are appended to the value store, referencing package,
  *    interface and property, exactly like the server's own collector (types.ts in @aas/collector — Option A).
  * Important: only approved tags of owned, existing files are stored, checked sample by sample before anything is
- *    written — so a batch is stored whole or not at all, and a retry never stores part of it twice (review H1).
+ *    written, and the store writes the batch — every file of it and the record that it was stored — in one
+ *    transaction (`appendValueBatch`, 2.8.1). So a batch is stored whole or not at all, and a retry never stores part of
+ *    it twice (review H1). A store without one transaction (the folder store) still never stores a value twice: every
+ *    value carries a key the store skips when it has it.
  * Important: registration is rate-limited before its signature is checked — an attacker signs with a key of their own,
  *    so the signature always verifies and cannot be the first gate (review H3).
  */
@@ -240,13 +243,23 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
         // The store skips a key it already has — a crash after storing and before recording the batch cannot double it
         key: `edge:${device.deviceId}:${input.bootId}:${input.seq}:${index}`,
       };
-      byPackage.set(value.packageId, [...(byPackage.get(value.packageId) ?? []), value]);
+      // Pushed in place — copying the array for every value cost the square of the batch size (load test 2026-10-18)
+      const group = byPackage.get(value.packageId);
+      if (group) group.push(value);
+      else byPackage.set(value.packageId, [value]);
     });
     const accepted = input.samples.length - rejected.length;
-    const stored = await options.registry.once(device.deviceId, input.bootId, input.seq, async () => {
+    const stored = await options.registry.once(device.deviceId, input.bootId, input.seq, async (record) => {
       // Revoked while this request waited for the lock — store nothing (review L)
       if ((await options.registry.device(device.deviceId))?.revokedAt) throw new Revoked();
-      for (const [packageId, values] of byPackage) await options.store.appendValues(packageId, values);
+      const groups = [...byPackage].map(([packageId, values]) => ({ packageId, values }));
+      if (!options.store.appendValueBatch) {
+        for (const { packageId, values } of groups) await options.store.appendValues(packageId, values);
+        return;
+      }
+      // The values of every file and the record that the batch was stored, in one write
+      await options.store.appendValueBatch(groups, { state: record });
+      return 'recorded';
     });
     // For the screen: when it last sent, how many values, and what it said about its connections
     await options.registry.recordActivity(device.deviceId, stored ? accepted : 0, input.status, input.createdAt);

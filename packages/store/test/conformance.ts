@@ -576,6 +576,45 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       expect(all.every((v) => !('key' in v))).toBe(true);
     });
 
+    it('a batch across files is stored whole or not at all, with the state that records it (2.8.1)', async () => {
+      const { store, packageId } = await seeded();
+      expect(store.appendValueBatch).toBeTypeOf('function');
+      const other = (await store.importPackage({ name: 'other.aasx', package: golden })).id;
+      const value = (target: string, index: number) => ({
+        packageId: target,
+        interfaceName: 'InterfaceOPCUA',
+        propertyName: 'MotorSpeed',
+        observedAt: `2026-08-24T00:00:0${index}.000Z`,
+        valueNumber: index,
+        key: `edge:dev_1:boot:1:${index}`,
+      });
+      // One file of the batch is gone: nothing of the batch is stored, not even the part for the file that exists
+      await expect(
+        store.appendValueBatch!([
+          { packageId, values: [value(packageId, 0), value(packageId, 1)] },
+          { packageId: 'no-such-package', values: [value('no-such-package', 2)] },
+        ]),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(await store.readValues(packageId)).toEqual([]);
+
+      const runtime = store as unknown as { getRuntimeState?: (key: string) => Promise<unknown> };
+      await store.appendValueBatch!(
+        [
+          { packageId, values: [value(packageId, 0), value(packageId, 1)] },
+          { packageId: other, values: [value(other, 2)] },
+        ],
+        { state: { key: 'edge.seen.dev_1', value: [{ bootId: 'boot', floor: 1, above: [] }] } },
+      );
+      expect((await store.readValues(packageId)).map((v) => v.valueNumber).sort()).toEqual([0, 1]);
+      expect((await store.readValues(other)).map((v) => v.valueNumber)).toEqual([2]);
+      if (runtime.getRuntimeState) expect(await runtime.getRuntimeState('edge.seen.dev_1')).toEqual([{ bootId: 'boot', floor: 1, above: [] }]);
+      // Sent again: the keys are known, nothing is added; an empty batch still records its state
+      await store.appendValueBatch!([{ packageId, values: [value(packageId, 0)] }]);
+      await store.appendValueBatch!([], { state: { key: 'edge.seen.dev_1', value: [] } });
+      expect(await store.readValues(packageId)).toHaveLength(2);
+      if (runtime.getRuntimeState) expect(await runtime.getRuntimeState('edge.seen.dev_1')).toEqual([]);
+    });
+
     it('a failed read keeps its reason — the value is absent, the reason is not lost (2.8.0)', async () => {
       const { store, packageId } = await seeded();
       await store.appendValues(packageId, [
