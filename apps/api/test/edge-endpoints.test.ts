@@ -345,6 +345,19 @@ describe('edge hardening (review of PR #19)', () => {
     expect(edge.stats).toMatchObject({ accepted: 2, rejected: 1 });
     expect(await store.readValues(packageId)).toHaveLength(2);
   });
+
+  it('a sample the edge could not read keeps its reason — Modbus and MQTT have no quality to fall back on (2.8.0)', async () => {
+    const { store, packageId, admin, code, edge } = await setup();
+    await approve(admin, (await edge.register(code)).deviceId);
+    const list = await edge.readList();
+    const speed = list.interfaces[0]!.tags.find((tag) => tag.type === 'float')!;
+    edge.enqueue(list, [{ tagId: speed.tagId, observedAt: '2026-10-18T00:00:00.000Z', receivedAt: '2026-10-18T00:00:00.000Z', value: null, error: 'Modbus exception 2 (illegal data address)' }]);
+    expect(await edge.flush()).toBe('ok');
+    // The mock edge also sends one good reading per tag — find the failed one
+    const stored = (await store.readValues(packageId, { propertyName: speed.propertyName })).find((value) => value.observedAt === '2026-10-18T00:00:00.000Z');
+    expect(stored!.error).toBe('Modbus exception 2 (illegal data address)');
+    expect(stored!.valueNumber).toBeUndefined();
+  });
 });
 
 describe('edge read intervals per interface and tag (plan gap 6)', () => {

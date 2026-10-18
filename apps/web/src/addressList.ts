@@ -102,8 +102,8 @@ export function addressRows(
         dataType: property.type ?? '',
         unit: property.unit ?? '',
         observable: property.observable ? tr('예') : tr('아니오'),
-        latestValue: value ? displayValue(value) : '',
-        quality: value?.quality ?? (pending.has(property.name) ? tr('값 대기') : ''),
+        latestValue: value && value.error === undefined ? displayValue(value) : '',
+        quality: value?.error !== undefined ? fill(tr('읽기 실패 — {0}'), { 0: value.error }) : (value?.quality ?? (pending.has(property.name) ? tr('값 대기') : '')),
         observedAt: value ? localTime(value.observedAt) : '',
         modelLink: modelLinkOf(property.name, live),
       });

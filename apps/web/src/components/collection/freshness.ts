@@ -31,6 +31,8 @@ export function freshnessOf(
   const at = Date.parse(arrivedAt(value));
   if (Number.isNaN(at)) return { kind: 'none' };
   const ageMs = Math.max(0, nowMs - at);
+  // A failed read (2.8.0) is an attempt, not a value — it never counts as receiving. Its row says "Read failed" instead
+  if (value.error !== undefined) return { kind: 'none', ageMs };
   return { kind: ageMs <= windowMs ? 'live' : 'stale', ageMs };
 }
 

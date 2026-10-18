@@ -63,11 +63,18 @@ export function connectionStatus(
       return { kind: 'bad', label: tr('접속 실패 (자동)') };
     if (mine.collected > 0) return { kind: 'ok', label: tr('연결됨 (자동)') };
   }
-  // (3) Fresh values without this server reading them — a remote collector (VEXPLOR Edge) is sending them (2.7.0)
+  // (3) Fresh values without this server reading them — a remote collector (VEXPLOR Edge) is sending them (2.7.0).
+  //     Rows it could not read carry their reason (2.8.0) — counted like the bad tags of a collection run here
+  let fresh = 0;
+  let failed = 0;
   for (const [key, value] of latest ?? []) {
     if (!key.startsWith(`${name}/`)) continue;
-    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) <= RECEIVING_WINDOW_MS) return { kind: 'ok', label: tr('받는 중') };
+    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) > RECEIVING_WINDOW_MS) continue;
+    if (value.error !== undefined) failed += 1;
+    else fresh += 1;
   }
+  if (failed > 0) return { kind: 'warn', label: fill(tr('받는 중 · 나쁜 태그 {0}'), { 0: failed }) };
+  if (fresh > 0) return { kind: 'ok', label: tr('받는 중') };
   return { kind: 'idle', label: tr('수집 전') };
 }
 

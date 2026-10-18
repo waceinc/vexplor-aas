@@ -1366,4 +1366,8 @@ export const EN_MORE: Record<string, string> = {
   '아래 「연결된 수집기」에서 「목록 보고 승인」을 누르면 값이 들어오기 시작합니다.': 'Press "Review and approve" under "Connected collectors" below and values start coming in.',
 
   '수집기는 https 주소로만 서버에 붙습니다 — https:// 로 시작하는 주소를 넣으십시오(서버 앞에 HTTPS 를 두는 법: 설치 안내의 Caddyfile).': 'A collector connects to its server over https only — enter an address starting with https:// (to put HTTPS in front of the server, see the Caddyfile in the install guide).',
+
+  // ── Collection — stored read failures, logins, security, units, word order, read period (2.8.0) ──
+  '읽기 실패 — {0}': 'Read failed — {0}',
+  '받는 중 · 나쁜 태그 {0}': 'Receiving · {0} bad tag(s)',
 };

@@ -92,8 +92,10 @@ describe('schema version number (schema_version)', () => {
     .replace(/^ *-- *Contact address \(optional\).*$/m, '')
     .replace(/^ *-- *No UNIQUE either.*$/m, '')
     .replace(/^ *email +text$/m, '')
+    // v11 — why a read failed
+    .replace(/^ *error +text$/m, '')
     // v10 — idempotency key of collected values (column, the pre-versioning guard and its comment, the unique index)
-    .replace(/^ *value_key +text$/m, '')
+    .replace(/^ *value_key +text,?$/m, '')
     .replace(/^--.*(DB from before version numbers|value_key yet).*$/gm, '')
     .replace(/^ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS value_key text;$/m, '')
     .replace(/^CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx.*$/m, '')
@@ -128,7 +130,7 @@ describe('schema version number (schema_version)', () => {
   it('v1 DB — migrates to the latest version with data intact', async () => {
     expect(V1_SCHEMA).not.toBe(SCHEMA_SQL);
     // Every later addition is stripped — otherwise the "old DB" is the latest one and no migration line runs
-    expect(V1_SCHEMA).not.toMatch(/value_key|received_at/);
+    expect(V1_SCHEMA).not.toMatch(/value_key|received_at|^ *error +text/m);
     const db = new PGlite();
     for (const statement of V1_SCHEMA.split(';')) if (statement.trim()) await db.query(statement);
     await db.query(SCHEMA_VERSION_TABLE);
@@ -145,6 +147,9 @@ describe('schema version number (schema_version)', () => {
     const keyed = { packageId: 'p1', interfaceName: 'I', propertyName: 'P', observedAt: '2020-01-01T00:00:00.000Z', receivedAt: '2020-01-01T00:00:01.000Z', valueNumber: 1, key: 'k1' };
     await store.appendValues('p1', [keyed, keyed]);
     expect((await store.readValues('p1')).map((value) => value.receivedAt)).toEqual(['2020-01-01T00:00:01.000Z']);
+    // v11 — the reason of a failed read
+    await store.appendValues('p1', [{ packageId: 'p1', interfaceName: 'I', propertyName: 'Q', observedAt: '2019-01-01T00:00:00.000Z', error: 'timeout' }]);
+    expect((await store.readValues('p1', { propertyName: 'Q' }))[0]!.error).toBe('timeout');
     await store.putPackageFile('p1', bundleFile);     // v2 — bundle attachment
     expect((await store.packageFiles('p1')).map((f) => f.role)).toEqual(['bundle']);
     // v3 — users table; it must appear in old DBs too or login cannot work

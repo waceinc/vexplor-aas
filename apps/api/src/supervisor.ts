@@ -136,8 +136,9 @@ export class CollectSupervisor {
               sink: {
                 append: async (samples) => {
                   await this.options.store.appendValues(record.id, samples);
-                  // Only after the store accepted them — the detector must never judge values the time series lacks
-                  if (listening) stored.push(...samples);
+                  // Only after the store accepted them — the detector must never judge values the time series lacks.
+                  // A failed read (no value, only its reason — 2.8.0) is not a value to judge
+                  if (listening) stored.push(...samples.filter((sample) => sample.error === undefined));
                 },
               },
               intervalMs: 0,

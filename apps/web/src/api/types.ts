@@ -89,6 +89,8 @@ export interface CollectedValueView {
   valueNumber?: number;
   valueText?: string;
   quality?: string;
+  /** Why the read failed (2.8.0) — then there is no value. Stored by the remote collector and automatic collection */
+  error?: string;
 }
 
 export interface LiveMapping {

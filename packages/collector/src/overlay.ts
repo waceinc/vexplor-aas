@@ -34,10 +34,15 @@ export interface OverlayResult<T> {
   applied: number;
 }
 
-/** Keeps only the **most recent** sample per (interface, name) from the time series */
+/**
+ * Keeps only the **most recent** sample per (interface, name) from the time series.
+ * Important: a failed read (2.8.0 — `error`, no value) is skipped. Overlaying it would blank the element; the model view
+ *    keeps the last value that was read, as it did before failures were stored.
+ */
 export function latestByProperty(samples: readonly ValueSample[]): Map<string, ValueSample> {
   const latest = new Map<string, ValueSample>();
   for (const sample of samples) {
+    if (sample.error !== undefined) continue;
     const previous = latest.get(sample.propertyName);
     if (!previous || sample.observedAt > previous.observedAt) latest.set(sample.propertyName, sample);
   }

@@ -48,7 +48,7 @@ export function asDetectorState(value: unknown, hash: string): DetectorState {
 export function latestGood(samples: readonly RuntimeSample[], property: string, interfaceName?: string | null): RuntimeSample | undefined {
   let best: RuntimeSample | undefined;
   for (const sample of samples) {
-    if (sample.propertyName !== property || !isGoodQuality(sample.quality)) continue;
+    if (sample.propertyName !== property || !isGoodQuality(sample.quality) || sample.error !== undefined) continue;
     if (interfaceName && sample.interfaceName !== interfaceName) continue;
     if (!best || sampleMs(sample) >= sampleMs(best)) best = sample;
   }

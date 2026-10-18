@@ -61,8 +61,10 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
         <tbody>
           {descriptor.properties.map((property) => {
             const key = `${descriptor.name}/${property.name}`;
-            const value = latest.get(key);
-            const failed = failedTags.get(key);
+            const stored = latest.get(key);
+            // A stored failure (2.8.0 — remote collector, automatic collection) shows like a failure of the run just made
+            const value = stored?.error === undefined ? stored : undefined;
+            const failed = failedTags.get(key) ?? stored?.error;
             const waiting = waitingTags.has(key);
             const badValue = value?.quality !== undefined && value.quality !== 'Good';
             return (
@@ -103,11 +105,11 @@ export function InterfaceCard({ descriptor, status, latest, waitingTags, failedT
                 </td>
                 <td
                   className={`unit time-col${fresh.get(property.name)?.kind === 'stale' ? ' stale' : ''}`}
-                  {...(value
-                    ? { title: fill(tr('받은 시각 {0} · 장비 시각 {1}'), { 0: localTime(arrivedAt(value)), 1: localTime(value.observedAt) }) }
+                  {...(stored
+                    ? { title: fill(tr('받은 시각 {0} · 장비 시각 {1}'), { 0: localTime(arrivedAt(stored)), 1: localTime(stored.observedAt) }) }
                     : {})}
                 >
-                  {value && fresh.get(property.name)?.ageMs !== undefined ? (
+                  {stored && fresh.get(property.name)?.ageMs !== undefined ? (
                     <>
                       {fresh.get(property.name)?.kind === 'stale' && <span className="fresh stale">{tr('끊김')}</span>}{' '}
                       {ageLabel(fresh.get(property.name)!.ageMs!)}

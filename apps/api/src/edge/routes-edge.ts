@@ -235,6 +235,8 @@ export function createEdgeHandler(options: EdgeOptions): (request: ApiRequest) =
         ...(typeof sample.value === 'number' ? { valueNumber: sample.value } : {}),
         ...(typeof sample.value === 'string' || typeof sample.value === 'boolean' ? { valueText: String(sample.value) } : {}),
         ...(sample.quality !== undefined ? { quality: sample.quality } : {}),
+        // Why the edge could not read it (2.8.0) — Modbus and MQTT have no quality, so without this the row was only empty
+        ...(sample.error !== undefined && sample.error !== '' ? { error: sample.error } : {}),
         // The store skips a key it already has — a crash after storing and before recording the batch cannot double it
         key: `edge:${device.deviceId}:${input.bootId}:${input.seq}:${index}`,
       };
