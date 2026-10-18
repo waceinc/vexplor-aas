@@ -135,5 +135,9 @@ done while any of these still shows the old version or misses what changed:
    (waceinc.github.io/vexplor-aas): version label, "What's new", release-notes link, and screenshots when the screens
    changed. Whoever bumps the version writes the What's new text, checked against the code. A daily check compares the latest release with the README and the website and reports a
    mismatch.
+   Search and AI answers read two more places on wace.me: the `softwareVersion` in each product page's structured data
+   and the version on the project cards of `/opensource` — both are generated from `VERSIONS` in
+   `wace-home/scripts/oss_seo.py` (the site repository's README has the four commands). Run them twice before
+   deploying and check nothing changes the second time, then announce the changed URLs with IndexNow.
 
 Contributions are distributed under this repository's [Apache License 2.0](LICENSE).
