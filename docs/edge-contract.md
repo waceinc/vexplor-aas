@@ -139,7 +139,8 @@ Request `vexplor.edge.batch/1`:
   `error` is stored with the value and shown on that tag's row as "Read failed — reason" (earlier versions dropped it).
   The contract itself is unchanged.
 - optional `status` — `startedAt`, `queuedBatches`, `droppedBatches`, `software`, and per interface `connected` and
-  `lastError`. A batch with no samples is a valid heartbeat.
+  `lastError`; from 1.1.0 also the PC, the line and how equipment answers (`host`, `server`, per-interface fields — §5.1). A
+  batch with no samples is a valid heartbeat.
 
 Response **200** `vexplor.edge.batchResult/1` — `bootId`, `seq`, `accepted`, `duplicate`, `rejected[]` (`index`,
 `tagId`, `code` — e.g. a tag that is not in the approved list), and the server's current `readListRevision`.
@@ -154,6 +155,52 @@ A batch the server already has answers 200 with `duplicate: true` and stores not
 **Order.** The edge sends one batch at a time, oldest first, and starts the next only after the previous one was
 answered — a backlog after an outage arrives before the batches read after it. A receiver may therefore treat a batch
 older than the last it stored from the same device as a backlog, not as a clock fault.
+
+### 5.1 Hardware and line state (added in edge 1.1.0 — optional)
+
+From edge 1.1.0 `status` carries the fields below as well. All are optional; a server that does not know them ignores
+them (principle 6) and takes the batch as before. A value the OS cannot give is left out, never sent as 0 or null.
+Measuring them opens no connection — the PC is read through Node itself (`os`, `fs.statfs`, `/proc/meminfo`), the
+server's clock from the `Date` header of the answers the edge gets anyway.
+
+`status.host` — the PC the collector runs on. Measured at most every 30 s; batches in between repeat the values.
+
+| Field | Meaning |
+|---|---|
+| `cpuPercent` | CPU busy, 0–100, average since the previous measurement |
+| `memoryUsedPercent` | Memory in use, 0–100. Linux: `MemTotal − MemAvailable`. Left out on other systems |
+| `diskFreeBytes` · `diskFreePercent` | Free space on the file system that holds the state folder (`stateDir`, where the queue is), as available to the edge's user |
+| `uptimeSeconds` | Seconds since the PC started |
+| `processUptimeSeconds` | Seconds since the edge process started |
+| `queuedInMemory` | Batches waiting in memory because the disk took none (§6, "A full disk") |
+| `queueWriteError` · `queueWriteErrorAt` | Why the last write of a batch to the queue failed (e.g. `ENOSPC`), and when. Left out if writing never failed since the process started |
+| `clockOffsetMs` | Server clock minus edge clock, ms; positive when the server is ahead. From the `Date` header (whole seconds) of the server's answers: each answer bounds the offset by when the request was sent and when the answer arrived, and the middle of the overlap of the last 10 ranges is reported. Left out until an answer with a `Date` header arrived |
+
+`status.server` — the line to the server.
+
+| Field | Meaning |
+|---|---|
+| `lastSendOkAt` | When a batch last got a 2xx; null before the first |
+| `lastSendError` · `lastSendErrorAt` | Why the last batch without a 2xx failed (no answer, or the status and `code`), and when |
+| `sendFailuresSinceOk` | Batch requests without a 2xx since the last one with |
+| `roundTripMs` | Average round trip of the last 10 answers, ms, connection and TLS included. Left out before the first answer |
+| `oldestQueuedAt` | When the oldest batch still on the PC was made; null when nothing waits (`queuedBatches` is there since 1.0) |
+
+`status.interfaces[]` — how each interface's equipment answers, next to 1.0's `connected` and `lastError`.
+
+| Field | Meaning |
+|---|---|
+| `responseMs` | Average time of the last good reads (up to 100), ms. Left out before the first |
+| `readOkRatio` | Share of the last 100 reads and connection attempts that succeeded, 0–1. A read where every tag came back an error, and a failed connection attempt, count as failures |
+| `reconnects` | Times a lost connection was opened again, counted since the read list was applied. Equipment that was off from the start and came on later is 0 |
+| `lastDisconnectAt` | When the connection was last found lost (a first connection that failed included); null if never |
+
+A batch's `status` is the state when the batch was made. Batches queued during an outage carry the state of that time
+and arrive later in order, so the current state is that of the newest batch.
+
+AAS Studio 2.8.0 shows these on the "Remote collectors" screen and keeps the last 24 hours of them (one point
+every 5 minutes per collector). It judges each collector OK, Warning or Problem with the thresholds in
+[usage §8-8](usage.md#8-8-remote-collectors--when-the-server-is-outside-the-factory-one-click).
 
 ## 6. Limits, errors and what the edge does
 
@@ -177,6 +224,12 @@ Errors use one envelope, `vexplor.edge.error/1` — `code`, `message`, `retryabl
 
 **Local queue.** Every batch is written to disk before it is sent and deleted only after a 2xx. When the queue reaches
 its configured size, the oldest batches are dropped and counted in `status.droppedBatches` — never silently.
+
+**A full disk (edge 1.1.0).** When a batch cannot be written to disk the edge does not stop: the batch waits in memory
+and is sent from there, in the same order. Memory holds at most 1,000 batches and 100,000 samples; beyond that the
+oldest batches are dropped and added to `status.droppedBatches`. Once the disk takes writes again, the batches in memory
+are written first, in order. The failed write is reported in `status.host.queueWriteError` and `queueWriteErrorAt`, the
+batches in memory in `status.host.queuedInMemory`. Batches in memory are lost if the process ends meanwhile.
 
 **How long a batch may wait.** An unsent batch is kept at most `maxQueueDays` (default 30 days, an edge setting); older
 ones are dropped and counted the same way. A receiver keeps its duplicate memory (the idempotency key of §5) **longer
@@ -207,7 +260,8 @@ approval"). The screen makes the collector's one-line install command
 | `GET /edge/status` | On or off, whether the screen may switch it (`switchable`), and the list now (`revision`, machines, tags) |
 | `POST /edge/enable` `{ enabled }` | Admin session only. Switches it on a server with `EDGE` empty (409 where `EDGE` is set) |
 | `POST /edge/registration-codes` `{ approve? }` | A one-time code for the caller's workspace — shown once, valid 24 h. With `approve: { revision }` (from `/edge/status`) it is approved in advance — refused (409) when the revision differs |
-| `GET /edge/devices` | Devices of the workspace, with `changedSinceApproval` when the files changed after approval, who approved (`approvedVia` `code` · `person`) and the last batch (`lastSeenAt`, `samplesReceived`, `lastStatus`) |
+| `GET /edge/devices` | Devices of the workspace, with `changedSinceApproval` when the files changed after approval, who approved (`approvedVia` `code` · `person`) and the last batch (`lastSeenAt`, `samplesReceived`, `lastStatus`, `lastStatusAt`). From 2.8.0 `health` — `{ level: ok · attention · problem, reasons[] }` for an approved device that sent a batch, otherwise null |
+| `GET /edge/devices/:deviceId/history` | The device's trend (2.8.0): the last 24 hours, one point per 5 minutes, filed by when the batch was made |
 | `GET /edge/devices/:deviceId/read-list-preview` | What approving now would grant, and its `revision` |
 | `POST /edge/devices/:deviceId/approve` `{ revision, intervals? }` | Grants exactly the previewed list; refused (409) when the files changed meanwhile. `intervals` `{ <interfaceId or tagId>: ms }` (100 ms – 1 h) sets read intervals — re-approving with other intervals gives the edge a new revision |
 | `POST /edge/devices/:deviceId/pause` · `/resume` · `/revoke` | Empty list from now on · read the approved list again · the device is refused from now on |

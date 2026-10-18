@@ -481,6 +481,8 @@ export function createHttpServer(options: ServerOptions = {}): Server {
 
   const handle = createApi(store, {
     auth,
+    // The admin's server status reports the store and the disk it writes to (routes/server-status.ts)
+    server: { storeKind, ...(dataDir ? { dataDir } : {}), startedAt: new Date() },
     ...(demo ? { demo } : {}),
     ...(signup ? { signup } : {}),
     // Whether to give each person a separate workspace. In demo mode createApi enables it by itself

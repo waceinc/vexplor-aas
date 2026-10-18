@@ -101,8 +101,8 @@ export function createMockEdge({ server, stateDir, fetchImpl = fetch, now = () =
     return Math.round((50 + 25 * Math.sin(phase)) * 1000) / 1000;
   }
 
-  /** Queues a batch of one reading per approved tag */
-  function enqueue(list, extraSamples = []) {
+  /** Queues a batch of one reading per approved tag. `statusExtra` adds or replaces status fields (e.g. edge 1.1.0 `host`) */
+  function enqueue(list, extraSamples = [], statusExtra = {}) {
     const at = now();
     const iso = new Date(at).toISOString();
     const samples = list.interfaces.flatMap((iface) =>
@@ -116,6 +116,7 @@ export function createMockEdge({ server, stateDir, fetchImpl = fetch, now = () =
       droppedBatches: 0,
       software: { name: 'mock-edge', version: '0.0.0' },
       interfaces: list.interfaces.map((iface) => ({ interfaceId: iface.interfaceId, connected: true, lastError: null })),
+      ...statusExtra,
     };
     const batch = { schema: 'vexplor.edge.batch/1', bootId, seq, readListRevision: list.revision, createdAt: iso, samples: [...samples, ...extraSamples], status };
     writeFileSync(join(stateDir, 'queue', `${bootId}-${String(seq).padStart(8, '0')}.json`), JSON.stringify(batch));

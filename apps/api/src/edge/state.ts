@@ -21,6 +21,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import type { IntegrationStore } from '@aas/store';
+import { pointOf, type EdgeHistoryPoint } from './health.js';
+import { EdgeTrend } from './history.js';
 import type { ReadListInterface } from './read-list.js';
 
 const CODES = 'edge.codes';
@@ -30,6 +32,8 @@ const ACTIVITY = 'edge.activity';
 /** Activity is kept in memory and written at most this often — a batch every 5 s must not rewrite the store each time */
 const ACTIVITY_WRITE_MS = 60_000;
 const seenKey = (deviceId: string): string => `edge.seen.${deviceId}`;
+/** A batch's createdAt further ahead of the server clock than this is not believed — the point goes at the arrival time */
+const FUTURE_SLACK_MS = 5 * 60_000;
 /** Boots remembered per device, and out-of-order seqs remembered per boot */
 const BOOTS_KEPT = 8;
 const ABOVE_FLOOR_KEPT = 4096;
@@ -67,6 +71,8 @@ export interface EdgeActivity {
   lastSeenAt: string;
   samplesReceived: number;
   lastStatus: Record<string, unknown> | null;
+  /** createdAt of the batch that carried lastStatus (2.8.0) — the status is the state at that moment */
+  lastStatusAt?: string;
 }
 
 interface CodeRecord {
@@ -104,11 +110,15 @@ export class EdgeRegistry {
   private loaded: Promise<{ codes: Map<string, CodeRecord>; devices: Map<string, EdgeDevice> }> | undefined;
   private activityLoaded: Promise<Map<string, EdgeActivity>> | undefined;
   private activityWrittenAt = 0;
+  /** The trend of every collector — written with the activity, at most once a minute */
+  private readonly trend: EdgeTrend;
 
   constructor(
     private readonly store: RuntimeState,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.trend = new EdgeTrend(store);
+  }
 
   private load() {
     this.loaded ??= (async () => {
@@ -148,20 +158,35 @@ export class EdgeRegistry {
     return (await this.activities()).get(deviceId);
   }
 
-  /** A batch arrived: when, how many values were stored, and the status it carried */
-  async recordActivity(deviceId: string, stored: number, status: Record<string, unknown> | undefined): Promise<void> {
+  /**
+   * A batch arrived: when, how many values were stored, and the status it carried. `createdAt` is when the edge made the
+   * batch — batches queued during an outage arrive later with the state of their own time, so the trend files them there.
+   */
+  async recordActivity(deviceId: string, stored: number, status: Record<string, unknown> | undefined, createdAt?: string): Promise<void> {
     const all = await this.activities();
     const before = all.get(deviceId);
     const now = this.now();
+    const made = Date.parse(createdAt ?? '');
+    const at = Number.isFinite(made) && made <= now.getTime() + FUTURE_SLACK_MS ? new Date(Math.min(made, now.getTime())).toISOString() : now.toISOString();
+    // A status older than the one shown (a resent duplicate) does not replace it
+    const newer = status !== undefined && (before?.lastStatusAt === undefined || at >= before.lastStatusAt);
     all.set(deviceId, {
       lastSeenAt: now.toISOString(),
       samplesReceived: (before?.samplesReceived ?? 0) + stored,
-      lastStatus: status ?? before?.lastStatus ?? null,
+      lastStatus: newer ? status : (before?.lastStatus ?? null),
+      ...(newer ? { lastStatusAt: at } : before?.lastStatusAt ? { lastStatusAt: before.lastStatusAt } : {}),
     });
+    await this.trend.add(deviceId, pointOf(status, at, stored), now.getTime());
     if (now.getTime() - this.activityWrittenAt >= ACTIVITY_WRITE_MS) {
       this.activityWrittenAt = now.getTime();
       await this.store.putRuntimeState(ACTIVITY, Object.fromEntries(all));
+      await this.trend.write();
     }
+  }
+
+  /** The trend of one collector, oldest first: the last 24 hours, one point per 5 minutes */
+  history(deviceId: string): Promise<EdgeHistoryPoint[]> {
+    return this.trend.get(deviceId);
   }
 
   /** A new one-time code, returned once in clear. With `preapproved`, the device it registers reads that list at once */

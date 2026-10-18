@@ -898,12 +898,64 @@ machines of an approved list and sends to this server over HTTPS — outbound on
    in one go.
 4. Done when the screen shows the PC's name and **"Receiving"**. Values come into this file's "Collect" pane every 10 s.
 
-An MQTT broker that wants a login ("Login required") is read by **collector 1.0.2 or later** — 1.0.1 and earlier do not use
-`credentials.json` for MQTT, connect anonymously and are refused by the broker (code 4).
+An MQTT broker that wants a login ("Login required") is read by **VEXPLOR Edge 1.1.0 or later** — 1.0.x does not use
+`credentials.json` for MQTT, connects anonymously and is refused by the broker (code 4).
 
 After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
 revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and
 certificates on the factory PC: the collector's [install guide](https://github.com/waceinc/vexplor-edge/blob/main/docs/install.md).
+
+#### Collector health — OK, Warning, Problem (2.8.0)
+
+![Collector health — the badge, the first reason and the opened details](images/manual/en/m46-edge-health.png)
+
+Each collector in the list carries a badge the server decides (**OK · Warning · Problem**) and its most important reason
+in one line. The server judges in one place, with the limits in the table below. With several reasons the problems come
+first, and one problem makes the badge Problem.
+
+<!-- edge-health-thresholds -->
+| State | When |
+|---|---|
+| Problem | More than 3 minutes since the last batch (the same limit as "Silent") |
+| Problem | No equipment connected (equipment connected 0/n) |
+| Problem | Free disk space on the factory PC under 2% |
+| Warning | Free disk space on the factory PC under 10% |
+| Warning | Sending to the server has been failing for more than 1 minute |
+| Warning | The factory PC clock is more than 5 s off the server's |
+| Warning | Some equipment reads successfully less than 90% of the time (last 100 reads) |
+| Warning | A batch could not be written to the queue on disk (within the last hour) |
+| Warning | Batches wait in memory instead of on disk — they are lost if the collector restarts |
+| Warning | Batches were dropped within the last hour (queue limit) |
+<!-- /edge-health-thresholds -->
+
+Collectors waiting for approval, paused or revoked, and those that never sent a batch, are not judged.
+
+**"Show state"** opens the numbers under the row.
+
+| Part | What it shows |
+|---|---|
+| Factory PC | Collector version · CPU · memory in use · free disk space · PC up for · collector running for · clock offset |
+| Line to the server | Batches waiting · batches dropped · last success · round trip · failures since the last success · oldest waiting batch · last failure |
+| Per equipment | Connection · response time · success rate · reconnects · last lost · last error |
+| Last 24 hours | One bar per 5 minutes — values received · free disk space · CPU · round trip to the server · read success rate (lowest equipment). A gap means no batch arrived in those 5 minutes |
+
+![Collector health on the dark screen](images/manual/en/m46-edge-health-dark.png)
+
+- A 1.0.x collector shows "Not sent by this version (1.1.0 or later)" where the PC, line and per-equipment numbers would be
+  — a 0 or a blank there would read like a fault. Upgrade the collector to 1.1.0 or later and the next batch fills them;
+  until then it is judged on what it sends (silence and equipment connections).
+- The numbers are the state when the batch was made. Batches queued while the line to the server was down arrive in order
+  once it is back, and the trend files them where they were made. So failed sending shows only after the line is back;
+  whether it is down right now is what "Silent" (3 minutes) tells.
+- The trend is kept in the server's store and survives a restart (the last minute may be lost). The API:
+  `health` in `GET /edge/devices` and `GET /edge/devices/:deviceId/history`.
+
+**The server's own state** — admins see "Server status" in **Settings**: server version, running time, store connection
+(response time), free disk space of the server, and the batches the remote collectors sent in the last hour, requests
+refused and values not stored. A folder store shows the disk of its data folder. PostgreSQL may run on another machine,
+so its disk is not shown. The same comes from `GET /server/status` (admin sign-in).
+
+![Server status in Settings (admin)](images/manual/en/m47-server-status.png)
 
 ---
 

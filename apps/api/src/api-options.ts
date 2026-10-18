@@ -17,6 +17,8 @@ import type { LoginThrottle, SessionStore, SignupThrottle } from './session.js';
 import type { UndoStack } from './undo.js';
 import type { EdgeLimits } from './edge/routes-edge.js';
 import type { EdgeRegistry } from './edge/state.js';
+import type { EdgeTraffic } from './edge/traffic.js';
+import type { ServerStoreKind } from './routes/server-status.js';
 
 export interface ApiOptions {
   /** Extra routes — extension point for tests */
@@ -105,6 +107,10 @@ export interface ApiOptions {
   edge?: EdgeConfig;
   /** The device registry — createApi creates it from `edge` and passes it to the route table */
   edgeRegistry?: EdgeRegistry;
+  /** Batches taken and refused in the last hour — createApi creates it with the registry (admin server status) */
+  edgeTraffic?: EdgeTraffic;
+  /** What the admin's server status reports about this deployment (2.8.0). The store kind is derived when omitted */
+  server?: { storeKind?: ServerStoreKind; dataDir?: string; startedAt?: Date };
 }
 
 export interface EdgeConfig {

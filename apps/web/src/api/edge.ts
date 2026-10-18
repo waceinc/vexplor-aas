@@ -34,6 +34,67 @@ export interface EdgeInterfaceStatus {
   interfaceId: string;
   connected: boolean;
   lastError?: string | null;
+  /** Edge 1.1.0 and later — absent from an older collector */
+  responseMs?: number;
+  readOkRatio?: number;
+  reconnects?: number;
+  lastDisconnectAt?: string | null;
+}
+
+/** The factory PC (edge 1.1.0 `status.host`) — each value is absent when the OS cannot give it */
+export interface EdgeHostStatus {
+  cpuPercent?: number;
+  memoryUsedPercent?: number;
+  diskFreeBytes?: number;
+  diskFreePercent?: number;
+  uptimeSeconds?: number;
+  processUptimeSeconds?: number;
+  clockOffsetMs?: number;
+  queuedInMemory?: number;
+  queueWriteError?: string;
+  queueWriteErrorAt?: string;
+}
+
+/** The line to the server (edge 1.1.0 `status.server`) */
+export interface EdgeServerLink {
+  lastSendOkAt?: string | null;
+  lastSendError?: string | null;
+  lastSendErrorAt?: string | null;
+  sendFailuresSinceOk?: number;
+  roundTripMs?: number;
+  oldestQueuedAt?: string | null;
+}
+
+export interface EdgeLastStatus {
+  startedAt?: string;
+  queuedBatches?: number;
+  droppedBatches?: number;
+  software?: { name: string; version: string };
+  interfaces?: EdgeInterfaceStatus[];
+  host?: EdgeHostStatus;
+  server?: EdgeServerLink;
+}
+
+/** The server's verdict (apps/api/src/edge/health.ts) — the reasons come in the screen's language */
+export interface EdgeVerdict {
+  level: 'ok' | 'attention' | 'problem';
+  reasons: { code: string; level: 'attention' | 'problem'; message: string; interfaceId?: string }[];
+}
+
+/** One 5-minute point of a collector's trend */
+export interface EdgeHistoryPoint {
+  at: string;
+  values: number;
+  cpu?: number;
+  mem?: number;
+  disk?: number;
+  clock?: number;
+  rtt?: number;
+  queued?: number;
+  memQueued?: number;
+  dropped?: number;
+  fails?: number;
+  links?: { id: string; up: boolean; ratio?: number; ms?: number }[];
 }
 
 export interface EdgeDeviceView {
@@ -50,7 +111,11 @@ export interface EdgeDeviceView {
   tags: number;
   lastSeenAt: string | null;
   samplesReceived: number;
-  lastStatus: { queuedBatches?: number; interfaces?: EdgeInterfaceStatus[]; software?: { name: string; version: string } } | null;
+  lastStatus: EdgeLastStatus | null;
+  /** When the batch carrying lastStatus was made (2.8.0) */
+  lastStatusAt?: string | null;
+  /** Null while not judged (paused, pending, revoked, nothing received yet); absent from a server older than 2.8.0 */
+  health?: EdgeVerdict | null;
 }
 
 export interface EdgePreview {
@@ -91,6 +156,7 @@ export const edgeApi = {
   enable: (enabled: boolean) => post<{ enabled: boolean }>('/edge/enable', { enabled }),
   createCode: (approveRevision?: string) => post<EdgeCode>('/edge/registration-codes', approveRevision ? { approve: { revision: approveRevision } } : undefined),
   devices: async () => (await call<{ items: EdgeDeviceView[] }>('/edge/devices')).items,
+  history: async (deviceId: string) => (await call<{ items: EdgeHistoryPoint[] }>(`/edge/devices/${encodeURIComponent(deviceId)}/history`)).items,
   preview: (deviceId: string) => call<EdgePreview>(`/edge/devices/${encodeURIComponent(deviceId)}/read-list-preview`),
   approve: (deviceId: string, revision: string) => post<EdgeDeviceView>(`/edge/devices/${encodeURIComponent(deviceId)}/approve`, { revision }),
   pause: (deviceId: string) => post<EdgeDeviceView>(`/edge/devices/${encodeURIComponent(deviceId)}/pause`),
@@ -130,4 +196,10 @@ export function healthLabel(health: EdgeHealth): string {
   if (health === 'waiting') return tr('첫 값 기다리는 중');
   if (health === 'silent') return tr('끊김');
   return tr('받는 중');
+}
+
+export function verdictLabel(level: EdgeVerdict['level']): string {
+  if (level === 'problem') return tr('위험');
+  if (level === 'attention') return tr('주의');
+  return tr('정상');
 }

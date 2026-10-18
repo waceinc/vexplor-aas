@@ -7,6 +7,8 @@
  *     POST /edge/registration-codes  { approve? }      → { code, expiresAt, preapproved? } — shown once
  *     GET  /edge/devices                               → devices of this workspace, with "list changed since approval"
  *                                                        and their last batch (time, values, connection status)
+ *                                                        and how it is doing: health OK · Attention · Problem with reasons
+ *     GET  /edge/devices/:deviceId/history             → its trend: the last 24 hours, one point per 5 minutes
  *     GET  /edge/devices/:deviceId/read-list-preview   → what approving now would grant, with its revision
  *     POST /edge/devices/:deviceId/approve  { revision } → the device starts reading exactly that list
  *     POST /edge/devices/:deviceId/pause | /resume | /revoke
@@ -25,6 +27,7 @@ import { requireAdminSession } from '../integration/route-support.js';
 import type { Route } from '../router.js';
 import { currentInterfaces, revisionOf, type ReadListInterface } from './read-list.js';
 import { deviceWorkspace, servedList } from './routes-edge.js';
+import { judgeEdge } from './health.js';
 import type { EdgeDevice, EdgeRegistry } from './state.js';
 
 export interface EdgeAdminOptions {
@@ -112,6 +115,12 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       lastSeenAt: activity?.lastSeenAt ?? null,
       samplesReceived: activity?.samplesReceived ?? 0,
       lastStatus: activity?.lastStatus ?? null,
+      lastStatusAt: activity?.lastStatusAt ?? null,
+      // Judged only while the device is meant to send — a paused, pending or revoked one is shown by its state
+      health:
+        device.state === 'approved' && !device.revokedAt
+          ? judgeEdge({ lastSeenAt: activity?.lastSeenAt ?? null, lastStatus: activity?.lastStatus ?? null, history: await options.registry.history(device.deviceId), ...(activity?.lastStatusAt ? { statusAt: activity.lastStatusAt } : {}) }, now())
+          : null,
     };
   };
   const change = async (deviceId: string, edit: (device: EdgeDevice) => EdgeDevice) => {
@@ -180,6 +189,14 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       async handle() {
         const devices = (await options.registry.list()).filter(visible);
         return json(200, { items: await Promise.all(devices.map(summary)) });
+      },
+    },
+    {
+      method: 'GET',
+      pattern: '/edge/devices/:deviceId/history',
+      async handle({ params }) {
+        const device = await deviceOf(params['deviceId']!);
+        return json(200, { items: await options.registry.history(device.deviceId) });
       },
     },
     {

@@ -124,6 +124,9 @@ const EXTENSIONS = [
   '/edge/devices/:deviceId/approve',
   '/edge/devices/:deviceId/pause',
   '/edge/devices/:deviceId/revoke',
+  // 2026-10-18 — collector trend and the server's own state for admins (2.8.0)
+  '/edge/devices/:deviceId/history',
+  '/server/status',
 ];
 
 /** Extracts only (method, path, success code) from OpenAPI YAML — reads by indentation, no dependency */

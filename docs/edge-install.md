@@ -50,11 +50,20 @@ Each device shows the last batch, values received, tags read, machines connected
 collector version. When the files change after approval the screen says so, and the collector keeps reading the
 approved list until someone approves again.
 
+From 2.8.0 each approved collector also carries the server's **OK · Warning · Problem** badge and its reason in one
+line. "Show state" opens the factory PC (CPU, memory, disk, uptime, clock offset, version), the line to the server (last
+success, round trip, failures, batches waiting), each piece of equipment (connection, response time, success rate,
+reconnects, last lost, last error) and the last 24 hours. These numbers come from **VEXPLOR Edge 1.1.0 or later** — for
+1.0.x the screen says "Not sent by this version (1.1.0 or later)" in their place. The limits are in
+[usage §8-8](usage.md#8-8-remote-collectors--when-the-server-is-outside-the-factory-one-click). The server's own state
+(store, disk, batches of the last hour, version) is in **Settings → Server status** for admins.
+
 ## Through the API
 
 The routes the screen uses are in [edge-contract.md](edge-contract.md) section 8 — `GET /edge/status`,
 `POST /edge/enable`, `POST /edge/registration-codes` (`approve` to approve in advance), `GET /edge/devices`,
-`…/read-list-preview`, `…/approve`, `…/pause`, `…/resume`, `…/revoke`.
+`…/read-list-preview`, `…/approve`, `…/pause`, `…/resume`, `…/revoke`; from 2.8.0 also `…/history` (the last 24
+hours) and `GET /server/status` (admins — the server's own state).
 
 ## Installing it with a site server
 
