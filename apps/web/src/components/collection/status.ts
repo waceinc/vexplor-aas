@@ -4,6 +4,7 @@
  */
 import type { CollectedValueView, CycleReportView } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
+import { statedPollingMs } from '../aid/protocol.js';
 
 export type ConnectionStatus = { kind: 'ok' | 'warn' | 'bad' | 'idle'; label: string };
 export type AutoCollect = { running: boolean; intervalMs?: number; lastSweep?: { startedAt: string; collected: number } };
@@ -22,6 +23,12 @@ export function latestValues(values: readonly CollectedValueView[]): Map<string,
 /** Values that arrived this recently count as "receiving" even when this server did not read them (remote collector) */
 export const RECEIVING_WINDOW_MS = 3 * 60_000;
 
+/** The receiving window of one link — longer when its stated read period is slow (2.8.0): three periods, at least 3 min */
+export function receivingWindowMs(descriptor: { properties: readonly { formFields?: Record<string, string> }[] }): number {
+  const stated = statedPollingMs(descriptor.properties);
+  return stated === undefined ? RECEIVING_WINDOW_MS : Math.max(RECEIVING_WINDOW_MS, stated * 3);
+}
+
 export function connectionStatus(
   name: string,
   cycle: CycleReportView | undefined,
@@ -29,6 +36,7 @@ export function connectionStatus(
   packageId: string | undefined,
   latest?: ReadonlyMap<string, CollectedValueView>,
   nowMs: number = Date.now(),
+  receivingMs: number = RECEIVING_WINDOW_MS,
 ): ConnectionStatus {
   /*
   * Connection state — judged by **the result of the last real connection**.
@@ -69,7 +77,7 @@ export function connectionStatus(
   let failed = 0;
   for (const [key, value] of latest ?? []) {
     if (!key.startsWith(`${name}/`)) continue;
-    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) > RECEIVING_WINDOW_MS) continue;
+    if (nowMs - Date.parse(value.receivedAt ?? value.observedAt) > receivingMs) continue;
     if (value.error !== undefined) failed += 1;
     else fresh += 1;
   }

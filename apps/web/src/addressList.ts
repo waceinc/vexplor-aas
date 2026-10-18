@@ -15,6 +15,7 @@ import type { AidInterfaceView, CollectedValueView, LiveMapping } from './api.js
 import { localTime } from './model.js';
 import { tr, fill } from './i18n.js';
 import { csvCell } from '@aas/linter';
+import { maskedEndpoint } from './components/aid/protocol.js';
 
 export interface AddressRow {
   interfaceName: string;
@@ -96,7 +97,8 @@ export function addressRows(
       rows.push({
         interfaceName: descriptor.title ?? descriptor.name,
         protocol: descriptor.protocol,
-        endpoint: descriptor.base ?? '',
+        // The password never goes into the CSV (2.8.0)
+        endpoint: descriptor.base ? maskedEndpoint(descriptor.base) : '',
         propertyName: property.name,
         address: property.href ?? '',
         dataType: property.type ?? '',

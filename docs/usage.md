@@ -928,7 +928,7 @@ Header right **Settings ▾ → Rules and conventions** shows what the tool enfo
 | **Who decides acceptance** | **Not this tool.** The KOSMO Validator and aas-test-engines decide |
 | **Conventions** | Own IRI root · required submodels · how ids are formed · asset kind (Type) · value sync policy |
 | **Rule conflicts** | Where the KTL guideline and KOSMO collide, **what is currently chosen** |
-| **43 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
+| **44 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
 
 ### When rules conflict — choose by policy
 

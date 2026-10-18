@@ -69,6 +69,8 @@ export interface AidInterfaceView {
   title?: string;
   protocol: string;
   base?: string;
+  /** What the AID states (2.8.0 makes it from the screen) — `UserName` also stands for an MQTT login */
+  security?: { mode?: 'None' | 'Sign' | 'SignAndEncrypt'; policy?: string; userIdentityToken?: string };
   properties: {
     name: string;
     key?: string;
@@ -76,7 +78,17 @@ export interface AidInterfaceView {
     unit?: string;
     href?: string;
     observable: boolean;
+    /** Protocol form fields (modv_* · mqv_* · read period) — "Edit link" starts from them */
+    formFields?: Record<string, string>;
   }[];
+}
+
+/** The security a person chooses for a collection link (2.8.0) */
+export interface AidSecurityChoice {
+  mode?: 'None' | 'Sign' | 'SignAndEncrypt';
+  policy?: string;
+  /** The device wants a user name and password — they stay in the credentials files, never in the AAS */
+  login?: boolean;
 }
 
 export interface CollectedValueView {

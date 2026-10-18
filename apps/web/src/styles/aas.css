@@ -1911,3 +1911,14 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .edge-arrived p { margin: 0; }
 .edge-arrived { flex-direction: column; align-items: flex-start; }
 .edge-command .edge-word { white-space: nowrap; }
+
+/* Create collection link — how to connect (2.8.0): security, login, read period on one line; units on every tag row */
+.add-aid .aid-connection { margin-top: calc(var(--spacing) * 2); }
+.add-aid .aid-connection-line { display: flex; flex-wrap: wrap; align-items: flex-end; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 3); font-size: var(--text-xs); color: var(--muted-foreground); }
+.add-aid .aid-connection-line label { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); }
+.add-aid .aid-connection-line label.check-line { flex-direction: row; margin: 0; padding-bottom: calc(var(--spacing) * 1.5); color: var(--foreground); }
+.add-aid .aid-connection-line select { width: 168px; }
+.add-aid .aid-connection-line input:not([type='checkbox']) { width: 88px; }
+.add-aid .aid-connection .self-warn { margin-top: 0; }
+.picked-list li .unit-input { flex: 0 0 72px; min-width: 0; }
+.picked-list li.modbus select:nth-of-type(3) { width: 168px; }

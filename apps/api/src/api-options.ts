@@ -29,7 +29,7 @@ export interface ApiOptions {
    * Equipment browse — connects and fetches the tag list. 501 if absent.
    * Important: only @aas/opcua knows the protocol, so this is injected too (same principle as openReader).
    */
-  browseDevice?: (endpoint: string) => Promise<unknown>;
+  browseDevice?: (endpoint: string, options?: { security: import('./routes/packages.js').BrowseSecurity }) => Promise<unknown>;
   /** Built-in virtual PLC (simulation). Without it, "connect to virtual PLC" is 501 */
   simulate?: PackageRouteOptions['simulate'];
   /** Server default linter policy (rule-conflict choice). A query parameter takes precedence */

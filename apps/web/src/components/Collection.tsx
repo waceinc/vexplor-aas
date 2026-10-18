@@ -18,7 +18,7 @@ import { LiveMap } from './collection/LiveMap.js';
 import { NoCollection } from './collection/NoCollection.js';
 import { ProcessEquipment } from './collection/ProcessEquipment.js';
 import { DailyStates } from './collection/DailyStates.js';
-import { connectionStatus, latestValues, tagOutcomes } from './collection/status.js';
+import { connectionStatus, receivingWindowMs, latestValues, tagOutcomes } from './collection/status.js';
 import { freshWindowMs } from './collection/freshness.js';
 
 export type { EquipmentRow } from './collection/helpers.js';
@@ -182,7 +182,7 @@ export function Collection({
         <InterfaceCard
           key={descriptor.name}
           descriptor={descriptor}
-          status={connectionStatus(descriptor.name, cycle, auto, packageId, latest, nowMs)}
+          status={connectionStatus(descriptor.name, cycle, auto, packageId, latest, nowMs, receivingWindowMs(descriptor))}
           latest={latest}
           waitingTags={waitingTags}
           failedTags={failedTags}

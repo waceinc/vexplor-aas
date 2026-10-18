@@ -53,7 +53,11 @@ export interface AidProperty {
   formFields: Record<string, string>;
 }
 
-/** OPC UA security an interface states (IDTA-02017 1.1 §2.27.7 – 2.27.8) — what the reader needs, never a secret */
+/**
+ * Security an interface states (IDTA-02017 1.1 §2.27.7 – 2.27.8) — what the reader needs, never a secret.
+ * `userIdentityToken: 'UserName'` also stands for an MQTT login (WoT basic scheme, 2.8.0): a user name and password
+ * from the installer's credentials, found by the address.
+ */
 export interface AidSecurity {
   mode?: 'None' | 'Sign' | 'SignAndEncrypt';
   policy?: string;
@@ -91,9 +95,18 @@ const UAV = 'http://opcfoundation.org/UA/WoT-Binding/';
 const MODES = new Set(['None', 'Sign', 'SignAndEncrypt']);
 const TOKENS = new Set(['Anonymous', 'UserName', 'Certificate', 'IssuedToken']);
 
-function semanticOf(node: SubmodelElement | undefined): string | undefined {
-  return node?.semanticId?.keys?.[0]?.value;
+/**
+ * Every term a node states — its semanticId and its supplemental semanticIds. The AIDs this tool builds carry our own
+ * IRI as semanticId and the standard term as supplemental (KOSMO-SME-3), so both count.
+ */
+function semanticsOf(node: SubmodelElement | undefined): string[] {
+  const supplemental = (node as { supplementalSemanticIds?: { keys?: { value?: string }[] }[] } | undefined)?.supplementalSemanticIds ?? [];
+  return [node?.semanticId, ...supplemental].flatMap((reference) => (reference?.keys ?? []).flatMap((key) => (key.value ? [key.value] : [])));
 }
+
+const WOT_BASIC = 'https://www.w3.org/2019/wot/security#BasicSecurityScheme';
+/** Standard scheme terms — a node stating any of them is judged by term, never by its idShort */
+const SCHEME_TERMS = new Set([`${UAV}OPCUASecurityChannelScheme`, `${UAV}OPCUASecurityAuthenticationScheme`, WOT_BASIC]);
 
 /** The scheme idShorts a `security` or `allOf` list points at — the last key of each reference */
 function referencedNames(node: SubmodelElement | undefined): string[] {
@@ -106,7 +119,7 @@ function referencedNames(node: SubmodelElement | undefined): string[] {
 
 /** One OPC UA term of a scheme: by semanticId, else by the specification's idShort (`uav_<term>`) */
 function termOf(scheme: SubmodelElement, term: string): string | undefined {
-  const node = children(scheme).find((c) => semanticOf(c) === `${UAV}${term}`) ?? child(scheme, `uav_${term}`);
+  const node = children(scheme).find((c) => semanticsOf(c).includes(`${UAV}${term}`)) ?? child(scheme, `uav_${term}`);
   return text(node);
 }
 
@@ -124,15 +137,19 @@ export function securityOf(endpoint: SubmodelElement | undefined): AidSecurity |
     seen.add(name);
     const scheme = definitions.get(name);
     if (!scheme) return;
-    const semantic = semanticOf(scheme);
-    if (semantic === `${UAV}OPCUASecurityChannelScheme` || (!semantic && name.startsWith('opcua_channel'))) {
+    const terms = semanticsOf(scheme);
+    const byName = !terms.some((term) => SCHEME_TERMS.has(term));
+    if (terms.includes(`${UAV}OPCUASecurityChannelScheme`) || (byName && name.startsWith('opcua_channel'))) {
       const mode = termOf(scheme, 'securityMode');
       if (mode && MODES.has(mode)) out.mode = mode as AidSecurity['mode'];
       const policy = termOf(scheme, 'securityPolicy');
       if (policy) out.policy = policy;
-    } else if (semantic === `${UAV}OPCUASecurityAuthenticationScheme` || (!semantic && name.startsWith('opcua_authentication'))) {
+    } else if (terms.includes(`${UAV}OPCUASecurityAuthenticationScheme`) || (byName && name.startsWith('opcua_authentication'))) {
       const token = termOf(scheme, 'userIdentityToken');
       if (token && TOKENS.has(token)) out.userIdentityToken = token as AidSecurity['userIdentityToken'];
+    } else if (terms.includes(WOT_BASIC) || (byName && (name === 'basic_sc' || text(child(scheme, 'scheme')) === 'basic'))) {
+      // WoT basic scheme (MQTT login, 2.8.0): a user name and password are needed — the same need as an OPC UA UserName token
+      out.userIdentityToken = 'UserName';
     }
     for (const next of referencedNames(child(scheme, 'allOf'))) visit(next);
   };
@@ -238,4 +255,30 @@ export function parseAid(environment: Environment): AidInterface[] {
 /** Only properties that can actually be read — without an address nothing can be collected */
 export function readableProperties(descriptor: AidInterface): AidProperty[] {
   return descriptor.properties.filter((property) => property.href !== undefined);
+}
+
+/** Form fields that state a read period in ms — the Modbus binding's term and ours for OPC UA and MQTT (2.8.0) */
+const POLLING_KEYS = ['modv_pollingTime', 'modv:pollingTime', 'vxp_pollingTime'];
+
+/**
+ * The read period a property's form states, ms — undefined when it states none or a value outside 100 ms – 1 h
+ * (the bounds the edge approval accepts). Read by the edge read list and the server's automatic collection.
+ */
+export function pollingMsOf(property: Pick<AidProperty, 'formFields'>): number | undefined {
+  for (const key of POLLING_KEYS) {
+    const text = property.formFields[key];
+    if (text === undefined) continue;
+    const ms = Number(text);
+    return Number.isInteger(ms) && ms >= 100 && ms <= 3_600_000 ? ms : undefined;
+  }
+  return undefined;
+}
+
+/** The read period an interface states — the shortest one its readable properties state, or undefined */
+export function statedIntervalMs(descriptor: AidInterface): number | undefined {
+  const stated = readableProperties(descriptor).flatMap((property) => {
+    const ms = pollingMsOf(property);
+    return ms === undefined ? [] : [ms];
+  });
+  return stated.length > 0 ? Math.min(...stated) : undefined;
 }

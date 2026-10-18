@@ -22,7 +22,7 @@ This used to take three tools. VEXPLOR AAS Studio brings the work together and i
 
 **Website:** [wace.me/en-platform-aas-studio](https://wace.me/en-platform-aas-studio)
 
-**Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 43 rules](docs/rules.md) · [Using it with Logic Studio](docs/logic-studio.md)
+**Docs:** [Usage](docs/usage.md) · [Install](docs/install.md) · [Deployment & hosting](docs/deployment.md) · [The 44 rules](docs/rules.md) · [Using it with Logic Studio](docs/logic-studio.md)
 — every document is also available in Korean.
 
 ---
@@ -40,7 +40,7 @@ does not end as a document but becomes **operating data with live values from th
 | What people hit on the floor | In VEXPLOR AAS Studio |
 |---|---|
 | Attaching to machines and PLCs that already run | Collects from OPC UA, Modbus TCP and MQTT per the AID in the AAS. The remote collector sends outward only; PLC programs are not changed |
-| Building an AAS by hand | Start from a filled sample, fill values at once from tables or CSV; 43 rules point out problems and 19 fix them automatically |
+| Building an AAS by hand | Start from a filled sample, fill values at once from tables or CSV; 44 rules point out problems and 19 fix them automatically |
 | One tool per job | Open, edit, check, Part 2 REST, field value collection and OPC UA publishing in one screen |
 | Passing the standard, failing the receiver | Checks the Korean receiving validator's (KOSMO Validator) business rules — semantic ID allow-list, mandatory submodels, package structure — before submission, and shows conflicts with the standard as a policy the user decides |
 
@@ -54,7 +54,7 @@ months whenever machines change. Evidence and sources: [docs/background.md](docs
 | | |
 |---|---|
 | **Open & edit** | Load AASX (JSON or XML), browse it as a tree, edit values, elements, submodels and concept descriptions. Fill many values at once from a submodel value table or from a CSV equipment list |
-| **Lint** | [43 rules](docs/rules.md) in three layers — package structure (L1), metamodel constraints (L2), submission business rules (L3) |
+| **Lint** | [44 rules](docs/rules.md) in three layers — package structure (L1), metamodel constraints (L2), submission business rules (L3) |
 | **Auto-fix** | Preview the fixable findings (19 rules), choose, apply at once. Every relocation is recorded |
 | **Report** | A printable HTML validation report |
 | **What to fill** | With the IDTA templates installed, every value row shows required · collected · optional, and "Show only what to fill" hides the rest |

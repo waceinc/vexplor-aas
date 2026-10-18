@@ -3,8 +3,16 @@
  * Split out of components/AddAid.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { fill, tr } from '../../i18n.js';
-import { aidTypeOf, fromModiconAddress, MODBUS_ENTITIES, MODBUS_TYPES, type AidProtocolChoice } from './protocol.js';
-import type { TagRow } from './types.js';
+import { aidTypeOf, fromModiconAddress, MODBUS_ENTITIES, MODBUS_ORDERS, MODBUS_TYPES, type AidProtocolChoice } from './protocol.js';
+import type { ModbusOrder, TagRow } from './types.js';
+
+/** ABCD · CDAB · BADC · DCBA with what each means — the names Modbus tools use, so a setting can be copied as is */
+function orderLabel(order: ModbusOrder): string {
+  if (order === 'ABCD') return tr('ABCD — 상위 먼저(기본)');
+  if (order === 'CDAB') return tr('CDAB — 워드 바꿈');
+  if (order === 'BADC') return tr('BADC — 바이트 바꿈');
+  return tr('DCBA — 둘 다 바꿈');
+}
 
 interface Props {
   rows: TagRow[];
@@ -61,6 +69,18 @@ export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Pro
                     <option key={dataType} value={dataType}>{dataType.replace('xsd:', '')}</option>
                   ))}
                 </select>
+                {(row.entity ?? 'HoldingRegister').endsWith('Register') && (
+                  <select
+                    value={row.order ?? 'ABCD'}
+                    aria-label={fill(tr('태그 {0} 바이트 · 워드 순서'), { 0: index + 1 })}
+                    title={tr('여러 레지스터에 걸친 값(32비트 정수 · float · double)의 워드 순서와 바이트 순서 — 설비 설명서의 표기를 따릅니다')}
+                    onChange={(event) => update(index, { order: event.target.value as ModbusOrder })}
+                  >
+                    {MODBUS_ORDERS.map((order) => (
+                      <option key={order} value={order}>{orderLabel(order)}</option>
+                    ))}
+                  </select>
+                )}
                 {modicon && (
                   <button
                     className="link modicon"
@@ -82,6 +102,14 @@ export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Pro
               <option key={type}>{type}</option>
             ))}
           </select>}
+          <input
+            value={row.unit ?? ''}
+            className="unit-input"
+            aria-label={fill(tr('태그 {0} 단위'), { 0: index + 1 })}
+            title={tr('단위(선택) — UCUM 표기: rpm · Cel · bar · L/min · kW')}
+            onChange={(event) => update(index, { unit: event.target.value })}
+            placeholder={tr('단위')}
+          />
           <button
             className="link"
             title={tr('이 줄을 뺍니다')}

@@ -8,6 +8,7 @@
 import type { Rule } from '../types.js';
 import { L1_RULES } from './l1-package.js';
 import { L2_RULES } from './l2-constraints.js';
+import { COLLECT_RULES } from './l3-collect.js';
 import { HIERARCHY_RULES } from './l3-hierarchy.js';
 import { KOSMO_AAS_RULES } from './l3-kosmo-aas.js';
 import { KOSMO_CD_RULES } from './l3-kosmo-cd.js';
@@ -16,6 +17,7 @@ import { KOSMO_SME_RULES } from './l3-kosmo-sme.js';
 
 export * from './l1-package.js';
 export * from './l2-constraints.js';
+export * from './l3-collect.js';
 export * from './l3-hierarchy.js';
 export * from './l3-kosmo-aas.js';
 export * from './l3-kosmo-cd.js';
@@ -30,6 +32,8 @@ export const L3_RULES: readonly Rule[] = [
   ...KOSMO_CD_RULES,
   // Process level — applies only to files with a hierarchy submodel (equipment files just pass through)
   ...HIERARCHY_RULES,
+  // Collection link (AID) — a password in an address travels with the file (2.8.0)
+  ...COLLECT_RULES,
 ];
 
 /** All rules */

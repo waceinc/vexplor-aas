@@ -9,13 +9,15 @@
  *    a property with no address, are left out. Supporting the contract is not full AID support (contract §8).
  * Important: only files the device's workspace **owns**. Shared (ownerless) files are readable in a workspace but not
  *    writable, so values for them could never be stored — listing them made every batch fail (review H1).
- * Important: no secrets. Credentials stay on the edge machine; the list can only name one (`credentialRef`), which
- *    this server does not do yet.
+ * Important: no secrets. Credentials stay on the edge machine; the list only names one (`credentialRef` = the address)
+ *    when the AID says a login is needed (OPC UA UserName, MQTT login — 2.8.0). An interface whose address itself
+ *    carries a user name or password (an old MQTT file) is left out — listing it would hand the secret out; the linter
+ *    (AID-1) and the collection pane say why.
  */
 import { createHash } from 'node:crypto';
 
 import { canonicalJson } from '@aas/core';
-import { parseAid, type AidInterface } from '@aas/collector';
+import { parseAid, pollingMsOf, readableProperties, type AidInterface } from '@aas/collector';
 import type { AasStore } from '@aas/store';
 import { assetInformationOf, shellsOf } from '../integration/exports/elements.js';
 import { allPackages } from '../integration/exports/store.js';
@@ -49,22 +51,34 @@ function withoutHints(tag: ReadListTag): ReadListTag {
 export const revisionOf = (interfaces: readonly ReadListInterface[]): string =>
   short(canonicalJson(interfaces.map((iface) => ({ ...iface, tags: iface.tags.map(withoutHints) }))));
 
+/** An address that carries a user name or password (`mqtt://user:pass@host`) — never handed to an edge */
+export const hasUserInfo = (address: string): boolean => /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*@/i.test(address.trim());
+
 /**
  * Security of one interface for the edge. OPC UA takes what the AID states (`uav_securityMode`, `uav_securityPolicy`);
- * when it asks for a user name, `credentialRef` is the endpoint — the name of the entry the installer stored on the edge.
+ * when it asks for a user name — or MQTT asks for a login (2.8.0) — `credentialRef` is the endpoint, the name of the
+ * entry the installer stored on the edge.
  */
 function securityOf(descriptor: AidInterface): ReadListInterface['security'] {
   const base = descriptor.base ?? '';
+  const login = descriptor.security?.userIdentityToken === 'UserName' ? { credentialRef: base } : {};
   if (descriptor.protocol === 'OPCUA') {
     const stated = descriptor.security;
     const mode = stated?.mode ?? 'None';
-    return {
-      mode,
-      ...(mode !== 'None' && stated?.policy ? { policy: stated.policy } : {}),
-      ...(stated?.userIdentityToken === 'UserName' ? { credentialRef: base } : {}),
-    };
+    return { mode, ...(mode !== 'None' && stated?.policy ? { policy: stated.policy } : {}), ...login };
   }
-  return { mode: /^(https|mqtts|wss):/i.test(base) ? 'TLS' : 'None' };
+  return { mode: /^(https|mqtts|wss):/i.test(base) ? 'TLS' : 'None', ...(descriptor.protocol === 'MQTT' ? login : {}) };
+}
+
+/**
+ * The read period the AID states (2.8.0): when every readable tag states the same one, it is the interface's;
+ * otherwise the server default stays and each tag that states one keeps its own.
+ */
+function statedIntervals(descriptor: AidInterface, fallback: number): { interfaceMs: number; tagMs: (name: string) => number | undefined } {
+  const stated = new Map(readableProperties(descriptor).map((property) => [property.name, pollingMsOf(property)] as const));
+  const values = [...stated.values()];
+  const common = values.length > 0 && values.every((ms) => ms !== undefined && ms === values[0]) ? values[0] : undefined;
+  return { interfaceMs: common ?? fallback, tagMs: (name) => (common === undefined ? stated.get(name) : undefined) };
 }
 
 /** The interfaces of one file that the edge can read */
@@ -77,6 +91,8 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
   for (const descriptor of parseAid(environment)) {
     // Only protocols the contract names — BACnet is recognised by the AID but not collected yet
     if (!EDGE_PROTOCOLS.has(descriptor.protocol) || !descriptor.base) continue;
+    if (hasUserInfo(descriptor.base)) continue;
+    const intervals = statedIntervals(descriptor, intervalMs);
     const tags: ReadListTag[] = [];
     for (const property of descriptor.properties) {
       if (property.href === undefined) continue;
@@ -88,6 +104,7 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
         ...(property.type !== undefined ? { type: property.type } : {}),
         ...(property.unit !== undefined ? { unit: property.unit } : {}),
         fields: { ...property.formFields },
+        ...(intervals.tagMs(property.name) !== undefined ? { intervalMs: intervals.tagMs(property.name)! } : {}),
         ...hintsOf(property.name),
       });
     }
@@ -101,7 +118,7 @@ export function interfacesOf(packageId: string, environment: Parameters<typeof p
       protocol: descriptor.protocol as EdgeProtocol,
       endpoint: descriptor.base,
       security: securityOf(descriptor),
-      intervalMs,
+      intervalMs: intervals.interfaceMs,
       tags,
     });
   }

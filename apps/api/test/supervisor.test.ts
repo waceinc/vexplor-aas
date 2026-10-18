@@ -153,3 +153,36 @@ describe('collection supervisor', () => {
     await supervisor.stop();
   });
 });
+
+describe('collection supervisor — the read period the AID states (2.8.0)', () => {
+  it('reads an interface no more often than its stated period; the sweep keeps its last result meanwhile', async () => {
+    const store = new InMemoryStore();
+    await store.init();
+    const pkg = readAasx(goldenBytes);
+    pkg.environment.submodels!.push(
+      buildAidSubmodel({ assetName: 'RollFormingMachine', iriBase: 'https://www.smart-factory.kr/ids', endpoint: 'opc.tcp://127.0.0.1:1', intervalMs: 30_000, tags: [{ name: 'MotorSpeed', href: 'ns=1;s=Speed', type: 'float' }] }) as never,
+    );
+    const id = (await store.importPackage({ name: 'slow.aasx', package: pkg })).id;
+    let clock = Date.parse('2026-10-18T00:00:00.000Z');
+    let reads = 0;
+    const supervisor = new CollectSupervisor({
+      store,
+      openReader: async (descriptor) => ({
+        base: descriptor.base ?? '',
+        read: async (sources) => (reads += 1, sources.map((source) => ({ source, value: reads, quality: 'Good' }))),
+        close: async () => {},
+      }),
+      intervalMs: 10_000,
+      now: () => new Date(clock).toISOString(),
+    });
+    for (let second = 0; second <= 60; second += 10) {
+      clock = Date.parse('2026-10-18T00:00:00.000Z') + second * 1000;
+      const report = await supervisor.sweep();
+      // Still listed every sweep — the screen judges "connected (auto)" from it
+      expect(report!.results.map((result) => result.packageId)).toEqual([id]);
+    }
+    // 0 s, 30 s and 60 s — not every 10 s
+    expect(reads).toBe(3);
+    await supervisor.stop();
+  });
+});

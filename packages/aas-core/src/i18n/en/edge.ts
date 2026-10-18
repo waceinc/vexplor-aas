@@ -41,4 +41,11 @@ export const EN_EDGE: Record<string, string> = {
   "읽을 태그가 없습니다 — AID(설비 연결 정보)가 있는 AASX 를 먼저 올리십시오.": "There are no tags to read — upload an AASX with an AID (machine connection) first.",
   "해지된 장치는 다시 시작할 수 없습니다 — 새 코드로 다시 연결하십시오.": "A revoked device cannot resume — connect it again with a new code.",
   "승인한 목록이 없습니다 — 먼저 읽을 목록을 승인하십시오.": "There is no approved list — approve its read list first.",
+  "보안 방식이 이상합니다: {0} — 쓸 수 있는 것: {1}": "Unknown security mode: {0} — allowed: {1}",
+  "보안 방식과 보안 정책은 OPC UA 에만 있습니다.": "Security mode and policy exist only for OPC UA.",
+  "Modbus TCP 에는 로그인이 없습니다.": "Modbus TCP has no login.",
+  "보안 정책이 이상합니다: {0} — 쓸 수 있는 것: {1}": "Unknown security policy: {0} — allowed: {1}",
+  "접속 주소에 사용자 이름 · 암호를 넣지 마십시오 — 「로그인 필요」를 켜고, 사용자 이름 · 암호는 서버의 credentials 파일(OPCUA_CLIENT_CREDENTIALS)과 공장 PC 의 credentials.json 에 이 주소로 적습니다.": "Do not put a user name or password in the address — turn on \"Login required\" and write the user name and password under this address in the server's credentials file (OPCUA_CLIENT_CREDENTIALS) and in credentials.json on the factory PC.",
+  "읽기 주기는 {0}ms ~ {1}ms 사이의 정수여야 합니다: {2}": "The read period must be a whole number between {0} ms and {1} ms: {2}",
+  "{0} 은(는) 로그인을 요구합니다 — OPCUA_CLIENT_CREDENTIALS 파일에 이 주소의 항목을 넣으십시오.": "{0} requires a login — add an entry for this address to the OPCUA_CLIENT_CREDENTIALS file.",
 };

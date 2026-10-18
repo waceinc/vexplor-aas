@@ -436,4 +436,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'This is our own CD, so change the CD dataType to one of {0}.',
   '외부 CD(IRDI)는 교정 방향이 반대입니다 — 우리 쪽 valueType을 맞춥니다.':
     'For external CDs (IRDI), the correction goes the other way: adjust our valueType.',
+  "수집 연결 주소 검사 — 접속 주소(base)에 사용자 이름 · 암호를 넣지 않는다": "Collection link address check — no user name or password in the address (base)",
+  "접속 주소에 사용자 이름 · 암호가 들어 있습니다: {0} — 파일을 받는 모든 사람에게 비밀번호가 함께 갑니다. 원격 수집기 목록에서도 빠집니다.": "The address carries a user name and password: {0} — the password goes to everyone who gets the file. It is also left out of the remote collector list.",
+  "「연결수정」에서 주소의 사용자 이름 · 암호를 떼고 「로그인 필요」를 켜십시오. 사용자 이름 · 암호는 서버의 credentials 파일과 공장 PC 의 credentials.json 에 그 주소로 적습니다.": "In \"Edit link\", take the user name and password out of the address and turn on \"Login required\". Write the user name and password under that address in the server's credentials file and in credentials.json on the factory PC.",
 };

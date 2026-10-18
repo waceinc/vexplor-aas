@@ -22,6 +22,7 @@ import { FolderStore, InMemoryStore, PostgresStore, visibleInWorkspace, type Aas
 import { createApi, toErrorResponse } from './api.js';
 import type { OpcUaPublisher } from './publisher.js';
 import { CollectSupervisor } from './supervisor.js';
+import type { BrowseSecurity } from './routes/packages.js';
 import { authFromEnv, isAsciiToken, isOpen, resolveBindHost } from './auth.js';
 import { ApiError, json, JSON_TYPE, ServiceBusyError, type ApiRequest } from './http.js';
 import { isDocumentRequest, openStatic, resolveStatic } from './static.js';
@@ -312,7 +313,15 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       guardOutbound(descriptor.base);
       return (await fieldbus()).ModbusReader.connect(descriptor, { guard: guardOutbound });
     }
-    if (descriptor.protocol === 'MQTT') return (await fieldbus()).MqttReader.connect(descriptor, { guard: guardOutbound });
+    if (descriptor.protocol === 'MQTT') {
+      // A login the AID asks for (2.8.0) comes from the installer's file by address, never from the AAS
+      const login = descriptor.security?.userIdentityToken === 'UserName';
+      const user = login && descriptor.base ? opcuaCredentials().get(descriptor.base) : undefined;
+      if (login && !user) {
+        throw new Error(fill(tr('{0} 은(는) 로그인을 요구합니다 — OPCUA_CLIENT_CREDENTIALS 파일에 이 주소의 항목을 넣으십시오.'), { 0: descriptor.base ?? '' }));
+      }
+      return (await fieldbus()).MqttReader.connect(descriptor, { guard: guardOutbound, ...(user ? { user } : {}) });
+    }
     if (descriptor.protocol !== 'OPCUA') {
       throw new Error(fill(tr('아직 지원하지 않는 프로토콜입니다: {0}'), { 0: descriptor.protocol }));
     }
@@ -554,10 +563,23 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       : {}),
     // Important: browsing must work even with collection off — it is needed **while creating** an AID.
     //    Pass our own server identity along to prevent **the server browsing itself** by accident.
-    browseDevice: async (endpoint: string) => {
+    browseDevice: async (endpoint: string, chosen?: { security: BrowseSecurity }) => {
       guardOutbound(endpoint);
       const self = publisher?.status().instanceUri;
-      return (await opcua()).browseDevice({ endpoint, ...(self ? { selfUri: self } : {}) });
+      // The security the screen chose (2.8.0) — certificate store and trust as the collector uses them, login from the file
+      const security = chosen?.security;
+      const user = security?.login ? opcuaCredentials().get(endpoint) : undefined;
+      if (security?.login && !user) {
+        throw new Error(fill(tr('{0} 은(는) 사용자 이름 로그인을 요구합니다 — OPCUA_CLIENT_CREDENTIALS 파일에 이 주소의 항목을 넣으십시오.'), { 0: endpoint }));
+      }
+      return (await opcua()).browseDevice({
+        endpoint,
+        ...(self ? { selfUri: self } : {}),
+        ...(security && security.mode !== 'None' ? { security: { mode: security.mode, ...(security.policy ? { policy: security.policy } : {}) } } : {}),
+        ...(user ? { user } : {}),
+        pkiDir: opcuaClientPkiDirFromEnv(process.env),
+        trustUnknownServer: opcuaClientTrustsFirstUse(process.env),
+      });
     },
   });
   const limit = bodyLimitFor(options, aasxLimits);

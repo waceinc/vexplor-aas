@@ -354,7 +354,7 @@ describe('edge hardening (review of PR #19)', () => {
     edge.enqueue(list, [{ tagId: speed.tagId, observedAt: '2026-10-18T00:00:00.000Z', receivedAt: '2026-10-18T00:00:00.000Z', value: null, error: 'Modbus exception 2 (illegal data address)' }]);
     expect(await edge.flush()).toBe('ok');
     // The mock edge also sends one good reading per tag — find the failed one
-    const stored = (await store.readValues(packageId, { propertyName: speed.propertyName })).find((value) => value.observedAt === '2026-10-18T00:00:00.000Z');
+    const stored = (await store.readValues(packageId)).find((value) => value.observedAt === '2026-10-18T00:00:00.000Z');
     expect(stored!.error).toBe('Modbus exception 2 (illegal data address)');
     expect(stored!.valueNumber).toBeUndefined();
   });
