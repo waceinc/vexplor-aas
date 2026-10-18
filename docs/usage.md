@@ -953,7 +953,9 @@ Collectors waiting for approval, paused or revoked, and those that never sent a 
 **The server's own state** — admins see "Server status" in **Settings**: server version, running time, store connection
 (response time), free disk space of the server, and the batches the remote collectors sent in the last hour, requests
 refused and values not stored. A folder store shows the disk of its data folder. PostgreSQL may run on another machine,
-so its disk is not shown. The same comes from `GET /server/status` (admin sign-in).
+so its disk is not shown. The same comes from `GET /server/status` (admin sign-in). When the database does not answer
+(stopped or overloaded), the page still answers within about 7 seconds and shows the store connection as failed
+(2.8.1).
 
 ![Server status in Settings (admin)](images/manual/en/m47-server-status.png)
 

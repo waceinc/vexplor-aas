@@ -78,6 +78,8 @@ services:
       COLLECT_COMPRESS_AFTER_DAYS: ${COLLECT_COMPRESS_AFTER_DAYS:-}
       COLLECT_ROLLUPS: ${COLLECT_ROLLUPS:-}
       COLLECT_ROLLUP_MINUTE_DAYS: ${COLLECT_ROLLUP_MINUTE_DAYS:-}
+      # Connections to PostgreSQL at most (empty = 10). See .env.example
+      PG_POOL_MAX: ${PG_POOL_MAX:-}
       # OPC UA security when collecting (AID 1.1) — certificate store, first-use trust, user names by endpoint (.env.example)
       OPCUA_CLIENT_PKI_DIR: ${OPCUA_CLIENT_PKI_DIR:-}
       OPCUA_CLIENT_TRUST: ${OPCUA_CLIENT_TRUST:-}
