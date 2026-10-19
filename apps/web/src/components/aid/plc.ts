@@ -1,21 +1,24 @@
 /**
- * Create collection link — S7 and MC rows (VEXPLOR extension bindings, not AID 1.1).
+ * Create collection link — S7, MC and XGT rows (VEXPLOR extension bindings, not AID 1.1). XGT's check is in plcXgt.ts.
  *
  * The address and the data type are one href (`DB10.DBD4:REAL`, `D200:REAL`) — what the server's grammar
  * (@aas/collector plc-address.ts) reads. The screen keeps them apart (address box + type select) and joins them on
  * "Create". The checks here only mark a row before sending; the server stays the judge.
  * Important: this mirrors the server grammar — test/aid-plc.test.ts runs both over the same list so they cannot drift.
  */
-export type PlcProtocol = 'S7' | 'MC';
+import { xgtAddressOk, xgtIsBit } from './plcXgt.js';
 
-/** Types offered in the select — '' keeps the address's own default (S7 size letter, MC INT or BOOL) */
+export type PlcProtocol = 'S7' | 'MC' | 'XGT';
+
+/** Types offered in the select — '' keeps the address's own default (S7 size letter, MC INT or BOOL, XGT as MC or S7) */
 export const PLC_TYPE_CHOICES: Record<PlcProtocol, readonly string[]> = {
   S7: ['', 'BOOL', 'BYTE', 'CHAR', 'INT', 'UINT', 'WORD', 'DINT', 'UDINT', 'DWORD', 'REAL', 'LREAL', 'LINT', 'STRING'],
   MC: ['', 'BOOL', 'INT', 'UINT', 'WORD', 'DINT', 'UDINT', 'DWORD', 'REAL', 'LREAL', 'LINT', 'STRING'],
+  XGT: ['', 'BOOL', 'BYTE', 'INT', 'UINT', 'WORD', 'DINT', 'UDINT', 'DWORD', 'REAL', 'LREAL', 'LINT', 'STRING'],
 };
 
 const BYTES: Record<string, number> = { BYTE: 1, SINT: 1, USINT: 1, CHAR: 1, WORD: 2, INT: 2, UINT: 2, DWORD: 4, DINT: 4, UDINT: 4, REAL: 4, LREAL: 8, LINT: 8, ULINT: 8 };
-const ALIASES: Record<string, string> = { INT16: 'INT', UINT16: 'UINT', INT32: 'DINT', UINT32: 'UDINT', FLOAT: 'REAL', DOUBLE: 'LREAL', INT64: 'LINT', UINT64: 'ULINT' };
+const ALIASES: Record<string, string> = { INT16: 'INT', UINT16: 'UINT', INT32: 'DINT', UINT32: 'UDINT', FLOAT: 'REAL', DOUBLE: 'LREAL', INT64: 'LINT', UINT64: 'ULINT', LWORD: 'ULINT' };
 
 /** The type part as the server reads it, or undefined when it is not one */
 function typeOf(text: string): string | undefined {
@@ -35,6 +38,7 @@ export function plcHrefOk(protocol: PlcProtocol, endpoint: string, href: string)
   if (extra !== undefined) return false;
   const type = typeText === undefined ? undefined : typeOf(typeText);
   if (typeText !== undefined && type === undefined) return false;
+  if (protocol === 'XGT') return xgtAddressOk(endpoint, address, type === undefined ? undefined : type === 'BOOL' ? 0 : type === 'STRING' ? -1 : BYTES[type]!);
   if (protocol === 'S7') {
     const match = /^(?:DB(\d{1,5})\.DB([XBWD])|([MIEQA])([XBWD]?))(\d{1,7})(?:\.(\d))?$/i.exec(address);
     if (!match) return false;
@@ -75,7 +79,7 @@ export function splitPlcHref(protocol: PlcProtocol, href: string): { address: st
 export function plcWotType(protocol: PlcProtocol, href: string): string {
   const [address = '', typeText] = href.trim().split(':');
   const type = typeText === undefined ? undefined : typeOf(typeText);
-  const isBit = protocol === 'S7' ? /^(DB\d+\.DBX|[MIEQA]X?\d)/i.test(address) : /^[MXY]|\.[0-9A-F]$/i.test(address);
+  const isBit = protocol === 'S7' ? /^(DB\d+\.DBX|[MIEQA]X?\d)/i.test(address) : protocol === 'XGT' ? xgtIsBit(address) : /^[MXY]|\.[0-9A-F]$/i.test(address);
   const effective = type ?? (isBit ? 'BOOL' : 'INT');
   if (effective === 'BOOL') return 'boolean';
   if (effective === 'REAL' || effective === 'LREAL') return 'float';

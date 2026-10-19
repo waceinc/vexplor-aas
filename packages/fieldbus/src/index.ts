@@ -1,6 +1,6 @@
 /**
- * @aas/fieldbus — Modbus TCP / MQTT collection adapters (M8), plus S7 and MC protocol readers (VEXPLOR extension bindings,
- * read only). Interprets AID (IDTA-02017) bindings and reads through the @aas/collector ProtocolReader
+ * @aas/fieldbus — Modbus TCP / MQTT collection adapters (M8), plus S7, MC and XGT protocol readers (VEXPLOR extension
+ * bindings, read only). Interprets AID (IDTA-02017) bindings and reads through the @aas/collector ProtocolReader
  */
 export * from './modbus-target.js';
 export * from './modbus-client.js';
@@ -16,3 +16,5 @@ export * from './s7-client.js';
 export * from './s7-reader.js';
 export * from './mc-client.js';
 export * from './mc-reader.js';
+export * from './xgt-client.js';
+export * from './xgt-reader.js';

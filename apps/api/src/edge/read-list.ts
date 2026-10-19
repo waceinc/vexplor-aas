@@ -26,7 +26,7 @@ import type { EdgeProtocol, ReadListInterface, ReadListTag, TagLimit, TagRole } 
 import { tagHintsOf } from './tag-hints.js';
 
 export type { EdgeProtocol, ReadListInterface, ReadListTag, TagLimit, TagRole };
-const EDGE_PROTOCOLS: ReadonlySet<string> = new Set<EdgeProtocol>(['OPCUA', 'MODBUS', 'MQTT', 'HTTP', 'S7', 'MC']);
+const EDGE_PROTOCOLS: ReadonlySet<string> = new Set<EdgeProtocol>(['OPCUA', 'MODBUS', 'MQTT', 'HTTP', 'S7', 'MC', 'XGT']);
 
 const short = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16);
 

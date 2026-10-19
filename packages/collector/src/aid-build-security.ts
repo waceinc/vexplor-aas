@@ -43,7 +43,7 @@ export interface AidSecurityInput {
 }
 
 /** Refuses what the collector could not connect with — a wrong choice found here, not on the factory floor */
-export function checkSecurity(protocol: 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC', security: AidSecurityInput | undefined): void {
+export function checkSecurity(protocol: 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC' | 'XGT', security: AidSecurityInput | undefined): void {
   if (!security) return;
   const mode = security.mode ?? 'None';
   if (!(MODES as readonly string[]).includes(mode)) {
@@ -53,8 +53,9 @@ export function checkSecurity(protocol: 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC
     throw new AidBuildError(tr('보안 방식과 보안 정책은 OPC UA 에만 있습니다.'));
   }
   if (protocol === 'MODBUS' && security.login) throw new AidBuildError(tr('Modbus TCP 에는 로그인이 없습니다.'));
-  // S7 PUT/GET and the MC protocol read without a login (an S7 protection-level password is not supported)
-  if ((protocol === 'S7' || protocol === 'MC') && security.login) throw new AidBuildError(tr('S7 · MC 프로토콜 읽기에는 로그인이 없습니다.'));
+  // S7 PUT/GET, the MC protocol and the XGT dedicated protocol read without a login (an S7 protection-level password is
+  // not supported; XGT FEnet limits clients by its host table, not by a login)
+  if ((protocol === 'S7' || protocol === 'MC' || protocol === 'XGT') && security.login) throw new AidBuildError(tr('S7 · MC · XGT 프로토콜 읽기에는 로그인이 없습니다.'));
   if (mode !== 'None' && !(OPCUA_POLICIES as readonly string[]).includes(security.policy ?? '')) {
     throw new AidBuildError(
       fill(tr('보안 정책이 이상합니다: {0} — 쓸 수 있는 것: {1}'), { 0: security.policy ?? '', 1: OPCUA_POLICIES.join(' · ') }),

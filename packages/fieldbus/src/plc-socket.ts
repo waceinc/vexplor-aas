@@ -1,5 +1,5 @@
 /**
- * One TCP connection that exchanges whole frames, one request at a time — shared by the S7 and MC clients.
+ * One TCP connection that exchanges whole frames, one request at a time — shared by the S7, MC and XGT clients.
  *
  * Important: one request in flight. The MC 3E frame carries no request id at all, and S7 PLCs answer in order with a
  *    small "AmQ" (parallel jobs, often 1), so a queue is the honest model of both.
@@ -35,7 +35,7 @@ export class FrameSocket {
     socket.on('close', () => this.fail(new Error(tr('연결이 끊겼습니다.'))));
   }
 
-  /** `label` names the device kind in the timeout message (S7 · MC) */
+  /** `label` names the device kind in the timeout message (S7 · MC · XGT) */
   static connect(host: string, port: number, frameLength: FrameLength, timeoutMs: number, label: string): Promise<FrameSocket> {
     return new Promise((resolve, reject) => {
       const socket = new Socket();

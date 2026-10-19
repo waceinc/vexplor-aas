@@ -2,8 +2,8 @@
  * Create collection connection — per-protocol differences (2026-10-14). The protocol is decided by the endpoint address (same rule as endpointProtocol in the server's aid-build),
  * and for Modbus the register kind and data type are chosen per row. Conventional addresses (40001 · 30010 · 00005 · 10003) are converted to kind + zero-based address.
  */
-/** S7 · MC are VEXPLOR extension bindings (not AID 1.1) — see plc.ts */
-export type AidProtocolChoice = 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC';
+/** S7 · MC · XGT are VEXPLOR extension bindings (not AID 1.1) — see plc.ts */
+export type AidProtocolChoice = 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC' | 'XGT';
 
 export function protocolOfEndpoint(endpoint: string): AidProtocolChoice | undefined {
   const text = endpoint.trim();
@@ -12,6 +12,7 @@ export function protocolOfEndpoint(endpoint: string): AidProtocolChoice | undefi
   if (/^mqtts?:\/\/.+/i.test(text)) return 'MQTT';
   if (/^s7:\/\/.+/i.test(text)) return 'S7';
   if (/^melsec:\/\/.+/i.test(text)) return 'MC';
+  if (/^xgt:\/\/.+/i.test(text)) return 'XGT';
   return undefined;
 }
 

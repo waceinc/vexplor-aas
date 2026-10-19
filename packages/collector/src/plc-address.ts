@@ -14,17 +14,20 @@
  */
 import { fill, tr } from '@aas/core';
 
-/** Our IRIs for the two extension bindings — stated on the interface (supplementalSemanticIds) */
-export const BINDING_IRI = { S7: 'urn:vexplor:aid:binding:s7', MC: 'urn:vexplor:aid:binding:mc' } as const;
+/** Our IRIs for the extension bindings — stated on the interface (supplementalSemanticIds). XGT: xgt-address.ts */
+export const BINDING_IRI = { S7: 'urn:vexplor:aid:binding:s7', MC: 'urn:vexplor:aid:binding:mc', XGT: 'urn:vexplor:aid:binding:xgt' } as const;
+
+/** The protocols whose grammar lives here and in xgt-address.ts */
+export type PlcProtocolName = 'S7' | 'MC' | 'XGT';
 
 /** IEC 61131-3 elementary type names as TIA Portal and GX Works show them */
 export const PLC_TYPES = ['BOOL', 'BYTE', 'SINT', 'USINT', 'CHAR', 'WORD', 'INT', 'UINT', 'DWORD', 'DINT', 'UDINT', 'REAL', 'LREAL', 'LINT', 'ULINT', 'STRING'] as const;
 export type PlcType = (typeof PLC_TYPES)[number];
 
 /** Spellings people copy from other tools — mapped to the IEC name */
-const ALIASES: Record<string, PlcType> = { INT16: 'INT', UINT16: 'UINT', INT32: 'DINT', UINT32: 'UDINT', FLOAT: 'REAL', DOUBLE: 'LREAL', INT64: 'LINT', UINT64: 'ULINT' };
+const ALIASES: Record<string, PlcType> = { INT16: 'INT', UINT16: 'UINT', INT32: 'DINT', UINT32: 'UDINT', FLOAT: 'REAL', DOUBLE: 'LREAL', INT64: 'LINT', UINT64: 'ULINT', LWORD: 'ULINT' };
 
-const WIDTH: Record<Exclude<PlcType, 'BOOL' | 'STRING'>, number> = {
+export const WIDTH: Record<Exclude<PlcType, 'BOOL' | 'STRING'>, number> = {
   BYTE: 1, SINT: 1, USINT: 1, CHAR: 1, WORD: 2, INT: 2, UINT: 2, DWORD: 4, DINT: 4, UDINT: 4, REAL: 4, LREAL: 8, LINT: 8, ULINT: 8,
 };
 
@@ -47,7 +50,7 @@ export function plcTypeOf(text: string): PlcValueType | undefined {
 }
 
 /** Bytes a value occupies (S7 STRING has the two header bytes: maximum and actual length) */
-export function plcWidth(value: PlcValueType, protocol: 'S7' | 'MC'): number {
+export function plcWidth(value: PlcValueType, protocol: PlcProtocolName): number {
   if (value.type === 'BOOL') return 1;
   if (value.type === 'STRING') return (value.length ?? 254) + (protocol === 'S7' ? 2 : 0);
   return WIDTH[value.type];
@@ -61,7 +64,8 @@ export function wotTypeOf(type: PlcType): 'boolean' | 'integer' | 'float' | 'str
   return 'integer';
 }
 
-function splitType(href: string): { address: string; value?: PlcValueType } {
+/** `address:TYPE` → both parts (shared with xgt-address.ts) */
+export function splitType(href: string): { address: string; value?: PlcValueType } {
   const [address = '', typeText, extra] = href.trim().split(':');
   if (extra !== undefined) throw new Error(fill(tr('PLC 주소가 이상합니다: {0}'), { 0: href }));
   if (typeText === undefined) return { address };
@@ -71,13 +75,13 @@ function splitType(href: string): { address: string; value?: PlcValueType } {
 }
 
 /** Host, port and query of `scheme://host[:port][/][?query]` — collector code has no URL global (pure logic) */
-interface Endpoint {
+export interface Endpoint {
   host: string;
   port?: number;
   params: Map<string, string>;
 }
 
-function endpointOf(base: string, scheme: string): Endpoint {
+export function endpointOf(base: string, scheme: string): Endpoint {
   const match = new RegExp(`^${scheme}://(\\[[^\\]]+\\]|[^/?#:@\\s]+)(?::(\\d{1,5}))?/?(?:\\?([^#]*))?$`, 'i').exec(base.trim());
   if (!match) throw new Error(fill(tr('접속 주소는 {0}://호스트[:포트] 꼴이어야 합니다: {1}'), { 0: scheme, 1: base }));
   const params = new Map<string, string>();
@@ -91,7 +95,7 @@ function endpointOf(base: string, scheme: string): Endpoint {
   return { host: match[1]!.replace(/^\[|\]$/g, ''), ...(port !== undefined ? { port } : {}), params };
 }
 
-function intParam(endpoint: Endpoint, name: string, fallback: number, max: number): number {
+export function intParam(endpoint: Endpoint, name: string, fallback: number, max: number): number {
   const text = endpoint.params.get(name);
   if (text === undefined) return fallback;
   const value = /^0x[0-9a-f]+$/i.test(text) ? parseInt(text, 16) : /^\d+$/.test(text) ? Number(text) : NaN;

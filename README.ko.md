@@ -39,7 +39,7 @@
 
 | 현장에서 부딪히는 일 | VEXPLOR AAS Studio에서 |
 |---|---|
-| 이미 가동 중인 설비 · PLC에 붙이기 | AAS 안의 AID대로 OPC UA · Modbus TCP · MQTT에서 값을 모으고, S7 · MELSEC(MC 프로토콜) PLC 는 바로 읽습니다 — 읽기만 하는 VEXPLOR 확장 바인딩입니다. 원격 수집기는 밖으로만 보내고, PLC 프로그램은 고치지 않습니다 |
+| 이미 가동 중인 설비 · PLC에 붙이기 | AAS 안의 AID대로 OPC UA · Modbus TCP · MQTT에서 값을 모으고, S7 · MELSEC(MC 프로토콜) · LS ELECTRIC XGT PLC 는 바로 읽습니다 — 읽기만 하는 VEXPLOR 확장 바인딩입니다. 원격 수집기는 밖으로만 보내고, PLC 프로그램은 고치지 않습니다 |
 | AAS를 손으로 만드는 부담 | 다 채운 견본에서 출발하고, 값 표 · CSV로 한 번에 채우며, 규칙 52종이 짚고 19종은 자동으로 고칩니다 |
 | 일마다 나뉜 도구 | 열기 · 고치기 · 검사 · Part 2 REST · 현장 값 수집 · OPC UA 내주기를 화면 하나에서 |
 | 표준을 통과해도 제출처에서 떨어짐 | 국내 제출처 검증기(KOSMO Validator)의 사업 규칙(semanticId 허용 목록 · 필수 서브모델 · 패키지 구조)을 제출 전에 거르고, 표준과 어긋나는 곳은 정책으로 드러내 사용자가 정합니다 |
@@ -61,7 +61,7 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 | **되돌리기 · 이력** | 실수를 한 번에 되돌리고, 서브모델을 지난 시점으로 복원합니다 |
 | **형식과 호기** | 형식 파일을 호기별로 나누고, 형식이 바뀌면 바뀐 곳을 줄마다 보고 고른 줄만 받아 옵니다 — 현장에서 고친 값은 덮지 않습니다 |
 | **공정 묶음** | 회사 → 라인 → 공정 → 설비 → 부품. 설비 여러 대를 공정으로 묶어 제출용 패키지(레퍼런스 번들)로 내보냅니다 |
-| **현장 값 수집** | OPC UA · Modbus TCP · MQTT 설비에서 값을 모으고, S7 · MELSEC(MC 프로토콜) PLC 는 게이트웨이 없이 바로 읽습니다 — 읽기만 하며, 실제 PLC 실측 전인 VEXPLOR 확장 바인딩입니다. 주소는 AAS 안의 AID(Asset Interface Description) 서브모델이 정합니다. 값마다 받는 중 · 끊김 · 값 없음을 보여 주고, 설비마다 하루 상태(가동 · 정지 · 알람) 막대를 그립니다. 같은 꼴의 태그는 패턴 하나로 여러 개를 담습니다 |
+| **현장 값 수집** | OPC UA · Modbus TCP · MQTT 설비에서 값을 모으고, S7 · MELSEC(MC 프로토콜) · LS ELECTRIC XGT PLC 는 게이트웨이 없이 바로 읽습니다 — 읽기만 하며, 실제 PLC 실측 전인 VEXPLOR 확장 바인딩입니다. 주소는 AAS 안의 AID(Asset Interface Description) 서브모델이 정합니다. 값마다 받는 중 · 끊김 · 값 없음을 보여 주고, 설비마다 하루 상태(가동 · 정지 · 알람) 막대를 그립니다. 같은 꼴의 태그는 패턴 하나로 여러 개를 담습니다 |
 | **표준 API** | IDTA Part 2 REST API — 다른 시스템이 이 서버의 AAS를 읽어 갑니다 |
 | **MES · ERP · CMMS 연동** | 모든 변경과 가동 사건을 순서대로 읽어 가는 주소(CloudEvents), 서명한 웹훅과 MQTT, 설비 · BOM · 공정 계층 · 보전 계획 · 문서 목록 내보내기(JSON · CSV), AASX 옆에 보관하는 ERP 번호, 서버에서 판정하는 상태 · 알람 · 계수기 · 한계값 규칙. OPC UA 서버는 계정과 암호화로 보호합니다. [docs/연동.md](docs/연동.md) |
 | **계정** | 관리자 · 편집자 · 열람자. 변경 이력에 누가 고쳤는지 남습니다 |
@@ -167,7 +167,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | `packages/store` | 저장소 — 메모리 · 폴더 · PostgreSQL이 같은 시험을 통과합니다 |
 | `packages/collector` | AID를 읽어 현장 값을 모읍니다 |
 | `packages/opcua` | OPC UA 클라이언트 · 서버([node-opcua](https://github.com/node-opcua/node-opcua)) |
-| `packages/fieldbus` | Modbus TCP · MQTT · S7 · MC 프로토콜 수집 어댑터, 읽기만(외부 의존성 없음 — `node:net`) · 시험용 장치와 브로커 |
+| `packages/fieldbus` | Modbus TCP · MQTT · S7 · MC · XGT 프로토콜 수집 어댑터, 읽기만(외부 의존성 없음 — `node:net`) · 시험용 장치와 브로커 |
 | `apps/api` | REST API 서버 |
 | `apps/web` | 화면(React) |
 
@@ -200,7 +200,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | 쓴 파일 검증 | V3.0: 공식 검증기 aas-test-engines 1.0.3 — 이 검증기는 **V3.0 만** 판정합니다. V3.1 · V3.2: 이 저장소의 시험이 admin-shell-io/aas-specs-metamodel 공식 JSON 스키마(v3.1.2 · v3.2.0)로 대조합니다 — aas-test-engines 는 아직 이 버전들을 판정하지 않습니다 |
 | AASX 패키지 (IDTA-01005) | JSON · XML 읽기, JSON 쓰기. V3.1 · V3.2 로 쓸 때 공백 · 한글이 든 첨부 파일 이름은 패키지 안 파일 이름 · 관계와 함께 퍼센트 인코딩(RFC 3986, UTF-8)합니다 — 이 버전들은 URI 만 받습니다 |
 | **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · Registry · Discovery 일부. `/api/v3.0` 과, V3.1 · V3.2 클라이언트용 `/api/v3` 로 같은 경로를 받습니다. V3.2 에서 새로 생긴 엔드포인트(`$recent-changes` · `$history` · `$signed` · 비동기 패키지 작업)는 구현하지 않았고 404 를 돌려줍니다 |
-| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT 주소 해석(Modbus · MQTT 는 W3C WoT 바인딩 표기). S7 · MC 는 AID 바인딩이 **아닙니다** — 표준 `base` / `href` 자리에 넣고 우리 바인딩 IRI 로 표시한 VEXPLOR 확장입니다([docs/사용법.md](docs/사용법.md) 8절) |
+| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT 주소 해석(Modbus · MQTT 는 W3C WoT 바인딩 표기). S7 · MC · XGT 는 AID 바인딩이 **아닙니다** — 표준 `base` / `href` 자리에 넣고 우리 바인딩 IRI 로 표시한 VEXPLOR 확장입니다([docs/사용법.md](docs/사용법.md) 8절) |
 
 구현 범위는 `node scripts/part2-coverage.mjs`가 규격 원문(OpenAPI)과 대조해 보여 줍니다.
 
@@ -211,8 +211,13 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | OPC UA | OPC UA 서버 | 읽음 | 읽음 | AID 1.1 |
 | Modbus TCP | Modbus TCP 장치 | 읽음 | 읽음 | AID 1.1(W3C WoT 바인딩 표기) |
 | MQTT | MQTT 브로커 | 읽음 | 읽음 | AID 1.1(W3C WoT 바인딩 표기) |
-| S7(ISO-on-TCP, S7comm) | Siemens S7-300 · 400 · 1200 · 1500 | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험, 실제 PLC 실측 없음 |
-| MC 프로토콜(3E 바이너리) | MELSEC Q · L · iQ-R · iQ-F | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험, 실제 PLC 실측 없음 |
+| S7(ISO-on-TCP, S7comm) | Siemens S7-300 · 400 · 1200 · 1500 | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험. 실기 확인: 사용자 보고 기다림([이 서식으로 알려 주세요](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)) |
+| MC 프로토콜(3E 바이너리) | MELSEC Q · L · iQ-R · iQ-F | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험. 실기 확인: 사용자 보고 기다림([이 서식으로 알려 주세요](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)) |
+| XGT 전용 프로토콜(FEnet, TCP 2004) | LS ELECTRIC XGK · XGI · XGR · XGB | 읽음(다음 릴리스) | Edge 다음 릴리스 | LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만든 VEXPLOR 확장 바인딩 — 시험용 서버로만 시험. 실기 확인: 사용자 보고 기다림([이 서식으로 알려 주세요](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)) |
+
+**실제 PLC 로 확인했나요?** S7 · MC · XGT 는 아직입니다. 실물 PLC 없이 공개 규격대로 구현하고, 그 규격대로 만든 시험용 서버로
+시험했습니다. 이 PLC 를 읽어 보셨다면 [PLC 실기 확인 보고 서식](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)으로 알려 주십시오 — 제조사 · 계열 · CPU · 펌웨어 ·
+주소 · 기대한 값과 읽은 값(못 읽었으면 그 이유)을 적으면 됩니다. 보내 주신 결과는 이 표에 반영합니다.
 
 모두 읽기만 합니다. AID 안의 HTTP · BACnet 인터페이스는 알아보지만 값을 모으지 않습니다.
 

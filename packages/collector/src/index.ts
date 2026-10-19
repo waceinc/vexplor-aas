@@ -7,3 +7,4 @@ export * from './collect.js';
 export * from './runner.js';
 export * from './aid-model.js';
 export * from './plc-address.js';
+export * from './xgt-address.js';

@@ -548,8 +548,8 @@ order (`pkg_1`, `pkg_2`, …); document links are relative unless `publicBaseUrl
 the AID interfaces of one file resolved into the tags a remote collector reads (`docs/edge-contract.md` §4) — the
 server's own read-list code, so the same `packageId` gives the same stable `tagId`s (checked against the edge endpoint
 in `apps/api/test/edge-endpoints.test.ts`). A product that builds its own read list from AASX files needs no AID parser.
-From 2.10.0 it lists S7 and MC interfaces too (`protocol` `S7` · `MC`, VEXPLOR extension bindings) — a receiver that
-reads only some protocols skips the others, as the contract's §4 says.
+From 2.10.0 it lists S7 and MC interfaces too (`protocol` `S7` · `MC`, VEXPLOR extension bindings), and from the next
+release XGT (`protocol` `XGT`) — a receiver that reads only some protocols skips the others, as the contract's §4 says.
 Since 2.5.0 each tag also carries hints — the model element's `semanticId`, a `suggestedRole` (`run_state` ·
 `counter` · `alarm_source` · `meter` · `condition` · `quality` · `value`) and `limits` from the same file — so a receiver
 can pre-fill roles and specification limits for a person to confirm (`docs/edge-contract.md` §4.1).
@@ -646,8 +646,9 @@ unless you mount a folder and point `OPCUA_PKI_DIR` at it; otherwise a rebuild m
   Use **push** (webhook, MQTT) inside level 3 or to an endpoint the DMZ exposes on purpose.
 - Plant-internal targets (private addresses, plain http, internal brokers) must be listed in `AAS_INTEGRATION_ALLOW`.
 - **Collection ports to open from the tool toward level 1.** OPC UA (usually 4840), Modbus TCP 502, MQTT 1883 / 8883,
-  S7 ISO-on-TCP **102**, and the MC protocol port **set in the PLC's Ethernet settings** (no fixed number). S7 and MC
-  are VEXPLOR extension bindings, read only (docs/usage.md §8). Webhooks are never sent to port 102 or 502 — both are
+  S7 ISO-on-TCP **102**, the MC protocol port **set in the PLC's Ethernet settings** (no fixed number) and the XGT
+  dedicated protocol **2004** (LS ELECTRIC FEnet). S7, MC and XGT are VEXPLOR extension bindings, read only
+  (docs/usage.md §8). Webhooks are never sent to port 102 or 502 — both are
   on the blocked port list.
 - The folder store's integration guarantees assume a **local disk**. Network file systems (SMB, NFS, NAS sync folders)
   have weaker rename / fsync behaviour; use PostgreSQL there.
@@ -715,6 +716,10 @@ Sign this with the customer before go-live.
 
 ## 14. Changes in this release
 
+- **XGT (next release).** Automatic collection reads LS ELECTRIC XGK · XGI · XGR · XGB PLCs over the XGT dedicated
+  protocol (FEnet, TCP 2004; read only, a VEXPLOR extension binding, tested against test servers only), and
+  `aidReadList` / the edge read list carry `protocol` `XGT`. Consumers that switch on `protocol` should expect the new
+  value; the contract stays `vexplor.edge/1`.
 - **S7 and MC (2.10.0).** Automatic collection reads Siemens S7 and MELSEC MC protocol PLCs (read only, VEXPLOR
   extension bindings, tested against test servers only), and `aidReadList` / the edge read list carry `protocol` `S7` ·
   `MC`. Consumers that switch on `protocol` should expect the two new values; the contract stays `vexplor.edge/1`.
