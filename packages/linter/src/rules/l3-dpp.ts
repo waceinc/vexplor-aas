@@ -104,7 +104,7 @@ export const dpp1Required: Rule = {
   id: 'DPP-1',
   layer: 'L3',
   get title() {
-    return tr('제품 여권(DPP) 필수 항목 — 여권 ID · 제품 식별자 · 단위 · 스키마 판 · 상태 · 갱신 시각 · 경제 주체 ID 가 있고 비어 있지 않다');
+    return tr('제품 여권(DPP) 필수 항목 — 여권 ID · 제품 식별자 · 단위 · 스키마 버전 · 상태 · 갱신 시각 · 경제 주체 ID 가 있고 비어 있지 않다');
   },
   source: `${SOURCE} §3.1 (cardinality One)`,
   check(ctx: LintContext, report: Report) {

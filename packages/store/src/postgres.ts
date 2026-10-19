@@ -258,7 +258,7 @@ export class PostgresStore implements AasStore, IntegrationStore {
         throw new SchemaVersionError(
           // Startup error for the operator — the language comes from AAS_LANG (apps/api/src/lang.ts bootLang)
           fill(
-            tr('DB 스키마가 {0}판인데 이 프로그램은 {1}판까지만 압니다 — 프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.'),
+            tr('DB 스키마가 버전 {0}인데 이 프로그램은 버전 {1}까지만 압니다 — 프로그램 버전을 올리십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.'),
             { 0: current, 1: SCHEMA_VERSION },
           ),
           current,

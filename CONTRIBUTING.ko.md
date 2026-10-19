@@ -93,10 +93,10 @@ node scripts/spacing-scan.mjs --check
 
 ## 표준을 다룰 때
 
-- 메모리 안 모델은 **V3.0 · V3.1 · V3.2** 를 모두 담습니다(3.2 까지의 상위 집합). 판 차이는 표 하나
+- 메모리 안 모델은 **V3.0 · V3.1 · V3.2** 를 모두 담습니다(3.2 까지의 상위 집합). 버전 차이는 표 하나
   `packages/aas-core/src/metamodel/features.ts` 에 있고 읽기 · 쓰기 · 검사가 모두 이 표를 씁니다 — 베껴 쓰지 마십시오
-- 패키지는 들어온 판을 기억합니다. **서버 밖으로 나가는 파일**(내려받기 · Part 2 AASX 직렬화 · 레퍼런스 번들)은
-  `writeAasxWithReport` 로 그 판이나 고른 판으로 쓰고, **내부 왕복**(검사용 재포장 · 같은지 비교)은 판 없는 `writeAasx`
+- 패키지는 들어온 버전을 기억합니다. **서버 밖으로 나가는 파일**(내려받기 · Part 2 AASX 직렬화 · 레퍼런스 번들)은
+  `writeAasxWithReport` 로 그 버전이나 고른 버전으로 쓰고, **내부 왕복**(검사용 재포장 · 같은지 비교)은 버전 없는 `writeAasx`
   를 그대로 씁니다 — 내부 왕복은 칸 하나도 잃으면 안 됩니다
 - Part 2 REST API는 `docs/spec/part2/`의 규격 원문(OpenAPI)이 기준입니다.
   `node scripts/part2-coverage.mjs`가 어긋남을 잡습니다
@@ -117,23 +117,23 @@ node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 �
 - 커밋 글은 **영어**로 적고, 무엇을 바꿨는지보다 **왜**를 먼저 적습니다
 - 보안 문제라면 공개 PR이 아니라 [SECURITY.ko.md](SECURITY.ko.md)에 적힌 방법으로 먼저 알려 주십시오
 
-## 판을 올릴 때
+## 버전을 올릴 때
 
-`PRODUCT_VERSION` 이 오르면 같은 릴리스에서 제품을 설명하는 곳을 모두 고칩니다. 아래 항목 가운데 하나라도 옛 판이 남아 있거나
+`PRODUCT_VERSION` 이 오르면 같은 릴리스에서 제품을 설명하는 곳을 모두 고칩니다. 아래 항목 가운데 하나라도 옛 버전이 남아 있거나
 바뀐 내용이 빠져 있으면 릴리스가 끝난 것이 아닙니다.
 
-1. **판 표기** — `packages/aas-core/src/version.ts`, 설치 안내(`docs/install.md` · `docs/설치.md`), 두 README 의 라이브러리
+1. **버전 표기** — `packages/aas-core/src/version.ts`, 설치 안내(`docs/install.md` · `docs/설치.md`), 두 README 의 라이브러리
    주소, `docs/edge/examples/registration.json` 과 waceinc/vexplor-edge 의 같은 파일 `docs/examples/registration.json`
    (규격 정본 — 그쪽 상호 시험이 두 파일을 바이트로 대조합니다). 견본 묶음을 다시 만듭니다
    (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
 2. **바뀐 내용** — `README.md` / `README.ko.md` 의 「새로 생긴 것」 표와 그 기능을 다루는 안내(사용법 · 연동 · 엣지 계약), 영어와 한국어 모두.
-3. **릴리스** — 태그 `vX.Y.Z`, 라이브러리 꾸러미 7개(`node scripts/pack-libraries.mjs --verify`), `SHA256SUMS`. 원격 수집기는
-   자기 저장소(waceinc/vexplor-edge, 자기 판 · 자기 점검표)에서 나옵니다. 수집기가 이번 판 라이브러리를 쓰면 이 릴리스를 먼저 냅니다.
-   현장 설치 묶음은 `scripts/make-release.sh` 의 `EDGE_VERSION` 으로 수집기 판을 고정합니다.
+3. **릴리스** — 태그 `vX.Y.Z`, 라이브러리 패키지 7개(`node scripts/pack-libraries.mjs --verify`), `SHA256SUMS`. 원격 수집기는
+   자기 저장소(waceinc/vexplor-edge, 자기 버전 · 자기 점검표)에서 나옵니다. 수집기가 이번 버전 라이브러리를 쓰면 이 릴리스를 먼저 냅니다.
+   현장 설치 묶음은 `scripts/make-release.sh` 의 `EDGE_VERSION` 으로 수집기 버전을 고정합니다.
 4. **홈페이지** — wace.me 제품 페이지(한국어 · 영어 · 일본어)와 `gh-pages` 의 공식 프로젝트 페이지(waceinc.github.io/vexplor-aas)의
-   판 표기 · 새 기능 · 릴리스 노트 링크 · 화면이 바뀌었으면 캡처. 새 기능 문장은 판을 올리는 사람이 코드로 확인해 직접 씁니다. 매일 점검이 최신
-   릴리스와 README · 홈페이지 판을 대조해 다르면 알립니다.
-   검색 엔진과 AI 답변이 읽는 곳이 wace.me 에 두 군데 더 있습니다 — 제품 페이지 구조화 데이터의 `softwareVersion` 과 `/opensource` 프로젝트 카드의 판.
+   버전 표기 · 새 기능 · 릴리스 노트 링크 · 화면이 바뀌었으면 캡처. 새 기능 문장은 버전을 올리는 사람이 코드로 확인해 직접 씁니다. 매일 점검이 최신
+   릴리스와 README · 홈페이지 버전을 대조해 다르면 알립니다.
+   검색 엔진과 AI 답변이 읽는 곳이 wace.me 에 두 군데 더 있습니다 — 제품 페이지 구조화 데이터의 `softwareVersion` 과 `/opensource` 프로젝트 카드의 버전.
    둘 다 `wace-home/scripts/oss_seo.py` 의 `VERSIONS` 에서 만들어집니다(명령 4개는 사이트 저장소 README). 배포 전에 두 번 실행해
    두 번째 실행에서 바뀌는 것이 없는지 보고, 배포 뒤 바뀐 주소를 IndexNow 로 알립니다.
 

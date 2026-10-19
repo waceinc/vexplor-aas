@@ -15,7 +15,7 @@ export const EN_LINTER_VERSION: Record<string, string> = {
     'Rewrite it as a URI reference of the official metamodel 3.1+ schema. Examples: /aasx/files/manual.pdf · ./manual.pdf · file:///aasx/files/manual.pdf',
 
   // ── PKG-MM-VERSION ──
-  '선언한 메타모델 판이 파일 내용을 담을 수 있어야 한다 — 3.0 선언 파일에 3.2 의 Batch · createdAt 등':
+  '선언한 메타모델 버전이 파일 내용을 담을 수 있어야 한다 — 3.0 선언 파일에 3.2 의 Batch · createdAt 등':
     'The declared metamodel version must be able to hold the content — e.g. a 3.2 Batch or createdAt in a file declared 3.0',
   '메타모델 V{0} 스키마가 받지 않는 값입니다: {1} = {2} (V{3} 까지만 허용)':
     'The metamodel V{0} schema does not accept this value: {1} = {2} (allowed up to V{3} only)',
@@ -33,7 +33,7 @@ export const EN_LINTER_VERSION: Record<string, string> = {
   // ── AASd-090 · AASd-120 (3.0 only) ──
   'AAS 메타모델 V3.0 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측 — 3.0 파일만. V3.1 에서 삭제 (IDTA-01001 V3.2 변경 기록)':
     'AAS metamodel V3.0 AASd-120 (aas-core-meta v3) · measured with aas-test-engines 1.0.3 — 3.0 files only. Removed in V3.1 (IDTA-01001 V3.2 change notes)',
-  '파일에 메타모델 판 표시가 없어 내용으로 3.0 이라고 보고 검사했습니다. 3.1 이상 파일에는 이 제약이 없습니다.':
+  '파일에 메타모델 버전 표시가 없어 내용으로 3.0 이라고 보고 검사했습니다. 3.1 이상 파일에는 이 제약이 없습니다.':
     'The file carries no metamodel version, and its content reads as 3.0, so it was checked as 3.0. Files of version 3.1 or later do not have this constraint.',
   'AAS 메타모델 V3.0 AASd-090 (aas-core-meta v3) — 3.0 파일만. V3.1 에서 삭제 (IDTA-01001 V3.2 변경 기록)':
     'AAS metamodel V3.0 AASd-090 (aas-core-meta v3) — 3.0 files only. Removed in V3.1 (IDTA-01001 V3.2 change notes)',
@@ -63,7 +63,7 @@ export const EN_LINTER_VERSION: Record<string, string> = {
     'Set assetKind to Type for a model passport, Instance for an item passport or Batch for a batch passport — or correct the granularity.',
 
   // ── rule catalog ──
-  'AAS 메타모델 규격(V3.0 · V3.1 · V3.2)이 정한 제약. 파일의 판을 기준으로 검사하며, 표준 도구(aas-test-engines·BaSyx)가 강제한다':
+  'AAS 메타모델 규격(V3.0 · V3.1 · V3.2)이 정한 제약. 파일의 버전을 기준으로 검사하며, 표준 도구(aas-test-engines·BaSyx)가 강제한다':
     'Constraints set by the AAS metamodel specification (V3.0 · V3.1 · V3.2). Checked against the version of the file; standard tools (aas-test-engines, BaSyx) enforce them',
 
   // ── idShort pattern of 3.0 ──

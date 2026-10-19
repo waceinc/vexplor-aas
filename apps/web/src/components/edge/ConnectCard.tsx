@@ -123,7 +123,7 @@ export function ConnectCard({ status, origin, knownIds, devices, onReload, onClo
               <p className="hint">
                 {tr('Windows PC(x64)에서 명령 프롬프트나 PowerShell 을 「관리자 권한으로 실행」으로 열고 붙여 넣으면 설치 · 등록 · 서비스 시작까지 한 번에 끝납니다. 실행 정책은 바꾸지 않습니다.')}
               </p>
-              <p className="note">{fill(tr('VEXPLOR Edge {0} 부터 — 그 판이 나오기 전에는 이 명령이 동작하지 않습니다.'), { 0: EDGE_WINDOWS_FROM })}</p>
+              <p className="note">{fill(tr('VEXPLOR Edge {0} 부터 — 그 버전이 나오기 전에는 이 명령이 동작하지 않습니다.'), { 0: EDGE_WINDOWS_FROM })}</p>
             </>
           ) : (
             <p className="hint">{tr('Linux PC(x64 · arm64)의 터미널에 붙여 넣으면 설치 · 등록 · 시작까지 한 번에 끝납니다. 관리자 비밀번호(sudo)를 한 번 묻습니다.')}</p>

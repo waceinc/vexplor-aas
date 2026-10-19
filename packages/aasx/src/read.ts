@@ -149,7 +149,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   const isXml = lower.endsWith('.xml');
   if (isXml) {
     warnings.push(
-      fill(tr('XML 판을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.'), { 0: specPart, 1: DEFAULT_SPEC_PART }),
+      fill(tr('XML 버전을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.'), { 0: specPart, 1: DEFAULT_SPEC_PART }),
     );
   }
   if (!isXml && !lower.endsWith('.json')) {
@@ -245,7 +245,7 @@ function detectedVersion(
   const declared = xmlMetamodelVersion(xmlText);
   if (declared === undefined) {
     warnings.push(
-      fill(tr('{0}의 XML 네임스페이스로 메타모델 판을 알 수 없어 내용으로 추정했습니다(V{1}).'), {
+      fill(tr('{0}의 XML 네임스페이스로 메타모델 버전을 알 수 없어 내용으로 추정했습니다(V{1}).'), {
         0: specPart,
         1: fromContent.version,
       }),

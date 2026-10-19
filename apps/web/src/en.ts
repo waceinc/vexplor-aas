@@ -577,7 +577,7 @@ export const EN_MORE: Record<string, string> = {
   '새 설비 「{0}」을(를) 만들었습니다. 대표 사진은 임시 그림이니 실제 사진으로 바꾸십시오.':
     'Created the new equipment "{0}". The thumbnail is a placeholder — replace it with a real photo.',
   '값을 저장했습니다.': 'Value saved.',
-  '{0} 판으로 되돌립니다. 되돌리기 자체도 이력에 남습니다.': 'Restore the version of {0}. The restore itself is recorded in the history.',
+  '{0} 버전으로 되돌립니다. 되돌리기 자체도 이력에 남습니다.': 'Restore the version of {0}. The restore itself is recorded in the history.',
   '되돌렸습니다. 이 되돌리기도 이력에 남아 다시 되돌릴 수 있습니다.': 'Restored. This restore is recorded too, so it can be undone.',
   ' 주의: 이 설비에는 수집 연결(AID)이 있습니다 — ×{0}로 넣으면 수집값이 어느 대의 것인지 구분되지 않습니다. 대별 가동값이 목적이면 대마다 파일을 나누십시오.':
     ' Note: this equipment has a collection link (AID) — added as ×{0}, the collected values cannot be told apart by unit. If you need per-unit values, split it into one file per unit.',
@@ -640,7 +640,7 @@ export const EN_MORE: Record<string, string> = {
 
   // ── App — header bar · menus · dialogs ─────────────────────────────────────────────
   '처음 화면으로': 'Back to the start screen',
-  '제품 판 번호': 'Product version',
+  '제품 버전 번호': 'Product version',
   '열기 · 새로 만들기 · 번들 열기 · 파일 목록': 'Open · New · Open bundle · File list',
   '이 PC의 .aasx 파일을 올려 엽니다': 'Upload and open an .aasx file from this PC',
   '빈 설비 또는 회사·공정 묶음을 새로 만듭니다': 'Create a blank equipment file or a company/process group',
@@ -1065,7 +1065,7 @@ export const EN_MORE: Record<string, string> = {
   ' ← 보는 중': ' ← viewing',
   '자동으로 들어갑니다': 'Included automatically',
   // ── integrations/* · DailyStates server rules · delete warning (integration design §9) ──────────
-  '이 서버에는 연동 기능이 없습니다 — 연동이 들어간 판으로 올리십시오.': 'This server has no integration features — upgrade to a version that includes them.',
+  '이 서버에는 연동 기능이 없습니다 — 연동이 들어간 버전으로 올리십시오.': 'This server has no integration features — upgrade to a version that includes them.',
   '연동': 'Integrations',
   '연동 (MES · ERP · CMMS)': 'Integrations (MES · ERP · CMMS)',
   '보내기 구독': 'Subscriptions',
@@ -1316,7 +1316,7 @@ export const EN_MORE: Record<string, string> = {
   '공장 PC의 운영체제': "The factory PC's operating system",
   'Windows PC(x64)에서 명령 프롬프트나 PowerShell 을 「관리자 권한으로 실행」으로 열고 붙여 넣으면 설치 · 등록 · 서비스 시작까지 한 번에 끝납니다. 실행 정책은 바꾸지 않습니다.':
     'On a Windows PC (x64), open Command Prompt or PowerShell with "Run as administrator" and paste it: it installs, registers and starts the service in one go. It changes no execution policy.',
-  'VEXPLOR Edge {0} 부터 — 그 판이 나오기 전에는 이 명령이 동작하지 않습니다.': 'VEXPLOR Edge {0} and later — this command does not work before that version is released.',
+  'VEXPLOR Edge {0} 부터 — 그 버전이 나오기 전에는 이 명령이 동작하지 않습니다.': 'VEXPLOR Edge {0} and later — this command does not work before that version is released.',
   '{0}까지 한 번만 쓸 수 있는 명령입니다.': 'This command works once, until {0}.',
   '설비 {0}곳 · 태그 {1}개를 바로 읽도록 승인해 두었습니다.': 'Approved to read at once — machines {0} · tags {1}.',
   '연결된 뒤 이 화면에서 읽을 목록을 승인해야 값이 들어옵니다.': 'After it connects, approve its read list here before values come in.',
@@ -1415,7 +1415,7 @@ export const EN_MORE: Record<string, string> = {
   '폴더': 'Folder',
   '메모리(다시 시작하면 사라짐)': 'Memory (gone on restart)',
   '서버 상태': 'Server status',
-  '서버 판': 'Server version',
+  '서버 버전': 'Server version',
   '실행 시간': 'Running for',
   '저장소': 'Store',
   '{0} — 연결됨 ({1} ms)': '{0} — connected ({1} ms)',
@@ -1431,9 +1431,9 @@ export const EN_MORE: Record<string, string> = {
   '(이유 {0}개 더)': '({0} more)',
   '상태 접기': 'Hide state',
   '상태 자세히': 'Show state',
-  '이 판은 보내지 않음(1.1.0 이상)': 'Not sent by this version (1.1.0 or later)',
+  '이 버전은 보내지 않음(1.1.0 이상)': 'Not sent by this version (1.1.0 or later)',
   '공장 PC': 'Factory PC',
-  '수집기 판': 'Collector version',
+  '수집기 버전': 'Collector version',
   '메모리 사용': 'Memory in use',
   '디스크 남은 공간': 'Free disk space',
   'PC 켜진 시간': 'PC up for',

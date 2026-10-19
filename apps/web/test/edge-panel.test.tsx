@@ -145,7 +145,7 @@ describe('EdgePanel', () => {
     expect(command).toContain('irm -Proxy http://proxy.plant.local:3128 -ProxyUseDefaultCredentials https://');
     expect(command.indexOf('-bor 3072')).toBeLessThan(command.indexOf('irm '));
     expect(command).not.toMatch(/ExecutionPolicy/);
-    expect(screen.getByText(fill('VEXPLOR Edge {0} 부터 — 그 판이 나오기 전에는 이 명령이 동작하지 않습니다.', { 0: EDGE_WINDOWS_FROM }))).toBeTruthy();
+    expect(screen.getByText(fill('VEXPLOR Edge {0} 부터 — 그 버전이 나오기 전에는 이 명령이 동작하지 않습니다.', { 0: EDGE_WINDOWS_FROM }))).toBeTruthy();
     expect(screen.getByText(/관리자 권한으로 실행/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '명령 복사' }));

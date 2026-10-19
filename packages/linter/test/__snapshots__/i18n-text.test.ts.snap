@@ -37,7 +37,7 @@ exports[`English server text — linter core · report · fixes > Korean (the de
   {
    "layer": "L2",
    "title": "L2 — 메타모델 제약(AASd·AASc)",
-   "meaning": "AAS 메타모델 규격(V3.0 · V3.1 · V3.2)이 정한 제약. 파일의 판을 기준으로 검사하며, 표준 도구(aas-test-engines·BaSyx)가 강제한다",
+   "meaning": "AAS 메타모델 규격(V3.0 · V3.1 · V3.2)이 정한 제약. 파일의 버전을 기준으로 검사하며, 표준 도구(aas-test-engines·BaSyx)가 강제한다",
    "count": 17
   },
   {
@@ -357,7 +357,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MarkingsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -369,7 +369,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -381,7 +381,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/0(DocumentIds)/value/0(DocumentIdsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentIdsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -393,7 +393,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/1(DocumentClassifications)/value/0(DocumentClassificationsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentClassificationsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -405,7 +405,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentVersionsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -417,7 +417,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/value/6(DigitalFiles)/value/0(DigitalFilesEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DigitalFilesEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -429,7 +429,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/2(TechnicalData)/submodelElements/1(TechnicalPropertyAreas)/value/0(TechnicalPropertyAreasEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: TechnicalPropertyAreasEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -441,7 +441,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/0(MaintenanceToolListEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -453,7 +453,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/1(MaintenanceToolListEntry_1)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_1
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -465,7 +465,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/3(MaintenanceConsumablesList)/value/0(MaintenanceConsumablesListEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceConsumablesListEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -592,7 +592,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MarkingsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -604,7 +604,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -616,7 +616,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/0(DocumentIds)/value/0(DocumentIdsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentIdsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -628,7 +628,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/1(DocumentClassifications)/value/0(DocumentClassificationsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentClassificationsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -640,7 +640,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentVersionsEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -652,7 +652,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/value/6(DigitalFiles)/value/0(DigitalFilesEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: DigitalFilesEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -664,7 +664,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/2(TechnicalData)/submodelElements/1(TechnicalPropertyAreas)/value/0(TechnicalPropertyAreasEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: TechnicalPropertyAreasEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -676,7 +676,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/0(MaintenanceToolListEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -688,7 +688,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/1(MaintenanceToolListEntry_1)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_1
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -700,7 +700,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
       <td class="mono path">/submodels/5(MaintenanceInstructions)/submodelElements/3(MaintenanceConsumablesList)/value/0(MaintenanceConsumablesListEntry_0)/idShort</td>
       <td>
         SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceConsumablesListEntry_0
-        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.</div>
+        <div class="remedy">idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.</div>
         <div class="policy">※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.</div>
       </td>
       <td>자동 교정 가능</td>
@@ -1039,52 +1039,52 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 
 [경고] The SubmodelElementCollection "MarkingsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/0(DigitalNameplate)/submodelElements/9(Markings)/value/0(MarkingsEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: MarkingsEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "DocumentsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentsEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "DocumentIdsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/0(DocumentIds)/value/0(DocumentIdsEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentIdsEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "DocumentClassificationsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/1(DocumentClassifications)/value/0(DocumentClassificationsEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentClassificationsEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "DocumentVersionsEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: DocumentVersionsEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The File "DigitalFilesEntry_0" violates the L2 rules [AASd-120]: @ /submodels/1(HandoverDocumentation)/submodelElements/0(Documents)/value/0(DocumentsEntry_0)/value/2(DocumentVersions)/value/0(DocumentVersionsEntry_0)/value/6(DigitalFiles)/value/0(DigitalFilesEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: DigitalFilesEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "TechnicalPropertyAreasEntry_0" violates the L2 rules [AASd-120]: @ /submodels/2(TechnicalData)/submodelElements/1(TechnicalPropertyAreas)/value/0(TechnicalPropertyAreasEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: TechnicalPropertyAreasEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "MaintenanceToolListEntry_0" violates the L2 rules [AASd-120]: @ /submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/0(MaintenanceToolListEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "MaintenanceToolListEntry_1" violates the L2 rules [AASd-120]: @ /submodels/5(MaintenanceInstructions)/submodelElements/2(MaintenanceToolList)/value/1(MaintenanceToolListEntry_1)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceToolListEntry_1
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 
 [경고] The SubmodelElementCollection "MaintenanceConsumablesListEntry_0" violates the L2 rules [AASd-120]: @ /submodels/5(MaintenanceInstructions)/submodelElements/3(MaintenanceConsumablesList)/value/0(MaintenanceConsumablesListEntry_0)/idShort
 - SubmodelElementList의 직계 자식에 idShort가 있습니다: MaintenanceConsumablesListEntry_0
-- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.
+- idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.
   ※ KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.
 ",
   "uml": "<svg xmlns="http://www.w3.org/2000/svg" width="818" height="983" viewBox="0 0 818 983" font-family="'Malgun Gothic','Apple SD Gothic Neo','Segoe UI',sans-serif">

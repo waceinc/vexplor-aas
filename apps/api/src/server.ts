@@ -422,7 +422,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
    *    exposed server**, so that premise breaks entirely. Enabling both is likely a mistake, so refuse and say so.
    */
   if (demo && process.env['OPCUA_SERVER'] === 'on') {
-    console.error('  [WARN] ' + tr('체험판(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.'));
+    console.error('  [WARN] ' + tr('체험 버전(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.'));
   }
   const publishing = process.env['OPCUA_SERVER'] === 'on' && !demo;
   let publisher: OpcUaPublisher | undefined;
@@ -839,7 +839,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     // OPC UA exposure (M6·M7) — where upstream apps connect.
     // Important: it was refused in demo mode, so **we must not say it is on** (a false log caught in testing)
     if (process.env['OPCUA_SERVER'] === 'on' && bootDemo) {
-      console.log('  ' + tr('OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
+      console.log('  ' + tr('OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험 버전에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
     }
     // When OPC UA is on, its lines are printed by the start itself (above) — only once it really runs
 
@@ -853,7 +853,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
         console.log('     ' + (allow.length > 0 ? fill(tr('사내 대상 허용(AAS_INTEGRATION_ALLOW): {0}'), { 0: allow.join(', ') }) : tr('사내 주소로는 보내지 않습니다 — 허용하려면 AAS_INTEGRATION_ALLOW=<CIDR·호스트>')));
       } else {
         console.log('  ' + tr('연동 이벤트는 기록됩니다 · GET /integrations/events — 웹훅·MQTT 전송은 INTEGRATIONS=on'));
-        if (process.env['INTEGRATIONS'] === 'on' && bootDemo) console.log('     ' + tr('체험판(DEMO_MODE=on)에서는 연동을 켜지 않습니다.'));
+        if (process.env['INTEGRATIONS'] === 'on' && bootDemo) console.log('     ' + tr('체험 버전(DEMO_MODE=on)에서는 연동을 켜지 않습니다.'));
       }
       if (services.masterKey === 'missing') {
         console.log('     [WARN] ' + tr('AAS_SECRET_KEY가 없어 웹훅 구독을 만들 수 없습니다 (PostgreSQL). openssl rand -base64 32로 만든 값을 주십시오.'));
@@ -865,7 +865,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     // Demo mode — the operator must know at startup what is blocked and what gets deleted
     if (bootDemo) {
       console.log('');
-      console.log('  [DEMO] ' + tr('체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.'));
+      console.log('  [DEMO] ' + tr('체험 버전(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.'));
       console.log(
         `     ${fill(tr('데모 계정: {0} / {1}  ({2})'), {
           0: bootDemo.login,

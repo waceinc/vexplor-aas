@@ -138,8 +138,8 @@ describe('collector health on the row', () => {
     expect(await screen.findByText('정상')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '상태 자세히' }));
     const details = within(await screen.findByTestId('edge-health'));
-    expect(details.getAllByText('이 판은 보내지 않음(1.1.0 이상)').length).toBeGreaterThanOrEqual(2);
-    expect(details.getByText('응답 시간 · 성공률 · 재연결 · 마지막 끊김: 이 판은 보내지 않음(1.1.0 이상)')).toBeTruthy();
+    expect(details.getAllByText('이 버전은 보내지 않음(1.1.0 이상)').length).toBeGreaterThanOrEqual(2);
+    expect(details.getByText('응답 시간 · 성공률 · 재연결 · 마지막 끊김: 이 버전은 보내지 않음(1.1.0 이상)')).toBeTruthy();
     expect(details.queryByText('0%')).toBeNull();
     await waitFor(() => expect(details.getByRole('img', { name: /받은 값: 지금 20개/ })).toBeTruthy());
   });

@@ -19,7 +19,7 @@ export function VerdictBadge({ verdict }: { verdict: EdgeVerdict }): React.JSX.E
   return <span className={`edge-badge edge-verdict-${verdict.level}`}>{verdictLabel(verdict.level)}</span>;
 }
 
-const NOT_SENT = (): string => tr('이 판은 보내지 않음(1.1.0 이상)');
+const NOT_SENT = (): string => tr('이 버전은 보내지 않음(1.1.0 이상)');
 
 function Fact({ label, value }: { label: string; value: React.ReactNode }): React.JSX.Element {
   return (
@@ -66,7 +66,7 @@ export function EdgeHealthDetails({ device }: { device: EdgeDeviceView }): React
       <section>
         <h4>{tr('공장 PC')}</h4>
         <dl className="edge-facts">
-          <Fact label={tr('수집기 판')} value={`${software.name} ${software.version}`} />
+          <Fact label={tr('수집기 버전')} value={`${software.name} ${software.version}`} />
           {host ? (
             <>
               <Fact label={tr('CPU')} value={percent(host.cpuPercent)} />

@@ -17,9 +17,9 @@ const VERSIONS: readonly MetamodelVersion[] = ['3.0', '3.1', '3.2'];
 
 /** What each version is for — the reason someone would pick it */
 function purposeOf(version: MetamodelVersion): string {
-  if (version === '3.0') return tr('공식 검증기(aas-test-engines 1.0.3)가 판정하는 판');
-  if (version === '3.1') return tr('KOSMO가 요구하는 판 · IDTA 서식의 판');
-  return tr('최신 판 — 받는 쪽이 V3.2를 읽는지 먼저 확인하십시오');
+  if (version === '3.0') return tr('공식 검증기(aas-test-engines 1.0.3)가 판정하는 버전');
+  if (version === '3.1') return tr('KOSMO가 요구하는 버전 · IDTA 서식의 버전');
+  return tr('최신 버전 — 받는 쪽이 V3.2를 읽는지 먼저 확인하십시오');
 }
 
 interface Props {
@@ -62,26 +62,26 @@ export function ExportDialog({ packageId, stored, busy, onDownload, onClose }: P
 
   return (
     <div className="export-version">
-      <h3>{tr('AASX 내려받기 — 메타모델 판')}</h3>
+      <h3>{tr('AASX 내려받기 — 메타모델 버전')}</h3>
       <p className="note">
-        {fill(tr('이 파일의 판: V{0}'), { 0: own })}
-        {stored?.inferred ? ` ${tr('(JSON이라 판 표시가 없어 내용으로 정했습니다)')}` : ''}
+        {fill(tr('이 파일의 버전: V{0}'), { 0: own })}
+        {stored?.inferred ? ` ${tr('(JSON이라 버전 표시가 없어 내용으로 정했습니다)')}` : ''}
       </p>
 
       <fieldset className="stack">
-        <legend>{tr('내보낼 판')}</legend>
+        <legend>{tr('내보낼 버전')}</legend>
         {VERSIONS.map((v) => (
           <label key={v} className="choice">
             <input type="radio" name="metamodel" value={v} checked={version === v} disabled={busy} onChange={() => setVersion(v)} />
             <span>
               V{v}
-              {v === own ? ` ${tr('(이 파일의 판)')}` : ''} — {purposeOf(v)}
+              {v === own ? ` ${tr('(이 파일의 버전)')}` : ''} — {purposeOf(v)}
             </span>
           </label>
         ))}
       </fieldset>
 
-      {!preview && !failed && <p className="note">{tr('이 판으로 쓰면 무엇이 달라지는지 확인하고 있습니다…')}</p>}
+      {!preview && !failed && <p className="note">{tr('이 버전으로 쓰면 무엇이 달라지는지 확인하고 있습니다…')}</p>}
       {failed && <p className="note warning">{failed}</p>}
 
       {preview && preview.lossless && preview.renamed.length === 0 && (

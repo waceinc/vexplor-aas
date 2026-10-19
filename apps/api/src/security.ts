@@ -79,7 +79,7 @@ export function demoOutboundAllowed(endpoint: string, simulatorPort: number): bo
 /** Outbound connection blocked in the demo — routes recognize it by name and return 403 */
 export class OutboundBlockedError extends Error {
   constructor() {
-    super(tr('체험판에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.'));
+    super(tr('체험 버전에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.'));
     this.name = 'OutboundBlockedError';
   }
 }

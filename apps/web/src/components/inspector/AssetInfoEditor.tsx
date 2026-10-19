@@ -50,7 +50,7 @@ export function AssetInfoEditor({ raw, busy, onSaveAssetInformation, onUploadThu
       </label>
       {!allowed.includes(asset.assetKind) && (
         <p className="note warning">
-          {fill(tr('assetKind {0}은(는) V{1}에 없는 값입니다 — 이 판으로 내려받으면 막힙니다. 더 높은 판으로 내려받거나 값을 바꾸십시오.'), { 0: asset.assetKind, 1: metamodel })}
+          {fill(tr('assetKind {0}은(는) V{1}에 없는 값입니다 — 이 버전으로 내려받으면 막힙니다. 더 높은 버전으로 내려받거나 값을 바꾸십시오.'), { 0: asset.assetKind, 1: metamodel })}
         </p>
       )}
       {asset.assetKind !== 'Type' && (

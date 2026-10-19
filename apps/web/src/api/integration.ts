@@ -48,7 +48,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
       /* Not JSON — a proxy or an old server in front */
     }
     const message = (body as ErrorBody | undefined)?.messages?.[0];
-    const text = message?.text ?? (response.status === 404 ? tr('이 서버에는 연동 기능이 없습니다 — 연동이 들어간 판으로 올리십시오.') : `${response.status} ${response.statusText}`);
+    const text = message?.text ?? (response.status === 404 ? tr('이 서버에는 연동 기능이 없습니다 — 연동이 들어간 버전으로 올리십시오.') : `${response.status} ${response.statusText}`);
     throw new IntegrationError(response.status, text, message?.code, body);
   }
   if (response.status === 204) return undefined as T;

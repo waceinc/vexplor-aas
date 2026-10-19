@@ -121,5 +121,5 @@ export async function connectPostgres(
   // Important: if the schema version is newer than the program, it stops here with SchemaVersionError — printed as-is in the startup log
   await store.init();
   const timescale = options.timescale === false ? tr('끔') : await tryTimescale(client, options.features);
-  return { store, timescale: fill(tr('{0} · 스키마 {1}판'), { 0: timescale, 1: store.schemaVersion }) };
+  return { store, timescale: fill(tr('{0} · 스키마 버전 {1}'), { 0: timescale, 1: store.schemaVersion }) };
 }

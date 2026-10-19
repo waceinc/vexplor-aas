@@ -25,7 +25,7 @@ const TEXT = {
     switcher: '[English](rules.md) · **한국어**',
     layers: {
       L1: { name: 'L1 패키지', about: 'AASX 파일(OPC 패키지)의 구조 — 파트·관계·Content_Types' },
-      L2: { name: 'L2 제약조건', about: 'AAS 메타모델(V3.0 · V3.1 · V3.2)의 제약조건(AASd-*, AASc-*) — 파일의 판을 기준으로 검사' },
+      L2: { name: 'L2 제약조건', about: 'AAS 메타모델(V3.0 · V3.1 · V3.2)의 제약조건(AASd-*, AASc-*) — 파일의 버전을 기준으로 검사' },
       L3: { name: 'L3 KOSMO', about: '국내 제출처 검증기(KOSMO Validator)가 요구하는 사업 규칙' },
     },
     internal: '내부 실측 문서',

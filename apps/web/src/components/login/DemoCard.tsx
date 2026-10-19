@@ -25,7 +25,7 @@ export function DemoCard({ demo, disabled, onEnter, t }: Props): React.JSX.Eleme
         Important: the ID and password are not just written down — **one button signs you in**.
            There is no reason to make people read and retype them. The values are still shown (we do not hide what you sign in with).
       */}
-      <section className="demo-card" aria-label={t('체험판 안내')}>
+      <section className="demo-card" aria-label={t('체험 버전 안내')}>
         <h2>{t('데모 계정')}</h2>
         <dl>
           <dt>{t('아이디')}</dt>
@@ -43,7 +43,7 @@ export function DemoCard({ demo, disabled, onEnter, t }: Props): React.JSX.Eleme
         </button>
         <ul>
           <li>{t('열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다')}</li>
-          <li>{t('체험판은 일정 시간 후 초기화됩니다')}</li>
+          <li>{t('체험 버전은 일정 시간 후 초기화됩니다')}</li>
           <li className="locked">{t('파일 내려받기는 회원가입 후에 됩니다')}</li>
         </ul>
       </section>

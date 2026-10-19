@@ -7,8 +7,8 @@ export const EN_PACKAGES: Record<string, string> = {
   'aasx-origin 관계가 없습니다.': 'The aasx-origin relationship is missing.',
   'aas-spec 관계가 없습니다. {0}로 가정합니다.': 'The aas-spec relationship is missing. Assuming {0}.',
   'AAS 본문 파트를 찾을 수 없습니다: {0}': 'Cannot find the AAS spec part: {0}',
-  'XML 판을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.': 'Read the XML version ({0}). Saving writes JSON ({1}).',
-  '{0}의 XML 네임스페이스로 메타모델 판을 알 수 없어 내용으로 추정했습니다(V{1}).':
+  'XML 버전을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.': 'Read the XML version ({0}). Saving writes JSON ({1}).',
+  '{0}의 XML 네임스페이스로 메타모델 버전을 알 수 없어 내용으로 추정했습니다(V{1}).':
     'The XML namespace of {0} does not name a known metamodel version — inferred from the content (V{1}).',
   '알 수 없는 본문 형식입니다: {0} (.json 또는 .xml)': 'Unknown spec format: {0} (.json or .xml)',
   '썸네일 관계는 있으나 파트가 없습니다: {0}': 'The thumbnail relationship exists but the part is missing: {0}',
@@ -104,7 +104,7 @@ export const EN_PACKAGES: Record<string, string> = {
   'quantity 가 잘못됐습니다: {0}': 'Invalid quantity: {0}',
   '잘못된 MQTT 길이': 'Invalid MQTT length',
   '가상 PLC (시뮬레이션)': 'Virtual PLC (simulation)',
-  'DB 스키마가 {0}판인데 이 프로그램은 {1}판까지만 압니다 — 프로그램을 판올림하십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.':
+  'DB 스키마가 버전 {0}인데 이 프로그램은 버전 {1}까지만 압니다 — 프로그램 버전을 올리십시오. 옛 프로그램이 새 표를 읽으면 조용히 잃을 수 있어 기동하지 않습니다.':
     'The database schema is version {0}, but this program only knows up to version {1} — upgrade the program. It does not start, because an older program reading newer tables could silently lose data.',
   '{0}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: {1}':
     'Could not read {0} — fix it by hand or delete it, then start again: {1}',
