@@ -385,6 +385,33 @@ describe('PKG-MM-VERSION — the declared version cannot hold what the file cont
   });
 });
 
+describe('a remembered version on a re-read body (source content, inferred false) counts as declared', () => {
+  // What the API passes after repacking: the store's version with inferred=false, evidence and fits from the content
+  const remembered = (env: Environment, version: MetamodelVersion): LintOptions => ({
+    metamodel: { ...detectMetamodelVersion(env), version, inferred: false },
+  });
+
+  it('a remembered 3.0 file is held to AASd-120 even though its content would also fit 3.1', () => {
+    const env = submodel([
+      {
+        modelType: 'SubmodelElementList',
+        idShort: 'List',
+        typeValueListElement: 'Property',
+        valueTypeListElement: 'xs:string',
+        value: [{ modelType: 'Property', idShort: 'Item', valueType: 'xs:string', value: 'x' }],
+      },
+    ]);
+    expect(detectMetamodelVersion(env).fits).toEqual(['3.0', '3.1', '3.2']);
+    expect(ids(env, remembered(env, '3.0'), L2_RULES, 'AASd-120')).toHaveLength(1);
+    expect(ids(env, remembered(env, '3.1'), L2_RULES, 'AASd-120')).toEqual([]);
+  });
+
+  it('a remembered 3.0 file holding an Entity without entityType is told so by PKG-MM-VERSION', () => {
+    const env = submodel([{ modelType: 'Entity', idShort: 'E1' }]);
+    expect(ids(env, remembered(env, '3.0'), ALL_RULES, 'PKG-MM-VERSION')).toHaveLength(1);
+  });
+});
+
 describe('fixing keeps the version', () => {
   it('re-linting inside applyFixes uses the same version — a 3.1 named list child stays untouched', () => {
     const env = submodel([
