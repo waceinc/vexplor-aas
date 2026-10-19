@@ -126,7 +126,11 @@ CREATE TABLE IF NOT EXISTS aas_package (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   -- Owner (workspace key). NULL = shared. On a server a team uses together, all rows are NULL
-  owner       text
+  owner       text,
+  -- Metamodel version the package came in as (3.0 / 3.1 / 3.2) and whether it was worked out from the content.
+  -- NULL = stored before version 12, read as 3.0
+  metamodel_version  text,
+  metamodel_inferred boolean
 );
 -- Important: the index on owner is **not here** (it is in MIGRATIONS version 6). On an old DB from before
 --    version numbers, these statements run before the migrations - the table already exists and is skipped,
@@ -231,7 +235,7 @@ ${INTEGRATION_SCHEMA_SQL}`;
  *    ③ bump `SCHEMA_VERSION`. A migration must turn the previous version's tables into the new version and must be idempotent.
  *  - An existing DB without `schema_version` is treated as version 1 (the tables as of 2026-09-04, when version numbers were introduced, are version 1).
  */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export const SCHEMA_VERSION_SQL = `
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -378,6 +382,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS collected_value_key_idx ON collected_value (pa
     version: 11,
     sql: `
 ALTER TABLE collected_value ADD COLUMN IF NOT EXISTS error text;
+`,
+  },
+  {
+    /**
+     * Version 12 (2026-10-19) — the metamodel version each package came in as, so a download writes the version the
+     * user opened (V3.0 · V3.1 · V3.2) instead of one fixed version.
+     *
+     * Important: NULL is allowed and means "stored before this version" — the program reads it as 3.0, which is what
+     *    every file it wrote until then was. Filling the column during the upgrade would guess what nobody recorded.
+     */
+    version: 12,
+    sql: `
+ALTER TABLE aas_package ADD COLUMN IF NOT EXISTS metamodel_version text;
+ALTER TABLE aas_package ADD COLUMN IF NOT EXISTS metamodel_inferred boolean;
 `,
   },
 ];

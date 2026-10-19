@@ -12,10 +12,10 @@ import { isStandardTerm } from '../policy.js';
 import {
   firstKeyValue,
   iec61360Of,
-  isValidIdShort,
   SEMANTIC_REQUIRED_TYPES,
   XS_TO_DATA_TYPE,
 } from '../util.js';
+import { idShortFits, idShortRemedyV30, mayBe } from '../version.js';
 
 // i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §2④⑤ · 04_린터_규칙_명세.md §1';
@@ -35,7 +35,8 @@ export const kosmoSme1IdShort: Rule = {
       const isListChild = v.parent?.modelType === 'SubmodelElementList';
       const idShort = v.node.idShort;
 
-      // AASd-117: direct children of an SML may lack idShort (AASd-120 was removed in V3)
+      // AASd-117: direct children of an SML may lack idShort. When they have one, the naming rule still applies —
+      // KOSMO modelling guideline V2.1.1 rule 3 (metamodel 3.1 removed AASd-120; 3.0's AASd-120 is checked in L2)
       if (idShort === undefined || idShort === '') {
         if (isListChild) continue;
         report({
@@ -51,7 +52,7 @@ export const kosmoSme1IdShort: Rule = {
         continue;
       }
 
-      if (!isValidIdShort(idShort)) {
+      if (!idShortFits(ctx, idShort)) {
         report({
           severity: 'error',
           elementType: v.node.modelType,
@@ -59,7 +60,7 @@ export const kosmoSme1IdShort: Rule = {
           pointer: `${v.pointer}/idShort`,
           kosmoPath: `${v.kosmoPath}/idShort`,
           message: fill(tr('idShort가 명명 규칙에 맞지 않습니다: {0}'), { 0: idShort }),
-          remedy: tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오. 한글·공백·특수문자는 쓸 수 없습니다.'),
+          remedy: !mayBe(ctx, '3.1') ? idShortRemedyV30() : tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오. 한글·공백·특수문자는 쓸 수 없습니다.'),
           fixable: true,
         });
       }

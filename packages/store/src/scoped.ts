@@ -39,6 +39,7 @@ import {
   type ListQuery,
   type NewUser,
   type PackageFileRecord,
+  type ImportPackageInput,
   type PackageRecord,
   type PackageScope,
   type PageQuery,
@@ -157,13 +158,7 @@ class ScopedStore implements AasStore {
   }
 
   // ── Packages ──────────────────────────────────────────────────────────────
-  async importPackage(input: {
-    name: string;
-    package: AasxPackage;
-    id?: string;
-    keep?: readonly PackageFileRecord[];
-    owner?: string | null;
-  }): Promise<PackageRecord> {
+  async importPackage(input: ImportPackageInput): Promise<PackageRecord> {
     const workspace = currentWorkspace();
     // Important: an explicitly given owner wins — "replace wholesale" preserves and passes the original owner (packages.ts).
     //    An admin replacing someone else's file must not make that file the admin's

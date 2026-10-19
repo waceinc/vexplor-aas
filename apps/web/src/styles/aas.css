@@ -1959,3 +1959,10 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .add-aid .aid-connection .self-warn { margin-top: 0; }
 .picked-list li .unit-input { flex: 0 0 72px; min-width: 0; }
 .picked-list li.modbus select:nth-of-type(3) { width: 208px; }
+
+/* Metamodel version — the header chip and the download window (components/ExportDialog.tsx, 2026-10-19) */
+header .metamodel-chip { font-size: var(--text-xs); color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius); padding: 0 calc(var(--spacing) * 2); white-space: nowrap; }
+.modal.export-modal { width: min(760px, 100%); }
+.export-version { display: flex; flex-direction: column; gap: var(--space-stack); }
+.export-version fieldset { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
+.export-version .note ul { margin: calc(var(--spacing) * 1) 0 0; padding-inline-start: calc(var(--spacing) * 4); }

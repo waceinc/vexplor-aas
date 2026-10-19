@@ -5,4 +5,5 @@ export * from './limits.js';
 export * from './xml.js';
 export * from './read.js';
 export * from './write.js';
+export * from './paths.js';
 export * from './archive.js';

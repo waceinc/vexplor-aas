@@ -16,6 +16,41 @@ export interface PackageDescription {
   revision?: number;
   updatedAt?: string;
   warnings?: string[];
+  /** Metamodel version the file came in as — what a download writes unless another one is picked */
+  metamodel?: PackageMetamodel;
+}
+
+export type MetamodelVersion = '3.0' | '3.1' | '3.2';
+
+export interface PackageMetamodel {
+  version: MetamodelVersion;
+  /** Worked out from the content (a JSON file carries no version) rather than declared */
+  inferred: boolean;
+}
+
+/** One field or value a version cannot carry — the server's DowngradeEntry */
+export interface ExportEntry {
+  kind: 'dropped' | 'unrepresentable';
+  pointer: string;
+  feature: string;
+  field: string;
+  since: MetamodelVersion;
+  until?: MetamodelVersion;
+  value?: unknown;
+  /** Already in the request's language */
+  message: string;
+}
+
+/** What downloading as a version would do (GET /packages/{id}/export-report) */
+export interface ExportPreview {
+  version: MetamodelVersion;
+  stored: PackageMetamodel;
+  lossless: boolean;
+  /** A value the version cannot say — the download is refused unless kept as it is */
+  blocked: boolean;
+  entries: ExportEntry[];
+  /** File names percent-encoded for 3.1 / 3.2 (a URI cannot hold spaces or Korean letters) */
+  renamed: { pointer: string; field: string; from: string; to: string; part?: { from: string; to: string } }[];
 }
 
 /** Process hierarchy — what it is made of */

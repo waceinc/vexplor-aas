@@ -1,5 +1,6 @@
 /**
- * AAS V3.0 (IEC 63278-1) common types.
+ * AAS metamodel (IEC 63278-1 / IDTA-01001) common types — the superset of V3.0, V3.1 and V3.2.
+ * Which version allows which value is in metamodel/versions.ts; the version a file needs is in metamodel/features.ts.
  *
  * Enumeration values use the spec's original notation verbatim. Since the value itself is the string in JSON serialization,
  * they are defined as string literal unions + runtime arrays instead of TypeScript enums.
@@ -57,8 +58,15 @@ export const DATA_TYPE_DEF_XSD = [
 ] as const;
 export type DataTypeDefXsd = (typeof DATA_TYPE_DEF_XSD)[number];
 
+/**
+ * AssetKind values of **V3.0**.
+ * Important: kept at the 3.0 list — the integration event schema and the 3.0 checks read it. Role (3.1) and Batch
+ *    (3.2) are in {@link ALL_ASSET_KINDS} and per version in ASSET_KINDS_BY_VERSION.
+ */
 export const ASSET_KINDS = ['Type', 'Instance', 'NotApplicable'] as const;
-export type AssetKind = (typeof ASSET_KINDS)[number];
+/** Every AssetKind any supported version allows — Role since 3.1, Batch since 3.2 (digital product passport) */
+export const ALL_ASSET_KINDS = ['Type', 'Instance', 'NotApplicable', 'Role', 'Batch'] as const;
+export type AssetKind = (typeof ALL_ASSET_KINDS)[number];
 
 export const MODELLING_KINDS = ['Template', 'Instance'] as const;
 export type ModellingKind = (typeof MODELLING_KINDS)[number];
@@ -108,6 +116,10 @@ export interface AdministrativeInformation {
   creator?: Reference;
   templateId?: string;
   embeddedDataSpecifications?: EmbeddedDataSpecification[];
+  /** V3.2 — xs:dateTime in UTC. Dropped (and reported) when writing 3.0 / 3.1 */
+  createdAt?: string;
+  /** V3.2 — xs:dateTime in UTC. Dropped (and reported) when writing 3.0 / 3.1 */
+  updatedAt?: string;
 }
 
 export interface Extension {

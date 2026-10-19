@@ -9,7 +9,7 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 ## Summary
 
 - Shipped for execution (runtime): **248**
-- Development and testing only: 186 (not included in releases)
+- Development and testing only: 189 (not included in releases)
 - Copyleft at runtime (GPL, LGPL, AGPL): **0**
 
 | Runtime license | Count |
@@ -380,6 +380,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | @vitest/snapshot | 4.1.11 | MIT |
 | @vitest/spy | 4.1.11 | MIT |
 | @vitest/utils | 4.1.11 | MIT |
+| ajv | 8.20.0 | MIT |
 | ansi-regex | 5.0.1 | MIT |
 | ansi-styles | 5.2.0 | MIT |
 | aria-query | 5.3.0 | Apache-2.0 |
@@ -399,6 +400,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | es-module-lexer | 2.3.2 | MIT |
 | estree-walker | 3.0.3 | MIT |
 | expect-type | 1.4.0 | Apache-2.0 |
+| fast-uri | 3.1.8 | BSD-3-Clause |
 | fdir | 6.5.0 | MIT |
 | fsevents | 2.3.3 | MIT |
 | graceful-fs | 4.2.11 | ISC |
@@ -407,6 +409,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | jiti | 2.7.0 | MIT |
 | js-tokens | 4.0.0 | MIT |
 | jsdom | 30.0.1 | MIT |
+| json-schema-traverse | 1.0.0 | MIT |
 | lightningcss | 1.32.0 | MPL-2.0 |
 | lightningcss | 1.33.0 | MPL-2.0 |
 | lightningcss-android-arm64 | 1.32.0 | MPL-2.0 |
@@ -481,3 +484,7 @@ These packages do not state a license in `package.json`, so the files inside the
 
 - `docs/spec/part2/*.yaml` — IDTA-01002-3-0 (Specification of the Asset Administration Shell,
   Part 2: API). Published by the Industrial Digital Twin Association, **CC BY 4.0**.
+- `apps/web/public/samples/idta/*.aasx` — official IDTA submodel templates for the Digital Product Passport
+  (IDTA 02099-1 Part 1 and the Digital Battery Passport IDTA 02035-1 to 02035-7), shipped unmodified.
+  Published by the Industrial Digital Twin Association, **CC BY 4.0** — source, versions and file list in
+  `apps/web/public/samples/idta/NOTICE.md`.

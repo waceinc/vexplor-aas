@@ -17,6 +17,8 @@
 import { EN_CORE } from './en/core.js';
 import { EN_LINTER_RULES } from './en/linter-rules.js';
 import { EN_LINTER_TEXT } from './en/linter-text.js';
+import { EN_LINTER_DPP } from './en/linter-dpp.js';
+import { EN_LINTER_VERSION } from './en/linter-version.js';
 import { EN_API } from './en/api.js';
 import { EN_BUNDLE } from './en/bundle.js';
 import { EN_PACKAGES } from './en/packages.js';
@@ -26,6 +28,7 @@ import { EN_INTEGRATION_RUNTIME } from './en/integration-runtime.js';
 import { EN_INTEGRATION_API } from './en/integration-api.js';
 import { EN_INTEGRATION_EXPORTS } from './en/integration-exports.js';
 import { EN_EDGE } from './en/edge.js';
+import { EN_METAMODEL_IO } from './en/metamodel-io.js';
 
 export type Lang = 'ko' | 'en';
 
@@ -56,6 +59,8 @@ const DICTIONARIES: readonly Record<string, string>[] = [
   EN_CORE,
   EN_LINTER_RULES,
   EN_LINTER_TEXT,
+  EN_LINTER_DPP,
+  EN_LINTER_VERSION,
   EN_API,
   EN_BUNDLE,
   EN_PACKAGES,
@@ -65,6 +70,7 @@ const DICTIONARIES: readonly Record<string, string>[] = [
   EN_INTEGRATION_API,
   EN_INTEGRATION_EXPORTS,
   EN_EDGE,
+  EN_METAMODEL_IO,
 ];
 
 /** Looks up the English dictionary. undefined if absent */

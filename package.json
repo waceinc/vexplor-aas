@@ -29,6 +29,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
+    "ajv": "8.20.0",
     "jsdom": "^30.0.1",
     "pg": "^8.23.0",
     "postject": "1.0.0-alpha.6",

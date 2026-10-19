@@ -12,6 +12,9 @@ export * from './routes/packages.js';
 export * from './supervisor.js';
 export * from './server.js';
 export * from './undo.js';
+export * from './part2-path.js';
+export * from './outgoing.js';
+export * from './metamodel-hint.js';
 // MES / ERP / CMMS integration (docs/design/integration-v1.md) — what scripts, tests and other packages use
 export * from './integration/deps.js';
 export { toCloudEvent, cloudEventBody, CLOUDEVENTS_CONTENT_TYPE, type RenderContext } from './integration/cloudevents.js';

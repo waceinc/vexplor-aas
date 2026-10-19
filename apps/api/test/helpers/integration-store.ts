@@ -19,6 +19,7 @@ import {
   type IdentifiableRecord,
   type IntegrationStore,
   type PackageFileRecord,
+  type ImportPackageInput,
   type PackageRecord,
   type WriteOptions,
 } from '@aas/store';
@@ -72,7 +73,7 @@ class EventedMemoryStore extends InMemoryStore {
     });
   }
 
-  override async importPackage(input: { name: string; package: AasxPackage; id?: string; keep?: readonly PackageFileRecord[]; owner?: string | null }): Promise<PackageRecord> {
+  override async importPackage(input: ImportPackageInput): Promise<PackageRecord> {
     const record = await super.importPackage(input);
     this.owners.set(record.id, record.owner);
     await this.record(record.id, 'package.created', { name: record.name, owner: record.owner ?? null });

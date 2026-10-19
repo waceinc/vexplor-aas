@@ -1,0 +1,16 @@
+{
+  "assetAdministrationShells": [
+    {
+      "assetInformation": {
+        "assetKind": "Role",
+        "assetType": "something_9f4c5692",
+        "defaultThumbnail": {
+          "path": "mailto:John.Doe@example.org"
+        },
+        "globalAssetId": "something_c71f0c8f"
+      },
+      "id": "something_142922d6",
+      "modelType": "AssetAdministrationShell"
+    }
+  ]
+}

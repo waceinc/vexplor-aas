@@ -32,19 +32,19 @@ exports[`English server text — linter core · report · fixes > Korean (the de
    "layer": "L1",
    "title": "L1 — 패키지·직렬화",
    "meaning": "AASX 파일 자체가 규격대로 만들어졌는가 (공식 JSON 스키마·OPC 패키징)",
-   "count": 4
+   "count": 5
   },
   {
    "layer": "L2",
    "title": "L2 — 메타모델 제약(AASd·AASc)",
-   "meaning": "AAS V3.0 규격이 정한 제약. 표준 도구(aas-test-engines·BaSyx)가 강제한다",
-   "count": 15
+   "meaning": "AAS 메타모델 규격(V3.0 · V3.1 · V3.2)이 정한 제약. 파일의 판을 기준으로 검사하며, 표준 도구(aas-test-engines·BaSyx)가 강제한다",
+   "count": 17
   },
   {
    "layer": "L3",
    "title": "L3 — KOSMO 사업 규칙",
    "meaning": "KOSMO가 요구하는 것. 실측(설비 20종 × Validator 4회)으로 확정했다",
-   "count": 25
+   "count": 30
   }
  ],
  "conflicts": [
@@ -283,7 +283,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 
 <h2>요약</h2>
 <table>
-  <tr><th>검사 규칙</th><td>44종 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)</td></tr>
+  <tr><th>검사 규칙</th><td>52종 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)</td></tr>
   <tr><th>위반</th><td>4건</td></tr>
   <tr><th>경고</th><td>10건</td></tr>
   <tr><th>참고</th><td>2건</td></tr>
@@ -566,7 +566,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 
 <h2>요약</h2>
 <table>
-  <tr><th>검사 규칙</th><td>44종 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)</td></tr>
+  <tr><th>검사 규칙</th><td>52종 (L1 패키지 · L2 AASd/AASc · L3 KOSMO)</td></tr>
   <tr><th>위반</th><td>0건</td></tr>
   <tr><th>경고</th><td>10건</td></tr>
   <tr><th>참고</th><td>2건</td></tr>
@@ -989,7 +989,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
 {"idShort":"DigitalNameplate","externalTemplate":"","dictionaries":["IEC CDD (IRDI)"],"templateLink":"","elementCount":13,"toWrite":["용어사전 버전 (주의사항 1 — 파일에는 IRDI만 있고 사전 버전은 없습니다)","템플릿 원본 링크 (주의사항 2 — IDTA Content Hub에서 최신 버전 확인)","서브모델 및 주요 구성요소 특징","서브모델 활용방안","활용 시나리오 (주의사항 4)"]}",
   "text": "# 01-roll-forming-machine.aasx
 
-검사 규칙 44종 · 위반 4건 · 경고 10건 · 참고 2건  → FAIL
+검사 규칙 52종 · 위반 4건 · 경고 10건 · 참고 2건  → FAIL
 계층별: L1 패키지 0건 · L2 제약조건 10건 · L3 KOSMO 6건
 
 ## 규칙별 집계
@@ -1017,7 +1017,7 @@ ConceptDescription을 생성했습니다: 0112/2///61360_7#AAS006#001. 정의는
   ※ 외부 표준 사전(IRDI) 항목이라 우리가 손댈 대상이 아닙니다. 사실만 알리고 지적하지 않습니다.
 
 ... 외 13건",
-  "textPass": "검사 규칙 44종 · 위반 0건 · 경고 10건 · 참고 2건  → PASS
+  "textPass": "검사 규칙 52종 · 위반 0건 · 경고 10건 · 참고 2건  → PASS
 계층별: L1 패키지 0건 · L2 제약조건 10건 · L3 KOSMO 2건
 
 ## 규칙별 집계

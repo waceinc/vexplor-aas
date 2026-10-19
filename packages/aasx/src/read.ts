@@ -4,8 +4,15 @@
  * Parses zip + JSON directly, per the measured lesson in linter spec §6-2.
  * (a basyx round-trip load silently drops SML subtrees and submodels)
  */
-import { parseEnvironmentXml } from './xml.js';
-import { fill, parseEnvironment, tr, type Environment } from '@aas/core';
+import { parseEnvironmentXml, xmlMetamodelVersion } from './xml.js';
+import {
+  detectMetamodelVersion,
+  fill,
+  parseEnvironment,
+  tr,
+  type Environment,
+  type MetamodelDetection,
+} from '@aas/core';
 import { unzipSync, strFromU8 } from 'fflate';
 import {
   contentTypeOf,
@@ -60,6 +67,11 @@ export interface ReadResult extends AasxPackage {
   warnings: string[];
   /** Package snapshot that can be passed as-is to the linter's L1 rules */
   opc: OpcSnapshot;
+  /**
+   * Metamodel version of the body. XML declares it in its namespace; JSON has no marker, so it is inferred from
+   * content (the lowest version that can hold it) and marked `inferred`.
+   */
+  metamodel: MetamodelDetection;
 }
 
 /**
@@ -143,9 +155,11 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   if (!isXml && !lower.endsWith('.json')) {
     throw new AasxReadError(fill(tr('알 수 없는 본문 형식입니다: {0} (.json 또는 .xml)'), { 0: specPart }));
   }
+  const specText = strFromU8(specRaw);
   const environment: Environment = readPart(specPart, () =>
-    isXml ? parseEnvironmentXml(strFromU8(specRaw)) : parseEnvironment(strFromU8(specRaw)),
+    isXml ? parseEnvironmentXml(specText) : parseEnvironment(specText),
   );
+  const metamodel = detectedVersion(environment, isXml ? specText : undefined, specPart, warnings);
 
   // ④ Thumbnail
   const consumed = new Set<string>([ctPart, specPart, originPart, ...relsByOwner.keys()]);
@@ -204,6 +218,7 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
     supplementaryFiles,
     extraParts,
     warnings,
+    metamodel,
     opc: {
       parts: [...parts.keys()],
       contentTypeOverrides: [...contentTypes.overrides.keys()],
@@ -213,6 +228,31 @@ export function readAasx(buffer: Uint8Array, options: ReadOptions = {}): ReadRes
   };
   if (thumbnail) result.thumbnail = thumbnail;
   return result;
+}
+
+/**
+ * The body's metamodel version. A namespace wins; the content is still scanned so a 3.0-declared file holding a 3.2
+ * value carries that evidence for the checks to report.
+ */
+function detectedVersion(
+  environment: Environment,
+  xmlText: string | undefined,
+  specPart: string,
+  warnings: string[],
+): MetamodelDetection {
+  const fromContent = detectMetamodelVersion(environment);
+  if (xmlText === undefined) return fromContent;
+  const declared = xmlMetamodelVersion(xmlText);
+  if (declared === undefined) {
+    warnings.push(
+      fill(tr('{0}의 XML 네임스페이스로 메타모델 판을 알 수 없어 내용으로 추정했습니다(V{1}).'), {
+        0: specPart,
+        1: fromContent.version,
+      }),
+    );
+    return fromContent;
+  }
+  return { version: declared, source: 'namespace', inferred: false, fits: fromContent.fits, evidence: fromContent.evidence };
 }
 
 /** Shortcut when only aasx/data.json is needed (for structure scanning) */

@@ -49,6 +49,7 @@ import type {
   IdentifiableModelType,
   IdentifiableRecord,
   PackageFileRecord,
+  ImportPackageInput,
   PackageRecord,
   NewUser,
   UserRecord,
@@ -260,13 +261,7 @@ export class FolderStore extends InMemoryStore {
 
   // ── Everything below is "do the usual, then write to the folder" ───────────
 
-  override async importPackage(input: {
-    name: string;
-    package: AasxPackage;
-    id?: string;
-    keep?: readonly PackageFileRecord[];
-    owner?: string | null;
-  }): Promise<PackageRecord> {
+  override async importPackage(input: ImportPackageInput): Promise<PackageRecord> {
     // Checked before the memory copy exists — otherwise a refused id would still be listed until restart
     if (input.id !== undefined) this.packageDir(input.id);
     const record = await super.importPackage(input);

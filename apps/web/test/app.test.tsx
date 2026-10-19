@@ -436,6 +436,10 @@ describe('Header — there should be exactly one next thing to click', () => {
 
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     fireEvent.click(screen.getByRole('button', { name: 'AASX 내려받기' }));
+    // The version window comes first (ExportDialog, 2026-10-19) — the file's own version is preselected
+    const versioned = await screen.findByRole('button', { name: 'V3.0으로 내려받기' });
+    await waitFor(() => expect((versioned as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(versioned);
     await waitFor(() => expect(confirm).toHaveBeenCalled());
     expect(String(confirm.mock.calls[0]![0])).toMatch(/위반 \d+건이 남아/);
     expect(screen.queryByText(/내려받았습니다/)).toBeNull();

@@ -97,7 +97,11 @@ node scripts/spacing-scan.mjs --check
 
 ## Working with standards
 
-- The AAS metamodel is **pinned to V3.0**. Do not mix in 3.1 — lossless round-trips break.
+- The in-memory model holds **V3.0, V3.1 and V3.2** (a superset up to 3.2). Differences between the versions live in one
+  table, `packages/aas-core/src/metamodel/features.ts` — reading, writing and the checks use it; do not copy it.
+- A package remembers the version it came in as. Files that **leave the server** (download, Part 2 AASX serialization,
+  reference bundle) are written with `writeAasxWithReport` at that version or a chosen one; **internal round trips**
+  (check snapshots, sameness checks) keep the version-less `writeAasx` and must never lose a field.
 - The Part 2 REST API follows the specification files in `docs/spec/part2/` (OpenAPI);
   `node scripts/part2-coverage.mjs` reports any drift.
 - Where the standard and the submission validator disagree, do not pick a side silently — expose it as a **policy**.

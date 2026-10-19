@@ -105,7 +105,7 @@ Both BaSyx and Package Explorer read JSON.
 
 ![Start screen](images/manual/en/m01-first.png)
 
-There are four ways to start.
+There are five ways to start.
 
 | Button | When |
 |---|---|
@@ -113,6 +113,7 @@ There are four ways to start.
 | **"New"** | Start from an empty file (chapters 4 and 7) |
 | **"Open bundle"** | Open a reference bundle (ZIP) you received (section 7-7) |
 | **"Start with a sample"** | You have no AASX yet — opens one fully filled machine (`RollFormingMachine_sample`) and a process structure. It is a practice copy; edit freely |
+| **"Start from a product passport (DPP) template"** | You are writing Digital Product Passport data — opens an official IDTA template unmodified (DPP Part 1 metadata, IDTA 02099-1, or one of the seven battery passport parts, IDTA 02035-1 to 02035-7; CC BY 4.0). The values are blank; rules `DPP-1` to `DPP-5` point out missing or malformed required data. This helps write and check passport data — it is not an EU compliance verdict |
 
 > If this is your first time, open the sample. "New" starts with **six empty submodels**, which is hard if you do not know yet what goes in them.
 > With the sample open, **"Import from another file"** (section 4-4) copies its nameplate and technical data into your new machine so you only change the values.
@@ -403,9 +404,24 @@ It contains the summary, counts per rule, the list of findings (errors → warni
 
 Save with **"Download AASX"**. Your edits and attachments are included. **If errors remain, it asks once** — fine for an intermediate save.
 
+**Pick the metamodel version first.** The window opens on the version of the file — shown in the header as `AAS V3.1`:
+an XML file keeps the version its namespace declares, a JSON file (which carries no version) is the lowest version that
+holds its content, and a model made in this tool — new equipment, a sample, a passport template — is **V3.1**, the
+version KOSMO asks for. Before anything is written the window shows what the chosen version would do:
+
+| You see | Meaning |
+|---|---|
+| "leaves nothing out and changes nothing" | The file says exactly what the model says |
+| Fields that will be left out | The version has no such field (e.g. `createdAt` below V3.2). The value is listed so you know what is lost |
+| Values that cannot be written — **download blocked** | The version has no way to say it (assetKind `Role` in V3.0, `Batch` below V3.2, a missing `entityType` in V3.0 …). A look-alike value would state something false, so the file is not written. Pick a later version, change the value, or tick "download with the values as they are" — that file will not pass the official schema of the version |
+| File names that are percent-encoded | V3.1 and V3.2 accept only URIs as attachment paths. `설치 설명서.pdf` becomes `%EC%84%A4%EC%B9%98%20…pdf` in the model **and** inside the package, so the reference still finds the file. Reopened in this tool, the original name is shown |
+
+The assetKind choices in the asset editor follow the same version: Role appears from V3.1, Batch from V3.2.
+
 1. **0 errors on screen** — warnings may remain
 2. Check the file you saved with "Download AASX" as follows
-3. Standard validator — `out/venv/bin/python scripts/aas-test-engines.py downloaded-file.aasx` (install: `python3 -m venv out/venv && out/venv/bin/pip install aas-test-engines==1.0.3`)
+3. Standard validator — `out/venv/bin/python scripts/aas-test-engines.py downloaded-file.aasx` (install: `python3 -m venv out/venv && out/venv/bin/pip install aas-test-engines==1.0.3`).
+   aas-test-engines 1.0.3 checks **V3.0 only** — for this step download the file as V3.0. What this tool writes as V3.1 / V3.2 is checked against those versions' official JSON schemas in this repository's tests; aas-test-engines does not check them yet
 4. If you plan to load it into BaSyx — `out/venv/bin/python scripts/basyx-check.py downloaded-file.aasx --expect-submodels 7`
 5. **Submit to the KOSMO Validator** — the Validator makes the final acceptance decision
 6. Print the report to PDF and keep it
@@ -1005,7 +1021,21 @@ Header right **Settings ▾ → Rules and conventions** shows what the tool enfo
 | **Who decides acceptance** | **Not this tool.** The KOSMO Validator and aas-test-engines decide |
 | **Conventions** | Own IRI root · required submodels · how ids are formed · asset kind (Type) · value sync policy |
 | **Rule conflicts** | Where the KTL guideline and KOSMO collide, **what is currently chosen** |
-| **44 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
+| **52 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
+
+### Which metamodel version a file is checked against
+
+A file is checked against **its own metamodel version** (3.0 · 3.1 · 3.2), not the newest one. In the app that is the version the server remembers for the file — the version **Download AASX** writes by default (§4-10). An XML file names its version in its namespace; a JSON file has no version marker and is kept as the lowest version that holds its content (V3.0 unless it holds something only V3.1 or V3.2 has). A program that calls the linter library with a version read from the content (`readAasx(...).metamodel`) gets the wider reading: a constraint is only held against a JSON file when it applies in every version the content can be.
+
+| Difference | 3.0 file | 3.1 file | 3.2 file |
+|---|---|---|---|
+| `AASd-090` (category) · `AASd-120` (idShort on list children) | Checked | Removed in 3.1 — not checked | Not checked |
+| `PKG-FILE-URI` | Needs a scheme (`file:///…`) | Relative paths are fine; spaces and non-ASCII letters get a warning — percent-encode them on export | Same as 3.1 |
+| idShort pattern | No hyphen, one letter allowed | Hyphen allowed (not last), at least two characters | Same as 3.1 |
+| `AASd-137` · `AASd-138` | — | — | Checked (new in 3.2) |
+| `PKG-MM-VERSION` | A file that declares a version but holds something that version cannot (e.g. a 3.2 `Batch` in a 3.0 file) is an error | | |
+
+A caller that passes no version (an `Environment` given directly) is checked as 3.0, as before.
 
 ### When rules conflict — choose by policy
 
@@ -1142,6 +1172,13 @@ curl -H "Authorization: Bearer edit-key" http://server:8080/packages
 
 Keys consist of letters, digits and symbols and are accepted only in the `Authorization: Bearer` header.
 
+The Part 2 base path is `/packages/{packageId}/api/v3.0` (and `/api/v3.0` for the registry). Clients written against the
+V3.1 / V3.2 OpenAPI call `/api/v3/…` — the same routes answer there too. The endpoints that are new in V3.2
+(`$recent-changes`, `$history`, `$signed`, asynchronous package operations) are not implemented and answer 404.
+`GET /packages/{id}?metamodel=3.0|3.1|3.2` downloads as a chosen version (422 with the report when a value cannot be
+written; add `&unrepresentable=keep` to write it anyway), and `GET /packages/{id}/export-report?metamodel=…` returns
+that report without writing the file.
+
 ### 12-3. Put HTTPS in front
 
 **Signing in over plain http sends the password and the sign-in cookie in the clear.** Anyone on the same
@@ -1212,6 +1249,7 @@ For several users, run it on a server with Docker (chapter 1).
   If you expose a server without accounts, **anyone could become the first administrator**, which the setup code prevents (12-1)
 - **The OPC UA serving port requires sign-in and encryption** (section 8-6) — unless `OPCUA_ALLOW_INSECURE=on`, which is for isolated test networks only
 - XML can only be read. Files are always saved as JSON
+- The official validator aas-test-engines 1.0.3 judges V3.0 files only; V3.1 · V3.2 output is checked against the official JSON schemas
 - The undo list lasts only while the server runs. History is kept
 - Undo **does not distinguish between people** — with several users, someone else's change can be undone too.
   **Who made the change is recorded**, though (on servers with sign-in): names appear in history and in the undo list

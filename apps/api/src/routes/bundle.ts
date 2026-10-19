@@ -24,7 +24,7 @@ import {
   zipArchive,
   type AasxLimits,
 } from '@aas/aasx';
-import { fill, PRODUCT_NAME, PRODUCT_VERSION, tr, type Environment } from '@aas/core';
+import { fill, PRODUCT_NAME, PRODUCT_VERSION, tr, type Environment, type MetamodelVersion } from '@aas/core';
 import { currentActor } from '@aas/store';
 import {
   ALL_RULES,
@@ -42,6 +42,8 @@ import {
 } from '@aas/linter';
 import type { AasStore, PackageRecord } from '@aas/store';
 import { ApiError, json, noContent, type ApiRequest } from '../http.js';
+import { writeOutgoing, type OutgoingChoice } from '../outgoing.js';
+import { hintedMetamodel, metamodelHintOf } from '../metamodel-hint.js';
 import {
   ORIGINAL_PART,
   originalFile,
@@ -246,14 +248,21 @@ export async function resolveBundle(store: AasStore, packageId: string): Promise
 
 /**
  * Bytes to put in the bundle — the **original if one was uploaded and the model is unchanged**, otherwise a repackaged one.
- * Sameness is compared by normalizing both the same way (writeAasx) — judged by content, not revision number
+ * Sameness is compared by normalizing both the same way (the outgoing writer, at the version the file came in as) —
+ * judged by content, not revision number.
+ * `keep` — for telling files apart only (opening a bundle): a value the version cannot say must not stop that
  */
-async function modelBytes(store: AasStore, packageId: string): Promise<{ data: Uint8Array; original: boolean }> {
-  const current = await exportBytes(store, packageId);
+async function modelBytes(
+  store: AasStore,
+  packageId: string,
+  choice: OutgoingChoice = {},
+): Promise<{ data: Uint8Array; original: boolean }> {
+  const record = await requireRecord(store, packageId);
+  const current = writeOutgoing(await store.exportPackage(packageId), record, choice).data;
   const kept = (await store.packageFiles(packageId)).find((file) => file.part === ORIGINAL_PART);
   if (kept) {
     try {
-      const normalized = writeAasx(readAasx(kept.data));
+      const normalized = writeOutgoing(readAasx(kept.data), record, choice).data;
       if (sha256(normalized) === sha256(current)) return { data: kept.data, original: true };
     } catch {
       // If the original can't be read, use the repackaged one
@@ -262,16 +271,34 @@ async function modelBytes(store: AasStore, packageId: string): Promise<{ data: U
   return { data: current, original: false };
 }
 
+async function requireRecord(store: AasStore, packageId: string): Promise<PackageRecord> {
+  const record = await store.getPackage(packageId);
+  if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
+  return record;
+}
+
+/** The file as it goes into the bundle — the version it came in as (outgoing.ts); a value it cannot say stops the export */
 async function exportBytes(store: AasStore, packageId: string): Promise<Uint8Array> {
+  return writeOutgoing(await store.exportPackage(packageId), await requireRecord(store, packageId)).data;
+}
+
+/** The internal round trip the checks read — never converted, never refused (outgoing.ts) */
+async function snapshotBytes(store: AasStore, packageId: string): Promise<Uint8Array> {
   return writeAasx(await store.exportPackage(packageId));
 }
 
-function lintBytes(data: Uint8Array, policy: Partial<LinterPolicy>) {
+/**
+ * Checks bundle bytes by the version the file is written as — the version it came in as (outgoing.ts). The bytes
+ * alone cannot say it: a body written as JSON reads as "the lowest version that holds the content".
+ */
+function lintBytes(data: Uint8Array, policy: Partial<LinterPolicy>, record: Pick<PackageRecord, 'metamodel'>) {
   const pkg = readAasx(data);
   return {
     pkg,
     result: lint(pkg.environment, ALL_RULES, {
       package: pkg.opc,
+      // No `inferred` — judged by the version written, never widened to the versions the content fits (packages.ts judgedVersion)
+      metamodel: { version: record.metamodel.version },
       ...(Object.keys(policy).length > 0 ? { policy } : {}),
     }),
   };
@@ -391,7 +418,7 @@ export async function buildBundle(
   const processFiles = [];
   for (const record of [resolved.process, ...resolved.nested]) {
     const data = await exportBytes(store, record.id);
-    const { result, pkg } = lintBytes(data, policy);
+    const { result, pkg } = lintBytes(data, policy, record);
     const hier = result.findings.filter((f) => f.ruleId.startsWith('HIER-') && f.severity === 'error').length;
     const path = `${FOLDERS.process}/${safeName(record.name)}`;
     put(path, data);
@@ -442,7 +469,7 @@ export async function buildBundle(
     let entry: Pick<ModelEntry, 'file' | 'sha256' | 'lint' | 'original'> | undefined;
     if (!path) {
       const { data, original } = await modelBytes(store, member.record.id);
-      const { result } = lintBytes(data, policy);
+      const { result } = lintBytes(data, policy, member.record);
       path = `${FOLDERS.models}/${safeName(member.record.name)}`;
       packed.set(member.record.id, path);
       put(path, data);
@@ -758,6 +785,8 @@ export async function importBundle(
   store: AasStore,
   data: Uint8Array,
   limits: Partial<AasxLimits>,
+  /** `?metamodel=` — the screen's samples are stored as 3.1 when their content fits (metamodel-hint.ts) */
+  hint?: MetamodelVersion,
 ): Promise<BundleImportResult> {
   let entries: Record<string, Uint8Array>;
   try {
@@ -793,7 +822,7 @@ export async function importBundle(
   // Fingerprints of already-open files — same content isn't uploaded again (two identical Asset addresses would confuse the process)
   const opened = new Map<string, string>();
   const all = await store.listPackages({ limit: 1000 });
-  for (const record of all.items) opened.set(sha256((await modelBytes(store, record.id)).data), record.id);
+  for (const record of all.items) opened.set(sha256((await modelBytes(store, record.id, { keep: true })).data), record.id);
 
   const problems: string[] = [];
   const files: BundleImportResult['files'] = [];
@@ -818,7 +847,8 @@ export async function importBundle(
       const pkg = readAasx(bytes, { limits });
       const name = relative.split('/').pop()!;
       // Keep the original as well — re-exporting yields the same bytes, so the hash chain continues
-      packageId = (await store.importPackage({ name, package: pkg, keep: [originalFile(bytes)] })).id;
+      const hinted = hintedMetamodel(pkg, hint);
+      packageId = (await store.importPackage({ name, package: pkg, keep: [originalFile(bytes)], ...(hinted ? { metamodel: hinted } : {}) })).id;
       opened.set(digest, packageId);
     }
     files.push({ file: relative, packageId, hashOk, reused });
@@ -889,7 +919,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
           if (member.record) {
             lintSummary = checked.get(member.record.id);
             if (!lintSummary) {
-              const { result } = lintBytes(await exportBytes(store, member.record.id), options.policy ?? {});
+              const { result } = lintBytes(await snapshotBytes(store, member.record.id), options.policy ?? {}, member.record);
               lintSummary = {
                 passed: result.passed,
                 error: result.countBySeverity.error,
@@ -1017,7 +1047,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
         if (!(request.body instanceof Uint8Array)) {
           throw new ApiError(400, 'BadRequest', tr('본문이 ZIP 바이트가 아닙니다.'));
         }
-        return json(201, await importBundle(store, request.body, options.aasxLimits ?? {}));
+        return json(201, await importBundle(store, request.body, options.aasxLimits ?? {}, metamodelHintOf(request)));
       },
     },
   ];

@@ -12,7 +12,7 @@ This guide covers what AAS Studio hands over and how. Logic Studio's own screens
 
 | # | Where | What you do | What happens |
 |---|---|---|---|
-| 1 | AAS Studio | Fix until **0 errors**, then **Download AASX** | A finished AASX (AAS metamodel V3.0) |
+| 1 | AAS Studio | Fix until **0 errors**, then **Download AASX** | A finished AASX in the metamodel version picked in the download window — V3.0, V3.1 or V3.2 (see below) |
 | 2 | Logic Studio Cloud | Drop the file on the **equipment screen** | A preview: types, equipment, plant, line, and anything skipped |
 | 3 | Logic Studio Cloud | Check the preview and import | Each machine enters the equipment register, linked to its type |
 
@@ -20,6 +20,9 @@ This guide covers what AAS Studio hands over and how. Logic Studio's own screens
   equipment. Several machines of one type stay linked to that type.
 - **Dropping again is safe** — the same file again changes nothing; a changed file shows only what changed, as proposals
   a person applies or rejects. Nothing is deleted or overwritten on its own.
+- **Metamodel version** — AAS Studio 2.9.0 writes each file as the version it came in as, and new models as V3.1
+  (usage §4-10). Until Logic Studio confirms that it reads V3.1 · V3.2 files, pick **V3.0** in the download window for
+  files you hand to Logic Studio.
 - **A process file works too** — company → line → process → equipment from a process grouping (usage §7) becomes plant,
   line and equipment.
 

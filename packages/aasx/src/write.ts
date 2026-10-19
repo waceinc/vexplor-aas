@@ -4,7 +4,15 @@
  * Always updates all three places together: parts, relationships and Content_Types (PKG-THUMB-PART).
  * Follows the same relationship ID rule as the golden file (01 roll-forming machine): origin=r1, thumbnail=r3, spec=r0.
  */
-import { serializeEnvironment } from '@aas/core';
+import {
+  convertEnvironment,
+  DEFAULT_METAMODEL_VERSION,
+  DowngradeError,
+  serializeEnvironment,
+  type ConvertOptions,
+  type DowngradeReport,
+  type MetamodelVersion,
+} from '@aas/core';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import {
   buildContentTypes,
@@ -18,6 +26,7 @@ import {
   type Relationship,
 } from './opc.js';
 import { ORIGIN_PART, type AasxPackage } from './package.js';
+import { encodePackagePaths, type RenamedPath } from './paths.js';
 
 export interface WriteOptions {
   /** data.json indentation. Default 2 */
@@ -29,6 +38,21 @@ export interface WriteOptions {
   mtime?: number;
   /** Compression level 0-9. Default 6 */
   level?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  /**
+   * Metamodel version of the body.
+   * Important: on {@link writeAasx}, leaving it out writes the model **as held** (no conversion) — store snapshots and
+   *    sameness checks round-trip through writeAasx and must never lose a field. Give a version (or use
+   *    {@link writeAasxWithReport}, which defaults to 3.0) wherever the file leaves for someone else.
+   */
+  version?: MetamodelVersion;
+  /** See ConvertOptions.unrepresentable. Default `error` */
+  unrepresentable?: ConvertOptions['unrepresentable'];
+  /**
+   * When writing V3.1 or V3.2: percent-encode File/value and thumbnail paths that are not URIs (spaces, Korean
+   * letters) and rename the parts they point to, instead of refusing them (paths.ts). Ignored for V3.0, which takes
+   * such paths as they are. Default false — the caller decides, because the file names inside the package change.
+   */
+  encodePaths?: boolean;
 }
 
 /** Default timestamp for deterministic output (2026-01-01T00:00:00Z) */
@@ -54,7 +78,40 @@ export function zipTime(mtime: number): Date {
   );
 }
 
+/**
+ * Writes the package as a chosen metamodel version (default 3.0) and returns what that version could not hold.
+ * A model that already fits the version gives exactly the bytes of `writeAasx(pkg)`.
+ * @throws DowngradeError when a value cannot be expressed and `unrepresentable` is not `keep`
+ */
+export function writeAasxWithReport(
+  pkg: AasxPackage,
+  options: WriteOptions = {},
+): { data: Uint8Array; report: DowngradeReport; renamed: RenamedPath[] } {
+  const convertOptions: ConvertOptions = {};
+  if (options.version !== undefined) convertOptions.to = options.version;
+  if (options.unrepresentable !== undefined) convertOptions.unrepresentable = options.unrepresentable;
+  const target = options.version ?? DEFAULT_METAMODEL_VERSION;
+  // Important: encode before converting — the conversion is what refuses a non-URI path for 3.1 / 3.2
+  const encoded = options.encodePaths && target !== '3.0' ? encodePackagePaths(pkg) : { pkg, renamed: [] };
+  const { environment, report } = convertEnvironment(encoded.pkg.environment, convertOptions);
+  return { data: writeBody({ ...encoded.pkg, environment }, options), report, renamed: encoded.renamed };
+}
+
+/**
+ * Writes the package.
+ * With `version`, the body is converted, and anything the version cannot hold — dropped fields included — is refused
+ * with a DowngradeError: this function has no way to hand back a report, so it never loses data silently. Call
+ * {@link writeAasxWithReport} to accept drops and receive the report.
+ */
 export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Array {
+  if (options.version === undefined) return writeBody(pkg, options);
+  const { data, report } = writeAasxWithReport(pkg, options);
+  // Important: kept values (unrepresentable: keep) are still in the file; dropped ones would be gone with no report
+  if (report.entries.some((e) => e.kind === 'dropped')) throw new DowngradeError(report, 'would-drop');
+  return data;
+}
+
+function writeBody(pkg: AasxPackage, options: WriteOptions): Uint8Array {
   const { indent = 2, mtime = DETERMINISTIC_MTIME, level = 6 } = options;
 
   const specPart = pkg.specPart;

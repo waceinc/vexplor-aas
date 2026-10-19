@@ -4,7 +4,7 @@
  * Gathered here so that this is the only place that maps store errors (NotFound, Conflict, InvalidContent)
  * to HTTP statuses. Handlers can simply throw domain errors.
  */
-import { fill, PRODUCT_VERSION, tr } from '@aas/core';
+import { DowngradeError, fill, PRODUCT_VERSION, tr } from '@aas/core';
 import {
   FolderStore,
   PostgresStore,
@@ -30,6 +30,7 @@ import { LoginThrottle, SessionStore } from './session.js';
 import { crossSiteWrite, isHttps } from './security.js';
 import { isFileDownload, VISITOR_PREFIX, type DemoConfig } from './demo.js';
 import { compile, match, type Route } from './router.js';
+import { withCanonicalPart2Path } from './part2-path.js';
 import { createEdgeHandler, edgeErrorFrom } from './edge/routes-edge.js';
 import { edgeAdminRoutes } from './edge/routes-edge-admin.js';
 import { EdgeRegistry } from './edge/state.js';
@@ -233,7 +234,9 @@ export function createApi(base: AasStore, options: ApiOptions = {}): (request: A
   // Important: set the language at the very outside — even auth rejections and unknown-path errors go out in the request's language (lang.ts)
   return (request: ApiRequest): Promise<ApiResponse> => runInLang(langOf(request), () => handle(request));
 
-  async function handle(request: ApiRequest): Promise<ApiResponse> {
+  async function handle(received: ApiRequest): Promise<ApiResponse> {
+    // Important: before anything reads the path — access rules, the demo guard and the routes all see one spelling
+    const request = withCanonicalPart2Path(received);
     // Important: the edge's signature is its identity — answered before the login / API-key check, which an edge
     //    cannot pass (edge/routes-edge.ts). Only when edge is on; otherwise these paths fall through to a 404
     if (edge && request.path.startsWith('/edge/v1/') && (options.edge?.mode !== 'switchable' || (await edgeRegistry!.enabled()))) {
@@ -438,6 +441,11 @@ export function toErrorResponse(error: unknown): ApiResponse {
   if (error instanceof ExternalRefConflictError) {
     const base = errorResponse(409, 'ExternalRefConflict', error.message);
     return { ...base, body: { ...(base.body as Record<string, unknown>), claims: error.claims } };
+  }
+  // A value the chosen metamodel version cannot say — the report tells the screen which fields and why (outgoing.ts)
+  if (error instanceof DowngradeError) {
+    const base = errorResponse(422, 'Unrepresentable', error.message);
+    return { ...base, body: { ...(base.body as Record<string, unknown>), report: error.report } };
   }
   if (error instanceof InvalidContentError) return errorResponse(400, 'BadRequest', error.message);
   if (error instanceof ValueNotSupportedError) return errorResponse(400, 'BadRequest', error.message);

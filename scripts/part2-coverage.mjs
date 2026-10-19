@@ -38,6 +38,8 @@ const EXTENSIONS = [
   '/packages/:packageId/requirements',
   // Type -> unit propagation (files created by splitting per unit). 2026-10-13
   '/packages/:packageId/derivation',
+  // What downloading as a metamodel version would drop, refuse or rename — shown before the download. 2026-10-19
+  '/packages/:packageId/export-report',
   '/packages/:packageId/derivation/apply',
   '/packages/:packageId/collect',
   '/packages/:packageId/aid',

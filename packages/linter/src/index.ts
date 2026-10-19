@@ -14,6 +14,7 @@ export * from './docs/brand.js';
 export * from './docs/uml.js';
 export * from './docs/table.js';
 export * from './engine.js';
+export * from './version.js';
 export * from './rules/index.js';
 export * from './report/text.js';
 export * from './report/html.js';

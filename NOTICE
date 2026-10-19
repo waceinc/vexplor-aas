@@ -17,5 +17,9 @@ Third-party material
   Part 2: Application Programming Interfaces" (IDTA-01002-3-0), published by
   the Industrial Digital Twin Association (IDTA) under CC BY 4.0.
   https://industrialdigitaltwin.org/
+- tests/fixtures/idta-metamodel/ — generated examples from the IDTA metamodel
+  repository (aas-specs-metamodel, tags V3.0.9 · v3.1.2 · v3.2.0) for
+  "Specification of the Asset Administration Shell, Part 1: Metamodel",
+  published by the IDTA under CC BY 4.0. Copied unchanged.
 - Runtime and development dependencies are listed with their licenses in
   THIRD-PARTY-NOTICES.md.

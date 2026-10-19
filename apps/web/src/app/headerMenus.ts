@@ -190,7 +190,7 @@ export function settingsMenuItems({ t, busy, lang, auth, demoLocked, theme, boot
       : []),
     {
       label: t('규칙과 규약 보기'),
-      title: tr('이 도구가 지키는 규칙 44종과 규약을 지금 도는 그대로 보여 줍니다'),
+      title: tr('이 도구가 지키는 규칙 52종과 규약을 지금 도는 그대로 보여 줍니다'),
       onClick: () => setShowRules(true),
       disabled: busy,
       separated: true,

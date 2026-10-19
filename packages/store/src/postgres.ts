@@ -17,6 +17,8 @@ import {
   deriveColumns,
   flattenEnvironment,
   flattenPackageFiles,
+  packageMetamodelOf,
+  storedMetamodel,
   toAasxPackage,
   toEnvironment,
 } from './convert.js';
@@ -37,6 +39,7 @@ import {
   type IdentifiableRecord,
   type ListQuery,
   type PackageFileRecord,
+  type ImportPackageInput,
   type PackageRecord,
   type PageQuery,
   type PageResult,
@@ -126,6 +129,9 @@ interface PackageRow {
   created_at: unknown;
   updated_at: unknown;
   owner: string | null;
+  /** NULL on rows stored before schema version 12 */
+  metamodel_version?: string | null;
+  metamodel_inferred?: boolean | null;
 }
 
 interface IdentifiableRow {
@@ -153,6 +159,7 @@ function toPackageRecord(row: PackageRow): PackageRecord {
     updatedAt: toIso(row.updated_at),
     // Important: NULL is returned with the key omitted — the shape must match the memory store for the comparison tests to hold
     ...(row.owner ? { owner: row.owner } : {}),
+    metamodel: storedMetamodel(row.metamodel_version, row.metamodel_inferred),
   };
 }
 
@@ -317,19 +324,14 @@ export class PostgresStore implements AasStore, IntegrationStore {
     return rows[0];
   }
 
-  async importPackage(input: {
-    name: string;
-    package: AasxPackage;
-    id?: string;
-    keep?: readonly PackageFileRecord[];
-    owner?: string | null;
-  }): Promise<PackageRecord> {
+  async importPackage(input: ImportPackageInput): Promise<PackageRecord> {
+    const metamodel = packageMetamodelOf(input);
     return withTransaction(this.client, async (tx) => {
       const { rows } = await tx.query<PackageRow>(
-        `INSERT INTO aas_package (id, name, spec_part, owner)
-         VALUES (COALESCE($1, gen_random_uuid()::text), $2, $3, $4)
-         RETURNING id, name, spec_part, revision, created_at, updated_at, owner`,
-        [input.id ?? null, input.name, input.package.specPart, input.owner || null],
+        `INSERT INTO aas_package (id, name, spec_part, owner, metamodel_version, metamodel_inferred)
+         VALUES (COALESCE($1, gen_random_uuid()::text), $2, $3, $4, $5, $6)
+         RETURNING id, name, spec_part, revision, created_at, updated_at, owner, metamodel_version, metamodel_inferred`,
+        [input.id ?? null, input.name, input.package.specPart, input.owner || null, metamodel.version, metamodel.inferred],
       );
       const row = rows[0];
       if (!row) throw new InvalidContentError(tr('패키지를 만들지 못했습니다.'));

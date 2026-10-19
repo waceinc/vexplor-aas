@@ -3,9 +3,11 @@
  * Split out of App.tsx (componentization, 2026-10-13). Menu items are built by headerMenus.ts.
  * The header renders at shell density (90%) — the same scale as the Logic Studio shell (styles/drive.css).
  */
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { LayoutGrid } from 'lucide-react';
-import type { PackageDescription, UndoStatus } from '../api.js';
+import type { MetamodelVersion, PackageDescription, UndoStatus } from '../api.js';
+import { ExportDialog } from '../components/ExportDialog.js';
+import { Dialog } from '../ui/Dialog.js';
 import { Menu, type MenuItem } from '../components/Menu.js';
 import { T } from '../components/T.js';
 import { fill, tr, type Lang } from '../i18n.js';
@@ -40,7 +42,7 @@ interface Props {
   onUndo: () => Promise<void>;
   onRedo: () => Promise<void>;
   onFix: () => Promise<void>;
-  onDownload: () => Promise<void>;
+  onDownload: (options?: { metamodel?: MetamodelVersion; keep?: boolean }) => Promise<void>;
   setShowFindings: (open: boolean) => void;
   setShowHelp: Dispatch<SetStateAction<boolean>>;
   setShowOpcua: (open: boolean) => void;
@@ -52,6 +54,9 @@ export function AppHeader({
   showHelp, fileInput, bundleInput, fileMenu, settingsMenu, submodelMenu, exportMenu, goHome, loadPackage, onUpload, onOpenBundle,
   onUndo, onRedo, onFix, onDownload, setShowFindings, setShowHelp, setShowOpcua, setStartAccounts,
 }: Props): React.JSX.Element {
+  // The download asks for the metamodel version first (ExportDialog) — what a lower version drops must be seen before the file is made
+  const [exporting, setExporting] = useState(false);
+  const current = packages.find((item) => item.packageId === packageId);
   return (
     <header data-scale="shell">
       {/*
@@ -129,6 +134,19 @@ export function AppHeader({
             </option>
           ))}
         </select>
+        {/* Which metamodel version this file is — the default of the download, and what the editors allow */}
+        {current?.metamodel && (
+          <span
+            className="metamodel-chip"
+            title={
+              current.metamodel.inferred
+                ? tr('AAS 메타모델 판 — JSON이라 판 표시가 없어 내용으로 정했습니다. 내려받을 때 다른 판을 고를 수 있습니다')
+                : tr('AAS 메타모델 판 — 내려받을 때 다른 판을 고를 수 있습니다')
+            }
+          >
+            AAS V{current.metamodel.version}
+          </span>
+        )}
 
         {/* Right side — status */}
         <span className="spacer" />
@@ -266,7 +284,7 @@ export function AppHeader({
               "a tool with no download feature") */}
           <button
             className={!demoLocked && fixable === 0 && errors === 0 ? 'primary' : ''}
-            onClick={() => (demoLocked ? setStartAccounts(true) : void onDownload())}
+            onClick={() => (demoLocked ? setStartAccounts(true) : setExporting(true))}
             disabled={busy}
             title={
               demoLocked
@@ -280,6 +298,20 @@ export function AppHeader({
           </button>
           </span>
         </div>
+      )}
+      {exporting && packageId && (
+        <Dialog className="export-modal" label={tr('AASX 내려받기 — 메타모델 판')} onClose={() => setExporting(false)}>
+          <ExportDialog
+            packageId={packageId}
+            stored={current?.metamodel}
+            busy={busy}
+            onDownload={async (options) => {
+              setExporting(false);
+              await onDownload(options);
+            }}
+            onClose={() => setExporting(false)}
+          />
+        </Dialog>
       )}
     </header>
   );

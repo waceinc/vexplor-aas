@@ -31,6 +31,7 @@ const TRANSLATORS = new Set(['t', 'tr']);
 const EXEMPT_FILES = new Set([
   'i18n.ts', // the dictionary itself
   'en.ts', // the dictionary itself
+  'en-metamodel.ts', // the dictionary itself
 ]);
 
 export function sourceFiles(dir = ROOT) {
@@ -119,7 +120,7 @@ export function scanFile(file) {
 /** English dictionary — key -> translation. Extracted by parsing the files, not executing them (EN in i18n.ts, EN_MORE in en.ts) */
 export function dictionary() {
   const found = new Map();
-  for (const [name, variable] of [['i18n.ts', 'EN'], ['en.ts', 'EN_MORE']]) {
+  for (const [name, variable] of [['i18n.ts', 'EN'], ['en.ts', 'EN_MORE'], ['en-metamodel.ts', 'EN_METAMODEL']]) {
     let code;
     try {
       code = readFileSync(join(ROOT, name), 'utf8');

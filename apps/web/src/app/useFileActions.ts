@@ -1,20 +1,25 @@
 /**
- * File actions — upload · open bundle · sample · import for tree · remove (link warning) · create new · download.
+ * File actions — upload · open bundle · sample · passport template · import for tree · remove (link warning) · create new · download.
  * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
  * the state and actions it uses arrive under the same names (taken from c).
  */
-import { api, type HierarchyNode } from '../api.js';
+import { api, type HierarchyNode, type MetamodelVersion } from '../api.js';
 import { type DraftNode } from '../components/HierarchyTree.js';
 import { fill, tr } from '../i18n.js';
 import type { Core } from './context.js';
+import { fetchDppTemplate } from './dppTemplates.js';
+
+/** Version of the models this tool makes — the version KOSMO asks for and the IDTA templates are written in */
+const SAMPLE_METAMODEL: MetamodelVersion = '3.1';
 
 export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPackage' | 'markStart' | 'openedRef' | 'packageId' | 'packages' | 'policy' | 'run' | 'setAdding' | 'setConcepts' | 'setFindings' | 'setFixReport' | 'setHierarchy' | 'setNotice' | 'setPackageId' | 'setPackages' | 'setPickedFiles' | 'setSampleLocked' | 'setShells' | 'setSubmodels'>) {
   const { demoLocked, errors, loadPackage, markStart, openedRef, packageId, packages, policy, run, setAdding, setConcepts, setFindings, setFixReport, setHierarchy, setNotice, setPackageId, setPackages, setPickedFiles, setSampleLocked, setShells, setSubmodels } = c;
-  const onUpload = async (file: File): Promise<void> => {
+  /** `metamodel` — for files this tool ships (samples, passport templates): models made here are V3.1 (outgoing.ts on the server) */
+  const onUpload = async (file: File, options: { metamodel?: MetamodelVersion } = {}): Promise<void> => {
     // If the same name already exists, say so — but do not block (one may view different versions side by side).
     // Without the notice, same-named files pile up in the list and nobody can tell them apart (measured in a 3-expert demo)
     const duplicate = packages.some((item) => item.name === file.name);
-    const created = await run(() => api.upload(file));
+    const created = await run(() => api.upload(file, options));
     if (!created) return;
     const list = await api.listPackages();
     setPackages(list.result);
@@ -33,8 +38,8 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
    * Open a reference bundle — one ZIP uploads the process and its equipment together.
    * Important: if a hash differs from the manifest, report it rather than hide it. It means "a file changed after the bundle was made".
    */
-  const onOpenBundle = async (file: File): Promise<void> => {
-    const opened = await run(() => api.openBundle(file));
+  const onOpenBundle = async (file: File, options: { metamodel?: MetamodelVersion } = {}): Promise<void> => {
+    const opened = await run(() => api.openBundle(file, options));
     if (!opened) return;
     const list = await api.listPackages();
     setPackages(list.result);
@@ -66,10 +71,21 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
       return response.blob();
     });
     if (!data) return;
-    await onOpenBundle(new File([data], name, { type: 'application/zip' }));
+    // A sample is a model made by this tool — stored as V3.1 when its content fits (the server checks)
+    await onOpenBundle(new File([data], name, { type: 'application/zip' }), { metamodel: SAMPLE_METAMODEL });
     setNotice(
       tr('견본을 열었습니다 — 공정 구성(RB01)과 설비 1종(RollFormingMachine_sample ×2). 설비 줄을 누르면 그 설비 파일이 열립니다.'),
     );
+  };
+  /** Start from an official IDTA passport template (dppTemplates.ts) — the same upload path as a file picked from the PC */
+  const onOpenDppTemplate = async (file: string): Promise<void> => {
+    if (demoLocked) {
+      setSampleLocked(true);
+      return;
+    }
+    const picked = await run(() => fetchDppTemplate(file));
+    // The templates declare V3.1 themselves; the hint only matters for a copy whose body lost the declaration
+    if (picked) await onUpload(picked, { metamodel: SAMPLE_METAMODEL });
   };
   /**
    * The composition tree's "Import from PC" — upload only, and **leave the screen as it is**.
@@ -271,7 +287,7 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
    *    an intermediate save is a download too — but make sure the user knows. When done, say where the file went
    *    (the browser downloaded silently and we got "I clicked and nothing happened" inquiries).
    */
-  const onDownload = async (): Promise<void> => {
+  const onDownload = async (options: { metamodel?: MetamodelVersion; keep?: boolean } = {}): Promise<void> => {
     if (!packageId) return;
     if (
       errors > 0 &&
@@ -281,9 +297,9 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
       )
     )
       return;
-    await run(() => api.download(packageId));
+    await run(() => api.download(packageId, options));
     markStart('download');
     setNotice(tr('AASX를 내려받았습니다 — 브라우저의 다운로드 폴더에 있습니다.'));
   };
-  return { onUpload, onOpenBundle, onOpenSample, onImportForTree, deletePackages, onDeletePackage, onCreatePackage, onDownload };
+  return { onUpload, onOpenBundle, onOpenSample, onOpenDppTemplate, onImportForTree, deletePackages, onDeletePackage, onCreatePackage, onDownload };
 }

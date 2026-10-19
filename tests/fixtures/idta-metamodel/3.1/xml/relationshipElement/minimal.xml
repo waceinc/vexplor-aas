@@ -1,0 +1,12 @@
+<environment xmlns="https://admin-shell.io/aas/3/1">
+	<submodels>
+		<submodel>
+			<id>something_48c66017</id>
+			<submodelElements>
+				<relationshipElement>
+					<idShort>something3fdd3eb4</idShort>
+				</relationshipElement>
+			</submodelElements>
+		</submodel>
+	</submodels>
+</environment>

@@ -11,6 +11,8 @@ import {
   deriveColumns,
   flattenEnvironment,
   flattenPackageFiles,
+  packageMetamodelOf,
+  storedMetamodel,
   toAasxPackage,
   toEnvironment,
 } from './convert.js';
@@ -60,6 +62,7 @@ import {
   type ListQuery,
   type PackageFileRecord,
   type PackageFileRole,
+  type ImportPackageInput,
   type PackageRecord,
   type PageQuery,
   type PageResult,
@@ -164,13 +167,7 @@ export class InMemoryStore implements AasStore, IntegrationStore {
     return matches[0];
   }
 
-  async importPackage(input: {
-    name: string;
-    package: AasxPackage;
-    id?: string;
-    keep?: readonly PackageFileRecord[];
-    owner?: string | null;
-  }): Promise<PackageRecord> {
+  async importPackage(input: ImportPackageInput): Promise<PackageRecord> {
     const id = input.id ?? `pkg_${this.nextPackageId++}`;
     if (this.packages.has(id)) {
       throw new InvalidContentError(fill(tr('이미 있는 패키지 id입니다: {0}'), { 0: id }));
@@ -185,6 +182,7 @@ export class InMemoryStore implements AasStore, IntegrationStore {
       updatedAt: at,
       // Important: no key when absent — do not mix "shared" with "owner is an empty string"
       ...(input.owner ? { owner: input.owner } : {}),
+      metamodel: packageMetamodelOf(input),
     };
     const state: PackageState = {
       record,
@@ -639,8 +637,10 @@ export class InMemoryStore implements AasStore, IntegrationStore {
   restore(snapshot: PackageSnapshot, values: readonly CollectedValue[] = []): void {
     const identifiables = new Map<string, IdentifiableRecord>();
     for (const record of snapshot.identifiables) identifiables.set(record.uid, clone(record));
+    // A folder written before versions were remembered has no metamodel — it reads as 3.0 (LEGACY_PACKAGE_METAMODEL)
+    const metamodel = storedMetamodel(snapshot.record.metamodel?.version, snapshot.record.metamodel?.inferred);
     this.packages.set(snapshot.record.id, {
-      record: clone(snapshot.record),
+      record: { ...clone(snapshot.record), metamodel },
       values: values.map((v) => clone(v)),
       keys: new Set(values.flatMap((v) => (v.key === undefined ? [] : [v.key]))),
       files: snapshot.files.map((f) => ({

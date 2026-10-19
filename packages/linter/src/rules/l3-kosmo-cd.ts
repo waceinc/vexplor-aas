@@ -12,9 +12,9 @@ import {
   iec61360Of,
   isAllowedId,
   isIdtaIri,
-  isValidIdShort,
   KOSMO_ALLOWED_DATA_TYPES,
 } from '../util.js';
+import { idShortFits, idShortRemedyV30, mayBe } from '../version.js';
 
 // i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2⑥⑦';
@@ -51,7 +51,7 @@ export const kosmoCd1IdShort: Rule = {
         });
         return;
       }
-      if (!isValidIdShort(cd.idShort)) {
+      if (!idShortFits(ctx, cd.idShort)) {
         report({
           severity: 'error',
           elementType: 'ConceptDescription',
@@ -59,7 +59,7 @@ export const kosmoCd1IdShort: Rule = {
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
           message: fill(tr('idShort가 명명 규칙에 맞지 않습니다: {0}'), { 0: cd.idShort }),
-          remedy: tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오.'),
+          remedy: !mayBe(ctx, '3.1') ? idShortRemedyV30() : tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오.'),
           fixable: true,
         });
       }
