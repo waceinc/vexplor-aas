@@ -105,7 +105,7 @@ Both BaSyx and Package Explorer read JSON.
 
 ![Start screen](images/manual/en/m01-first.png)
 
-There are four ways to start.
+There are five ways to start.
 
 | Button | When |
 |---|---|
@@ -113,6 +113,7 @@ There are four ways to start.
 | **"New"** | Start from an empty file (chapters 4 and 7) |
 | **"Open bundle"** | Open a reference bundle (ZIP) you received (section 7-7) |
 | **"Start with a sample"** | You have no AASX yet — opens one fully filled machine (`RollFormingMachine_sample`) and a process structure. It is a practice copy; edit freely |
+| **"Start from a product passport (DPP) template"** | You are writing Digital Product Passport data — opens an official IDTA template unmodified (DPP Part 1 metadata, IDTA 02099-1, or one of the seven battery passport parts, IDTA 02035-1 to 02035-7; CC BY 4.0). The values are blank; rules `DPP-1` to `DPP-5` point out missing or malformed required data. This helps write and check passport data — it is not an EU compliance verdict |
 
 > If this is your first time, open the sample. "New" starts with **six empty submodels**, which is hard if you do not know yet what goes in them.
 > With the sample open, **"Import from another file"** (section 4-4) copies its nameplate and technical data into your new machine so you only change the values.
@@ -1005,7 +1006,7 @@ Header right **Settings ▾ → Rules and conventions** shows what the tool enfo
 | **Who decides acceptance** | **Not this tool.** The KOSMO Validator and aas-test-engines decide |
 | **Conventions** | Own IRI root · required submodels · how ids are formed · asset kind (Type) · value sync policy |
 | **Rule conflicts** | Where the KTL guideline and KOSMO collide, **what is currently chosen** |
-| **44 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
+| **49 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
 
 ### When rules conflict — choose by policy
 

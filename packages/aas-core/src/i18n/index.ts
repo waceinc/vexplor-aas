@@ -17,6 +17,7 @@
 import { EN_CORE } from './en/core.js';
 import { EN_LINTER_RULES } from './en/linter-rules.js';
 import { EN_LINTER_TEXT } from './en/linter-text.js';
+import { EN_LINTER_DPP } from './en/linter-dpp.js';
 import { EN_API } from './en/api.js';
 import { EN_BUNDLE } from './en/bundle.js';
 import { EN_PACKAGES } from './en/packages.js';
@@ -56,6 +57,7 @@ const DICTIONARIES: readonly Record<string, string>[] = [
   EN_CORE,
   EN_LINTER_RULES,
   EN_LINTER_TEXT,
+  EN_LINTER_DPP,
   EN_API,
   EN_BUNDLE,
   EN_PACKAGES,

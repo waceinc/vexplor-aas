@@ -102,6 +102,10 @@ const lines = [
   '',
   '- `docs/spec/part2/*.yaml` — IDTA-01002-3-0 (Specification of the Asset Administration Shell,',
   '  Part 2: API). Published by the Industrial Digital Twin Association, **CC BY 4.0**.',
+  '- `apps/web/public/samples/idta/*.aasx` — official IDTA submodel templates for the Digital Product Passport',
+  '  (IDTA 02099-1 Part 1 and the Digital Battery Passport IDTA 02035-1 to 02035-7), shipped unmodified.',
+  '  Published by the Industrial Digital Twin Association, **CC BY 4.0** — source, versions and file list in',
+  '  `apps/web/public/samples/idta/NOTICE.md`.',
   '',
 ];
 

@@ -6,6 +6,7 @@ import type { PackageDescription, Policy } from '../api.js';
 import { NewPackage } from '../components/NewPackage.js';
 import type { DraftNode } from '../components/HierarchyTree.js';
 import { tr, type Lang } from '../i18n.js';
+import { dppTemplates } from './dppTemplates.js';
 
 interface Props {
   t: (text: string) => string;
@@ -21,11 +22,13 @@ interface Props {
   onStartNew: () => void;
   onCancelNew: () => void;
   onOpenSample: () => void;
+  /** Open one of the official IDTA passport templates (file name in public/samples/idta) */
+  onOpenDppTemplate: (file: string) => void;
   onImportFile: (file: File) => Promise<string | undefined>;
   onCreate: (name: string, extras: string[], unit: 'equipment' | 'composite', tree: DraftNode[]) => void;
 }
 
-export function Welcome({ t, lang, packages, creating, busy, policy, onOpenPackage, onPickFile, onPickBundle, onStartNew, onCancelNew, onOpenSample, onImportFile, onCreate }: Props): React.JSX.Element {
+export function Welcome({ t, lang, packages, creating, busy, policy, onOpenPackage, onPickFile, onPickBundle, onStartNew, onCancelNew, onOpenSample, onOpenDppTemplate, onImportFile, onCreate }: Props): React.JSX.Element {
   return (
     <div className="welcome">
       <span className="wordmark big">VEXPLOR</span>
@@ -109,6 +112,34 @@ export function Welcome({ t, lang, packages, creating, busy, policy, onOpenPacka
             {tr('견본으로 시작하기')}
           </button>
         </p>
+      )}
+      {/*
+        Important: passport templates — shown even when files are already uploaded, because a passport is real work, not practice.
+           Collapsed like the file list so it does not take over the start screen; same look (welcome-files), no new styles.
+           The wording stops at "write and check" — opening a template does not make a product EU DPP compliant.
+      */}
+      {!creating && (
+        <details className="welcome-files welcome-dpp">
+          <summary className="welcome-files-title">{tr('제품 여권(DPP) 서식으로 시작하기')}</summary>
+          <ul>
+            {dppTemplates().map((item) => (
+              <li key={item.file}>
+                <button
+                  className="welcome-file"
+                  disabled={busy}
+                  onClick={() => onOpenDppTemplate(item.file)}
+                  title={tr('IDTA 공식 서식을 원본 그대로 엽니다 — 값은 비어 있습니다')}
+                >
+                  <b>{item.label}</b>
+                  <span className="dim">{item.spec} v{item.version}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">
+            {tr('IDTA 공식 서브모델 서식(CC BY 4.0)입니다. 여권 데이터를 쓰고 필수 항목을 검사하는 데까지 돕습니다 — EU 규정 적합 판정은 하지 않습니다.')}
+          </p>
+        </details>
       )}
     {creating && (
         <NewPackage

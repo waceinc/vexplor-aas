@@ -1,5 +1,5 @@
 /**
- * File actions — upload · open bundle · sample · import for tree · remove (link warning) · create new · download.
+ * File actions — upload · open bundle · sample · passport template · import for tree · remove (link warning) · create new · download.
  * Split out of App.tsx (2026-10-13 componentization) — code and comments are verbatim from before the move;
  * the state and actions it uses arrive under the same names (taken from c).
  */
@@ -7,6 +7,7 @@ import { api, type HierarchyNode } from '../api.js';
 import { type DraftNode } from '../components/HierarchyTree.js';
 import { fill, tr } from '../i18n.js';
 import type { Core } from './context.js';
+import { fetchDppTemplate } from './dppTemplates.js';
 
 export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPackage' | 'markStart' | 'openedRef' | 'packageId' | 'packages' | 'policy' | 'run' | 'setAdding' | 'setConcepts' | 'setFindings' | 'setFixReport' | 'setHierarchy' | 'setNotice' | 'setPackageId' | 'setPackages' | 'setPickedFiles' | 'setSampleLocked' | 'setShells' | 'setSubmodels'>) {
   const { demoLocked, errors, loadPackage, markStart, openedRef, packageId, packages, policy, run, setAdding, setConcepts, setFindings, setFixReport, setHierarchy, setNotice, setPackageId, setPackages, setPickedFiles, setSampleLocked, setShells, setSubmodels } = c;
@@ -70,6 +71,15 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     setNotice(
       tr('견본을 열었습니다 — 공정 구성(RB01)과 설비 1종(RollFormingMachine_sample ×2). 설비 줄을 누르면 그 설비 파일이 열립니다.'),
     );
+  };
+  /** Start from an official IDTA passport template (dppTemplates.ts) — the same upload path as a file picked from the PC */
+  const onOpenDppTemplate = async (file: string): Promise<void> => {
+    if (demoLocked) {
+      setSampleLocked(true);
+      return;
+    }
+    const picked = await run(() => fetchDppTemplate(file));
+    if (picked) await onUpload(picked);
   };
   /**
    * The composition tree's "Import from PC" — upload only, and **leave the screen as it is**.
@@ -285,5 +295,5 @@ export function useFileActions(c: Pick<Core, 'demoLocked' | 'errors' | 'loadPack
     markStart('download');
     setNotice(tr('AASX를 내려받았습니다 — 브라우저의 다운로드 폴더에 있습니다.'));
   };
-  return { onUpload, onOpenBundle, onOpenSample, onImportForTree, deletePackages, onDeletePackage, onCreatePackage, onDownload };
+  return { onUpload, onOpenBundle, onOpenSample, onOpenDppTemplate, onImportForTree, deletePackages, onDeletePackage, onCreatePackage, onDownload };
 }
