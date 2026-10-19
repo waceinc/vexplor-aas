@@ -21,13 +21,14 @@ The evidence below was checked against the original sources on 2026-10-18. The l
 
 ## 2. This does not mean AAS is absent from factories
 
-There are real line deployments. Bosch Rexroth's Ulm plant gives every machine and module an AAS and is
-extending the same platform to other plants[9]. Seven German wire-harness companies connected product
+There are real line deployments. Bosch Rexroth's Ulm model factory gave every machine and module an AAS to
+end integration work that dragged on for months whenever a machine was replaced or added, and is extending the
+same platform to other plants[9]. Seven German wire-harness companies connected product
 selection through to crimping machines with AAS in a three-year project[10]. In Korea, Gyeongsangnam-do
 piloted an AAS-based manufacturing operating system for the automotive parts industry[11].
 
-Those cases report the same difficulties. The Bosch Rexroth case notes that integration work when machines
-are replaced or added can take months, and that writing the AAS is the first hurdle for many users[9]. The
+Those cases report difficulties too. The article on the Bosch Rexroth case notes that creating a
+standard-conformant AAS is itself the first hurdle for many users[9]. The
 review concludes that adoption is still concentrated in parts of Europe, mainly Germany[1].
 
 That connection work is what VEXPLOR AAS Studio sets out to reduce. It does not replace the AAS standard;
