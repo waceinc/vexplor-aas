@@ -421,7 +421,7 @@ The assetKind choices in the asset editor follow the same version: Role appears 
 1. **0 errors on screen** — warnings may remain
 2. Check the file you saved with "Download AASX" as follows
 3. Standard validator — `out/venv/bin/python scripts/aas-test-engines.py downloaded-file.aasx` (install: `python3 -m venv out/venv && out/venv/bin/pip install aas-test-engines==1.0.3`).
-   aas-test-engines 1.0.3 checks **V3.0 only** — a V3.1 / V3.2 file is checked against the official JSON schemas in this repository's tests, there is no official validator for those versions yet
+   aas-test-engines 1.0.3 checks **V3.0 only** — for this step download the file as V3.0. What this tool writes as V3.1 / V3.2 is checked against those versions' official JSON schemas in this repository's tests; aas-test-engines does not check them yet
 4. If you plan to load it into BaSyx — `out/venv/bin/python scripts/basyx-check.py downloaded-file.aasx --expect-submodels 7`
 5. **Submit to the KOSMO Validator** — the Validator makes the final acceptance decision
 6. Print the report to PDF and keep it
@@ -1025,7 +1025,7 @@ Header right **Settings ▾ → Rules and conventions** shows what the tool enfo
 
 ### Which metamodel version a file is checked against
 
-A file is checked against **its own metamodel version** (3.0 · 3.1 · 3.2), not the newest one. An XML file names its version in its namespace; a JSON file has no version marker, so its version is read from its content, and a constraint is only held against it when it applies in every version the content can be.
+A file is checked against **its own metamodel version** (3.0 · 3.1 · 3.2), not the newest one. In the app that is the version the server remembers for the file — the version **Download AASX** writes by default (§4-10). An XML file names its version in its namespace; a JSON file has no version marker and is kept as the lowest version that holds its content (V3.0 unless it holds something only V3.1 or V3.2 has). A program that calls the linter library with a version read from the content (`readAasx(...).metamodel`) gets the wider reading: a constraint is only held against a JSON file when it applies in every version the content can be.
 
 | Difference | 3.0 file | 3.1 file | 3.2 file |
 |---|---|---|---|

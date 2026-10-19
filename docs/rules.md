@@ -11,7 +11,7 @@ The linter in this tool checks **52 rules**. This is the same content as **Setti
 | Layer | What it checks |
 |---|---|
 | **L1 Package** | Structure of the AASX file (OPC package) — parts, relationships, Content_Types |
-| **L2 Constraints** | Constraints of the AAS V3.0 metamodel (AASd-*, AASc-*) |
+| **L2 Constraints** | Constraints of the AAS metamodel V3.0 · V3.1 · V3.2 (AASd-*, AASc-*), checked against the file's version |
 | **L3 KOSMO** | Business rules required by the Korean submission validator (KOSMO Validator) |
 
 A file can pass every standard check (aas-core, the official JSON schema) and still be rejected by the submission validator.
@@ -21,7 +21,7 @@ L3 closes that gap — it is the reason this tool exists.
 
 ### Where rules conflict
 
-In some places the standard and the submission validator disagree (for example `AASd-120` — the standard forbids
+In some places the standard and the submission validator disagree (for example `AASd-120` — the V3.0 standard forbids
 idShort on list children, while the submission validator does not check it). This tool does not silently pick a side;
 it exposes the choice as a **policy** — [Usage §10](usage.md).
 

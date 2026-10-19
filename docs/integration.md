@@ -709,6 +709,16 @@ Sign this with the customer before go-live.
 
 ## 14. Changes in this release
 
+- **AASX downloads carry a metamodel version (2.9.0).** The package download (`GET /packages/{id}`), the Part 2
+  serialization as AASX and the bundle ZIP write each file as the version it came in as (V3.0 · V3.1 · V3.2; models
+  made in the app are V3.1). On the download and the serialization, `?metamodel=3.0|3.1|3.2` picks another; a value that version cannot express answers 422
+  `Unrepresentable` with the report, `&unrepresentable=keep` writes it anyway. The version written is in the response
+  header `x-aas-metamodel-version`. A system that only reads V3.0 should ask for `?metamodel=3.0`.
+- **Part 2 also under `/api/v3` (2.9.0)** — the alias V3.1 · V3.2 clients use. Links in responses (registry endpoints)
+  still say `/api/v3.0`; both answer. Part 2 JSON responses are not converted between versions: a V3.2 model is served
+  with its V3.2 fields.
+- **Unchanged in 2.9.0:** events, the pull feed, exports and the integration bundle's JSON carry no metamodel version,
+  and their schemas are the same, so `vexplor.edge/1` and existing consumers need no change.
 - **OPC UA is secure by default.** Clients must sign in with a web account over `Sign` or `SignAndEncrypt`; anonymous
   sessions and the `None` policy are gone. Set `OPCUA_ALLOW_INSECURE=on` to keep the old behaviour while clients are
   migrated.
