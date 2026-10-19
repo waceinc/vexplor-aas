@@ -8,8 +8,10 @@
  * - If a file with the same **file name** is already in the library, it is skipped (restarts do not create duplicates).
  *   The in-memory library starts empty each time, so they go in each time — that is correct.
  * - Deleted templates come back at the next startup. To stop using one, remove it from the folder (documented).
- * - Important: IDTA template files are **not bundled here** — bundling them in the repository requires checking the license (CC BY 4.0
- *   attribution requirement) first. Deployers download them from the IDTA Content Hub and put them in the folder.
+ * - Important: IDTA template files are **not bundled in this folder** — deployers download them from the IDTA Content Hub
+ *   and put them here. The exception is the product passport set (IDTA 02099-1 · 02035-1…7): it ships unmodified with the
+ *   screen in apps/web/public/samples/idta with its CC BY 4.0 attribution (NOTICE.md there), and those files can be
+ *   copied into this folder as they are.
  * - Goes through the same `readAasx` cap (Zip Bomb guard) as uploads.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';

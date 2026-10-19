@@ -109,8 +109,8 @@ export function RulesDialog({ showRules, setShowRules }: Pick<S, 'showRules' | '
 }
 
 /* Start screen — when no file is open, or after leaving via the logo (no file being viewed). Showing three empty panes leaves first-time users with nowhere to start */
-export function WelcomeScreen(s: Pick<S, 't' | 'lang' | 'packages' | 'adding' | 'busy' | 'policy' | 'loadPackage' | 'setAdding' | 'fileInput' | 'bundleInput' | 'onOpenSample' | 'onImportForTree' | 'onCreatePackage'>): React.JSX.Element {
-  const { policy, loadPackage, setAdding, fileInput, bundleInput, onOpenSample, onCreatePackage } = s;
+export function WelcomeScreen(s: Pick<S, 't' | 'lang' | 'packages' | 'adding' | 'busy' | 'policy' | 'loadPackage' | 'setAdding' | 'fileInput' | 'bundleInput' | 'onOpenSample' | 'onOpenDppTemplate' | 'onImportForTree' | 'onCreatePackage'>): React.JSX.Element {
+  const { policy, loadPackage, setAdding, fileInput, bundleInput, onOpenSample, onOpenDppTemplate, onCreatePackage } = s;
   return (
     <Welcome
       t={s.t}
@@ -128,6 +128,7 @@ export function WelcomeScreen(s: Pick<S, 't' | 'lang' | 'packages' | 'adding' | 
       onStartNew={() => setAdding('new')}
       onCancelNew={() => setAdding(undefined)}
       onOpenSample={() => void onOpenSample()}
+      onOpenDppTemplate={(file) => void onOpenDppTemplate(file)}
       onImportFile={s.onImportForTree}
       onCreate={(name, extras, unit, tree) => void onCreatePackage(name, extras, unit, tree)}
     />
