@@ -34,9 +34,11 @@ export interface LinterPolicy {
    */
   langTagTypo: LangTagPolicy;
   /**
-   * Conflict ④ — **AASd-120**. The spec forbids idShort on direct children of a SubmodelElementList, but
-   * the KOSMO Validator does not check it (absent from 4 rounds of reports). Standard tools, however, enforce it:
-   * `aas-test-engines` 1.0.3 fails it as an error, and `basyx-python-sdk` cannot read the file at all.
+   * Conflict ④ — **AASd-120**, a **metamodel 3.0** constraint. 3.0 forbids idShort on direct children of a
+   * SubmodelElementList, but the KOSMO Validator does not check it (absent from 4 rounds of reports). Standard 3.0
+   * tools, however, enforce it: `aas-test-engines` 1.0.3 fails it as an error, and `basyx-python-sdk` cannot read the
+   * file at all. Metamodel 3.1 removed the constraint (and KOSMO guideline V2.1.1 rule 3 follows 3.1), so for a file
+   * of version 3.1 or later this policy has nothing to judge — the rule does not run there.
    *
    *  warn  : warning (default) — does not block KOSMO submission but reports that interoperability breaks
    *  forbid: violation — for deployments that must load into BaSyx and pass standard tools

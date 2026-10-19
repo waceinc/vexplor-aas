@@ -38,10 +38,6 @@ export const EN_LINTER_DPP: Record<string, string> = {
     'Entry {0} of the product passport content specification list (contentSpecificationIds) is blank.',
   '이 여권을 이루는 서브모델 서식의 semanticId 를 적으십시오(예: https://admin-shell.io/idta/CarbonFootprint/1/0).':
     'Write the semanticId of a submodel template that makes up this passport (e.g. https://admin-shell.io/idta/CarbonFootprint/1/0).',
-  '제품 여권 단위(granularity)와 AAS 의 assetKind 가 짝이 맞는다 — Model 은 Type, Item 은 Instance':
-    'The product passport granularity and the AAS assetKind match — Model is Type, Item is Instance',
   '제품 여권 단위는 {0} 인데 AAS 의 assetKind 는 {1} 입니다 — 규격은 {0} 을(를) {2} 와(과) 짝지웁니다.':
     'The product passport granularity is {0} but the AAS assetKind is {1} — the specification maps {0} to {2}.',
-  '모델 단위 여권이면 assetKind 를 Type, 낱개 단위 여권이면 Instance 로 맞추거나, 여권 단위 값을 고치십시오.':
-    'Set assetKind to Type for a model-level passport or to Instance for an item-level passport, or correct the passport granularity.',
 };

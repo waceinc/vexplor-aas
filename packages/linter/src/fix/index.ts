@@ -14,7 +14,7 @@ import { firstKeyValue, iec61360Of, XS_TO_DATA_TYPE } from '../util.js';
 import { lint, type LintOptions } from '../engine.js';
 import { DEFAULT_POLICY, type LinterPolicy } from '../policy.js';
 import { ALL_RULES } from '../rules/index.js';
-import type { Finding, LintResult, PackageContext, Rule } from '../types.js';
+import type { Finding, LintMetamodelInput, LintResult, PackageContext, Rule } from '../types.js';
 import type {
   AppliedFix,
   FixSelector,
@@ -628,6 +628,8 @@ export interface ApplyFixOptions {
   policy?: Partial<LinterPolicy>;
   /** Needed for L1 package checks and the thumbnail fix */
   package?: PackageContext;
+  /** Metamodel version of the file — the re-lint between rounds must judge by the same version as the first lint */
+  metamodel?: LintMetamodelInput;
   /** Maximum number of lint → fix rounds. Default 5 */
   maxRounds?: number;
   /** Also fix warning- and info-level findings. Default false (errors only) */
@@ -686,6 +688,7 @@ export function applyFixes(
   const lintOptions: LintOptions = {
     policy,
     ...(options.package ? { package: options.package } : {}),
+    ...(options.metamodel ? { metamodel: options.metamodel } : {}),
   };
 
   let current = [...findings];
@@ -760,6 +763,7 @@ export function lintAndFix(
   const lintOptions: LintOptions = {
     policy,
     ...(options.package ? { package: options.package } : {}),
+    ...(options.metamodel ? { metamodel: options.metamodel } : {}),
   };
 
   const before = lint(environment, rules, lintOptions);

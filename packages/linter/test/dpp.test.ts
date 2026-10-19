@@ -137,6 +137,20 @@ describe('DPP metadata rules', () => {
     expect(dpp(env)).toEqual([]);
   });
 
+  it('DPP-5 — Batch maps to AssetKind Batch, which exists from metamodel 3.2 only', () => {
+    const env = filled();
+    find(env, 'granularity')['value'] = 'Batch';
+    const dpp5 = (version: '3.1' | '3.2') =>
+      lint(env, ALL_RULES, { metamodel: { version, source: 'namespace' } })
+        .findings.filter((f) => f.ruleId === 'DPP-5')
+        .map((f) => f.severity);
+    expect(dpp5('3.2')).toEqual(['warning']);
+    // A 3.1 file has no value a batch passport could map to — nothing to point at
+    expect(dpp5('3.1')).toEqual([]);
+    (env.assetAdministrationShells![0]!.assetInformation as unknown as Element)['assetKind'] = 'Batch';
+    expect(dpp5('3.2')).toEqual([]);
+  });
+
   it('every DPP rule is registered in ALL_RULES', () => {
     expect(DPP_RULES.map((rule) => rule.id)).toEqual(['DPP-1', 'DPP-2', 'DPP-3', 'DPP-4', 'DPP-5']);
     for (const rule of DPP_RULES) expect(ALL_RULES).toContain(rule);

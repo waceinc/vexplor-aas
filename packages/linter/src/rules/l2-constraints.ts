@@ -4,10 +4,11 @@
  * Of all 25, only the ones that are easy to get wrong when generating AASX from code are implemented.
  * The rest are structurally guaranteed by using a correct object model (spec §1 L2).
  *
- * Important: AASd-090 and AASd-120 **are implemented** (corrected 2026-08-24). This comment used to say
- *    they were "removed in V3", which is false — both exist in aas-core-meta v3. The correct statement is:
- *    **the KOSMO Validator simply does not check them.** Standard tools enforce them (aas-test-engines reports
- *    9 errors; basyx-python-sdk silently loses the SML subtree). Full history in docs/PROGRESS.md §4.
+ * Important: AASd-090 and AASd-120 are **3.0 constraints, removed in 3.1** (IDTA-01001 V3.2 change notes, "AASd-090
+ *    Removed" · "AASd-120 Removed"). They apply only when the file is a 3.0 file. Before 2026-08-24 this comment said
+ *    "removed in V3", which was wrong for 3.0 files — standard 3.0 tools enforce both (aas-test-engines reports 9
+ *    errors; basyx-python-sdk silently loses the SML subtree). Full history in docs/PROGRESS.md §4.
+ *    The checks judge by the file's version (ctx.metamodel); constraints new in 3.2 are in l2-v32.ts.
  *
  * Items that overlap with KOSMO rules are not reported again here:
  *   AASd-002/117 → KOSMO-*-1 (idShort), AASd-131 → KOSMO-AAS-5,
@@ -20,6 +21,8 @@ import { fill, GLOBALLY_IDENTIFIABLE, tr } from '@aas/core';
 const AAS_IDENTIFIABLES = ['AssetAdministrationShell', 'Submodel', 'ConceptDescription'];
 import type { LintContext, Report, Rule } from '../types.js';
 import { firstKeyValue, hasLanguage, iec61360Of, needsUnit } from '../util.js';
+import { mayBe } from '../version.js';
+import { aasd137ExternalReferenceKeys, aasd138TemplateList, operationVariableElements } from './l2-v32.js';
 
 // i18n-ignore — source document file name
 const SPEC = 'AAS 참조모델 제약조건 spec_260812.pdf';
@@ -480,6 +483,10 @@ export const aasc3a009UnitRequired: Rule = {
  *
  * Why the default severity is warning: there is no reason to block a KOSMO submission (it is not checked),
  * but the fact that interoperability breaks must be reported. Policy can promote or demote it.
+ *
+ * Version: **3.0 files only.** Metamodel 3.1 removed AASd-120 (IDTA-01001 V3.2 change notes, "AASd-120 Removed"),
+ * and KOSMO modelling guideline V2.1.1 rule 3 accepts named list children "as metamodel 3.1 applies". The measurements
+ * above are of 3.0 tools on 3.0 files.
  */
 export const aasd120SmlChildIdShort: Rule = {
   id: 'AASd-120',
@@ -488,11 +495,12 @@ export const aasd120SmlChildIdShort: Rule = {
     return tr('SubmodelElementList 직계 자식에는 idShort를 붙일 수 없다');
   },
   get source() {
-    return tr('AAS V3.0 메타모델 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측');
+    return tr('AAS 메타모델 V3.0 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측 — 3.0 파일만. V3.1 에서 삭제 (IDTA-01001 V3.2 변경 기록)');
   },
   check(ctx, report) {
     const policy = ctx.policy.smlChildIdShort;
     if (policy === 'allow') return;
+    if (mayBe(ctx, '3.1')) return;
 
     for (const v of ctx.elements) {
       if (v.parent?.modelType !== 'SubmodelElementList') continue;
@@ -512,11 +520,16 @@ export const aasd120SmlChildIdShort: Rule = {
         ),
         fixable: true,
         policyNote:
-          policy === 'forbid'
+          (policy === 'forbid'
             ? tr('정책(forbid) — 표준 준수·상호운용을 우선합니다.')
             : tr(
                 'KOSMO Validator는 이 제약을 검사하지 않지만, aas-test-engines는 오류로, basyx-python-sdk는 읽기 실패로 처리합니다. 정책(warn)에 따라 경고로 표시했습니다.',
-              ),
+              )) +
+          // Only for a version guessed from content (JSON has no marker) — a caller that passed no version keeps
+          // the exact text it always got
+          (ctx.metamodel.source === 'content'
+            ? ' ' + tr('파일에 메타모델 판 표시가 없어 내용으로 3.0 이라고 보고 검사했습니다. 3.1 이상 파일에는 이 제약이 없습니다.')
+            : ''),
       });
     }
   },
@@ -529,6 +542,9 @@ export const aasd120SmlChildIdShort: Rule = {
  * The statement that *leaving it empty is fine* is correct, though — the constraint only applies when a value is set.
  * The 20 equipment types do not use category, so it never surfaced; since the authoring UI began allowing
  * category to be entered, a person can enter it wrongly, so we check it.
+ *
+ * Version: **3.0 files only.** Metamodel 3.1 removed AASd-090 (IDTA-01001 V3.2 change notes, "AASd-090 Removed");
+ * the official 3.1.2 and 3.2.0 examples carry other categories and drew 99 false errors each before this split.
  */
 const DATA_ELEMENT_TYPES = new Set([
   'Property',
@@ -547,9 +563,10 @@ export const aasd090DataElementCategory: Rule = {
     return tr('DataElement의 category는 CONSTANT · PARAMETER · VARIABLE 중 하나여야 한다');
   },
   get source() {
-    return tr('AAS V3.0 메타모델 AASd-090 (aas-core-meta v3)');
+    return tr('AAS 메타모델 V3.0 AASd-090 (aas-core-meta v3) — 3.0 파일만. V3.1 에서 삭제 (IDTA-01001 V3.2 변경 기록)');
   },
   check(ctx, report) {
+    if (mayBe(ctx, '3.1')) return;
     for (const v of ctx.elements) {
       if (!DATA_ELEMENT_TYPES.has(v.node.modelType)) continue;
       const category = v.node.category;
@@ -699,6 +716,9 @@ export const aasc3a010ValueExclusive: Rule = {
 /**
  * AASd-119·129 — TemplateQualifier consistency.
  * Our output does not use Qualifiers, but **other people's files** do (IDTA templates commonly use them).
+ *
+ * Version: 3.2 adds an exception to AASd-129 — "the SubmodelElement is part of an OperationVariable" (IDTA-01001 V3.2
+ * change notes, #462). So before 3.2 the elements inside operation variables are checked too; from 3.2 they are not.
  */
 export const aasdTemplateQualifier: Rule = {
   id: 'AASd-119/129',
@@ -713,7 +733,9 @@ export const aasdTemplateQualifier: Rule = {
     const submodelKind = new Map<number, string | undefined>();
     (ctx.environment.submodels ?? []).forEach((sm, i) => submodelKind.set(i, sm.kind));
 
-    for (const v of ctx.elements) {
+    // ctx.elements does not reach into operation variables; before 3.2 those elements are bound by AASd-129 too
+    const checked = mayBe(ctx, '3.2') ? ctx.elements : [...ctx.elements, ...operationVariableElements(ctx)];
+    for (const v of checked) {
       const raw = v.node as unknown as Record<string, unknown>;
       const qualifiers = raw['qualifiers'] as { kind?: string }[] | undefined;
       if (!qualifiers?.some((q) => q.kind === 'TemplateQualifier')) continue;
@@ -845,4 +867,7 @@ export const L2_RULES: readonly Rule[] = [
   aasdTemplateQualifier,
   aasd130StringChars,
   aasd134OperationVariables,
+  // New in metamodel 3.2 — judged only for 3.2 files
+  aasd137ExternalReferenceKeys,
+  aasd138TemplateList,
 ];

@@ -8,7 +8,8 @@ import type { AssetAdministrationShell } from '@aas/core';
 import { fill, tr } from '@aas/core';
 import type { LintContext, Rule } from '../types.js';
 import { isOrganizationalAssetType } from '../scaffold.js';
-import { idVersionSuffix, isValidIdShort } from '../util.js';
+import { idVersionSuffix } from '../util.js';
+import { idShortFits, idShortRemedyV30, mayBe } from '../version.js';
 
 // i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2';
@@ -99,7 +100,7 @@ export const kosmoAas2IdShort: Rule = {
         });
         return;
       }
-      if (!isValidIdShort(shell.idShort)) {
+      if (!idShortFits(ctx, shell.idShort)) {
         report({
           severity: 'error',
           elementType: 'AssetAdministrationShell',
@@ -107,7 +108,7 @@ export const kosmoAas2IdShort: Rule = {
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
           message: fill(tr('idShort가 명명 규칙에 맞지 않습니다: {0}'), { 0: shell.idShort }),
-          remedy: tr(
+          remedy: !mayBe(ctx, '3.1') ? idShortRemedyV30() : tr(
             '영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오. 한글·공백·특수문자는 쓸 수 없고 하이픈으로 끝날 수 없습니다.',
           ),
           fixable: true,

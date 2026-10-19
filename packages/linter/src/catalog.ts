@@ -61,7 +61,7 @@ const layerMeaning = (): Record<Layer, { title: string; meaning: string }> => ({
   },
   L2: {
     title: tr('L2 — 메타모델 제약(AASd·AASc)'),
-    meaning: tr('AAS V3.0 규격이 정한 제약. 표준 도구(aas-test-engines·BaSyx)가 강제한다'),
+    meaning: tr('AAS 메타모델 규격(V3.0 · V3.1 · V3.2)이 정한 제약. 파일의 판을 기준으로 검사하며, 표준 도구(aas-test-engines·BaSyx)가 강제한다'),
   },
   L3: {
     title: tr('L3 — KOSMO 사업 규칙'),

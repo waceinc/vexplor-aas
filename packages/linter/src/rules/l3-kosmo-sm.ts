@@ -7,7 +7,8 @@
 import type { Submodel } from '@aas/core';
 import { fill, tr } from '@aas/core';
 import type { LintContext, Rule, Severity } from '../types.js';
-import { firstKeyValue, idVersionSuffix, isAllowedId, isIdtaIri, isValidIdShort } from '../util.js';
+import { firstKeyValue, idVersionSuffix, isAllowedId, isIdtaIri } from '../util.js';
+import { idShortFits, idShortRemedyV30, mayBe } from '../version.js';
 
 // i18n-ignore — source document file name
 const SOURCE = '02_Validator_대응규칙.md §1.2 · §2③';
@@ -44,7 +45,7 @@ export const kosmoSm1IdShort: Rule = {
         });
         return;
       }
-      if (!isValidIdShort(sm.idShort)) {
+      if (!idShortFits(ctx, sm.idShort)) {
         report({
           severity: 'error',
           elementType: 'Submodel',
@@ -52,7 +53,7 @@ export const kosmoSm1IdShort: Rule = {
           pointer: `${pointer}/idShort`,
           kosmoPath: `${kosmoPath}/idShort`,
           message: fill(tr('idShort가 명명 규칙에 맞지 않습니다: {0}'), { 0: sm.idShort }),
-          remedy: tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오.'),
+          remedy: !mayBe(ctx, '3.1') ? idShortRemedyV30() : tr('영문자로 시작하는 2자 이상 CamelCase로 바꾸십시오.'),
           fixable: true,
         });
       }

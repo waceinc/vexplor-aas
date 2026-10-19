@@ -127,8 +127,6 @@ export const EN_LINTER_TEXT: Record<string, string> = {
   'AASX 파일 자체가 규격대로 만들어졌는가 (공식 JSON 스키마·OPC 패키징)':
     'Whether the AASX file itself is built to the specification (official JSON schema, OPC packaging)',
   'L2 — 메타모델 제약(AASd·AASc)': 'L2 — Metamodel constraints (AASd, AASc)',
-  'AAS V3.0 규격이 정한 제약. 표준 도구(aas-test-engines·BaSyx)가 강제한다':
-    'Constraints defined by the AAS V3.0 specification, enforced by standard tools (aas-test-engines, BaSyx)',
   'L3 — KOSMO 사업 규칙': 'L3 — KOSMO program rules',
   'KOSMO가 요구하는 것. 실측(설비 20종 × Validator 4회)으로 확정했다':
     'What KOSMO requires, confirmed by measurement (20 equipment types × 4 Validator runs)',
