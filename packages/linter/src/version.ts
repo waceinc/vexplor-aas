@@ -20,13 +20,17 @@ export const DEFAULT_LINT_METAMODEL: LintMetamodel = { version: '3.0', source: '
 export function resolveMetamodel(input: LintMetamodelInput | undefined): LintMetamodel {
   if (!input) return { ...DEFAULT_LINT_METAMODEL, candidates: [...DEFAULT_LINT_METAMODEL.candidates] };
   const source = input.source ?? 'caller';
+  const inferred = input.inferred ?? source === 'content';
   let candidates: MetamodelVersion[] = [input.version];
-  if (source === 'content') {
+  // Important: `inferred` decides, not `source`. The API re-reads a repacked JSON body (source 'content') and then
+  //    puts back the version the store remembers with inferred=false — that file is a declared 3.0 / 3.1 file, and
+  //    widening it to every version the content fits would drop the constraints of its own version.
+  if (inferred) {
     // Without `fits` the guess is still "the lowest version that holds the content" — so it and every newer one
     const fits = input.fits ?? METAMODEL_VERSIONS.filter((v) => compareVersions(v, input.version) >= 0);
     if (fits.length > 0) candidates = [...fits];
   }
-  return { version: input.version, source, inferred: input.inferred ?? source === 'content', candidates };
+  return { version: input.version, source, inferred, candidates };
 }
 
 /** True when every version the file may be is `version` or newer — the test for a constraint added in `version` */

@@ -9,7 +9,8 @@
  *    that decides a file's version and what lowering drops. Do not keep a second list here: a difference added to
  *    one and not the other would label a file 3.0 while this rule stays silent about it.
  *
- * Only when a version was **declared** or handed in by the caller: a version guessed from content is by construction
+ * Only when a version was **declared** or handed in by the caller (inferred=false — including a stored version the
+ * API puts back on a re-read body): a version guessed from content is by construction
  * the lowest that holds the content, and with no version at all the file is judged as 3.0 the way it always was.
  * Differences another rule already reports are left to that rule, so one value is not reported twice:
  *   idShort-hyphen · idShort-single-char → KOSMO-*-1 (idShort pattern of the file's version)
@@ -65,7 +66,8 @@ export const pkgMetamodelVersion: Rule = {
   },
   source: SOURCE,
   check(ctx, report) {
-    if (ctx.metamodel.source === 'default') return;
+    // A guessed version (from content, or the 3.0 default) declares nothing that the content could contradict
+    if (ctx.metamodel.inferred) return;
     const declared = ctx.metamodel.version;
 
     for (const hit of scanFeatures(ctx.environment)) {
