@@ -78,7 +78,9 @@
             "OPCUA",
             "MODBUS",
             "MQTT",
-            "HTTP"
+            "HTTP",
+            "S7",
+            "MC"
           ]
         },
         "endpoint": {

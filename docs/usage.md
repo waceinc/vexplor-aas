@@ -739,8 +739,11 @@ tool sends only read requests (S7 "Read Var", MC "Batch read") and never changes
 - **What is verified.** The frames are tested against test servers built from the published formats (RFC 1006,
   ISO 8073, the MELSEC communication protocol reference) — **not yet against real PLCs.** Try a line on your own PLC
   before relying on it, and tell us what you find.
-- **Remote collector (VEXPLOR Edge).** S7 and MC interfaces are not in the remote collector's read list yet; this
-  server's automatic collection (`COLLECT=on`) reads them.
+- **Remote collector (VEXPLOR Edge).** From 2.10.0 S7 and MC interfaces are in the remote collector's read list
+  (`protocol` `S7` · `MC`, [edge-contract.md](edge-contract.md) §4). **VEXPLOR Edge 1.2.0 or later** reads them; an
+  older collector does not and shows "Machine connection error: S7 is not read by this edge yet", while its other
+  machines keep being read. Open TCP **102** (S7) or the MC port from the factory PC to the PLC. This server's automatic
+  collection (`COLLECT=on`) reads them too.
 
 The server must be started with **`COLLECT=on`**.
 
@@ -950,6 +953,10 @@ machines of an approved list and sends to this server over HTTPS — outbound on
 
 An MQTT broker that wants a login ("Login required") is read by **VEXPLOR Edge 1.1.0 or later** — 1.0.x does not use
 `credentials.json` for MQTT, connects anonymously and is refused by the broker (code 4).
+
+S7 and MC PLCs (2.10.0, VEXPLOR extension bindings, read only — the start of §8) are read by **VEXPLOR Edge 1.2.0 or later**. The
+factory PC needs TCP **102** to an S7 PLC and the port set in a MELSEC PLC's Ethernet settings. Tested against test
+servers built from the published formats, not yet against real PLCs.
 
 After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
 revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and
