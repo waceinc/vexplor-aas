@@ -297,7 +297,8 @@ function lintBytes(data: Uint8Array, policy: Partial<LinterPolicy>, record: Pick
     pkg,
     result: lint(pkg.environment, ALL_RULES, {
       package: pkg.opc,
-      metamodel: { version: record.metamodel.version, inferred: record.metamodel.inferred },
+      // No `inferred` — judged by the version written, never widened to the versions the content fits (packages.ts judgedVersion)
+      metamodel: { version: record.metamodel.version },
       ...(Object.keys(policy).length > 0 ? { policy } : {}),
     }),
   };

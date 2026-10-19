@@ -186,7 +186,9 @@ async function snapshot(
  */
 async function judgedVersion(store: AasStore, packageId: string): Promise<LintMetamodelInput> {
   const stored = (await store.getPackage(packageId))?.metamodel ?? LEGACY_PACKAGE_METAMODEL;
-  return { version: stored.version, inferred: stored.inferred };
+  // Important: no `inferred` — the linter widens an inferred version to every version the content fits. Even when the
+  //    stored version was worked out from content, it is now a decision: the version the file is written as
+  return { version: stored.version };
 }
 
 /**
