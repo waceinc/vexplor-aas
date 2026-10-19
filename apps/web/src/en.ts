@@ -1313,6 +1313,10 @@ export const EN_MORE: Record<string, string> = {
   '공장 PC에 이 한 줄을 붙여 넣으십시오': 'Paste this one line on the factory PC',
   'Linux PC(x64 · arm64)의 터미널에 붙여 넣으면 설치 · 등록 · 시작까지 한 번에 끝납니다. 관리자 비밀번호(sudo)를 한 번 묻습니다.': 'Paste it in a terminal on a Linux PC (x64 · arm64): it installs, registers and starts in one go. It asks for the admin (sudo) password once.',
   '설치 명령': 'Install command',
+  '공장 PC의 운영체제': "The factory PC's operating system",
+  'Windows PC(x64)에서 명령 프롬프트나 PowerShell 을 「관리자 권한으로 실행」으로 열고 붙여 넣으면 설치 · 등록 · 서비스 시작까지 한 번에 끝납니다. 실행 정책은 바꾸지 않습니다.':
+    'On a Windows PC (x64), open Command Prompt or PowerShell with "Run as administrator" and paste it: it installs, registers and starts the service in one go. It changes no execution policy.',
+  'VEXPLOR Edge {0} 부터 — 그 판이 나오기 전에는 이 명령이 동작하지 않습니다.': 'VEXPLOR Edge {0} and later — this command does not work before that version is released.',
   '{0}까지 한 번만 쓸 수 있는 명령입니다.': 'This command works once, until {0}.',
   '설비 {0}곳 · 태그 {1}개를 바로 읽도록 승인해 두었습니다.': 'Approved to read at once — machines {0} · tags {1}.',
   '연결된 뒤 이 화면에서 읽을 목록을 승인해야 값이 들어옵니다.': 'After it connects, approve its read list here before values come in.',

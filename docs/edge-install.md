@@ -23,11 +23,25 @@ on the AAS Studio server.
    will read (machines, tags). With "Approve this list so it reads at once" ticked, the approval is done too. With no
    tags yet, make a collection link (AID) in the machine file first — open the file, then "Create collection link" in
    "Collect" on the right.
-3. **"Make the connect command"** — paste the line it shows into a terminal on the factory Linux PC (x64 · arm64).
+3. **"Make the connect command"** — choose the factory PC's tab, **Linux** or **Windows**, and paste the line it shows.
+   Both tabs carry the same server and code; the one pasted first uses the code.
+
+   Linux (x64 · arm64), in a terminal:
 
    ```bash
    curl -fsSL https://github.com/waceinc/vexplor-edge/releases/latest/download/get.sh | sudo sh -s -- --server https://aas.example.com --code 7KQ4-M2XD-9PRT
    ```
+
+   Windows (x64, **VEXPLOR Edge 1.2.0 and later**), in a Command Prompt or PowerShell opened with "Run as administrator":
+
+   ```bat
+   powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor 3072; & ([scriptblock]::Create((irm https://github.com/waceinc/vexplor-edge/releases/latest/download/get.ps1))) -Server https://aas.example.com -Code 7KQ4-M2XD-9PRT"
+   ```
+
+   It switches on TLS 1.2 for that window, runs `get.ps1` without changing the execution policy, checks the package
+   against `SHA256SUMS`, and installs the Windows service `vexplor-edge`. With a proxy entered, the first download goes
+   through it as well (`irm -Proxy … -ProxyUseDefaultCredentials`) and `-Proxy` is passed on. The Windows side in full:
+   the collector's [install guide — Windows](https://github.com/waceinc/vexplor-edge/blob/main/docs/install.md#windows).
 
 4. Done when the screen shows the PC's name and **"Receiving"**. Values appear by themselves in "Collect" for that
    machine file.

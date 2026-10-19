@@ -5,13 +5,19 @@
  *    2.7.0. The screen says so instead of showing an empty list.
  * Important: the install command is built here from the code and the server address the person confirms. The edge
  *    itself is a separate program (github.com/waceinc/vexplor-edge); its get.sh downloads the release for the PC's CPU,
- *    checks SHA256SUMS and runs the installer.
+ *    checks SHA256SUMS and runs the installer. On Windows (Edge 1.2.0 and later) get.ps1 does the same.
  */
 import { tr } from '../i18n.js';
 import { ApiError, withAuth } from './http.js';
 
 export const EDGE_REPOSITORY = 'https://github.com/waceinc/vexplor-edge';
 export const EDGE_GET_SCRIPT = `${EDGE_REPOSITORY}/releases/latest/download/get.sh`;
+export const EDGE_GET_SCRIPT_WINDOWS = `${EDGE_REPOSITORY}/releases/latest/download/get.ps1`;
+/** The first VEXPLOR Edge release with a Windows package and get.ps1 — the Windows tab says so */
+export const EDGE_WINDOWS_FROM = '1.2.0';
+
+/** The two kinds of factory PC the connect command is made for */
+export type EdgeOs = 'linux' | 'windows';
 
 export interface EdgeStatus {
   enabled: boolean;
@@ -173,6 +179,20 @@ export function unsafeForCommand(value: string): boolean {
 export function installCommand(server: string, code: string, proxy?: string): string {
   const options = [`--server ${server}`, `--code ${code}`, ...(proxy ? [`--proxy ${proxy}`] : [])].join(' ');
   return `curl -fsSL ${EDGE_GET_SCRIPT} | sudo sh -s -- ${options}`;
+}
+
+/**
+ * The same line for a Windows PC — pasted into an elevated Command Prompt or PowerShell.
+ *
+ * Important: the outer `powershell -Command "…"` makes it work in both shells. Inside, TLS 1.2 is switched on first
+ *    (3072 — Windows PowerShell 5.1 on Windows 10 / Server 2016 offers TLS 1.0 and GitHub refuses it), and get.ps1 runs
+ *    as a script block, so no execution policy is touched; get.ps1 bypasses it for the installer file only.
+ * Important: the values go inside double quotes — unsafeForCommand already refuses quotes, `$`, backticks and spaces.
+ */
+export function installCommandWindows(server: string, code: string, proxy?: string): string {
+  const fetch = proxy ? `irm -Proxy ${proxy} -ProxyUseDefaultCredentials ${EDGE_GET_SCRIPT_WINDOWS}` : `irm ${EDGE_GET_SCRIPT_WINDOWS}`;
+  const options = [`-Server ${server}`, `-Code ${code}`, ...(proxy ? [`-Proxy ${proxy}`] : [])].join(' ');
+  return `powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor 3072; & ([scriptblock]::Create((${fetch}))) ${options}"`;
 }
 
 /** How a device is doing, from what the server knows — one word for the badge */

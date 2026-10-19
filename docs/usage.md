@@ -910,8 +910,9 @@ machines of an approved list and sends to this server over HTTPS — outbound on
 1. **Settings → Remote collectors (VEXPLOR Edge)**. If it is off, an admin presses **"Turn on remote collection"**.
 2. **"+ Connect a collector"** — check this server's address as the factory PC reaches it (**https**) and the read
    list, then **"Make the connect command"**. With "Approve this list so it reads at once" ticked, approval is done too.
-3. **Paste the one line into a terminal on the factory Linux PC** — download, hash check, install, register and start
-   in one go.
+3. Choose the factory PC's tab (**Linux** · **Windows**) and **paste the one line** — on Linux into a terminal, on
+   Windows into a Command Prompt or PowerShell opened with "Run as administrator" (**VEXPLOR Edge 1.2.0 and later**).
+   Download, hash check, install, register and service start in one go.
 4. Done when the screen shows the PC's name and **"Receiving"**. Values come into this file's "Collect" pane every 10 s.
 
 An MQTT broker that wants a login ("Login required") is read by **VEXPLOR Edge 1.1.0 or later** — 1.0.x does not use
