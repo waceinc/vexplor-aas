@@ -123,7 +123,8 @@ When `PRODUCT_VERSION` goes up, the same release updates everything that describ
 done while any of these still shows the old version or misses what changed:
 
 1. **Version strings** — `packages/aas-core/src/version.ts`, install guides (`docs/install.md` · `docs/설치.md`), the
-   library URL in both READMEs, `docs/edge/examples/registration.json`; regenerate the sample bundle
+   library URL in both READMEs, `docs/edge/examples/registration.json` and the same file in waceinc/vexplor-edge
+   `docs/examples/` (the contract's home — its interop test compares both byte for byte); regenerate the sample bundle
    (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
 2. **What changed** — the "What's new" table in `README.md` / `README.ko.md` and the guide that covers the feature
    (usage, integration, edge contract), in English and Korean.
