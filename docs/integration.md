@@ -648,8 +648,8 @@ unless you mount a folder and point `OPCUA_PKI_DIR` at it; otherwise a rebuild m
 - **Collection ports to open from the tool toward level 1.** OPC UA (usually 4840), Modbus TCP 502, MQTT 1883 / 8883,
   S7 ISO-on-TCP **102**, the MC protocol port **set in the PLC's Ethernet settings** (no fixed number) and the XGT
   dedicated protocol **2004** (LS ELECTRIC FEnet). S7, MC and XGT are VEXPLOR extension bindings, read only
-  (docs/usage.md §8). Webhooks are never sent to port 102 or 502 — both are
-  on the blocked port list.
+  (docs/usage.md §8). Webhooks are never sent to port 102, 502 or 2004 — all
+  three are on the blocked port list.
 - The folder store's integration guarantees assume a **local disk**. Network file systems (SMB, NFS, NAS sync folders)
   have weaker rename / fsync behaviour; use PostgreSQL there.
 

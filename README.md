@@ -228,6 +228,11 @@ test servers that follow them — no real PLC was available. If you read one of 
 the [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md): maker, series, CPU, firmware, address, the value you expected and the value read (or the
 reason it could not be read). Each report goes into this table.
 
+**XGT: check the word order first.** LS ELECTRIC's manuals do not say in which order the words of a value over several
+words (DINT, REAL, LREAL …) are placed; this tool reads the low word first. If INT and BOOL read right but REAL or
+DINT read wrong, that is the reason — a field report with both values settles it. The other open points from the
+manuals are listed in [usage §8](docs/usage.md) (XGT, "What the published manuals do not settle").
+
 All of them are read only. HTTP and BACnet interfaces in an AID are recognised but not collected.
 
 ## Things to know

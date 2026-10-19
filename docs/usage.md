@@ -776,9 +776,28 @@ write instruction is not built anywhere.
   on the next read.
 - **What is verified.** The frames follow LS ELECTRIC's "XGT FEnet I/F Module User's Manual" V2.30 (chapter 8,
   §10.4 error codes) and "XGB FEnet I/F Module" V1.5 (§5.2 frame examples), and are tested against a test server built
-  from them — **not on a real PLC.** Not settled by the manuals: the byte order of values over several words (read low
-  word first), continuous reads of `R` on XGK, XGB built-in Ethernet ports, and the per-CPU device ranges (the module
-  answers `AddressOutOfRange`). If you read an XGT PLC, please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md).
+  from them — **not on a real PLC.**
+- **Check this first on a real PLC — the word order of values over several words.** The manuals give the frame fields
+  as little-endian and a word as two byte addresses, but never show the order of the words inside a DINT, UDINT, DWORD,
+  REAL, LREAL, LINT or ULINT. This tool reads **low byte and low word first**. If a REAL or DINT reads wrong while INT
+  and BOOL read right, that is the reason — please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md) with the value XG5000 shows and the
+  value read.
+- **What the published manuals do not settle** (read as stated; each one is a question for a field report):
+  1. The word order above.
+  2. The error-code field length — 1 byte in chapter 8, 2 bytes in §10.4. Both forms are read.
+  3. The CPU-info byte in a request — the manual says "Don't care" and its example sends 0xA0. This tool sends the
+     series' value (0xA0 · 0xA4 · 0xA8 · 0xB0 · 0xB4); whether the module checks it is not known.
+  4. Continuous reads of XGK `R` — the continuous-read list (p. 8-9) leaves R out, error code 3 (p. 10-12) names it.
+     Accepted; if the module answers 0x0003, the row says so.
+  5. Continuous reads of XGI `W`, and XGI I / Q read by name (`%IX0.0.3`) — the manual has no example of either.
+  6. The 1,400-byte limit on XGB — given in the XGT FEnet manual V2.30, not in the XGB manuals. A request over the
+     module's limit fails and falls back to one address at a time.
+  7. Device ranges per CPU (XGK-CPUH D 0 – 32767, CPUS 0 – 19999, XGB smaller) — only the digits are checked; an
+     address out of range comes back as `AddressOutOfRange` from the module.
+  8. The checksum in table 5-6 of the XGB manual (0x4E) does not match the formula the other three examples follow —
+     read as a misprint.
+  9. XG5000 menu names here are translated from the English manual V2.30 §5.2.3 and may differ on a Korean XG5000.
+  10. Whether the built-in Ethernet port of an XGB CPU (not an FEnet module) speaks the same protocol.
 - **Remote collector (VEXPLOR Edge).** From 2.11.0 XGT interfaces are in the remote collector's read list
   (`protocol` `XGT`, [edge-contract.md](edge-contract.md) §4). VEXPLOR Edge 1.3.0 or later reads them; an older
   collector shows "Machine connection error: XGT is not read by this edge yet" and keeps reading its other machines.
