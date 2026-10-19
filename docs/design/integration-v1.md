@@ -723,7 +723,7 @@ export function pinnedLookup(address: string): LookupFunction;   // for http.req
 3. Always blocked: `127.0.0.0/8`, `::1`, `0.0.0.0/8`, `::`, `169.254.0.0/16`, `fe80::/10`, multicast `224.0.0.0/4` / `ff00::/8`, broadcast `255.255.255.255`, IPv4-mapped/compatible IPv6 of these (`::ffff:127.0.0.1`), NAT64 `64:ff9b::/96` mapping of these.
 4. Private (`10/8`, `172.16/12`, `192.168/16`, `100.64/10`, `fc00::/7`): only when matched by `AAS_INTEGRATION_ALLOW` (comma list of CIDR, IP, hostname, each optionally `:port`).
 5. Plain `http:`/`mqtt:` only to allowlisted targets (D17).
-6. Ports blocked unless the allow entry names that port: 22, 23, 25, 102, 135, 139, 445, 502, 1433, 1521, 3306, 3389, 5432, 6379, 11211, 27017, 44818.
+6. Ports blocked unless the allow entry names that port: 22, 23, 25, 102, 135, 139, 445, 502, 1433, 1521, 2004, 3306, 3389, 5432, 6379, 11211, 27017, 44818.
 7. Demo: every target refused (integrations are off in demo anyway).
 8. Applied at create/patch (422 with reason) **and** before every attempt (DNS may change).
 

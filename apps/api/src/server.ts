@@ -314,7 +314,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       return (await fieldbus()).ModbusReader.connect(descriptor, { guard: guardOutbound });
     }
     if (descriptor.protocol === 'S7' || descriptor.protocol === 'MC' || descriptor.protocol === 'XGT') {
-      // VEXPLOR extension bindings, read only (S7 · MC 2.10.0, XGT after it) — no login; the guard sees the address before any connection
+      // VEXPLOR extension bindings, read only (S7 · MC 2.10.0, XGT 2.11.0) — no login; the guard sees the address before any connection
       if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
       guardOutbound(descriptor.base);
       const bus = await fieldbus();

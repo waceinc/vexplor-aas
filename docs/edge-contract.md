@@ -113,7 +113,7 @@ An interface whose protocol the edge does not support is skipped and reported in
 `S7` and `MC` were added to the list in edge 1.2.0 and AAS Studio 2.10.0 without a new contract version — the change
 is additive in the sense of this section: an older edge does not read such an interface, reports why in
 `status.interfaces[].lastError` (`S7 is not read by this edge yet`) and keeps reading its other interfaces. `XGT` was
-added after AAS Studio 2.10.0 and edge 1.2.0 in the same way (an older edge reports `XGT is not read by this edge yet`).
+added in edge 1.3.0 and AAS Studio 2.11.0 in the same way (an older edge reports `XGT is not read by this edge yet`).
 All three are VEXPLOR extension bindings, not AID 1.1 bindings, and read only:
 
 | `protocol` | Equipment | `endpoint` | `address` |

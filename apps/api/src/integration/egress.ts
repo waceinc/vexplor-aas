@@ -57,8 +57,8 @@ export type EgressCheck =
   | { ok: true; host: string; port: number; address: string; tls: boolean; proxy?: Omit<ProxySetting, 'noProxy'> }
   | { ok: false; reason: string };
 
-/** Ports of services that must never receive a webhook by accident (SSH, SMTP, S7, SMB, Modbus, databases, EtherNet/IP …) */
-export const BLOCKED_PORTS: readonly number[] = [22, 23, 25, 102, 135, 139, 445, 502, 1433, 1521, 3306, 3389, 5432, 6379, 11211, 27017, 44818];
+/** Ports of services that must never receive a webhook by accident (SSH, SMTP, S7, SMB, Modbus, LS ELECTRIC XGT, databases, EtherNet/IP …) */
+export const BLOCKED_PORTS: readonly number[] = [22, 23, 25, 102, 135, 139, 445, 502, 1433, 1521, 2004, 3306, 3389, 5432, 6379, 11211, 27017, 44818];
 
 const SCHEMES: Record<SubscriptionKind, Record<string, { tls: boolean; port: number }>> = {
   webhook: { 'https:': { tls: true, port: 443 }, 'http:': { tls: false, port: 80 } },

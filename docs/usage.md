@@ -779,8 +779,8 @@ write instruction is not built anywhere.
   from them — **not on a real PLC.** Not settled by the manuals: the byte order of values over several words (read low
   word first), continuous reads of `R` on XGK, XGB built-in Ethernet ports, and the per-CPU device ranges (the module
   answers `AddressOutOfRange`). If you read an XGT PLC, please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md).
-- **Remote collector (VEXPLOR Edge).** From the next release XGT interfaces are in the remote collector's read list
-  (`protocol` `XGT`, [edge-contract.md](edge-contract.md) §4). The next VEXPLOR Edge release reads them; an older
+- **Remote collector (VEXPLOR Edge).** From 2.11.0 XGT interfaces are in the remote collector's read list
+  (`protocol` `XGT`, [edge-contract.md](edge-contract.md) §4). VEXPLOR Edge 1.3.0 or later reads them; an older
   collector shows "Machine connection error: XGT is not read by this edge yet" and keeps reading its other machines.
   Open TCP **2004** from the factory PC to the PLC.
 
@@ -995,8 +995,8 @@ An MQTT broker that wants a login ("Login required") is read by **VEXPLOR Edge 1
 
 S7 and MC PLCs (2.10.0, VEXPLOR extension bindings, read only — the start of §8) are read by **VEXPLOR Edge 1.2.0 or later**. The
 factory PC needs TCP **102** to an S7 PLC and the port set in a MELSEC PLC's Ethernet settings. Tested against test
-servers built from the published formats, not yet against real PLCs. XGT PLCs (next release, the same kind of extension)
-need TCP **2004** from the factory PC and the next VEXPLOR Edge release.
+servers built from the published formats, not yet against real PLCs. XGT PLCs (2.11.0, the same kind of extension)
+need TCP **2004** from the factory PC and **VEXPLOR Edge 1.3.0 or later**.
 
 After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
 revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and
