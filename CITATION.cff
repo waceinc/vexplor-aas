@@ -1,6 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
 title: "VEXPLOR AAS Studio"
+version: 2.10.0
 type: software
 authors:
   - name: "WACE Inc."
@@ -15,6 +16,9 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.23485081
     description: "Version 2.9.0"
+  - type: doi
+    value: 10.5281/zenodo.23485129
+    description: "Version 2.10.0"
 keywords:
   - Asset Administration Shell
   - AAS
