@@ -119,7 +119,8 @@ node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 �
 바뀐 내용이 빠져 있으면 릴리스가 끝난 것이 아닙니다.
 
 1. **판 표기** — `packages/aas-core/src/version.ts`, 설치 안내(`docs/install.md` · `docs/설치.md`), 두 README 의 라이브러리
-   주소, `docs/edge/examples/registration.json`. 견본 묶음을 다시 만듭니다
+   주소, `docs/edge/examples/registration.json` 과 waceinc/vexplor-edge 의 같은 파일 `docs/examples/registration.json`
+   (규격 정본 — 그쪽 상호 시험이 두 파일을 바이트로 대조합니다). 견본 묶음을 다시 만듭니다
    (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
 2. **바뀐 내용** — `README.md` / `README.ko.md` 의 「새로 생긴 것」 표와 그 기능을 다루는 안내(사용법 · 연동 · 엣지 계약), 영어와 한국어 모두.
 3. **릴리스** — 태그 `vX.Y.Z`, 라이브러리 꾸러미 7개(`node scripts/pack-libraries.mjs --verify`), `SHA256SUMS`. 원격 수집기는
