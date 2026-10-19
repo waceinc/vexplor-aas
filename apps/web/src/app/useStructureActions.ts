@@ -20,7 +20,7 @@ export function useStructureActions(c: Pick<Core, 'expanded' | 'historyFor' | 'l
   };
   const onRestore = async (changedAt: string): Promise<void> => {
     if (!packageId || !historyFor) return;
-    if (!window.confirm(fill(tr('{0} 판으로 되돌립니다. 되돌리기 자체도 이력에 남습니다.'), { 0: localTime(changedAt) }))) return;
+    if (!window.confirm(fill(tr('{0} 버전으로 되돌립니다. 되돌리기 자체도 이력에 남습니다.'), { 0: localTime(changedAt) }))) return;
     const done = await run(async () => {
       await api.restore(packageId, historyFor.submodelId, changedAt);
       return true;

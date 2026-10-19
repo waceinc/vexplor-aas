@@ -131,13 +131,13 @@ const EN: Record<string, string> = {
   '설치 코드': 'Setup code',
 
   // ── Trial · sign-up (2026-10-04) ──────────────────────────────────────
-  '체험판입니다': 'This is a trial server',
-  '체험판 안내': 'About the trial',
+  '체험 버전입니다': 'This is a trial server',
+  '체험 버전 안내': 'About the trial',
   '가입 없이 바로 써 볼 수 있습니다': 'Try it now — no sign-up needed',
   '아이디': 'ID',
   '데모 계정으로 들어가기': 'Enter with the demo account',
   '열기 · 고치기 · 검사 · 자동 고치기 — 전부 됩니다': 'Open, edit, validate and quick-fix — all available',
-  '체험판은 일정 시간 후 초기화됩니다': 'The trial is reset after a while',
+  '체험 버전은 일정 시간 후 초기화됩니다': 'The trial is reset after a while',
   '견본은 회원가입 후 사용할 수 있습니다.': 'Samples are available after you sign up.',
   '파일 내려받기는 회원가입 후에 됩니다': 'Downloading files requires signing up',
   '또는 내 계정으로 로그인': 'or sign in with your own account',
@@ -221,7 +221,7 @@ const EN: Record<string, string> = {
   '고치기 전 (요소 {n}개)': 'before edit ({n} elements)',
   '이 시점의 내용으로 되돌립니다 — 그 뒤에 고친 것은 사라집니다':
     'Restores the contents as of this point — anything changed after it is lost',
-  '이 판으로 되돌리기': 'Restore this version',
+  '이 버전으로 되돌리기': 'Restore this version',
   '되돌리기 자체도 이력에 남습니다 — 되돌린 것을 또 되돌릴 수 있습니다.':
     'Restoring is itself recorded, so a restore can be undone again.',
   '대표 사진 (defaultThumbnail)': 'Thumbnail (defaultThumbnail)',

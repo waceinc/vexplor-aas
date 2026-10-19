@@ -952,7 +952,7 @@ describe('submodel import (template import)', () => {
     const other = readAasx(goldenBytes);
     const np = other.environment.submodels!.find((sm) => sm.idShort === 'DigitalNameplate')!;
     np.administration = { version: '2', revision: '0' };
-    const created = await call('POST', '/packages', { body: writeAasx(other), query: { name: '옛판.aasx' } });
+    const created = await call('POST', '/packages', { body: writeAasx(other), query: { name: '옛버전.aasx' } });
     const again = await call('POST', `/packages/${targetId}/import-submodel`, {
       body: { sourcePackageId: created.body.packageId, submodelId: nameplateId },
     });

@@ -2,7 +2,7 @@
 export const EN_INTEGRATION_API: Record<string, string> = {
   // Boot and status
   'INTEGRATIONS=on이 아닙니다 — 이벤트 기록과 피드만 동작합니다.': 'INTEGRATIONS=on is not set — only event recording and the feed work.',
-  '체험판(DEMO_MODE=on)에서는 연동을 켜지 않습니다.': 'Integrations are not started in trial mode (DEMO_MODE=on).',
+  '체험 버전(DEMO_MODE=on)에서는 연동을 켜지 않습니다.': 'Integrations are not started in trial mode (DEMO_MODE=on).',
   // '이 저장소는 연동 기능을 지원하지 않습니다.' is in integration-exports.ts (one key, one dictionary)
   '웹훅 비밀값을 잠그는 키: {0} — 데이터 폴더 백업에 이 키도 들어갑니다.':
     'Key that seals webhook secrets: {0} — backups of the data folder contain this key too.',
@@ -25,7 +25,7 @@ export const EN_INTEGRATION_API: Record<string, string> = {
   '주소를 읽지 못했습니다: {0}': 'Could not read the address: {0}',
   '{0} 구독에는 {1} 주소만 쓸 수 있습니다.': 'A {0} subscription accepts only {1} addresses.',
   '웹훅 주소에는 사용자 이름이나 비밀번호를 넣을 수 없습니다.': 'A webhook address cannot contain a user name or password.',
-  '체험판에서는 외부로 연결하지 않습니다.': 'The trial edition makes no outbound connections.',
+  '체험 버전에서는 외부로 연결하지 않습니다.': 'The trial edition makes no outbound connections.',
   '{0}은(는) 이 서버 자신입니다 — 연결하지 않습니다.': '{0} is this server itself — not connecting.',
   '{0}의 주소를 찾지 못했습니다: {1}': 'Could not resolve {0}: {1}',
   '{0}({1})은(는) 루프백·링크 로컬·멀티캐스트 주소라 연결하지 않습니다.':

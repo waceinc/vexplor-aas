@@ -7,9 +7,11 @@
  *    refuses (409) and the card reloads the list.
  * Important: after the command is made the card watches the device list every 3 s and shows the new device the moment
  *    it registers — the person does not have to come back and look.
+ * Important: one code, two commands — Linux and Windows tabs show the same server and code; whichever is pasted first
+ *    uses the code. Windows needs VEXPLOR Edge 1.2.0 (its first Windows package), and the tab says so.
  */
 import { useEffect, useState } from 'react';
-import { edgeApi, installCommand, unsafeForCommand, type EdgeCode, type EdgeDeviceView, type EdgeStatus } from '../../api/edge.js';
+import { EDGE_WINDOWS_FROM, edgeApi, installCommand, installCommandWindows, unsafeForCommand, type EdgeCode, type EdgeDeviceView, type EdgeOs, type EdgeStatus } from '../../api/edge.js';
 import { fill, tr } from '../../i18n.js';
 import { ErrorNote, when } from '../integrations/common.js';
 import { HealthBadge } from './DeviceRow.js';
@@ -19,12 +21,13 @@ function CommandBox({ command }: { command: string }): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   return (
     <div className="edge-command">
-      {/* Each word stays whole — a browser would otherwise break after the hyphen of `--server` */}
+      {/* Each word stays whole — a browser would otherwise break after the hyphen of `--server`. A word too long for a
+          narrow window (the Windows line's TLS setting) may break anywhere instead of running out of the box */}
       <code aria-label={tr('설치 명령')}>
         {command.split(' ').map((word, index) => (
           <span key={index}>
             {index > 0 ? ' ' : ''}
-            <span className="edge-word">{word}</span>
+            <span className={word.length > 40 ? 'edge-word-long' : 'edge-word'}>{word}</span>
           </span>
         ))}
       </code>
@@ -62,6 +65,7 @@ export function ConnectCard({ status, origin, knownIds, devices, onReload, onClo
   const [made, setMade] = useState<EdgeCode>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
+  const [os, setOs] = useState<EdgeOs>('linux');
 
   // While waiting for the factory PC: read the device list every 3 s
   useEffect(() => {
@@ -92,12 +96,41 @@ export function ConnectCard({ status, origin, knownIds, devices, onReload, onClo
   };
 
   if (made) {
-    const command = installCommand(server.replace(/\/+$/, ''), made.code, proxy || undefined);
+    const address = server.replace(/\/+$/, '');
+    const command = os === 'windows' ? installCommandWindows(address, made.code, proxy || undefined) : installCommand(address, made.code, proxy || undefined);
     return (
       <section className="edge-connect">
         <h3>{tr('공장 PC에 이 한 줄을 붙여 넣으십시오')}</h3>
-        <p className="hint">{tr('Linux PC(x64 · arm64)의 터미널에 붙여 넣으면 설치 · 등록 · 시작까지 한 번에 끝납니다. 관리자 비밀번호(sudo)를 한 번 묻습니다.')}</p>
-        <CommandBox command={command} />
+        <div className="edge-os-tabs" role="tablist" aria-label={tr('공장 PC의 운영체제')}>
+          {(['linux', 'windows'] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="tab"
+              id={`edge-os-${item}`}
+              aria-selected={os === item}
+              aria-controls="edge-os-panel"
+              className={os === item ? 'active' : ''}
+              onClick={() => setOs(item)}
+            >
+              {item === 'windows' ? 'Windows' : 'Linux'}
+            </button>
+          ))}
+        </div>
+        <div id="edge-os-panel" role="tabpanel" aria-labelledby={`edge-os-${os}`} className="edge-os-panel">
+          {os === 'windows' ? (
+            <>
+              <p className="hint">
+                {tr('Windows PC(x64)에서 명령 프롬프트나 PowerShell 을 「관리자 권한으로 실행」으로 열고 붙여 넣으면 설치 · 등록 · 서비스 시작까지 한 번에 끝납니다. 실행 정책은 바꾸지 않습니다.')}
+              </p>
+              <p className="note">{fill(tr('VEXPLOR Edge {0} 부터 — 그 버전이 나오기 전에는 이 명령이 동작하지 않습니다.'), { 0: EDGE_WINDOWS_FROM })}</p>
+            </>
+          ) : (
+            <p className="hint">{tr('Linux PC(x64 · arm64)의 터미널에 붙여 넣으면 설치 · 등록 · 시작까지 한 번에 끝납니다. 관리자 비밀번호(sudo)를 한 번 묻습니다.')}</p>
+          )}
+          {/* A new box per tab, so "Copied" never stands next to the command that was not copied */}
+          <CommandBox key={os} command={command} />
+        </div>
         <p className="dim small">
           {fill(tr('{0}까지 한 번만 쓸 수 있는 명령입니다.'), { 0: when(made.expiresAt) })}{' '}
           {made.preapproved

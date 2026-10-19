@@ -124,7 +124,7 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Direct children of a SubmodelElementList must not have an idShort',
   'SubmodelElementList의 직계 자식에 idShort가 있습니다: {0}':
     'A direct child of a SubmodelElementList has an idShort: {0}',
-  'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.':
+  'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.':
     'Remove the idShort. List children are addressed by index (AASd-120). Removing it does not affect the KOSMO rules, and lets the file load in BaSyx and pass standard validators. However, changing a file that already received a Validator result changes the file, so fix it in the next version and have it validated again.',
   '정책(forbid) — 표준 준수·상호운용을 우선합니다.':
     'Policy (forbid): standard compliance and interoperability come first.',

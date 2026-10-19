@@ -97,7 +97,7 @@ export function startIntegrations(options: StartIntegrationsOptions): Integratio
   const reason = !wanted
     ? tr('INTEGRATIONS=on이 아닙니다 — 이벤트 기록과 피드만 동작합니다.')
     : options.demo
-      ? tr('체험판(DEMO_MODE=on)에서는 연동을 켜지 않습니다.')
+      ? tr('체험 버전(DEMO_MODE=on)에서는 연동을 켜지 않습니다.')
       : !supported
         ? tr('이 저장소는 연동 기능을 지원하지 않습니다.')
         : undefined;

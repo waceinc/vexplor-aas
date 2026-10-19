@@ -212,7 +212,7 @@ function targetOf(url: string, kind: SubscriptionKind): { parsed: URL; host: str
 
 /** Decides whether `url` may be connected to now, and which address to pin */
 export async function checkTarget(url: string, kind: SubscriptionKind, policy: EgressPolicy): Promise<EgressCheck> {
-  if (policy.demo) return { ok: false, reason: tr('체험판에서는 외부로 연결하지 않습니다.') };
+  if (policy.demo) return { ok: false, reason: tr('체험 버전에서는 외부로 연결하지 않습니다.') };
   const target = targetOf(url, kind);
   if ('reason' in target) return { ok: false, reason: target.reason };
   const { host, port, tls } = target;

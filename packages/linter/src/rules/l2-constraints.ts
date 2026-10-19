@@ -516,7 +516,7 @@ export const aasd120SmlChildIdShort: Rule = {
         message: fill(tr('SubmodelElementList의 직계 자식에 idShort가 있습니다: {0}'), { 0: idShort }),
         // Important: fixing a file that already passed the Validator changes its hash — bundles compare against the original bytes (2026-09-30)
         remedy: tr(
-          'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.',
+          'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 버전에서 고치고 Validator를 다시 받으십시오.',
         ),
         fixable: true,
         policyNote:
@@ -528,7 +528,7 @@ export const aasd120SmlChildIdShort: Rule = {
           // Only for a version guessed from content (JSON has no marker) — a caller that passed no version keeps
           // the exact text it always got
           (ctx.metamodel.source === 'content'
-            ? ' ' + tr('파일에 메타모델 판 표시가 없어 내용으로 3.0 이라고 보고 검사했습니다. 3.1 이상 파일에는 이 제약이 없습니다.')
+            ? ' ' + tr('파일에 메타모델 버전 표시가 없어 내용으로 3.0 이라고 보고 검사했습니다. 3.1 이상 파일에는 이 제약이 없습니다.')
             : ''),
       });
     }

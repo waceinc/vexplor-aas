@@ -147,7 +147,7 @@ export function helpTopics(): HelpTopic[] {
         tr('화면에 「받는 중」이 뜨면 끝입니다. 이후 마지막 수신 · 설비 연결 상태를 같은 화면에서 봅니다'),
         tr('줄마다 정상 · 주의 · 위험 배지와 이유가 나오고, 「상태 자세히」를 누르면 공장 PC · 서버 통신 · 설비별 숫자와 최근 24시간 추이가 보입니다(수집기 1.1.0 이상)'),
       ],
-      note: tr('수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. 지금은 Linux(x64 · arm64)용이고 Windows용은 준비 중입니다.'),
+      note: tr('수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. Linux(x64 · arm64)용이고, Windows(x64)용은 VEXPLOR Edge 1.2.0 부터입니다.'),
       link: { label: tr('VEXPLOR Edge 안내'), href: EDGE_GUIDE[currentLang()] },
     },
     {

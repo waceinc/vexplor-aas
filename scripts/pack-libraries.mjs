@@ -1,6 +1,6 @@
 /**
  * Packs the reusable libraries — the AAS model, AASX reading/writing, the validation rules, the integration bundle
- * builder and the equipment readers (AID, OPC UA, Modbus TCP, MQTT) — as npm tarballs that another product installs
+ * builder and the equipment readers (AID, OPC UA, Modbus TCP, MQTT, S7, MC) — as npm tarballs that another product installs
  * **from the GitHub release**, without a registry. The remote collector (github.com/waceinc/vexplor-edge) is built on
  * the readers, so it reads equipment exactly as this server's own collector does.
  *
@@ -213,7 +213,7 @@ import { readAasx } from '@aas/aasx';
 import { ALL_RULES, lint } from '@aas/linter';
 import { aidReadList, buildBundle } from '@aas/bundle';
 import { buildAidSubmodel } from '@aas/collector';
-import { ModbusReader, MqttReader } from '@aas/fieldbus';
+import { McReader, ModbusReader, MqttReader, S7Reader } from '@aas/fieldbus';
 import { OpcUaReader } from '@aas/opcua';
 const pkg = readAasx(new Uint8Array(readFileSync(${JSON.stringify(fixture)})));
 const shells = pkg.environment.assetAdministrationShells ?? [];
@@ -229,8 +229,8 @@ const aid = buildAidSubmodel({ assetName: 'Unit', iriBase: 'https://example.com/
 pkg.environment.submodels.push(aid);
 const aidList = aidReadList(pkg.environment, 'pkg_1');
 if (aidList.length !== 1 || aidList[0].tags.length !== 1) throw new Error('the AID built by @aas/collector was not read back');
-for (const [name, reader] of Object.entries({ OpcUaReader, ModbusReader, MqttReader })) if (typeof reader?.connect !== 'function') throw new Error(name + ' missing');
-console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length, readListInterfaces: readList.length, readers: 3 }));
+for (const [name, reader] of Object.entries({ OpcUaReader, ModbusReader, MqttReader, S7Reader, McReader })) if (typeof reader?.connect !== 'function') throw new Error(name + ' missing');
+console.log(JSON.stringify({ version: PRODUCT_VERSION, shells: shells.length, rules: ALL_RULES.length, findings: result.findings.length, bundleParts: bundle.manifest.parts.length, readListInterfaces: readList.length, readers: 5 }));
 `,
   );
   const result = execFileSync('node', ['check.mjs'], { cwd: project, encoding: 'utf8' }).trim();

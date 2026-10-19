@@ -39,7 +39,7 @@ does not end as a document but becomes **operating data with live values from th
 
 | What people hit on the floor | In VEXPLOR AAS Studio |
 |---|---|
-| Attaching to machines and PLCs that already run | Collects from OPC UA, Modbus TCP and MQTT per the AID in the AAS. The remote collector sends outward only; PLC programs are not changed |
+| Attaching to machines and PLCs that already run | Collects from OPC UA, Modbus TCP and MQTT per the AID in the AAS, and reads S7 and MELSEC (MC protocol) PLCs directly — read only, a VEXPLOR extension binding. The remote collector sends outward only; PLC programs are not changed |
 | Building an AAS by hand | Start from a filled sample, fill values at once from tables or CSV; 52 rules point out problems and 19 fix them automatically |
 | One tool per job | Open, edit, check, Part 2 REST, field value collection and OPC UA publishing in one screen |
 | Passing the standard, failing the receiver | Checks the Korean receiving validator's (KOSMO Validator) business rules — semantic ID allow-list, mandatory submodels, package structure — before submission, and shows conflicts with the standard as a policy the user decides |
@@ -61,16 +61,19 @@ whenever machines change — and they too report that creating the AAS itself is
 | **Undo & history** | One-step undo, and restore a submodel to an earlier point |
 | **Types and units** | Split a type file into units; when the type changes, review the differences line by line and pull only the lines you choose — values edited on site are never overwritten |
 | **Process bundles** | Company → line → process → equipment → part. Group machines into a process and export a submission bundle |
-| **Data collection** | Read live values from OPC UA · Modbus TCP · MQTT devices, addressed by the AID submodel inside the AAS. Each value shows whether it is live, stale or missing, and each machine gets a daily status bar (running · stopped · alarm). Add dozens of tags from one pattern |
+| **Data collection** | Read live values from OPC UA · Modbus TCP · MQTT devices, and directly from S7 and MELSEC (MC protocol) PLCs — read only, a VEXPLOR extension binding not yet checked on real PLCs — addressed by the AID submodel inside the AAS. Each value shows whether it is live, stale or missing, and each machine gets a daily status bar (running · stopped · alarm). Add dozens of tags from one pattern |
 | **Standard API** | IDTA Part 2 REST API, so other systems can read the AAS held here |
 | **MES · ERP · CMMS integration** | A pull feed of every change and runtime event (CloudEvents), signed webhooks and MQTT, equipment / BOM / hierarchy / maintenance / document exports in JSON or CSV, ERP numbers kept next to the AASX, and server-side state, alarm, counter and threshold rules. A secure OPC UA server (accounts + encryption). See [docs/integration.md](docs/integration.md) |
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 – 2.9
+## What's new in 2.3 – 2.10
 
 | Feature | Release | Detail |
 |---|---|---|
+| **S7 and MC protocol, read directly** | 2.10.0 | Siemens S7-300 / 400 / 1200 / 1500 (ISO-on-TCP) and MELSEC Q · L · iQ-R · iQ-F (MC protocol 3E binary) are read without a gateway — read only. Addresses are written as the engineering tool shows them (`DB10.DBD4:REAL`, `D100`, `D10.3`). AID 1.1 has no binding for either, so this is a VEXPLOR extension binding, marked by our binding IRI; other AID tools do not read these interfaces. Tested against test servers built from the published formats — not yet checked on real PLCs. The server reads them with `COLLECT=on`, and the remote collector from VEXPLOR Edge 1.2.0 — [usage §8](docs/usage.md) |
+| **Remote collector on Windows** | 2.10.0 | **Settings → Remote collectors → "+ Connect a collector"** has a **Linux** and a **Windows** tab. The Windows tab gives one line for Command Prompt or PowerShell (run as administrator) that downloads, checks the hash, installs and starts the Windows service — it changes no execution policy. Needs **VEXPLOR Edge 1.2.0 or later** (Windows x64), whose service install is tested on GitHub's Windows runners; not yet on a factory PC — [remote collector install](docs/edge-install.md) |
+| **S7 and MC in the edge contract** | 2.10.0 | The read list's `protocol` adds `S7` and `MC`; the contract stays `vexplor.edge/1`. An edge older than 1.2.0 does not read such an interface, reports why (`S7 is not read by this edge yet`) and keeps reading the others — [contract §4](docs/edge-contract.md) |
 | **AAS metamodel V3.0 · V3.1 · V3.2** | 2.9.0 | Opens files of all three versions — an XML file by its namespace, a JSON file (no version marker) by the lowest version that holds its content — and remembers the version each file came in as. **Download AASX** writes that version unless you pick another; new equipment, samples and passport templates are V3.1, the version KOSMO asks for. Writing a lower version lists every field it leaves out, with its value, and refuses values it cannot express (assetKind `Role` or `Batch`, a missing `entityType` …) unless you tick "download with the values as they are". V3.1 · V3.2 output is checked against the official JSON schemas in the tests — the official validator aas-test-engines 1.0.3 checks V3.0 only. [Usage §4-10](docs/usage.md#4-10-download-aasx--submission-checklist) |
 | **Product passport (DPP) templates and checks** | 2.9.0 | **"Start from a product passport (DPP) template"** on the start screen opens one of eight IDTA templates as published (CC BY 4.0): DPP Part 1 metadata (IDTA 02099-1 1.0.2) and the seven parts of the battery passport (IDTA 02035-1 – 7). Rules `DPP-1` – `DPP-5` check the passport metadata: the seven mandatory items, granularity (Model · Item · Batch), `lastUpdate` in UTC, content specification ids, and granularity against the shell's assetKind. This supports writing and checking passport data; it is not a verdict on conformity with the EU DPP regulation |
 | **Checks follow the file's version** | 2.9.0 | [52 rules](docs/rules.md), up from 44. `AASd-090` and `AASd-120`, removed in V3.1, apply to V3.0 files only; `PKG-FILE-URI` and the idShort pattern follow each version's official schema; new `AASd-137` · `AASd-138` for V3.2 and `PKG-MM-VERSION` for content the declared version cannot hold (a V3.2 `Batch` in a V3.0 file). Below V3.2, `AASd-119/129` now also look inside Operation variables |
@@ -167,7 +170,7 @@ A TypeScript monorepo — one language for the front end and the server.
 | `packages/store` | Storage — in-memory, folder and PostgreSQL pass the same conformance suite |
 | `packages/collector` | Resolves AID and collects field values |
 | `packages/opcua` | OPC UA client and server ([node-opcua](https://github.com/node-opcua/node-opcua)) |
-| `packages/fieldbus` | Modbus TCP · MQTT collection adapters (no external dependencies — `node:net`) · test device and broker |
+| `packages/fieldbus` | Modbus TCP · MQTT · S7 · MC protocol collection adapters, read only (no external dependencies — `node:net`) · test device and broker |
 | `apps/api` | REST API server |
 | `apps/web` | React front end |
 
@@ -179,7 +182,7 @@ uses them) are attached to each GitHub release as npm tarballs (`node scripts/pa
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.9.0/aas-aasx-2.9.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.10.0/aas-aasx-2.10.0.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would
@@ -191,7 +194,7 @@ enough.
 When the server is outside the factory (cloud, head office), put **VEXPLOR Edge** on one factory PC — its own open
 source, [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge). It reads only the PLCs of an approved list and
 sends signed batches out over HTTPS — outbound only, no remote stop. Connecting is one button and one pasted line under
-**Settings → Remote collectors → "+ Connect a collector"** (Linux x64 · arm64; Windows in preparation). This server's
+**Settings → Remote collectors → "+ Connect a collector"** (Linux x64 · arm64; Windows x64 from VEXPLOR Edge 1.2.0). This server's
 side: [docs/edge-install.md](docs/edge-install.md); the contract copy: [docs/edge-contract.md](docs/edge-contract.md).
 
 ## Standards
@@ -202,10 +205,22 @@ side: [docs/edge-install.md](docs/edge-install.md); the contract copy: [docs/edg
 | Checking a written file | V3.0: the official validator aas-test-engines 1.0.3, which checks **V3.0 only**. V3.1 · V3.2: the official JSON schemas of admin-shell-io/aas-specs-metamodel (v3.1.2 · v3.2.0) in this repository's tests — aas-test-engines does not check those versions yet |
 | AASX package (IDTA-01005) | Reads JSON and XML, writes JSON. For V3.1 · V3.2, attachment names with spaces or non-ASCII letters are percent-encoded (RFC 3986, UTF-8) together with their parts and relationships — those versions accept only URIs |
 | **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · partial Registry and Discovery. Served under `/api/v3.0` and, for V3.1 · V3.2 clients, `/api/v3` (same routes). Endpoints new in V3.2 (`$recent-changes`, `$history`, `$signed`, asynchronous package operations) are not implemented and answer 404 |
-| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT address resolution (Modbus · MQTT use the W3C WoT binding notation) |
+| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT address resolution (Modbus · MQTT use the W3C WoT binding notation). S7 and MC are **not** AID bindings — a VEXPLOR extension in the standard `base` / `href` places, marked by our binding IRI ([docs/usage.md](docs/usage.md) §8) |
 
 `node scripts/part2-coverage.mjs` compares the implementation against the specification's OpenAPI
 files and prints the exact coverage.
+
+### Protocols
+
+| Protocol | Equipment | Server (`COLLECT=on`) | Remote collector (VEXPLOR Edge) | Basis |
+|---|---|---|---|---|
+| OPC UA | Any OPC UA server | Yes | Yes | AID 1.1 |
+| Modbus TCP | Modbus TCP devices | Yes | Yes | AID 1.1 (W3C WoT binding notation) |
+| MQTT | MQTT brokers | Yes | Yes | AID 1.1 (W3C WoT binding notation) |
+| S7 (ISO-on-TCP, S7comm) | Siemens S7-300 · 400 · 1200 · 1500 | Yes (2.10.0) | Edge 1.2.0 or later | VEXPLOR extension binding — tested against test servers only, not yet on real PLCs |
+| MC protocol (3E binary) | MELSEC Q · L · iQ-R · iQ-F | Yes (2.10.0) | Edge 1.2.0 or later | VEXPLOR extension binding — tested against test servers only, not yet on real PLCs |
+
+All of them are read only. HTTP and BACnet interfaces in an AID are recognised but not collected.
 
 ## Things to know
 

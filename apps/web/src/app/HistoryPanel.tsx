@@ -45,7 +45,7 @@ export function HistoryPanel({ t, label, entries, busy, onRestore, onClose }: Pr
                 title={t('이 시점의 내용으로 되돌립니다 — 그 뒤에 고친 것은 사라집니다')}
                 onClick={() => onRestore(entry.changedAt)}
               >
-                {t('이 판으로 되돌리기')}
+                {t('이 버전으로 되돌리기')}
               </button>
             </li>
           ))}

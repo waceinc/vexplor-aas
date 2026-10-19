@@ -38,7 +38,7 @@ export function ServerStatusSection(): React.JSX.Element | null {
       {status && (
         <dl className="server-status">
           <div className="edge-fact">
-            <dt>{tr('서버 판')}</dt>
+            <dt>{tr('서버 버전')}</dt>
             <dd>{status.version}</dd>
           </div>
           <div className="edge-fact">

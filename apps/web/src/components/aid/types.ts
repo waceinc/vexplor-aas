@@ -16,6 +16,8 @@ export interface TagRow {
    * ABCD (default, high word and byte first) · CDAB · BADC · DCBA — the names Modbus tools use.
    */
   order?: ModbusOrder;
+  /** S7 · MC only — the PLC data type joined to the address on "Create" (`DB10.DBD4` + `REAL`); '' = the address default */
+  plcType?: string;
   /** Form fields kept from an existing link ("Edit link") that the screen does not show — written back unchanged */
   keep?: Record<string, string>;
 }

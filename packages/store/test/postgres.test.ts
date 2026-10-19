@@ -296,7 +296,7 @@ describe('schema version number (schema_version)', () => {
 
     const later = new PostgresStore(clientOf(db));
     await expect(later.init()).rejects.toBeInstanceOf(SchemaVersionError);
-    await expect(later.init()).rejects.toThrow(/판올림/);
+    await expect(later.init()).rejects.toThrow(/버전을 올리/);
     expect(later.schemaVersion).toBeUndefined();
   });
 });

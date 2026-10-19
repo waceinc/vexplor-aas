@@ -8,6 +8,7 @@
  */
 import type { AidInterfaceView, AidSecurityChoice } from '../../api.js';
 import { fill, tr } from '../../i18n.js';
+import { plcHrefOf, plcWotType, splitPlcHref } from './plc.js';
 import { orderFields, orderOf, protocolOfEndpoint, statedPollingMs, type AidProtocolChoice } from './protocol.js';
 import type { TagRow } from './types.js';
 
@@ -26,7 +27,8 @@ export function editableInterface(interfaces: readonly AidInterfaceView[]): AidI
 }
 
 export function rowsOf(iface: AidInterfaceView): TagRow[] {
-  const modbus = protocolOfEndpoint(iface.base ?? '') === 'MODBUS';
+  const protocol = protocolOfEndpoint(iface.base ?? '');
+  const modbus = protocol === 'MODBUS';
   return iface.properties.flatMap((property) => {
     if (!property.href) return [];
     const fields = property.formFields ?? {};
@@ -38,6 +40,11 @@ export function rowsOf(iface: AidInterfaceView): TagRow[] {
       row.entity = fields['modv_entity'] ?? FUNCTION_ENTITY[(fields['modv_function'] ?? '').toLowerCase()] ?? 'HoldingRegister';
       row.dataType = fields['modv_type'] ?? 'xsd:unsignedShort';
       row.order = orderOf(fields);
+    }
+    if (protocol === 'S7' || protocol === 'MC') {
+      const { address, plcType } = splitPlcHref(protocol, property.href);
+      row.href = address;
+      row.plcType = plcType;
     }
     return [row];
   });
@@ -75,6 +82,15 @@ export function formFor(protocol: AidProtocolChoice | undefined, row: TagRow): {
   }
   if (protocol === 'MQTT') return { form: { ...keep, mqv_controlPacket: 'subscribe' } };
   return {};
+}
+
+/** The href and AID type to send — S7 · MC join address and data type, the rest send the row as typed */
+export function tagAddressOf(protocol: AidProtocolChoice | undefined, row: TagRow): { href: string; type: string } {
+  if (protocol === 'S7' || protocol === 'MC') {
+    const href = plcHrefOf(row.href, row.plcType);
+    return { href, type: plcWotType(protocol, href) };
+  }
+  return { href: row.href.trim(), type: row.type };
 }
 
 /** The security to send — nothing when nothing is chosen, so a plain link stays the same AID as before 2.8.0 */

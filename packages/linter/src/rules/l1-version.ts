@@ -62,7 +62,7 @@ export const pkgMetamodelVersion: Rule = {
   id: 'PKG-MM-VERSION',
   layer: 'L1',
   get title() {
-    return tr('선언한 메타모델 판이 파일 내용을 담을 수 있어야 한다 — 3.0 선언 파일에 3.2 의 Batch · createdAt 등');
+    return tr('선언한 메타모델 버전이 파일 내용을 담을 수 있어야 한다 — 3.0 선언 파일에 3.2 의 Batch · createdAt 등');
   },
   source: SOURCE,
   check(ctx, report) {

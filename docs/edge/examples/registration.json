@@ -2,7 +2,7 @@
   "schema": "vexplor.edge.registration/1",
   "deviceId": "dev_8Q2K7M4N",
   "registeredAt": "2026-10-16T08:59:30.000Z",
-  "server": { "tool": "VEXPLOR AAS Studio", "version": "2.9.0", "contract": "vexplor.edge/1" },
+  "server": { "tool": "VEXPLOR AAS Studio", "version": "2.10.0", "contract": "vexplor.edge/1" },
   "limits": { "maxBatchBytes": 1048576, "maxSamplesPerBatch": 5000, "requestsPerMinute": 60 },
   "readList": { "path": "/edge/v1/read-list", "pollSeconds": 60 }
 }

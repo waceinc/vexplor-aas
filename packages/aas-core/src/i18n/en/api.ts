@@ -14,7 +14,7 @@ export const EN_API: Record<string, string> = {
     'Sign-in required. Machines should send an Authorization: Bearer <API key> header.',
   '읽기 전용 토큰으로는 고칠 수 없습니다.': 'A read-only token cannot make changes.',
   '토큰이 올바르지 않습니다.': 'The token is not valid.',
-  '체험판에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.':
+  '체험 버전에서는 도구 안의 가상 PLC에만 연결할 수 있습니다. 실제 설비 연결은 직접 설치한 서버에서 하십시오.':
     'On the trial server you can only connect to the built-in virtual PLC. Connect real equipment from a server you install yourself.',
   '다른 사이트에서 보낸 요청은 받지 않습니다. 브라우저 주소창의 주소로 직접 접속하십시오.':
     'Requests sent from another site are not accepted. Open this server directly from the browser address bar.',
@@ -219,7 +219,7 @@ export const EN_API: Record<string, string> = {
   '바꾼 항목 {0}': 'changed: {0}',
   '본문이 상한({0} 바이트)을 넘었습니다.': 'The body exceeds the limit ({0} bytes).',
   '아직 지원하지 않는 프로토콜입니다: {0}': 'Protocol not supported yet: {0}',
-  '체험판(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.':
+  '체험 버전(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.':
     'OPC UA exposure is not enabled on the trial server (DEMO_MODE=on) — that port has no authentication.',
   'OPC UA 서버를 띄우지 못했습니다: {0}': 'Could not start the OPC UA server: {0}',
   'OPC UA 서버를 띄우는 중입니다.': 'Starting the OPC UA server.',
@@ -239,7 +239,7 @@ export const EN_API: Record<string, string> = {
   '1분 · 1시간 집계 ({0}일 뒤까지 반영)': '1-minute and 1-hour aggregates (late values up to {0} days)',
   '압축 · 집계 끔': 'compression and aggregates off',
   끔: 'off',
-  '{0} · 스키마 {1}판': '{0} · schema v{1}',
+  '{0} · 스키마 버전 {1}': '{0} · schema v{1}',
   '체험 서버 정리 — {0}분 넘게 안 쓴 방문자 파일 {1}개를 지웠습니다.':
     'Trial server cleanup — deleted {1} visitor file(s) unused for over {0} min.',
   '체험 서버 정리 실패: {0}': 'Trial server cleanup failed: {0}',
@@ -266,7 +266,7 @@ export const EN_API: Record<string, string> = {
   '보존 기간 없음(영구 보관) — 오래된 값을 지우려면 COLLECT_RETENTION_DAYS=<일>':
     'No retention period (kept forever) — to delete old values, COLLECT_RETENTION_DAYS=<DAYS>',
   '수집값 보존 기간 {0}일 — 기동 때 {1}개 정리': 'Collected value retention {0} days — pruned {1} at startup',
-  'OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).':
+  'OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험 버전에서는 띄우지 않습니다(인증이 없는 포트입니다).':
     'OPC UA exposure (M6·M7) — **not enabled.** It is not started on the trial server (the port has no authentication).',
   'OPC UA 노출(M6·M7) 켜짐 — opc.tcp://<이 서버>:{0}/UA/AAS · {1}초마다 갱신':
     'OPC UA exposure (M6·M7) on — opc.tcp://<this server>:{0}/UA/AAS · refreshed every {1} s',
@@ -274,7 +274,7 @@ export const EN_API: Record<string, string> = {
     'Upstream apps (MES, SCADA) receive values by subscription · GET /opcua-status',
   '이 포트에는 인증이 없습니다. 사내망 밖으로 열지 마십시오.':
     'This port has no authentication. Do not expose it outside the internal network.',
-  '체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.':
+  '체험 버전(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.':
     'Started as a trial server (DEMO_MODE=on) — a public setup for people to try out.',
   '데모 계정: {0} / {1}  ({2})': 'Demo account: {0} / {1}  ({2})',
   '지금 만들었습니다': 'just created',

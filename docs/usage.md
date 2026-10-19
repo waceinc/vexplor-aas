@@ -705,9 +705,45 @@ The AID defines **where to connect and what to read** (address, NodeId, register
 | OPC UA | `opc.tcp://host:4840` | NodeId `ns=1;s=Machine.MotorSpeed` | "Load from equipment" browses the tags |
 | Modbus TCP | `modbus+tcp://host:502/1` (last number = unit ID) | `40` · `1/40` · `1/40?quantity=2` | Choose the register kind (holding · input · coil · discrete input) and data type per row. Conventional addresses like `40001` are converted to kind + zero-based address |
 | MQTT | `mqtt://host:1883` · `mqtts://…` | topic `plant/press/temp` (no wildcards) | Reads the **last value** the device sent. A topic that has not arrived yet shows "Waiting for a value". For a broker that wants a login, turn on "Login required" (8-1) — never put the user name and password in the address |
+| S7 (VEXPLOR extension) | `s7://host[:102]?rack=0&slot=1` | absolute address + type `DB10.DBD4:REAL` · `M10.3` · `MW20:INT` | S7-300 / 400 / 1200 / 1500 over ISO-on-TCP. See "S7 and MC" below |
+| MC protocol (VEXPLOR extension) | `melsec://host:port?series=Q` | device + type `D100` · `D200:REAL` · `D10.3` · `X1F` | MELSEC Q · L · iQ-R · iQ-F, 3E frame binary. See "S7 and MC" below |
 
 The Modbus and MQTT notation follows the W3C WoT bindings (used by the AID), and the tool reads them itself without external libraries (read only — it never writes to the machine).
 Vendor-specific protocols such as LS XGT FEnet are not supported yet — enable the machine's Modbus TCP or OPC UA server instead.
+
+**S7 and MC — read directly, without a gateway.** Siemens S7 and MELSEC PLCs can be read as they are. Read only: the
+tool sends only read requests (S7 "Read Var", MC "Batch read") and never changes the PLC program or its values.
+
+- **This is a VEXPLOR extension, not a standard binding.** AID 1.1 (IDTA-02017) has no S7 or MC binding. The address
+  therefore sits in the places the AID already has — `base` for the PLC and `href` for what to read — and the interface
+  states our binding IRI (`urn:vexplor:aid:binding:s7` · `urn:vexplor:aid:binding:mc`) as a supplemental semanticId.
+  Another AID reader will not know how to read such an interface; it is meant for this tool and VEXPLOR Edge.
+- **S7 address** — `DB<n>.DB<X|B|W|D><byte>[.bit]`, `M`, `I` (or `E`), `Q` (or `A`) with the same size letters, then
+  optionally `:TYPE`. Without a type: `X` = BOOL, `B` = BYTE, `W` = WORD, `D` = DWORD. Types: BOOL · BYTE · CHAR · INT ·
+  UINT · WORD · DINT · UDINT · DWORD · REAL · LREAL · LINT · STRING[n] (STRING and 8-byte values start at a `B` or `D`
+  address). Values are big-endian, as the PLC holds them. The endpoint takes `rack` (0 – 7) and `slot` (0 – 31); the
+  default `rack=0&slot=1` fits S7-1200 / 1500, an S7-300 usually needs `slot=2`.
+  **S7-1200 / 1500:** turn on "Permit access with PUT/GET communication" in the CPU properties and turn off
+  "Optimized block access" for every DB you read — otherwise the CPU refuses and the row says so.
+- **MC address** — device `D` · `M` · `X` · `Y` · `W` · `R` and its number as GX Works shows it (`X` · `Y` · `W` in
+  hexadecimal; on iQ-F `X` · `Y` in octal — write `?series=iQ-F`), then optionally `:TYPE`. Word devices default to
+  INT; a bit of a word is `D10.3` (bit in hexadecimal, 0 – F); `M` · `X` · `Y` are BOOL only. Values spanning words are
+  read low word first. Strings `:STRING[n]` are n single-byte characters ending at the first NUL.
+  The endpoint must carry the **port** opened in the PLC's Ethernet settings (MC has no fixed port), set for
+  **binary** code and the 3E frame (on iQ-F: SLMP). `series` = `Q` (also L, the default) · `iQ-R` · `iQ-F`.
+- **Batching and limits.** S7 packs addresses into as few requests as the negotiated PDU size allows (at most 20 per
+  request) and splits a long value; MC merges neighbouring addresses on one device (at most 960 words or 7168 bits).
+  One bad address (missing DB, past the end of a device) fails alone with its reason (`ObjectDoesNotExist`,
+  `AddressOutOfRange (end code 0xC056)`). A connection that breaks or does not answer within the timeout is dropped
+  and opened again on the next read.
+- **What is verified.** The frames are tested against test servers built from the published formats (RFC 1006,
+  ISO 8073, the MELSEC communication protocol reference) — **not yet against real PLCs.** Try a line on your own PLC
+  before relying on it, and tell us what you find.
+- **Remote collector (VEXPLOR Edge).** From 2.10.0 S7 and MC interfaces are in the remote collector's read list
+  (`protocol` `S7` · `MC`, [edge-contract.md](edge-contract.md) §4). **VEXPLOR Edge 1.2.0 or later** reads them; an
+  older collector does not and shows "Machine connection error: S7 is not read by this edge yet", while its other
+  machines keep being read. Open TCP **102** (S7) or the MC port from the factory PC to the PLC. This server's automatic
+  collection (`COLLECT=on`) reads them too.
 
 The server must be started with **`COLLECT=on`**.
 
@@ -720,7 +756,7 @@ Without an AID, the right pane shows **"Create collection link"**.
 ![Create collection link](images/manual/en/m30-aid-new-browse.png)
 
 1. **① Endpoint of the machine (PLC)** — e.g. `opc.tcp://192.168.0.50:4840` · `modbus+tcp://192.168.0.20:502/1` · `mqtt://broker:1883`. **This is not the address the tool itself serves on (8-6)** — the tool blocks that
-2. **"Load from equipment"** (OPC UA) — connects to the machine and browses its tags. Current values and data types are shown so you can check what each one is. Nothing is changed. Modbus TCP and MQTT have no browse; add them by hand or by pattern in step 3
+2. **"Load from equipment"** (OPC UA) — connects to the machine and browses its tags. Current values and data types are shown so you can check what each one is. Nothing is changed. Modbus TCP, MQTT, S7 and MC have no browse; add them by hand or by pattern in step 3 (an S7 or MC row has an address box and a "PLC data type" select; an address the server would refuse is outlined)
    - Once an address is entered, a **how to connect** line appears below it (2.8.0). OPC UA has **"Security mode"** (None · Sign · SignAndEncrypt) and **"Security policy"** (Basic256Sha256 · Aes128_Sha256_RsaOaep · Aes256_Sha256_RsaPss), OPC UA and MQTT have **"Login required"**, and every protocol has **"Read period (s)"**. "Load from equipment" connects with the chosen security and login too — a machine without a None endpoint can be browsed
 
    ![How to connect — security mode, login, read period](images/manual/en/m42-aid-security.png)
@@ -910,12 +946,17 @@ machines of an approved list and sends to this server over HTTPS — outbound on
 1. **Settings → Remote collectors (VEXPLOR Edge)**. If it is off, an admin presses **"Turn on remote collection"**.
 2. **"+ Connect a collector"** — check this server's address as the factory PC reaches it (**https**) and the read
    list, then **"Make the connect command"**. With "Approve this list so it reads at once" ticked, approval is done too.
-3. **Paste the one line into a terminal on the factory Linux PC** — download, hash check, install, register and start
-   in one go.
+3. Choose the factory PC's tab (**Linux** · **Windows**) and **paste the one line** — on Linux into a terminal, on
+   Windows into a Command Prompt or PowerShell opened with "Run as administrator" (**VEXPLOR Edge 1.2.0 and later**).
+   Download, hash check, install, register and service start in one go.
 4. Done when the screen shows the PC's name and **"Receiving"**. Values come into this file's "Collect" pane every 10 s.
 
 An MQTT broker that wants a login ("Login required") is read by **VEXPLOR Edge 1.1.0 or later** — 1.0.x does not use
 `credentials.json` for MQTT, connects anonymously and is refused by the broker (code 4).
+
+S7 and MC PLCs (2.10.0, VEXPLOR extension bindings, read only — the start of §8) are read by **VEXPLOR Edge 1.2.0 or later**. The
+factory PC needs TCP **102** to an S7 PLC and the port set in a MELSEC PLC's Ethernet settings. Tested against test
+servers built from the published formats, not yet against real PLCs.
 
 After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
 revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and

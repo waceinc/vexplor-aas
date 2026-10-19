@@ -95,7 +95,7 @@ echo "[OK] $(cd "$DIR" && docker compose logs app 2>/dev/null | grep -m1 -E '(�
 
 if [ "$EDGE" -eq 1 ]; then
   EDGE_PACKAGE=$(ls "$HERE"/vexplor-edge-*-linux-*.tar.gz 2>/dev/null | head -1)
-  [ -n "$EDGE_PACKAGE" ] || { echo "[X] 꾸러미에 원격 수집기(vexplor-edge-*-linux-*.tar.gz)가 없습니다." >&2; exit 1; }
+  [ -n "$EDGE_PACKAGE" ] || { echo "[X] 패키지에 원격 수집기(vexplor-edge-*-linux-*.tar.gz)가 없습니다." >&2; exit 1; }
   TOKEN="$(grep -E '^AAS_TOKEN=' "$DIR/.env" | cut -d= -f2- || true)"
   CODE=$(curl -fsS -X POST ${TOKEN:+-H "Authorization: Bearer $TOKEN"} "http://127.0.0.1:$PORT/edge/registration-codes" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')
   [ -n "$CODE" ] || { echo "[X] 등록 코드를 만들지 못했습니다(EDGE=on 인지, 토큰이 맞는지 확인)." >&2; exit 1; }

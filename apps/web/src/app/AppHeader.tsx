@@ -85,7 +85,7 @@ export function AppHeader({
           <span className="wordmark">VEXPLOR</span>
           <span className="product">AAS Studio</span>
           {/* Version number — with several deployments, "which version?" is the first question in any support request */}
-          {version && <span className="version" title={tr('제품 판 번호')}>v{version}</span>}
+          {version && <span className="version" title={tr('제품 버전 번호')}>v{version}</span>}
         </span>
 
         <input
@@ -140,8 +140,8 @@ export function AppHeader({
             className="metamodel-chip"
             title={
               current.metamodel.inferred
-                ? tr('AAS 메타모델 판 — JSON이라 판 표시가 없어 내용으로 정했습니다. 내려받을 때 다른 판을 고를 수 있습니다')
-                : tr('AAS 메타모델 판 — 내려받을 때 다른 판을 고를 수 있습니다')
+                ? tr('AAS 메타모델 버전 — JSON이라 버전 표시가 없어 내용으로 정했습니다. 내려받을 때 다른 버전을 고를 수 있습니다')
+                : tr('AAS 메타모델 버전 — 내려받을 때 다른 버전을 고를 수 있습니다')
             }
           >
             AAS V{current.metamodel.version}
@@ -300,7 +300,7 @@ export function AppHeader({
         </div>
       )}
       {exporting && packageId && (
-        <Dialog className="export-modal" label={tr('AASX 내려받기 — 메타모델 판')} onClose={() => setExporting(false)}>
+        <Dialog className="export-modal" label={tr('AASX 내려받기 — 메타모델 버전')} onClose={() => setExporting(false)}>
           <ExportDialog
             packageId={packageId}
             stored={current?.metamodel}

@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "Modbus TCP and MQTT collection \u2014 AID (IDTA-02017) binding resolution and reading, no external dependencies (node:net)",
+  "description": "Modbus TCP, MQTT, S7 and MC protocol collection (read only) \u2014 AID (IDTA-02017) binding resolution and reading, no external dependencies (node:net)",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

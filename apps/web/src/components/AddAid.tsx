@@ -32,9 +32,10 @@ interface Props {
 import { AidOptions } from './aid/AidOptions.js';
 import { BrowsedTags } from './aid/BrowsedTags.js';
 import { PickedTags } from './aid/PickedTags.js';
+import { PlcHint } from './aid/PlcHint.js';
 import { AidPattern } from './aid/AidPattern.js';
 import { AidConnection, periodMs } from './aid/AidConnection.js';
-import { createdSummary, editableInterface, formFor, periodTextOf, rowsOf, securityOf, securityToSend } from './aid/linkInput.js';
+import { createdSummary, editableInterface, formFor, periodTextOf, rowsOf, securityOf, securityToSend, tagAddressOf } from './aid/linkInput.js';
 import { hasUserInfo, protocolOfEndpoint } from './aid/protocol.js';
 import { EMPTY, type TagRow } from './aid/types.js';
 import type { AidSecurityChoice } from '../api.js';
@@ -135,8 +136,8 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
         endpoint: endpoint.trim(),
         tags: filled.map((row) => ({
           name: row.name.trim(),
-          href: row.href.trim(),
-          type: row.type,
+          // S7 · MC: address and data type become one href (`DB10.DBD4:REAL`)
+          ...tagAddressOf(protocol, row),
           ...(row.unit?.trim() ? { unit: row.unit.trim() } : {}),
           // Protocol-specific form items (AID binding) — Modbus: register kind · data type · order, MQTT: subscription
           ...formFor(protocol, row),
@@ -170,7 +171,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
         {/* ── (1) Equipment address ───────────────────────────── */}
         <section className="step">
           <h4>
-            <T k={'{0} 설비(PLC)의 접속 주소 — OPC UA · Modbus TCP · MQTT{1}'} v={[<span className="num">1</span>, <span className="count dim">{tr('내가 접속하러 갈 곳')}</span>]} />
+            <T k={'{0} 설비(PLC)의 접속 주소 — OPC UA · Modbus TCP · MQTT · S7 · MC{1}'} v={[<span className="num">1</span>, <span className="count dim">{tr('내가 접속하러 갈 곳')}</span>]} />
           </h4>
           <div className="step-line">
             <input
@@ -205,6 +206,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
                 : tr('MQTT 는 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 토픽을 적습니다. 장치가 보낸 마지막 값을 읽습니다.')}
             </p>
           )}
+          {(protocol === 'S7' || protocol === 'MC') && <PlcHint protocol={protocol} />}
           {isOurOwn && (
             <p className="note warn self-warn">
               <T k={'<b>여기는 설비가 아니라 이 도구 자신입니다.</b> 이 주소는 우리가 상위 앱(MES·SCADA)에 값을 <b>내주는</b> 주소입니다 — 여기서 보이는 것은 설비 태그가 아니라 열려 있는 AAS 파일의 내용(제조사명·일련번호 같은 명판 정보)입니다.<br/>수집할 곳은 <b>설비(PLC)의 주소</b>입니다. 예: {0}<br/>장비 없이 시험만 해 보려면 가상 PLC를 띄우십시오 — {1}'} v={[<span className="mono">opc.tcp://192.168.0.50:4840</span>, <span className="mono">node scripts/plc-simulator.mjs</span>]} />
@@ -220,11 +222,11 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
 
           {found && <BrowsedTags found={found} picked={picked} setPicked={setPicked} setFound={setFound} applyPicked={applyPicked} />}
 
-          {!found && rows.length === 0 && !manual && protocol !== 'MODBUS' && protocol !== 'MQTT' && (
+          {!found && rows.length === 0 && !manual && (protocol === 'OPCUA' || protocol === undefined) && (
             <p className="hint"><T k={'위에 주소를 넣고 <b>「설비에서 불러오기」</b>를 누르면 태그를 골라 담을 수 있습니다.'} /></p>
           )}
 
-          {rows.length > 0 && <PickedTags rows={rows} setRows={setRows} leafNames={leafNames} {...(protocol ? { protocol } : {})} />}
+          {rows.length > 0 && <PickedTags rows={rows} setRows={setRows} leafNames={leafNames} endpoint={endpoint} {...(protocol ? { protocol } : {})} />}
 
           <div className="row-buttons">
             <button
@@ -253,7 +255,7 @@ export function AddAid({ packageId, leafNames, busy, outEndpoint, onCancel, onDo
 
         {patternOpen && (
           <AidPattern
-            hrefExample={protocol === 'MODBUS' ? '{n}' : protocol === 'MQTT' ? 'plant/zone{n}/temp' : 'ns=1;s=Zone{n}.Temp'}
+            hrefExample={protocol === 'MODBUS' ? '{n}' : protocol === 'MQTT' ? 'plant/zone{n}/temp' : protocol === 'S7' ? 'DB1.DBW{n}' : protocol === 'MC' ? 'D{n}' : 'ns=1;s=Zone{n}.Temp'}
             onClose={() => setPatternOpen(false)}
             onAdd={(made) => {
               const extra = protocol === 'MODBUS' ? { type: 'integer', entity: 'HoldingRegister', dataType: 'xsd:unsignedShort' } : {};

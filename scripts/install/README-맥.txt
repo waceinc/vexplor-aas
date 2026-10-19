@@ -5,7 +5,7 @@ VEXPLOR AAS Studio — 맥 설치 안내
 ------
 Docker Desktop for Mac
   https://www.docker.com/products/docker-desktop
-  주의 — 애플 실리콘(M1~M4)용을 받으십시오. 이 꾸러미는 애플 실리콘용입니다.
+  주의 — 애플 실리콘(M1~M4)용을 받으십시오. 이 패키지는 애플 실리콘용입니다.
   주의 — 설치할 때 Docker 아이콘을 반드시 "응용 프로그램" 폴더로 끌어다 놓으십시오.
      DMG 창에서 바로 실행하면 재부팅 후 사라집니다.
 
@@ -44,6 +44,6 @@ Docker Desktop for Mac
 --------------------
   매뉴얼.pptx      설치부터 사용까지 그림으로 — 처음이면 이것부터 보십시오
   사용법.md        쓰는 사람용 (자세한 설명)
-  설치안내서.md    관리자용 (백업·판올림·보안)
+  설치안내서.md    관리자용 (백업·버전 올리기·보안)
   usage.md         User guide (English)
   install.md       Installation guide for administrators (English)

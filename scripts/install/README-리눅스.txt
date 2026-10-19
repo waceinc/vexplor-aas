@@ -1,9 +1,9 @@
 VEXPLOR AAS Studio — 현장 서버 설치 안내 (Linux)
 ==============================================
 
-이 꾸러미는 공장 서버 한 대에 AAS Studio 와 시계열 DB 를 함께 올립니다(어느 판인지는 이 쪽 위의 고지).
+이 패키지는 공장 서버 한 대에 AAS Studio 와 시계열 DB 를 함께 올립니다(어느 버전인지는 이 쪽 위의 고지).
 원격 수집기(VEXPLOR Edge)도 들어 있어, 같은 서버에서 PLC 를 읽게 할 수 있습니다.
-인터넷이 없어도 설치됩니다(프로그램 이미지가 꾸러미 안에 있습니다).
+인터넷이 없어도 설치됩니다(프로그램 이미지가 패키지 안에 있습니다).
 
 준비물
 ------
@@ -13,8 +13,8 @@ VEXPLOR AAS Studio — 현장 서버 설치 안내 (Linux)
 
 설치 (명령 하나)
 ----------------
-    tar xzf VEXPLOR-AAS-Studio-<판>-linux.tar.gz
-    cd VEXPLOR-AAS-Studio-<판>-linux
+    tar xzf VEXPLOR-AAS-Studio-<버전>-linux.tar.gz
+    cd VEXPLOR-AAS-Studio-<버전>-linux
     sudo ./install.sh                  # AAS Studio + TimescaleDB
     sudo ./install.sh --with-edge      # + 같은 서버의 원격 수집기
 
@@ -29,7 +29,7 @@ VEXPLOR AAS Studio — 현장 서버 설치 안내 (Linux)
   다시:   docker compose up -d
   재부팅하면 스스로 다시 올라옵니다.
 
-새 판으로 올릴 때는 새 꾸러미에서 같은 명령(sudo ./install.sh)을 다시 실행합니다.
+새 버전으로 올릴 때는 새 패키지에서 같은 명령(sudo ./install.sh)을 다시 실행합니다.
 설정(.env)과 자료는 그대로 남습니다.
 
 Windows 서버용 안내는 추후 드립니다.

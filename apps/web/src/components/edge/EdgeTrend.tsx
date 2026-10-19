@@ -37,7 +37,7 @@ function Row({ series, line }: { series: Series; line: (EdgeHistoryPoint | undef
     return (
       <div className="edge-trend-row">
         <span className="edge-trend-label">{series.label}</span>
-        <span className="dim small">{series.needsNewEdge ? tr('이 판은 보내지 않음(1.1.0 이상)') : tr('값 없음')}</span>
+        <span className="dim small">{series.needsNewEdge ? tr('이 버전은 보내지 않음(1.1.0 이상)') : tr('값 없음')}</span>
       </div>
     );
   }

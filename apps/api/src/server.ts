@@ -16,7 +16,7 @@ import { parsePolicy, type LinterPolicy } from '@aas/linter';
 //    2026-10-06 — the port stayed closed meanwhile and the server looked "dead"). Authoring-only users never use OPC UA.
 import type { SimulatorServer } from '@aas/opcua';
 const opcua = () => import('@aas/opcua');
-// Modbus TCP · MQTT — adapters with no external dependencies (@aas/fieldbus). Like OPC UA, loaded only on use
+// Modbus TCP · MQTT · S7 · MC — adapters with no external dependencies (@aas/fieldbus). Like OPC UA, loaded only on use
 const fieldbus = () => import('@aas/fieldbus');
 import { FolderStore, InMemoryStore, PostgresStore, visibleInWorkspace, type AasStore } from '@aas/store';
 import { createApi, toErrorResponse } from './api.js';
@@ -304,7 +304,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   };
 
   /**
-   * Connects to the address the AID specifies — OPC UA via @aas/opcua, Modbus TCP · MQTT via @aas/fieldbus (2026-10-14).
+   * Connects to the address the AID specifies — OPC UA via @aas/opcua, Modbus TCP · MQTT · S7 · MC via @aas/fieldbus (2026-10-14).
    * In demo mode all three go through guardOutbound — everything except the virtual PLC (OPC UA) is blocked.
    */
   const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
@@ -312,6 +312,13 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
       guardOutbound(descriptor.base);
       return (await fieldbus()).ModbusReader.connect(descriptor, { guard: guardOutbound });
+    }
+    if (descriptor.protocol === 'S7' || descriptor.protocol === 'MC') {
+      // VEXPLOR extension bindings, read only (2.10.0 draft) — no login; the guard sees the address before any connection
+      if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
+      guardOutbound(descriptor.base);
+      const bus = await fieldbus();
+      return descriptor.protocol === 'S7' ? bus.S7Reader.connect(descriptor, { guard: guardOutbound }) : bus.McReader.connect(descriptor, { guard: guardOutbound });
     }
     if (descriptor.protocol === 'MQTT') {
       // A login the AID asks for (2.8.0) comes from the installer's file by address, never from the AAS
@@ -415,7 +422,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
    *    exposed server**, so that premise breaks entirely. Enabling both is likely a mistake, so refuse and say so.
    */
   if (demo && process.env['OPCUA_SERVER'] === 'on') {
-    console.error('  [WARN] ' + tr('체험판(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.'));
+    console.error('  [WARN] ' + tr('체험 버전(DEMO_MODE=on)에서는 OPC UA 노출을 켜지 않습니다 — 그 포트에는 인증이 없습니다.'));
   }
   const publishing = process.env['OPCUA_SERVER'] === 'on' && !demo;
   let publisher: OpcUaPublisher | undefined;
@@ -832,7 +839,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     // OPC UA exposure (M6·M7) — where upstream apps connect.
     // Important: it was refused in demo mode, so **we must not say it is on** (a false log caught in testing)
     if (process.env['OPCUA_SERVER'] === 'on' && bootDemo) {
-      console.log('  ' + tr('OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험판에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
+      console.log('  ' + tr('OPC UA 노출(M6·M7) — **켜지 않았습니다.** 체험 버전에서는 띄우지 않습니다(인증이 없는 포트입니다).'));
     }
     // When OPC UA is on, its lines are printed by the start itself (above) — only once it really runs
 
@@ -846,7 +853,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
         console.log('     ' + (allow.length > 0 ? fill(tr('사내 대상 허용(AAS_INTEGRATION_ALLOW): {0}'), { 0: allow.join(', ') }) : tr('사내 주소로는 보내지 않습니다 — 허용하려면 AAS_INTEGRATION_ALLOW=<CIDR·호스트>')));
       } else {
         console.log('  ' + tr('연동 이벤트는 기록됩니다 · GET /integrations/events — 웹훅·MQTT 전송은 INTEGRATIONS=on'));
-        if (process.env['INTEGRATIONS'] === 'on' && bootDemo) console.log('     ' + tr('체험판(DEMO_MODE=on)에서는 연동을 켜지 않습니다.'));
+        if (process.env['INTEGRATIONS'] === 'on' && bootDemo) console.log('     ' + tr('체험 버전(DEMO_MODE=on)에서는 연동을 켜지 않습니다.'));
       }
       if (services.masterKey === 'missing') {
         console.log('     [WARN] ' + tr('AAS_SECRET_KEY가 없어 웹훅 구독을 만들 수 없습니다 (PostgreSQL). openssl rand -base64 32로 만든 값을 주십시오.'));
@@ -858,7 +865,7 @@ if (process.argv[1]?.endsWith('server.js')) await runInLang(bootLang(process.env
     // Demo mode — the operator must know at startup what is blocked and what gets deleted
     if (bootDemo) {
       console.log('');
-      console.log('  [DEMO] ' + tr('체험판(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.'));
+      console.log('  [DEMO] ' + tr('체험 버전(DEMO_MODE=on)으로 떴습니다 — 공개해 두고 눌러 보게 하는 구성입니다.'));
       console.log(
         `     ${fill(tr('데모 계정: {0} / {1}  ({2})'), {
           0: bootDemo.login,

@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 /**
  * Remote collectors window (2.7.0, one-click): switching on, making the one-line command with the list approved,
- * seeing the new collector arrive, and the actions on a collector — against a mocked edge API.
+ * seeing the new collector arrive, and the actions on a collector — against a mocked edge API. The Windows tab (2.9.x,
+ * VEXPLOR Edge 1.2.0): the same server and code as one PowerShell line.
  */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuthState } from '../src/api.js';
-import { healthOf, installCommand, type EdgeDeviceView } from '../src/api/edge.js';
+import { EDGE_WINDOWS_FROM, healthOf, installCommand, installCommandWindows, type EdgeDeviceView } from '../src/api/edge.js';
 import { EdgePanel } from '../src/components/edge/EdgePanel.js';
+import { fill } from '../src/i18n.js';
 import { useScreenHarness } from './harness.js';
 
 useScreenHarness();
@@ -110,6 +112,44 @@ describe('EdgePanel', () => {
     });
     await waitFor(() => expect(screen.getByText('연결되었습니다 — line1-pc')).toBeTruthy());
     vi.useRealTimers();
+  });
+
+  it('Windows tab: the same server and code as one PowerShell line, a copy button, and the version it needs', async () => {
+    mockApi((request) => {
+      if (request.path === '/edge/status') return { status: 200, body: { enabled: true, switchable: false, current } };
+      if (request.path === '/edge/devices') return { status: 200, body: { items: [] } };
+      if (request.path === '/edge/registration-codes') return { status: 201, body: { code: 'ABCD-EFGH-JKMN', expiresAt: '2026-10-19T00:00:00.000Z' } };
+      return undefined;
+    });
+    const copied: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text: string) => void copied.push(text) } });
+    render(<EdgePanel auth={admin} onClose={() => undefined} origin="https://aas.example.com" />);
+    fireEvent.click(await screen.findByRole('button', { name: '+ 수집기 연결' }));
+    fireEvent.click(screen.getByRole('button', { name: '프록시를 거쳐야 하나요?' }));
+    fireEvent.change(screen.getByPlaceholderText('http://proxy.plant.local:3128'), { target: { value: 'http://proxy.plant.local:3128' } });
+    fireEvent.click(screen.getByRole('button', { name: '연결 명령 만들기' }));
+
+    // Linux is the first tab, as before
+    const linuxTab = await screen.findByRole('tab', { name: 'Linux' });
+    expect(linuxTab.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByLabelText('설치 명령').textContent).toBe(installCommand('https://aas.example.com', 'ABCD-EFGH-JKMN', 'http://proxy.plant.local:3128'));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Windows' }));
+    expect(screen.getByRole('tab', { name: 'Windows' }).getAttribute('aria-selected')).toBe('true');
+    const command = screen.getByLabelText('설치 명령').textContent ?? '';
+    expect(command).toBe(installCommandWindows('https://aas.example.com', 'ABCD-EFGH-JKMN', 'http://proxy.plant.local:3128'));
+    expect(command).toMatch(/^powershell -NoProfile -Command "/);
+    expect(command).toContain('releases/latest/download/get.ps1');
+    expect(command).toContain('-Server https://aas.example.com -Code ABCD-EFGH-JKMN -Proxy http://proxy.plant.local:3128"');
+    // The first download goes through the proxy too, and TLS 1.2 is on before it
+    expect(command).toContain('irm -Proxy http://proxy.plant.local:3128 -ProxyUseDefaultCredentials https://');
+    expect(command.indexOf('-bor 3072')).toBeLessThan(command.indexOf('irm '));
+    expect(command).not.toMatch(/ExecutionPolicy/);
+    expect(screen.getByText(fill('VEXPLOR Edge {0} 부터 — 그 버전이 나오기 전에는 이 명령이 동작하지 않습니다.', { 0: EDGE_WINDOWS_FROM }))).toBeTruthy();
+    expect(screen.getByText(/관리자 권한으로 실행/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '명령 복사' }));
+    await waitFor(() => expect(copied).toEqual([command]));
   });
 
   it('an address with a quote or no scheme cannot make a command', async () => {

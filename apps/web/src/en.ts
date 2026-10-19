@@ -577,7 +577,7 @@ export const EN_MORE: Record<string, string> = {
   '새 설비 「{0}」을(를) 만들었습니다. 대표 사진은 임시 그림이니 실제 사진으로 바꾸십시오.':
     'Created the new equipment "{0}". The thumbnail is a placeholder — replace it with a real photo.',
   '값을 저장했습니다.': 'Value saved.',
-  '{0} 판으로 되돌립니다. 되돌리기 자체도 이력에 남습니다.': 'Restore the version of {0}. The restore itself is recorded in the history.',
+  '{0} 버전으로 되돌립니다. 되돌리기 자체도 이력에 남습니다.': 'Restore the version of {0}. The restore itself is recorded in the history.',
   '되돌렸습니다. 이 되돌리기도 이력에 남아 다시 되돌릴 수 있습니다.': 'Restored. This restore is recorded too, so it can be undone.',
   ' 주의: 이 설비에는 수집 연결(AID)이 있습니다 — ×{0}로 넣으면 수집값이 어느 대의 것인지 구분되지 않습니다. 대별 가동값이 목적이면 대마다 파일을 나누십시오.':
     ' Note: this equipment has a collection link (AID) — added as ×{0}, the collected values cannot be told apart by unit. If you need per-unit values, split it into one file per unit.',
@@ -640,7 +640,7 @@ export const EN_MORE: Record<string, string> = {
 
   // ── App — header bar · menus · dialogs ─────────────────────────────────────────────
   '처음 화면으로': 'Back to the start screen',
-  '제품 판 번호': 'Product version',
+  '제품 버전 번호': 'Product version',
   '열기 · 새로 만들기 · 번들 열기 · 파일 목록': 'Open · New · Open bundle · File list',
   '이 PC의 .aasx 파일을 올려 엽니다': 'Upload and open an .aasx file from this PC',
   '빈 설비 또는 회사·공정 묶음을 새로 만듭니다': 'Create a blank equipment file or a company/process group',
@@ -1033,7 +1033,7 @@ export const EN_MORE: Record<string, string> = {
   '{0} 하루 상태': '{0} daily status',
   '상태 태그를 고르면 그립니다': 'Choose a status tag to draw the bar',
   '이날 받은 값 없음': 'No values received this day',
-  '{0} 설비(PLC)의 접속 주소 — OPC UA · Modbus TCP · MQTT{1}': '{0} Equipment (PLC) address — OPC UA · Modbus TCP · MQTT{1}',
+  '{0} 설비(PLC)의 접속 주소 — OPC UA · Modbus TCP · MQTT · S7 · MC{1}': '{0} Equipment (PLC) address — OPC UA · Modbus TCP · MQTT · S7 · MC{1}',
   'Modbus TCP 는 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 주소(예: 40 · 1/40)와 레지스터 종류 · 자료형을 적습니다. 40001 같은 관례 주소는 바꿔 드립니다.': 'Modbus TCP has no device browse — use "+ Enter manually" below for the address (e.g. 40 · 1/40), register kind and data type. Conventional addresses like 40001 are converted for you.',
   'MQTT 는 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 토픽을 적습니다. 장치가 보낸 마지막 값을 읽습니다.': 'MQTT has no device browse — use "+ Enter manually" below for the topic. The last value the device sent is read.',
   '보유 레지스터': 'Holding register',
@@ -1065,7 +1065,7 @@ export const EN_MORE: Record<string, string> = {
   ' ← 보는 중': ' ← viewing',
   '자동으로 들어갑니다': 'Included automatically',
   // ── integrations/* · DailyStates server rules · delete warning (integration design §9) ──────────
-  '이 서버에는 연동 기능이 없습니다 — 연동이 들어간 판으로 올리십시오.': 'This server has no integration features — upgrade to a version that includes them.',
+  '이 서버에는 연동 기능이 없습니다 — 연동이 들어간 버전으로 올리십시오.': 'This server has no integration features — upgrade to a version that includes them.',
   '연동': 'Integrations',
   '연동 (MES · ERP · CMMS)': 'Integrations (MES · ERP · CMMS)',
   '보내기 구독': 'Subscriptions',
@@ -1313,6 +1313,10 @@ export const EN_MORE: Record<string, string> = {
   '공장 PC에 이 한 줄을 붙여 넣으십시오': 'Paste this one line on the factory PC',
   'Linux PC(x64 · arm64)의 터미널에 붙여 넣으면 설치 · 등록 · 시작까지 한 번에 끝납니다. 관리자 비밀번호(sudo)를 한 번 묻습니다.': 'Paste it in a terminal on a Linux PC (x64 · arm64): it installs, registers and starts in one go. It asks for the admin (sudo) password once.',
   '설치 명령': 'Install command',
+  '공장 PC의 운영체제': "The factory PC's operating system",
+  'Windows PC(x64)에서 명령 프롬프트나 PowerShell 을 「관리자 권한으로 실행」으로 열고 붙여 넣으면 설치 · 등록 · 서비스 시작까지 한 번에 끝납니다. 실행 정책은 바꾸지 않습니다.':
+    'On a Windows PC (x64), open Command Prompt or PowerShell with "Run as administrator" and paste it: it installs, registers and starts the service in one go. It changes no execution policy.',
+  'VEXPLOR Edge {0} 부터 — 그 버전이 나오기 전에는 이 명령이 동작하지 않습니다.': 'VEXPLOR Edge {0} and later — this command does not work before that version is released.',
   '{0}까지 한 번만 쓸 수 있는 명령입니다.': 'This command works once, until {0}.',
   '설비 {0}곳 · 태그 {1}개를 바로 읽도록 승인해 두었습니다.': 'Approved to read at once — machines {0} · tags {1}.',
   '연결된 뒤 이 화면에서 읽을 목록을 승인해야 값이 들어옵니다.': 'After it connects, approve its read list here before values come in.',
@@ -1366,7 +1370,7 @@ export const EN_MORE: Record<string, string> = {
   '「+ 수집기 연결」 — 서버 주소와 읽을 목록을 확인하고 「연결 명령 만들기」': '"+ Connect a collector" — check the server address and the read list, then "Make the connect command"',
   '나온 한 줄을 공장 Linux PC의 터미널에 붙여 넣습니다 — 설치 · 등록 · 시작이 한 번에 끝납니다': 'Paste the line in a terminal on the factory Linux PC — install, register and start in one go',
   '화면에 「받는 중」이 뜨면 끝입니다. 이후 마지막 수신 · 설비 연결 상태를 같은 화면에서 봅니다': 'Done when the screen shows "Receiving". The same screen then shows last received and machine connections',
-  '수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. 지금은 Linux(x64 · arm64)용이고 Windows용은 준비 중입니다.': 'A collector reads only an approved list and sends outbound only (443). There is no connection into the factory and no remote stop. Linux (x64 · arm64) now; Windows is in preparation.',
+  '수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. Linux(x64 · arm64)용이고, Windows(x64)용은 VEXPLOR Edge 1.2.0 부터입니다.': 'A collector reads only an approved list and sends outbound only (443). There is no connection into the factory and no remote stop. For Linux (x64 · arm64), and for Windows (x64) from VEXPLOR Edge 1.2.0.',
   'VEXPLOR Edge 안내': 'VEXPLOR Edge guide',
 
   '일시 정지 중': 'Paused',
@@ -1411,7 +1415,7 @@ export const EN_MORE: Record<string, string> = {
   '폴더': 'Folder',
   '메모리(다시 시작하면 사라짐)': 'Memory (gone on restart)',
   '서버 상태': 'Server status',
-  '서버 판': 'Server version',
+  '서버 버전': 'Server version',
   '실행 시간': 'Running for',
   '저장소': 'Store',
   '{0} — 연결됨 ({1} ms)': '{0} — connected ({1} ms)',
@@ -1427,9 +1431,9 @@ export const EN_MORE: Record<string, string> = {
   '(이유 {0}개 더)': '({0} more)',
   '상태 접기': 'Hide state',
   '상태 자세히': 'Show state',
-  '이 판은 보내지 않음(1.1.0 이상)': 'Not sent by this version (1.1.0 or later)',
+  '이 버전은 보내지 않음(1.1.0 이상)': 'Not sent by this version (1.1.0 or later)',
   '공장 PC': 'Factory PC',
-  '수집기 판': 'Collector version',
+  '수집기 버전': 'Collector version',
   '메모리 사용': 'Memory in use',
   '디스크 남은 공간': 'Free disk space',
   'PC 켜진 시간': 'PC up for',
@@ -1472,4 +1476,15 @@ export const EN_MORE: Record<string, string> = {
   '서버보다 {0}초 빠름': '{0} s ahead of the server',
   '줄마다 정상 · 주의 · 위험 배지와 이유가 나오고, 「상태 자세히」를 누르면 공장 PC · 서버 통신 · 설비별 숫자와 최근 24시간 추이가 보입니다(수집기 1.1.0 이상)': 'Each row carries an OK · Attention · Problem badge with its reason; "Show state" shows the factory PC, the line to the server, each piece of equipment and the last 24 hours (collector 1.1.0 or later)',
   '연결 끊김': 'Disconnected',
+  // Collection link — S7 · MC rows (VEXPLOR extension bindings)
+  "S7 은 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 TIA Portal · STEP 7 의 절대 주소(예: DB10.DBD4 · M10.3 · MW20)와 자료형을 적습니다. S7-1200 · 1500 은 「PUT/GET 통신 허용」을 켜고 DB 의 「최적화된 블록 액세스」를 꺼야 읽힙니다.": "S7 has no \"Load from equipment\" — use \"+ Enter by hand\" below for the absolute address as TIA Portal · STEP 7 shows it (e.g. DB10.DBD4 · M10.3 · MW20) and the data type. On S7-1200 · 1500, turn on \"Permit access with PUT/GET communication\" and turn off \"Optimized block access\" for the DB.",
+  "MC 프로토콜은 설비에서 불러오기가 없습니다 — 아래 「＋ 손으로 입력」으로 GX Works 의 디바이스(예: D100 · M50 · X1F · D10.3)와 자료형을 적습니다. 주소에 PLC 이더넷 설정의 포트와 기종(?series=Q · iQ-R · iQ-F)을 적습니다.": "The MC protocol has no \"Load from equipment\" — use \"+ Enter by hand\" below for the device as GX Works shows it (e.g. D100 · M50 · X1F · D10.3) and the data type. Put the port from the PLC Ethernet settings and the series (?series=Q · iQ-R · iQ-F) in the address.",
+  "S7 · MC 는 AID 1.1 표준 바인딩이 아니라 VEXPLOR 확장 표기입니다 — 값은 읽기만 하고 PLC 에 쓰지 않습니다.": "S7 · MC are not AID 1.1 standard bindings but a VEXPLOR extension notation — values are only read, never written to the PLC.",
+  "S7 주소 형식이 아닙니다 — 예: DB10.DBD4 · DB1.DBX0.3 · M10.3 · MW20 · IB0": "Not an S7 address — e.g. DB10.DBD4 · DB1.DBX0.3 · M10.3 · MW20 · IB0",
+  "MC 주소 형식이 아닙니다 — 예: D100 · D10.3 · M50 · X1F · W1A": "Not an MC address — e.g. D100 · D10.3 · M50 · X1F · W1A",
+  "주소 — 예: DB10.DBD4 · M10.3": "Address — e.g. DB10.DBD4 · M10.3",
+  "주소 — 예: D100 · M50 · X1F": "Address — e.g. D100 · M50 · X1F",
+  "태그 {0} PLC 자료형": "Tag {0} PLC data type",
+  "PLC 쪽 자료형 — 비우면 주소대로(S7 은 크기 글자 X · B · W · D, MC 는 워드 INT · 비트 BOOL). 문자열 길이는 주소에 :STRING[20] 처럼 적습니다": "Data type on the PLC side — empty follows the address (S7: size letter X · B · W · D, MC: INT for words, BOOL for bits). Write a string length in the address, like :STRING[20]",
+  "주소대로": "As the address says",
 };

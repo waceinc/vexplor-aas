@@ -1,6 +1,6 @@
 /** English dictionary — linter DPP rules (IDTA 02099-1). Key = the original Korean text verbatim, value = English. Placeholders ({0} · <b>) must match the original exactly */
 export const EN_LINTER_DPP: Record<string, string> = {
-  '제품 여권(DPP) 필수 항목 — 여권 ID · 제품 식별자 · 단위 · 스키마 판 · 상태 · 갱신 시각 · 경제 주체 ID 가 있고 비어 있지 않다':
+  '제품 여권(DPP) 필수 항목 — 여권 ID · 제품 식별자 · 단위 · 스키마 버전 · 상태 · 갱신 시각 · 경제 주체 ID 가 있고 비어 있지 않다':
     'Product passport (DPP) required data — passport ID, product identifier, granularity, schema version, status, last update and economic operator ID are present and not blank',
   '제품 여권 필수 항목 {0} 이(가) 없습니다.':
     'The required product passport element {0} is missing.',
