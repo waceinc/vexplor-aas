@@ -1370,7 +1370,7 @@ export const EN_MORE: Record<string, string> = {
   '「+ 수집기 연결」 — 서버 주소와 읽을 목록을 확인하고 「연결 명령 만들기」': '"+ Connect a collector" — check the server address and the read list, then "Make the connect command"',
   '나온 한 줄을 공장 Linux PC의 터미널에 붙여 넣습니다 — 설치 · 등록 · 시작이 한 번에 끝납니다': 'Paste the line in a terminal on the factory Linux PC — install, register and start in one go',
   '화면에 「받는 중」이 뜨면 끝입니다. 이후 마지막 수신 · 설비 연결 상태를 같은 화면에서 봅니다': 'Done when the screen shows "Receiving". The same screen then shows last received and machine connections',
-  '수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. 지금은 Linux(x64 · arm64)용이고 Windows용은 준비 중입니다.': 'A collector reads only an approved list and sends outbound only (443). There is no connection into the factory and no remote stop. Linux (x64 · arm64) now; Windows is in preparation.',
+  '수집기는 승인한 목록만 읽고, 밖으로만 보냅니다(443). 공장으로 들어오는 연결 · 원격 정지는 없습니다. Linux(x64 · arm64)용이고, Windows(x64)용은 VEXPLOR Edge 1.2.0 부터입니다.': 'A collector reads only an approved list and sends outbound only (443). There is no connection into the factory and no remote stop. For Linux (x64 · arm64), and for Windows (x64) from VEXPLOR Edge 1.2.0.',
   'VEXPLOR Edge 안내': 'VEXPLOR Edge guide',
 
   '일시 정지 중': 'Paused',

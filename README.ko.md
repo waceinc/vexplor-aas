@@ -39,7 +39,7 @@
 
 | 현장에서 부딪히는 일 | VEXPLOR AAS Studio에서 |
 |---|---|
-| 이미 가동 중인 설비 · PLC에 붙이기 | AAS 안의 AID대로 OPC UA · Modbus TCP · MQTT에서 값을 모읍니다. 원격 수집기는 밖으로만 보내고, PLC 프로그램은 고치지 않습니다 |
+| 이미 가동 중인 설비 · PLC에 붙이기 | AAS 안의 AID대로 OPC UA · Modbus TCP · MQTT에서 값을 모으고, S7 · MELSEC(MC 프로토콜) PLC 는 바로 읽습니다 — 읽기만 하는 VEXPLOR 확장 바인딩입니다. 원격 수집기는 밖으로만 보내고, PLC 프로그램은 고치지 않습니다 |
 | AAS를 손으로 만드는 부담 | 다 채운 견본에서 출발하고, 값 표 · CSV로 한 번에 채우며, 규칙 52종이 짚고 19종은 자동으로 고칩니다 |
 | 일마다 나뉜 도구 | 열기 · 고치기 · 검사 · Part 2 REST · 현장 값 수집 · OPC UA 내주기를 화면 하나에서 |
 | 표준을 통과해도 제출처에서 떨어짐 | 국내 제출처 검증기(KOSMO Validator)의 사업 규칙(semanticId 허용 목록 · 필수 서브모델 · 패키지 구조)을 제출 전에 거르고, 표준과 어긋나는 곳은 정책으로 드러내 사용자가 정합니다 |
@@ -67,10 +67,13 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 | **계정** | 관리자 · 편집자 · 열람자. 변경 이력에 누가 고쳤는지 남습니다 |
 | **한국어 · 영어, 밝은 · 어두운 화면** | 화면 글자**와** 서버가 만드는 글(지적 문구 · 규칙 설명 · 검증 결과서 · 번들 README · 오류)이 한국어와 영어로 나옵니다. 고른 적이 없으면 브라우저 언어를 따릅니다(한국어 브라우저는 한국어, 그 밖은 영어). 밝은 화면과 어두운 화면이 있습니다 |
 
-## 2.3 ~ 2.9 에서 새로 생긴 것
+## 2.3 ~ 2.10 에서 새로 생긴 것
 
 | 기능 | 판 | 내용 |
 |---|---|---|
+| **S7 · MC 프로토콜 바로 읽기** | 2.10.0 | Siemens S7-300 / 400 / 1200 / 1500(ISO-on-TCP)과 MELSEC Q · L · iQ-R · iQ-F(MC 프로토콜 3E 바이너리)를 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 엔지니어링 도구에 보이는 그대로 적습니다(`DB10.DBD4:REAL` · `D100` · `D10.3`). AID 1.1 에 두 프로토콜의 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩이며, 다른 AID 도구는 이 인터페이스를 읽지 못합니다. 공개 형식대로 만든 시험용 서버로 시험했고 실제 PLC 실측은 아직 없습니다. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.2.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
+| **Windows 공장 PC 에 원격 수집기** | 2.10.0 | **설정 → 원격 수집기 → 「+ 수집기 연결」**에 **Linux** · **Windows** 탭이 있습니다. Windows 탭은 명령 프롬프트나 PowerShell(관리자 권한)에 붙여 넣을 한 줄을 줍니다 — 내려받기 · 해시 확인 · 설치 · Windows 서비스 시작까지 하고, 실행 정책은 바꾸지 않습니다. **VEXPLOR Edge 1.2.0 이상**(Windows x64)이 필요합니다. 서비스 설치는 GitHub 의 Windows 시험 환경에서 확인했고, 공장 PC 설치는 아직입니다 — [원격 수집기 설치](docs/엣지설치.md) |
+| **엣지 계약에 S7 · MC** | 2.10.0 | 읽을 목록의 `protocol` 에 `S7` · `MC` 를 더했습니다. 규격 판은 `vexplor.edge/1` 그대로입니다. 1.2.0 보다 오래된 엣지는 그 인터페이스를 읽지 않고 이유(`S7 is not read by this edge yet`)를 알린 뒤 나머지를 계속 읽습니다 — [계약 4절](docs/엣지계약.md) |
 | **AAS 메타모델 V3.0 · V3.1 · V3.2** | 2.9.0 | 세 판의 파일을 모두 엽니다. XML 은 네임스페이스로, 판 표시가 없는 JSON 은 내용을 담을 수 있는 가장 낮은 판으로 정하고, 파일마다 들어온 판을 기억합니다. **AASX 내려받기**는 다른 판을 고르지 않으면 그 판으로 파일을 만듭니다. 새 설비 · 견본 · 제품 여권 서식은 KOSMO 가 요구하는 V3.1 입니다. 낮은 판으로 쓰면 빠지는 칸을 값과 함께 모두 보여 주고, 그 판으로 말할 수 없는 값(assetKind `Role` · `Batch`, 비어 있는 `entityType` 등)은 「그대로 두고 내려받기」를 고르지 않는 한 파일을 만들지 않습니다. V3.1 · V3.2 로 만든 파일은 시험에서 공식 JSON 스키마로 대조합니다 — 공식 검증기 aas-test-engines 1.0.3 은 V3.0 만 판정합니다. [사용법 §4-10](docs/사용법.md#4-10-aasx-내려받기--제출-점검표) |
 | **제품 여권(DPP) 서식 · 검사** | 2.9.0 | 시작 화면의 **「제품 여권(DPP) 서식으로 시작하기」**에서 IDTA 공식 서식 8종을 원본 그대로(CC BY 4.0) 엽니다 — DPP Part 1 메타데이터(IDTA 02099-1 1.0.2)와 배터리 여권 7부(IDTA 02035-1 ~ 7). 규칙 `DPP-1` ~ `DPP-5` 가 여권 메타데이터를 검사합니다: 필수 7항목, granularity(Model · Item · Batch), UTC 기준 `lastUpdate`, 내용 사양 ID, granularity 와 셸 assetKind 의 짝. 여권 데이터 작성 · 필수 항목 검사를 돕는 기능이며, EU DPP 규정 적합 판정이 아닙니다 |
 | **파일의 판으로 검사** | 2.9.0 | [규칙 52종](docs/규칙_목록.md)(44종에서 늘어남). V3.1 에서 지워진 `AASd-090` · `AASd-120` 은 V3.0 파일에만 적용하고, `PKG-FILE-URI` 와 idShort 형식은 판마다 공식 스키마를 따릅니다. V3.2 용 `AASd-137` · `AASd-138`, 선언한 판이 담을 수 없는 내용(V3.0 파일 안의 V3.2 `Batch` 등)을 짚는 `PKG-MM-VERSION` 이 새로 생겼습니다. V3.2 보다 낮은 판에서는 `AASd-119/129` 가 Operation 변수 안도 검사합니다 |
@@ -175,7 +178,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 (`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.9.0/aas-aasx-2.9.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.10.0/aas-aasx-2.10.0.tgz"
 ```
 
 버전 번호로 설치하지 마십시오 — 공개 npm 저장소의 `@aas` 이름 공간은 우리 것이 아니어서 `"@aas/core": "^2.0.0"` 이라고
@@ -186,7 +189,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 서버가 공장 밖(클라우드 · 본사)에 있으면 공장 PC 한 대에 **VEXPLOR Edge** 를 둡니다 — 별도 오픈소스
 [waceinc/vexplor-edge](https://github.com/waceinc/vexplor-edge). 승인한 목록의 PLC 만 읽어 서명한 묶음을 HTTPS 로 밖에만
 보내고, 원격 정지가 없습니다. 연결은 화면 **설정 → 원격 수집기 → 「+ 수집기 연결」**에서 단추 하나와 붙여 넣기 한 줄로
-끝납니다(Linux x64 · arm64, Windows 는 준비 중). 이 서버 쪽 안내: [docs/엣지설치.md](docs/엣지설치.md), 규격 사본:
+끝납니다(Linux x64 · arm64, Windows x64 는 VEXPLOR Edge 1.2.0 부터). 이 서버 쪽 안내: [docs/엣지설치.md](docs/엣지설치.md), 규격 사본:
 [docs/엣지계약.md](docs/엣지계약.md).
 
 ## 표준 대응
@@ -200,6 +203,18 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT 주소 해석(Modbus · MQTT 는 W3C WoT 바인딩 표기). S7 · MC 는 AID 바인딩이 **아닙니다** — 표준 `base` / `href` 자리에 넣고 우리 바인딩 IRI 로 표시한 VEXPLOR 확장입니다([docs/사용법.md](docs/사용법.md) 8절) |
 
 구현 범위는 `node scripts/part2-coverage.mjs`가 규격 원문(OpenAPI)과 대조해 보여 줍니다.
+
+### 통신 규약
+
+| 규약 | 설비 | 서버(`COLLECT=on`) | 원격 수집기(VEXPLOR Edge) | 근거 |
+|---|---|---|---|---|
+| OPC UA | OPC UA 서버 | 읽음 | 읽음 | AID 1.1 |
+| Modbus TCP | Modbus TCP 장치 | 읽음 | 읽음 | AID 1.1(W3C WoT 바인딩 표기) |
+| MQTT | MQTT 브로커 | 읽음 | 읽음 | AID 1.1(W3C WoT 바인딩 표기) |
+| S7(ISO-on-TCP, S7comm) | Siemens S7-300 · 400 · 1200 · 1500 | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험, 실제 PLC 실측 없음 |
+| MC 프로토콜(3E 바이너리) | MELSEC Q · L · iQ-R · iQ-F | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험, 실제 PLC 실측 없음 |
+
+모두 읽기만 합니다. AID 안의 HTTP · BACnet 인터페이스는 알아보지만 값을 모으지 않습니다.
 
 ## 알아 둘 것
 

@@ -715,6 +715,9 @@ Sign this with the customer before go-live.
 
 ## 14. Changes in this release
 
+- **S7 and MC (2.10.0).** Automatic collection reads Siemens S7 and MELSEC MC protocol PLCs (read only, VEXPLOR
+  extension bindings, tested against test servers only), and `aidReadList` / the edge read list carry `protocol` `S7` ·
+  `MC`. Consumers that switch on `protocol` should expect the two new values; the contract stays `vexplor.edge/1`.
 - **AASX downloads carry a metamodel version (2.9.0).** The package download (`GET /packages/{id}`), the Part 2
   serialization as AASX and the bundle ZIP write each file as the version it came in as (V3.0 · V3.1 · V3.2; models
   made in the app are V3.1). On the download and the serialization, `?metamodel=3.0|3.1|3.2` picks another; a value that version cannot express answers 422
