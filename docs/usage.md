@@ -404,9 +404,24 @@ It contains the summary, counts per rule, the list of findings (errors → warni
 
 Save with **"Download AASX"**. Your edits and attachments are included. **If errors remain, it asks once** — fine for an intermediate save.
 
+**Pick the metamodel version first.** The window opens on the version of the file — shown in the header as `AAS V3.1`:
+an XML file keeps the version its namespace declares, a JSON file (which carries no version) is the lowest version that
+holds its content, and a model made in this tool — new equipment, a sample, a passport template — is **V3.1**, the
+version KOSMO asks for. Before anything is written the window shows what the chosen version would do:
+
+| You see | Meaning |
+|---|---|
+| "leaves nothing out and changes nothing" | The file says exactly what the model says |
+| Fields that will be left out | The version has no such field (e.g. `createdAt` below V3.2). The value is listed so you know what is lost |
+| Values that cannot be written — **download blocked** | The version has no way to say it (assetKind `Role` in V3.0, `Batch` below V3.2, a missing `entityType` in V3.0 …). A look-alike value would state something false, so the file is not written. Pick a later version, change the value, or tick "download with the values as they are" — that file will not pass the official schema of the version |
+| File names that are percent-encoded | V3.1 and V3.2 accept only URIs as attachment paths. `설치 설명서.pdf` becomes `%EC%84%A4%EC%B9%98%20…pdf` in the model **and** inside the package, so the reference still finds the file. Reopened in this tool, the original name is shown |
+
+The assetKind choices in the asset editor follow the same version: Role appears from V3.1, Batch from V3.2.
+
 1. **0 errors on screen** — warnings may remain
 2. Check the file you saved with "Download AASX" as follows
-3. Standard validator — `out/venv/bin/python scripts/aas-test-engines.py downloaded-file.aasx` (install: `python3 -m venv out/venv && out/venv/bin/pip install aas-test-engines==1.0.3`)
+3. Standard validator — `out/venv/bin/python scripts/aas-test-engines.py downloaded-file.aasx` (install: `python3 -m venv out/venv && out/venv/bin/pip install aas-test-engines==1.0.3`).
+   aas-test-engines 1.0.3 checks **V3.0 only** — a V3.1 / V3.2 file is checked against the official JSON schemas in this repository's tests, there is no official validator for those versions yet
 4. If you plan to load it into BaSyx — `out/venv/bin/python scripts/basyx-check.py downloaded-file.aasx --expect-submodels 7`
 5. **Submit to the KOSMO Validator** — the Validator makes the final acceptance decision
 6. Print the report to PDF and keep it
@@ -1143,6 +1158,13 @@ curl -H "Authorization: Bearer edit-key" http://server:8080/packages
 
 Keys consist of letters, digits and symbols and are accepted only in the `Authorization: Bearer` header.
 
+The Part 2 base path is `/packages/{packageId}/api/v3.0` (and `/api/v3.0` for the registry). Clients written against the
+V3.1 / V3.2 OpenAPI call `/api/v3/…` — the same routes answer there too. The endpoints that are new in V3.2
+(`$recent-changes`, `$history`, `$signed`, asynchronous package operations) are not implemented and answer 404.
+`GET /packages/{id}?metamodel=3.0|3.1|3.2` downloads as a chosen version (422 with the report when a value cannot be
+written; add `&unrepresentable=keep` to write it anyway), and `GET /packages/{id}/export-report?metamodel=…` returns
+that report without writing the file.
+
 ### 12-3. Put HTTPS in front
 
 **Signing in over plain http sends the password and the sign-in cookie in the clear.** Anyone on the same
@@ -1213,6 +1235,7 @@ For several users, run it on a server with Docker (chapter 1).
   If you expose a server without accounts, **anyone could become the first administrator**, which the setup code prevents (12-1)
 - **The OPC UA serving port requires sign-in and encryption** (section 8-6) — unless `OPCUA_ALLOW_INSECURE=on`, which is for isolated test networks only
 - XML can only be read. Files are always saved as JSON
+- The official validator aas-test-engines 1.0.3 judges V3.0 files only; V3.1 · V3.2 output is checked against the official JSON schemas
 - The undo list lasts only while the server runs. History is kept
 - Undo **does not distinguish between people** — with several users, someone else's change can be undone too.
   **Who made the change is recorded**, though (on servers with sign-in): names appear in history and in the undo list

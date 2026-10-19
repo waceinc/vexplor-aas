@@ -27,6 +27,7 @@ import { EN_INTEGRATION_RUNTIME } from './en/integration-runtime.js';
 import { EN_INTEGRATION_API } from './en/integration-api.js';
 import { EN_INTEGRATION_EXPORTS } from './en/integration-exports.js';
 import { EN_EDGE } from './en/edge.js';
+import { EN_METAMODEL_IO } from './en/metamodel-io.js';
 
 export type Lang = 'ko' | 'en';
 
@@ -67,6 +68,7 @@ const DICTIONARIES: readonly Record<string, string>[] = [
   EN_INTEGRATION_API,
   EN_INTEGRATION_EXPORTS,
   EN_EDGE,
+  EN_METAMODEL_IO,
 ];
 
 /** Looks up the English dictionary. undefined if absent */

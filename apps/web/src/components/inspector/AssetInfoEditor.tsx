@@ -5,21 +5,32 @@
  * the key and redraws it, so it returns to the initial values (same result as the old "reset when the fingerprint changes").
  */
 import { useState } from 'react';
-import { tr } from '../../i18n.js';
+import { ASSET_KINDS_BY_VERSION } from '@aas/core';
+import type { MetamodelVersion } from '../../api.js';
+import { fill, tr } from '../../i18n.js';
 
 interface Props {
   raw: Record<string, unknown>;
   busy: boolean;
   onSaveAssetInformation: (info: Record<string, unknown>) => void;
   onUploadThumbnail?: (file: File) => void;
+  /** Metamodel version of the file — decides which assetKind values exist (Role from 3.1, Batch from 3.2). Default 3.0 */
+  metamodel?: MetamodelVersion;
   t: (text: string) => string;
 }
 
-export function AssetInfoEditor({ raw, busy, onSaveAssetInformation, onUploadThumbnail, t }: Props): React.JSX.Element {
+export function AssetInfoEditor({ raw, busy, onSaveAssetInformation, onUploadThumbnail, metamodel = '3.0', t }: Props): React.JSX.Element {
   const [asset, setAsset] = useState<{ assetKind: string; globalAssetId: string }>({
     assetKind: String(raw['assetKind'] ?? 'Type'),
     globalAssetId: String(raw['globalAssetId'] ?? ''),
   });
+  // Important: the choices come from the version table of the core, not a list written here — a hand-written list
+  //    offered 3.0 values only and hid Role · Batch from 3.1 / 3.2 files (spec difference table, item 7).
+  //    A value the file already holds stays selectable even if its version does not allow it, so opening the editor
+  //    never changes it silently — the note below says why it will not download as that version.
+  const allowed = ASSET_KINDS_BY_VERSION[metamodel];
+  const stored = String(raw['assetKind'] ?? '');
+  const kinds = stored !== '' && !allowed.includes(stored) ? [...allowed, stored] : allowed;
   return (
     <div className="editor">
       {/* KOSMO-AAS-6 requires Type and AAS-5 requires globalAssetId. A way to fix them directly, other than "Auto fix" */}
@@ -30,13 +41,18 @@ export function AssetInfoEditor({ raw, busy, onSaveAssetInformation, onUploadThu
           aria-label="assetKind"
           onChange={(event) => setAsset({ ...asset, assetKind: event.target.value })}
         >
-          {['Type', 'Instance', 'NotApplicable'].map((kind) => (
+          {kinds.map((kind) => (
             <option key={kind} value={kind}>
               {kind}
             </option>
           ))}
         </select>
       </label>
+      {!allowed.includes(asset.assetKind) && (
+        <p className="note warning">
+          {fill(tr('assetKind {0}은(는) V{1}에 없는 값입니다 — 이 판으로 내려받으면 막힙니다. 더 높은 판으로 내려받거나 값을 바꾸십시오.'), { 0: asset.assetKind, 1: metamodel })}
+        </p>
+      )}
       {asset.assetKind !== 'Type' && (
         <p className="note warning">{t('본 사업 산출물은 형식(Type) 단위입니다(KOSMO-AAS-6).')}</p>
       )}

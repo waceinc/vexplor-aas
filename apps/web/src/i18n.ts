@@ -16,6 +16,7 @@
  */
 import { lookupEn, setLangSource } from '@aas/core';
 import { EN_MORE } from './en.js';
+import { EN_METAMODEL } from './en-metamodel.js';
 
 export type Lang = 'ko' | 'en';
 
@@ -410,7 +411,7 @@ export function writeLang(lang: Lang): void {
 /** Translator — if missing from the dictionary, returns the given Korean as is */
 export function translator(lang: Lang): (text: string) => string {
   if (lang === 'ko') return (text) => text;
-  return (text) => EN[text] ?? EN_MORE[text] ?? text;
+  return (text) => EN[text] ?? EN_MORE[text] ?? EN_METAMODEL[text] ?? text;
 }
 
 /**
@@ -455,7 +456,7 @@ if (typeof document !== 'undefined') document.documentElement.lang = current;
  * one by one means one gets missed and that screen alone stays Korean. The `t` prop still works too (it does the same thing).
  */
 export function tr(text: string): string {
-  return current === 'ko' ? text : (EN[text] ?? EN_MORE[text] ?? text);
+  return current === 'ko' ? text : (EN[text] ?? EN_MORE[text] ?? EN_METAMODEL[text] ?? text);
 }
 
 /**

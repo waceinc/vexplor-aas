@@ -152,7 +152,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 
 | 꾸러미 | 역할 |
 |---|---|
-| `packages/aas-core` | AAS V3.0 메타모델 타입 · 서버가 만드는 글의 한국어 · 영어 |
+| `packages/aas-core` | AAS 메타모델 타입(V3.0 · V3.1 · V3.2)과 판 변환 · 서버가 만드는 글의 한국어 · 영어 |
 | `packages/aasx` | AASX(OPC 패키지) 읽기 · 쓰기 — 무손실 왕복 |
 | `packages/linter` | 검사 규칙 · 자동 고치기 · 결과서 |
 | `packages/store` | 저장소 — 메모리 · 폴더 · PostgreSQL이 같은 시험을 통과합니다 |
@@ -187,9 +187,10 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 
 | 표준 | 상태 |
 |---|---|
-| AAS 메타모델 **V3.0** (IDTA-01001-3-0) | 타입 고정. 3.1로 자동 올리지 않습니다 |
-| AASX 패키지 (IDTA-01005) | JSON · XML 읽기, JSON 쓰기 |
-| **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · Registry · Discovery 일부 |
+| AAS 메타모델 **V3.0 · V3.1 · V3.2** (IDTA-01001-3-0 · 3-1 · 3-2) | 세 판 모두 읽습니다. 내려받을 때는 그 파일이 들어온 판으로 씁니다(XML 은 네임스페이스로, 판 표시가 없는 JSON 은 내용을 담을 수 있는 가장 낮은 판으로 정합니다). 새로 만드는 모델 — 새 설비 · 견본 · 제품 여권 서식 — 은 KOSMO 가 요구하는 V3.1 입니다. 내려받을 때 다른 판을 고를 수 있고, 낮은 판으로 쓰면 빠지는 칸을 보여 주고 그 판으로 말할 수 없는 값은 막습니다 |
+| 쓴 파일 검증 | V3.0: 공식 검증기 aas-test-engines 1.0.3 — 이 검증기는 **V3.0 만** 판정합니다. V3.1 · V3.2: 이 저장소의 시험이 admin-shell-io/aas-specs-metamodel 공식 JSON 스키마(v3.1.2 · v3.2.0)로 대조합니다 — 아직 이 판들의 공식 검증기는 없습니다 |
+| AASX 패키지 (IDTA-01005) | JSON · XML 읽기, JSON 쓰기. V3.1 · V3.2 로 쓸 때 공백 · 한글이 든 첨부 파일 이름은 패키지 안 파일 이름 · 관계와 함께 퍼센트 인코딩(RFC 3986, UTF-8)합니다 — 이 판들은 URI 만 받습니다 |
+| **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · Registry · Discovery 일부. `/api/v3.0` 과, V3.1 · V3.2 클라이언트용 `/api/v3` 로 같은 경로를 받습니다. V3.2 에서 새로 생긴 엔드포인트(`$recent-changes` · `$history` · `$signed` · 비동기 패키지 작업)는 구현하지 않았고 404 를 돌려줍니다 |
 | AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT 주소 해석(Modbus · MQTT 는 W3C WoT 바인딩 표기) |
 
 구현 범위는 `node scripts/part2-coverage.mjs`가 규격 원문(OpenAPI)과 대조해 보여 줍니다.

@@ -21,6 +21,7 @@ import { InspectorFacts } from './inspector/InspectorFacts.js';
 import { RenameEditor } from './inspector/RenameEditor.js';
 import { SemanticEditor } from './inspector/SemanticEditor.js';
 import { ValueEditor } from './inspector/ValueEditors.js';
+import type { MetamodelVersion } from '../api.js';
 
 interface Props {
   node?: TreeNode;
@@ -64,6 +65,8 @@ interface Props {
   onSaveSemanticId?: (node: TreeNode, semanticId: string) => void;
   /** Save AssetInformation — assetKind · globalAssetId */
   onSaveAssetInformation?: (info: Record<string, unknown>) => void;
+  /** Metamodel version of the file this element is in — which values exist (assetKind Role · Batch) */
+  metamodel?: MetamodelVersion;
   /** Save a concept (CD) definition — passes the whole replaced CD */
   onSaveConcept?: (concept: Record<string, unknown>) => void;
   /**
@@ -146,6 +149,7 @@ export function Inspector(props: Props): React.JSX.Element {
             busy={busy}
             onSaveAssetInformation={onSaveAssetInformation}
             {...(props.onUploadThumbnail ? { onUploadThumbnail: props.onUploadThumbnail } : {})}
+            {...(props.metamodel ? { metamodel: props.metamodel } : {})}
             t={t}
           />
         )}

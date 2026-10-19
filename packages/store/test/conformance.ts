@@ -21,6 +21,10 @@ import { describeStoreIntegration } from './conformance-integration.js';
 
 const root = fileURLToPath(new URL('../../../tests/fixtures/', import.meta.url));
 const GOLDEN = '01-roll-forming-machine.aasx';
+/** An official IDTA template shipped with the screen — an AASX whose XML body declares V3.1 */
+const IDTA_SAMPLE = fileURLToPath(
+  new URL('../../../apps/web/public/samples/idta/IDTA-02035-4_BatteryPassport_TechnicalData_1.0.2.aasx', import.meta.url),
+);
 
 function loadGolden(): ReturnType<typeof readAasx> {
   return readAasx(new Uint8Array(readFileSync(root + GOLDEN)));
@@ -192,6 +196,32 @@ export function describeStore(name: string, create: () => Promise<AasStore>): vo
       // null means "deliberately shared" — used to keep a shared file shared when replacing it wholesale
       const shared = await store.importPackage({ name: '공용.aasx', package: golden, owner: null });
       expect(shared.owner).toBeUndefined();
+    });
+
+    it('metamodel version — remembers the version a package came in as, in every read path (2026-10-19)', async () => {
+      const store = await create();
+      await store.init();
+      // JSON body — no marker, so the lowest version that holds it, marked as worked out from the content
+      const json = await store.importPackage({ name: GOLDEN, package: golden });
+      expect(json.metamodel).toEqual({ version: '3.0', inferred: true });
+      // XML body declaring 3.1 — the declared version, even though nothing inside needs more than 3.0
+      const xml31 = readAasx(new Uint8Array(readFileSync(IDTA_SAMPLE)));
+      expect(xml31.metamodel.version).toBe('3.1');
+      const declared = await store.importPackage({ name: 'passport.aasx', package: xml31 });
+      expect(declared.metamodel).toEqual({ version: '3.1', inferred: false });
+      // A version the caller gives wins — a newly created model is 3.1
+      const chosen = await store.importPackage({ name: 'new.aasx', package: golden, metamodel: { version: '3.2', inferred: false } });
+      expect(chosen.metamodel).toEqual({ version: '3.2', inferred: false });
+
+      for (const made of [json, declared, chosen]) {
+        expect((await store.getPackage(made.id))?.metamodel).toEqual(made.metamodel);
+      }
+      const listed = new Map((await store.listPackages({ limit: 100 })).items.map((r) => [r.id, r.metamodel]));
+      expect(listed.get(declared.id)).toEqual({ version: '3.1', inferred: false });
+      // Edits do not change it — the version is the file's, not the latest edit's
+      const sm = (await store.listIdentifiables(chosen.id, 'Submodel')).items[0]!;
+      await store.updateIdentifiable(chosen.id, 'Submodel', sm.id, { ...sm.content, idShort: 'Renamed' });
+      expect((await store.getPackage(chosen.id))?.metamodel).toEqual({ version: '3.2', inferred: false });
     });
 
     it('filters the list by owner — only mine and shared, never others', async () => {

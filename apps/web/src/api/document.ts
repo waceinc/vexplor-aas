@@ -2,14 +2,15 @@
  * API client — file list · upload · check · auto-fix · undo · history · rules and conventions
  * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
-import type { PackageDescription, UndoStatus, HistoryEntry, LintReport, FixReport, RuleCatalog, Policy, SubmodelRequirement } from './types.js';
+import type { MetamodelVersion, PackageDescription, UndoStatus, HistoryEntry, LintReport, FixReport, RuleCatalog, Policy, SubmodelRequirement } from './types.js';
 import { encodeIdentifier, request } from './http.js';
 import type { Submodel } from '../model.js';
 
 export const documentApi = {
   listPackages: (): Promise<{ result: PackageDescription[] }> => request('/packages'),
-  upload: (file: File): Promise<PackageDescription> =>
-    request(`/packages?name=${encodeURIComponent(file.name)}`, {
+  /** `metamodel` — the version to store a file this tool ships (a sample) as, when the file itself does not say */
+  upload: (file: File, options: { metamodel?: MetamodelVersion } = {}): Promise<PackageDescription> =>
+    request(`/packages?name=${encodeURIComponent(file.name)}${options.metamodel ? `&metamodel=${options.metamodel}` : ''}`, {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
       body: file,

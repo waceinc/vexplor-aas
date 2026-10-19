@@ -172,6 +172,24 @@ describe('FolderStore — survives a restart', () => {
   });
 });
 
+describe('FolderStore — metamodel version (2026-10-19)', () => {
+  it('survives a restart; a folder written before versions were remembered reads as 3.0', async () => {
+    const dir = freshDir();
+    const first = await open(dir);
+    const kept = await first.importPackage({ name: 'new.aasx', package: golden(), metamodel: { version: '3.1', inferred: false } });
+    const old = await first.importPackage({ name: 'old.aasx', package: golden(), metamodel: { version: '3.2', inferred: false } });
+    // Rewrite one model.json the way an older program left it — no metamodel in the record
+    const file = join(dir, old.id, 'model.json');
+    const snapshot = JSON.parse(readFileSync(file, 'utf8')) as { record: Record<string, unknown> };
+    delete snapshot.record['metamodel'];
+    writeFileSync(file, JSON.stringify(snapshot));
+
+    const second = await open(dir);
+    expect((await second.getPackage(kept.id))?.metamodel).toEqual({ version: '3.1', inferred: false });
+    expect((await second.getPackage(old.id))?.metamodel).toEqual({ version: '3.0', inferred: true });
+  });
+});
+
 describe('FolderStore — accounts also survive a restart (user-reported, 2026-10-06)', () => {
   it('created admin, edits and deleted accounts are unchanged after reopening', async () => {
     const dir = freshDir();

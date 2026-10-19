@@ -6,6 +6,7 @@
  */
 import {
   convertEnvironment,
+  DEFAULT_METAMODEL_VERSION,
   DowngradeError,
   serializeEnvironment,
   type ConvertOptions,
@@ -25,6 +26,7 @@ import {
   type Relationship,
 } from './opc.js';
 import { ORIGIN_PART, type AasxPackage } from './package.js';
+import { encodePackagePaths, type RenamedPath } from './paths.js';
 
 export interface WriteOptions {
   /** data.json indentation. Default 2 */
@@ -45,6 +47,12 @@ export interface WriteOptions {
   version?: MetamodelVersion;
   /** See ConvertOptions.unrepresentable. Default `error` */
   unrepresentable?: ConvertOptions['unrepresentable'];
+  /**
+   * When writing V3.1 or V3.2: percent-encode File/value and thumbnail paths that are not URIs (spaces, Korean
+   * letters) and rename the parts they point to, instead of refusing them (paths.ts). Ignored for V3.0, which takes
+   * such paths as they are. Default false — the caller decides, because the file names inside the package change.
+   */
+  encodePaths?: boolean;
 }
 
 /** Default timestamp for deterministic output (2026-01-01T00:00:00Z) */
@@ -78,12 +86,15 @@ export function zipTime(mtime: number): Date {
 export function writeAasxWithReport(
   pkg: AasxPackage,
   options: WriteOptions = {},
-): { data: Uint8Array; report: DowngradeReport } {
+): { data: Uint8Array; report: DowngradeReport; renamed: RenamedPath[] } {
   const convertOptions: ConvertOptions = {};
   if (options.version !== undefined) convertOptions.to = options.version;
   if (options.unrepresentable !== undefined) convertOptions.unrepresentable = options.unrepresentable;
-  const { environment, report } = convertEnvironment(pkg.environment, convertOptions);
-  return { data: writeBody({ ...pkg, environment }, options), report };
+  const target = options.version ?? DEFAULT_METAMODEL_VERSION;
+  // Important: encode before converting — the conversion is what refuses a non-URI path for 3.1 / 3.2
+  const encoded = options.encodePaths && target !== '3.0' ? encodePackagePaths(pkg) : { pkg, renamed: [] };
+  const { environment, report } = convertEnvironment(encoded.pkg.environment, convertOptions);
+  return { data: writeBody({ ...encoded.pkg, environment }, options), report, renamed: encoded.renamed };
 }
 
 /**

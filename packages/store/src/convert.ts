@@ -6,11 +6,13 @@
  */
 import type { AasxFile, AasxPackage } from '@aas/aasx';
 import type { Environment } from '@aas/core';
-import { fill, tr } from '@aas/core';
+import { detectMetamodelVersion, fill, METAMODEL_VERSIONS, tr } from '@aas/core';
 import {
   ENVIRONMENT_FIELD,
   IDENTIFIABLE_MODEL_TYPES,
   InvalidContentError,
+  LEGACY_PACKAGE_METAMODEL,
+  type PackageMetamodel,
   type IdentifiableModelType,
   type IdentifiableRecord,
   type PackageFileRecord,
@@ -159,4 +161,25 @@ export function toAasxPackage(
   };
   if (thumbnail) pkg.thumbnail = thumbnail;
   return pkg;
+}
+
+/** A stored version value read back — anything unknown (a hand-edited folder, a NULL column) is a pre-version package */
+export function storedMetamodel(version: unknown, inferred: unknown): PackageMetamodel {
+  if (typeof version !== 'string' || !(METAMODEL_VERSIONS as readonly string[]).includes(version)) {
+    return { ...LEGACY_PACKAGE_METAMODEL };
+  }
+  return { version: version as PackageMetamodel['version'], inferred: inferred === true };
+}
+
+/**
+ * The version importPackage remembers: the one the caller gives, else the one `readAasx` found (its result carries a
+ * `metamodel`), else the lowest version that holds the content.
+ * Important: only `version` and `inferred` are kept — the evidence list belongs to one reading of one file and goes
+ *    stale with the first edit.
+ */
+export function packageMetamodelOf(input: { package: AasxPackage; metamodel?: PackageMetamodel }): PackageMetamodel {
+  if (input.metamodel) return storedMetamodel(input.metamodel.version, input.metamodel.inferred);
+  const read = (input.package as AasxPackage & { metamodel?: { version?: unknown; inferred?: unknown } }).metamodel;
+  if (read && typeof read === 'object') return storedMetamodel(read.version, read.inferred);
+  return { version: detectMetamodelVersion(input.package.environment).version, inferred: true };
 }

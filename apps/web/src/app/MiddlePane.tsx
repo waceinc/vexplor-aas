@@ -25,6 +25,10 @@ import type { Screen } from './context.js';
 
 export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy' | 'conceptIds' | 'concepts' | 'deletePackages' | 'fileUnit' | 'filesOpen' | 'hierAdder' | 'hierarchy' | 'historyEntries' | 'historyFor' | 'leafNames' | 'ledger' | 'linked' | 'linkedConceptIds' | 'loadPackage' | 'onAddHierarchyGroup' | 'onAddHierarchyManual' | 'onAddHierarchyNode' | 'onAddHierarchySplit' | 'onBulkSaveValues' | 'onChangeValueType' | 'onCreateElement' | 'onCreatePackage' | 'onCreateSubmodel' | 'onDelete' | 'onDeleteAttachment' | 'onDownloadAttachment' | 'onDuplicate' | 'onImport' | 'onImportForTree' | 'onRemoveHierarchyNode' | 'onRename' | 'onRestore' | 'onRevertLedger' | 'onSave' | 'onSaveAssetInformation' | 'onSaveConcept' | 'onSaveSemanticId' | 'onShowHistory' | 'onUploadAttachment' | 'onUploadThumbnail' | 'opcua' | 'packageId' | 'packages' | 'pickedFiles' | 'policy' | 'selected' | 'selectedTrail' | 'setAdding' | 'setFilesOpen' | 'setHierAdder' | 'setHistoryFor' | 'setNotice' | 'setPickedFiles' | 'setSelectedKey' | 'setSubmodelTarget' | 'shell' | 'shells' | 'submodelTarget' | 'submodels' | 't' | 'requirements' | 'interfaces' | 'run' | 'revisions'>): React.JSX.Element {
   const { adding, allFindings, busy, conceptIds, concepts, deletePackages, fileUnit, filesOpen, hierAdder, hierarchy, historyEntries, historyFor, leafNames, ledger, linked, linkedConceptIds, loadPackage, onAddHierarchyGroup, onAddHierarchyManual, onAddHierarchyNode, onAddHierarchySplit, onBulkSaveValues, onChangeValueType, onCreateElement, onCreatePackage, onCreateSubmodel, onDelete, onDeleteAttachment, onDownloadAttachment, onDuplicate, onImport, onImportForTree, onRemoveHierarchyNode, onRename, onRestore, onRevertLedger, onSave, onSaveAssetInformation, onSaveConcept, onSaveSemanticId, onShowHistory, onUploadAttachment, onUploadThumbnail, opcua, packageId, packages, pickedFiles, policy, selected, selectedTrail, setAdding, setFilesOpen, setHierAdder, setHistoryFor, setNotice, setPickedFiles, setSelectedKey, setSubmodelTarget, shell, shells, submodelTarget, submodels, t, requirements, interfaces, run, revisions } = props;
+  // The metamodel version of the file the selected element is in — a linked equipment file has its own
+  const inspectedMetamodel = selected
+    ? packages.find((item) => item.packageId === (selected.linkedPackageId ?? packageId))?.metamodel?.version
+    : undefined;
   /**
    * Composition panel — in a process file it comes **right below the summary header** (user, 2026-09-08: "I made a process but can't
    * register equipment under it" — the form sat below the tiles and verdict, off-screen). A process file is defined by its composition.
@@ -209,6 +213,7 @@ export function MiddlePane(props: Pick<Screen, 'adding' | 'allFindings' | 'busy'
       <Inspector
         t={t}
         {...(selected ? { node: selected, trail: selectedTrail } : {})}
+        {...(inspectedMetamodel ? { metamodel: inspectedMetamodel } : {})}
         {...(selected?.linkedPackageId !== undefined
           ? {
               linkedFileName:

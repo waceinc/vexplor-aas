@@ -28,7 +28,20 @@ export function attachedName(raw: Record<string, unknown>): string | undefined {
   if (!value) return undefined;
   const path = value.replace(/^file:\/\//i, '');
   const name = path.slice(path.lastIndexOf('/') + 1);
-  return name || path;
+  return readableName(name || path);
+}
+
+/**
+ * The name a person wrote — V3.1 / V3.2 files keep attachment names percent-encoded (`%EC%84%A4…`, a URI cannot hold
+ * Korean letters or spaces), so they are decoded for showing and for the saved file name. A broken escape is shown as it is.
+ */
+export function readableName(name: string): string {
+  if (!name.includes('%')) return name;
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
 }
 
 /** Same wording as the add form — the two screens must not describe it differently */

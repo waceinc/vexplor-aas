@@ -2,7 +2,7 @@
  * API client — downloads · reference bundles · validation report
  * Split out of src/api.ts (2026-10-13 componentization) — code and comments are verbatim from before the move. Import it via api.ts.
  */
-import type { BundleView, BundleImportView } from './types.js';
+import type { BundleView, BundleImportView, ExportPreview, MetamodelVersion } from './types.js';
 import { withAuth, request, toError, filenameOf, saveBlob } from './http.js';
 
 export const bundleApi = {
@@ -11,11 +11,18 @@ export const bundleApi = {
    * `<a href>` cannot carry headers, so with auth enabled it gets 401, and putting the token in the URL
    * leaves it verbatim in server logs and browser history.
    */
-  download: async (packageId: string): Promise<void> => {
-    const response = await fetch(`/packages/${packageId}`, withAuth());
+  download: async (packageId: string, options: { metamodel?: MetamodelVersion; keep?: boolean } = {}): Promise<void> => {
+    const query = new URLSearchParams({
+      ...(options.metamodel ? { metamodel: options.metamodel } : {}),
+      ...(options.keep ? { unrepresentable: 'keep' } : {}),
+    }).toString();
+    const response = await fetch(`/packages/${packageId}${query ? `?${query}` : ''}`, withAuth());
     if (!response.ok) throw await toError(response);
     saveBlob(await response.blob(), filenameOf(response) ?? 'download.aasx');
   },
+  /** What a download as `metamodel` would drop, refuse or rename — shown before downloading */
+  exportPreview: (packageId: string, metamodel: MetamodelVersion): Promise<ExportPreview> =>
+    request(`/packages/${packageId}/export-report?metamodel=${metamodel}`),
   /** Reference bundle — composition · readiness · linked items */
   bundle: (packageId: string, evidenceMinutes = ''): Promise<BundleView> =>
     request(`/packages/${packageId}/bundle/linkage${evidenceMinutes ? `?evidenceMinutes=${evidenceMinutes}` : ''}`),
@@ -44,8 +51,8 @@ export const bundleApi = {
     saveBlob(await response.blob(), filenameOf(response) ?? `bundle-${options.code}.zip`);
   },
   /** Opens a bundle ZIP — processes and assets are uploaded in one go and hashes are checked */
-  openBundle: (file: File): Promise<BundleImportView> =>
-    request('/bundles', {
+  openBundle: (file: File, options: { metamodel?: MetamodelVersion } = {}): Promise<BundleImportView> =>
+    request(`/bundles${options.metamodel ? `?metamodel=${options.metamodel}` : ''}`, {
       method: 'POST',
       headers: { 'content-type': 'application/zip' },
       body: file,

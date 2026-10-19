@@ -93,7 +93,11 @@ node scripts/spacing-scan.mjs --check
 
 ## 표준을 다룰 때
 
-- AAS 메타모델은 **V3.0에 고정**돼 있습니다. 3.1의 것을 섞지 말아 주십시오 — 무손실 왕복이 깨집니다
+- 메모리 안 모델은 **V3.0 · V3.1 · V3.2** 를 모두 담습니다(3.2 까지의 상위 집합). 판 차이는 표 하나
+  `packages/aas-core/src/metamodel/features.ts` 에 있고 읽기 · 쓰기 · 검사가 모두 이 표를 씁니다 — 베껴 쓰지 마십시오
+- 패키지는 들어온 판을 기억합니다. **서버 밖으로 나가는 파일**(내려받기 · Part 2 AASX 직렬화 · 레퍼런스 번들)은
+  `writeAasxWithReport` 로 그 판이나 고른 판으로 쓰고, **내부 왕복**(검사용 재포장 · 같은지 비교)은 판 없는 `writeAasx`
+  를 그대로 씁니다 — 내부 왕복은 칸 하나도 잃으면 안 됩니다
 - Part 2 REST API는 `docs/spec/part2/`의 규격 원문(OpenAPI)이 기준입니다.
   `node scripts/part2-coverage.mjs`가 어긋남을 잡습니다
 - 표준과 제출처 검증기가 어긋나는 곳은 한쪽을 고르지 말고 **정책**으로 드러내 주십시오

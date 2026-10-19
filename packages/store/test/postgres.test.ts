@@ -238,6 +238,28 @@ describe('schema version number (schema_version)', () => {
     expect((await db.query('SELECT version FROM schema_version')).rows).toHaveLength(versions.length);
   });
 
+  it('v11 DB → v12 — packages stored before keep downloading as 3.0; new ones remember their version', async () => {
+    const db = new PGlite();
+    const v11 = SCHEMA_SQL.replace(/,\n\s*-- Metamodel version[^\n]*\n[^\n]*\n\s*metamodel_version\s+text,\n\s*metamodel_inferred boolean/, '');
+    expect(v11).not.toContain('metamodel_version');
+    for (const statement of v11.split(';')) if (statement.trim()) await db.query(statement);
+    await db.query(SCHEMA_VERSION_TABLE);
+    await db.query('INSERT INTO schema_version (version) VALUES (11)');
+    await db.query("INSERT INTO aas_package (id, name, revision) VALUES ('p1', 'old.aasx', 2)");
+
+    const store = new PostgresStore(clientOf(db));
+    await store.init();
+    expect(store.schemaVersion).toBe(SCHEMA_VERSION);
+    expect((await store.getPackage('p1'))?.metamodel).toEqual({ version: '3.0', inferred: true });
+    const golden = readAasx(new Uint8Array(readFileSync(fileURLToPath(new URL('../../../tests/fixtures/01-roll-forming-machine.aasx', import.meta.url)))));
+    const made = await store.importPackage({ name: 'new.aasx', package: golden, metamodel: { version: '3.1', inferred: false } });
+    expect((await store.getPackage(made.id))?.metamodel).toEqual({ version: '3.1', inferred: false });
+    // Running the upgrade again is harmless
+    const again = new PostgresStore(clientOf(db));
+    await again.init();
+    expect((await again.getPackage(made.id))?.metamodel).toEqual({ version: '3.1', inferred: false });
+  });
+
   it('the v9 script has no semicolon inside a comment or a string — statements are split on it', () => {
     for (const statement of INTEGRATION_SCHEMA_SQL.split(';')) {
       const sql = statement.trim();

@@ -11,7 +11,7 @@
  * That is why there is no UNIQUE on id (KOSMO-CD-5 duplicate ids are a measured defect).
  */
 import type { AasxPackage } from '@aas/aasx';
-import type { Environment } from '@aas/core';
+import type { Environment, MetamodelVersion } from '@aas/core';
 import { fill, tr } from '@aas/core';
 
 import type { IntegrationStore } from './integration-types.js';
@@ -34,6 +34,27 @@ export const ENVIRONMENT_FIELD: Record<IdentifiableModelType, keyof Environment>
   ConceptDescription: 'conceptDescriptions',
 };
 
+/**
+ * The metamodel version a package was stored as — what a download writes when the user does not pick one.
+ *
+ * Important: this is **the version of the file as it came in**, not a guess at what the content needs. A 3.1 XML file
+ *    stays 3.1 even when nothing in it is newer than 3.0 — writing it back as 3.0 would hand the user a different
+ *    version than the one they opened. JSON has no version marker, so a JSON body is the lowest version that holds
+ *    its content and `inferred` says so.
+ */
+export interface PackageMetamodel {
+  version: MetamodelVersion;
+  /** True when the version was worked out from the content rather than declared by the file or chosen by the tool */
+  inferred: boolean;
+}
+
+/**
+ * What a package stored before the store remembered versions reads as (2026-10-19).
+ * Important: 3.0 — every file this product wrote until then was a 3.0 file, and the download of such a package must
+ *    not change. `inferred` because nobody declared it.
+ */
+export const LEGACY_PACKAGE_METAMODEL: Readonly<PackageMetamodel> = { version: '3.0', inferred: true };
+
 /** Unit of work corresponding to one AASX file */
 export interface PackageRecord {
   id: string;
@@ -54,6 +75,8 @@ export interface PackageRecord {
    * Even then, ownerless items (templates loaded at startup) **can be read** by anyone (scoped.ts).
    */
   owner?: string;
+  /** Version the package came in as. Packages stored before 2026-10-19 read as {@link LEGACY_PACKAGE_METAMODEL} */
+  metamodel: PackageMetamodel;
 }
 
 /**
@@ -376,6 +399,11 @@ export interface AasStore extends IntegrationStore {
      * **`null` means "deliberately shared"** — used to keep a shared file shared when replacing it wholesale.
      */
     owner?: string | null;
+    /**
+     * Version to remember. If empty: the `metamodel` of a package read by `readAasx` (the XML namespace, or the content
+     * for JSON), otherwise worked out from the content (see {@link packageMetamodelOf}).
+     */
+    metamodel?: PackageMetamodel;
   }): Promise<PackageRecord>;
   /** Restores stored data to the original AASX structure. Can be passed straight to writeAasx */
   exportPackage(packageId: string): Promise<AasxPackage>;
@@ -487,3 +515,6 @@ export interface AasStore extends IntegrationStore {
   /** If there are no accounts at all, **create the first admin** must be shown */
   countUsers(): Promise<number>;
 }
+
+/** What importPackage accepts — one name for every implementation and wrapper, so a new option reaches all of them */
+export type ImportPackageInput = Parameters<AasStore['importPackage']>[0];

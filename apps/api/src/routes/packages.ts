@@ -70,6 +70,8 @@ import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest } from
 import { fieldValues, fileOf, MultipartError, parseMultipart } from '../multipart.js';
 import type { Route } from '../router.js';
 import { originalFile } from './bundle-files.js';
+import { hintedMetamodel, metamodelHintOf, METAMODEL_HEADER, NEW_MODEL_METAMODEL } from '../metamodel-hint.js';
+import { outgoingChoiceOf, previewOutgoing, writeOutgoing } from '../outgoing.js';
 import { derivationFile, newDerivation } from './derivation.js';
 import { fill, tr } from '@aas/core';
 
@@ -154,6 +156,8 @@ async function packageDescription(
     revision: record.revision,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    // The metamodel version the file came in as — what a download writes unless another version is chosen
+    metamodel: record.metamodel,
   };
 }
 
@@ -163,7 +167,12 @@ async function packageDescription(
  */
 async function snapshot(store: AasStore, packageId: string): Promise<ReturnType<typeof readAasx>> {
   const exported = await store.exportPackage(packageId);
-  return readAasx(writeAasx(exported));
+  const read = readAasx(writeAasx(exported));
+  // Important: the re-read body is JSON, so on its own it would say "the lowest version that holds the content" —
+  //    the checks must see the version the file is (a 3.1 XML file stays 3.1). The evidence still comes from the content
+  const stored = (await store.getPackage(packageId))?.metamodel;
+  if (stored) read.metamodel = { ...read.metamodel, version: stored.version, inferred: stored.inferred };
+  return read;
 }
 
 /**
@@ -635,6 +644,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const thumbnail = placeholderThumbnail();
         const record = await store.importPackage({
           name: `${assetName}.aasx`,
+          // Important: a model made here is 3.1 — the version KOSMO asks for and the IDTA templates are written in
+          metamodel: NEW_MODEL_METAMODEL,
           package: {
             environment,
             specPart: DEFAULT_SPEC_PART,
@@ -681,6 +692,8 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const record = await store.importPackage({
           name: `${assetName}.aasx`,
           package: { ...exported, environment },
+          // A copy is the same kind of file as its source
+          metamodel: source.metamodel,
           // Type copy — the baseline for pushing later type edits down to this unit (routes/derivation.ts). Not included in the AASX
           keep: [derivationFile(newDerivation(packageId, source.name, exported.environment))],
         });
@@ -716,8 +729,14 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         // Important: stored exactly as in the package (lossless round-trip). The thumbnail's declared type comes from the
         //    uploader, so it is never trusted when serving — the GET decides by the bytes (user-file.ts, red-team H1)
         const pkg = readAasx(upload.data, readOptions);
+        const hinted = hintedMetamodel(pkg, metamodelHintOf(request));
         // Keep the original bytes — if not fixed, this exact file goes into the reference bundle (hash check)
-        const record = await store.importPackage({ name: upload.name, package: pkg, keep: [originalFile(upload.data)] });
+        const record = await store.importPackage({
+          name: upload.name,
+          package: pkg,
+          keep: [originalFile(upload.data)],
+          ...(hinted ? { metamodel: hinted } : {}),
+        });
         const description = await packageDescription(store, record);
         return {
           status: 201,
@@ -730,12 +749,30 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
       method: 'GET',
       pattern: '/packages/:packageId',
       success: [200],
-      async handle({ params }) {
+      async handle({ params, request }) {
         const packageId = params['packageId']!;
         const record = await store.getPackage(packageId);
         if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
-        const data = writeAasx(await store.exportPackage(packageId));
-        return bytes(200, data, AASX_MEDIA_TYPE, record.name);
+        // Leaves the server — written as the version the file came in as, or the one asked for (outgoing.ts)
+        const file = writeOutgoing(await store.exportPackage(packageId), record, outgoingChoiceOf(request));
+        const response = bytes(200, file.data, AASX_MEDIA_TYPE, record.name);
+        response.headers[METAMODEL_HEADER] = file.version;
+        return response;
+      },
+    },
+    {
+      /**
+       * What downloading as a version would do — fields that version drops, values it cannot say, file names it
+       * percent-encodes. The screen shows this before the download so nothing is lost without the user seeing it.
+       */
+      method: 'GET',
+      pattern: '/packages/:packageId/export-report',
+      success: [200],
+      async handle({ params, request }) {
+        const packageId = params['packageId']!;
+        const record = await store.getPackage(packageId);
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
+        return json(200, previewOutgoing(await store.exportPackage(packageId), record, outgoingChoiceOf(request)));
       },
     },
     {
@@ -749,6 +786,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
 
         const upload = uploadedPackage(request);
         const pkg = readAasx(upload.data, readOptions);
+        const hinted = hintedMetamodel(pkg, metamodelHintOf(request));
         // Replacing is the same as storing anew. Keep the same packageId to preserve client links
         await store.deletePackage(packageId);
         // Important: **carry the owner over unchanged.** Otherwise the file would belong to whoever replaced it — an admin replacing
@@ -759,6 +797,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
           package: pkg,
           keep: [originalFile(upload.data)],
           owner: existing.owner ?? null,
+          ...(hinted ? { metamodel: hinted } : {}),
         });
         return noContent();
       },

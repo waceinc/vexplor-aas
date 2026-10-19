@@ -155,7 +155,7 @@ A TypeScript monorepo — one language for the front end and the server.
 
 | Package | Role |
 |---|---|
-| `packages/aas-core` | AAS V3.0 metamodel types · server-side text in English and Korean |
+| `packages/aas-core` | AAS metamodel types (V3.0 · V3.1 · V3.2) and version conversion · server-side text in English and Korean |
 | `packages/aasx` | AASX (OPC package) reader/writer with lossless round-trip |
 | `packages/linter` | Rules, auto-fixes, reports |
 | `packages/store` | Storage — in-memory, folder and PostgreSQL pass the same conformance suite |
@@ -192,9 +192,10 @@ side: [docs/edge-install.md](docs/edge-install.md); the contract copy: [docs/edg
 
 | Standard | Status |
 |---|---|
-| AAS metamodel **V3.0** (IDTA-01001-3-0) | Pinned. Not auto-upgraded to 3.1 |
-| AASX package (IDTA-01005) | Reads JSON and XML, writes JSON |
-| **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · partial Registry and Discovery |
+| AAS metamodel **V3.0 · V3.1 · V3.2** (IDTA-01001-3-0 · 3-1 · 3-2) | Reads all three. A file is downloaded as the version it came in as (an XML namespace says it; a JSON file carries no version, so the lowest version that holds its content). New models — new equipment, samples, the passport templates — are V3.1, the version KOSMO asks for. Another version can be picked when downloading: writing a lower one lists the fields it leaves out and refuses values it cannot express |
+| Checking a written file | V3.0: the official validator aas-test-engines 1.0.3, which checks **V3.0 only**. V3.1 · V3.2: the official JSON schemas of admin-shell-io/aas-specs-metamodel (v3.1.2 · v3.2.0) in this repository's tests — there is no official validator for them yet |
+| AASX package (IDTA-01005) | Reads JSON and XML, writes JSON. For V3.1 · V3.2, attachment names with spaces or non-ASCII letters are percent-encoded (RFC 3986, UTF-8) together with their parts and relationships — those versions accept only URIs |
+| **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · partial Registry and Discovery. Served under `/api/v3.0` and, for V3.1 · V3.2 clients, `/api/v3` (same routes). Endpoints new in V3.2 (`$recent-changes`, `$history`, `$signed`, asynchronous package operations) are not implemented and answer 404 |
 | AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT address resolution (Modbus · MQTT use the W3C WoT binding notation) |
 
 `node scripts/part2-coverage.mjs` compares the implementation against the specification's OpenAPI

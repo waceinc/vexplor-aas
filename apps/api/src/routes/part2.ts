@@ -17,7 +17,6 @@
  * Important: we have not yet obtained the IDTA-01002-3-0 original text (docs/PROGRESS.md §7). Once it arrives,
  * cross-check status codes and error bodies once.
  */
-import { writeAasx } from '@aas/aasx';
 import { overlaySubmodel } from '@aas/collector';
 import type { Environment, Submodel, SubmodelElement } from '@aas/core';
 import {
@@ -41,6 +40,8 @@ import {
 } from '../elements.js';
 import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest, type ApiResponse } from '../http.js';
 import { AASX_MEDIA_TYPE } from './packages.js';
+import { METAMODEL_HEADER } from '../metamodel-hint.js';
+import { outgoingChoiceOf, writeOutgoing } from '../outgoing.js';
 import { fieldValues, fileOf, parseMultipart } from '../multipart.js';
 import type { Route, RouteContext } from '../router.js';
 import { rasterTypeOf, userFileResponse } from '../user-file.js';
@@ -1321,7 +1322,13 @@ export function serializationRoute(store: AasStore): Route {
       const accept = request.headers['accept'] ?? '';
       if (accept.includes('asset-administration-shell-package')) {
         const pkg = await store.exportPackage(packageId);
-        return bytes(200, writeAasx({ ...pkg, environment }), AASX_MEDIA_TYPE);
+        const record = await store.getPackage(packageId);
+        if (!record) throw new ApiError(404, 'NotFound', tr('패키지를 찾을 수 없습니다.'));
+        // Leaves the server — the version the file came in as, or `?metamodel=` (a non-spec extension, outgoing.ts)
+        const file = writeOutgoing({ ...pkg, environment }, record, outgoingChoiceOf(request));
+        const response = bytes(200, file.data, AASX_MEDIA_TYPE);
+        response.headers[METAMODEL_HEADER] = file.version;
+        return response;
       }
       return json(200, environment);
     },
