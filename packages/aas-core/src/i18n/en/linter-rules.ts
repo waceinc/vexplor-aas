@@ -1,7 +1,5 @@
 /** English dictionary — linter-rules. Key = the original Korean text verbatim, value = English. Placeholders ({0} · <b>) must match the original exactly */
 export const EN_LINTER_RULES: Record<string, string> = {
-  'File.value는 file:// URI 형식이어야 한다':
-    'File.value must be a file:// URI',
   'File.value가 URI 형식이 아닙니다: {0}':
     'File.value is not a URI: {0}',
   'file:///파일명 형태로 바꾸십시오. 단순 상대경로는 공식 스키마 위반이며, ArrayItemNotValid로 상위 SMC·Submodel까지 연쇄 실패 표시를 유발합니다.':
@@ -124,8 +122,6 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'Specify a unit. For dimensionless values (counts, ratios, power factor), do not force a unit; change dataType to REAL_COUNT / INTEGER_COUNT instead.',
   'SubmodelElementList 직계 자식에는 idShort를 붙일 수 없다':
     'Direct children of a SubmodelElementList must not have an idShort',
-  'AAS V3.0 메타모델 AASd-120 (aas-core-meta v3) · aas-test-engines 1.0.3 실측':
-    'AAS V3.0 metamodel AASd-120 (aas-core-meta v3) · measured with aas-test-engines 1.0.3',
   'SubmodelElementList의 직계 자식에 idShort가 있습니다: {0}':
     'A direct child of a SubmodelElementList has an idShort: {0}',
   'idShort를 지우십시오. 리스트 자식은 인덱스로 가리킵니다(AASd-120). 지워도 KOSMO 규칙에는 영향이 없고, BaSyx 적재와 표준 검증기 통과가 열립니다. 단, 이미 Validator를 받은 파일은 고치면 파일이 달라지므로 다음 판에서 고치고 Validator를 다시 받으십시오.':
@@ -136,8 +132,6 @@ export const EN_LINTER_RULES: Record<string, string> = {
     'The KOSMO Validator does not check this constraint, but aas-test-engines treats it as an error and basyx-python-sdk fails to read the file. Shown as a warning according to the policy (warn).',
   'DataElement의 category는 CONSTANT · PARAMETER · VARIABLE 중 하나여야 한다':
     'The category of a DataElement must be CONSTANT, PARAMETER or VARIABLE',
-  'AAS V3.0 메타모델 AASd-090 (aas-core-meta v3)':
-    'AAS V3.0 metamodel AASd-090 (aas-core-meta v3)',
   'DataElement의 category가 허용값이 아닙니다: {0}':
     'The DataElement category is not an allowed value: {0}',
   '{0} 중 하나로 바꾸거나 비워 두십시오(AASd-090).':

@@ -6,36 +6,83 @@
  * and the parent SMC and Submodel are shown as cascading failures - the real cause of mass errors is often here.
  */
 import type { File as AasFile, LangString, MultiLanguageProperty } from '@aas/core';
-import { fill, tr } from '@aas/core';
+import { fill, tr, URI_REFERENCE_PATTERN } from '@aas/core';
 import type { Rule } from '../types.js';
 import { duplicateLanguages, iec61360Of } from '../util.js';
+import { mayBe } from '../version.js';
+import { pkgMetamodelVersion } from './l1-version.js';
 
 // i18n-ignore — source document file name
 const SOURCE = '04_린터_규칙_명세.md §1 L1';
 
+/**
+ * PKG-FILE-URI — the form of File/value, by metamodel version.
+ *
+ *  3.0      : a value without a scheme is an error, and the fix writes file:///… (unchanged since 2026-08 — the KOSMO
+ *             Validator and the golden files were measured this way). The 3.0.9 JSON schema itself has no URI pattern
+ *             on File/value (only XML characters and length), so this is our submission rule more than the schema's.
+ *  3.1 on   : the official 3.1 / 3.2 JSON schemas put an RFC 3986 URI-reference pattern on File/value (PathType), so
+ *             relative paths such as /aasx/files/a.pdf and ./manual.pdf are valid — the KOSMO 3.1 example uses them and
+ *             drew 6 false errors here before this split. What the pattern rejects is pointed out instead: spaces and
+ *             non-ASCII letters (a warning — percent-encoding them on export turns them into a valid reference) and
+ *             anything no encoding repairs, such as backslash separators (an error).
+ */
 export const pkgFileUri: Rule = {
   id: 'PKG-FILE-URI',
   layer: 'L1',
   get title() {
-    return tr('File.value는 file:// URI 형식이어야 한다');
+    return tr('File.value 형식 — 3.0 은 file:// URI, 3.1 이상은 공식 스키마의 URI-reference(상대경로 포함)');
   },
-  source: SOURCE,
+  get source() {
+    return fill(tr('{0} · 3.1 / 3.2 공식 JSON 스키마 PathType 패턴'), { 0: SOURCE });
+  },
   check(ctx, report) {
+    const v31 = mayBe(ctx, '3.1');
     for (const v of ctx.elements) {
       if (v.node.modelType !== 'File') continue;
       const file = v.node as AasFile;
       const value = file.value;
       if (value === undefined || value === '') continue; // A missing value is a separate issue
+      const base = {
+        elementType: 'File',
+        key: file.idShort ?? v.idShortPath,
+        pointer: `${v.pointer}/value`,
+        kosmoPath: v.kosmoPath,
+      };
+
+      if (v31) {
+        if (URI_REFERENCE_PATTERN.test(value)) continue;
+        // Important: a backslash would encode to %5C — a file literally named "a\b", not a folder. Not an encoding question
+        if (!value.includes('\\') && URI_REFERENCE_PATTERN.test(encodeURI(value))) {
+          report({
+            ...base,
+            severity: 'warning',
+            message: fill(tr('File.value에 URI에 쓸 수 없는 글자(공백 · 한글 등)가 있습니다: {0}'), { 0: value }),
+            remedy: tr(
+              '메타모델 3.1 이상 스키마는 File.value를 URI 형식으로 받습니다. 내보낼 때 해당 글자를 퍼센트 인코딩(공백 → %20, 한글 → %ED%95%9C …)하면 됩니다. 패키지 안 파일 이름도 같은 이름으로 맞춰야 합니다.',
+            ),
+            fixable: false,
+          });
+          continue;
+        }
+        report({
+          ...base,
+          severity: 'error',
+          message: fill(tr('File.value가 URI 형식이 아닙니다: {0}'), { 0: value }),
+          remedy: value.includes('\\')
+            ? tr('경로 구분자는 /로 쓰십시오(역슬래시는 URI에서 폴더를 나누지 않습니다). 예: /aasx/files/manual.pdf')
+            : tr('메타모델 3.1 이상 공식 스키마의 URI-reference 형식으로 고치십시오. 예: /aasx/files/manual.pdf · ./manual.pdf · file:///aasx/files/manual.pdf'),
+          fixable: value.includes('\\'),
+        });
+        continue;
+      }
 
       // Passes if there is a scheme such as file:// or http(s)://
       if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) continue;
 
       report({
+        ...base,
         severity: 'error',
-        elementType: 'File',
-        key: file.idShort ?? v.idShortPath,
-        pointer: `${v.pointer}/value`,
-        kosmoPath: v.kosmoPath,
         message: fill(tr('File.value가 URI 형식이 아닙니다: {0}'), { 0: value }),
         remedy: tr(
           'file:///파일명 형태로 바꾸십시오. 단순 상대경로는 공식 스키마 위반이며, ArrayItemNotValid로 상위 SMC·Submodel까지 연쇄 실패 표시를 유발합니다.',
@@ -237,4 +284,5 @@ export const L1_RULES: readonly Rule[] = [
   pkgThumbnailParts,
   pkgLanguageDuplicate,
   pkgEmptyArray,
+  pkgMetamodelVersion,
 ];

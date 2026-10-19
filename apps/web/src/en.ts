@@ -682,8 +682,8 @@ export const EN_MORE: Record<string, string> = {
   '화면 색을 밝게 · 어둡게 바꿉니다 — 이 브라우저에 기억합니다': 'Switches between a light and dark screen — remembered in this browser',
   '화면 글자의 언어를 고릅니다': 'Choose the language of the interface',
   '이 브라우저의 로그인을 끝냅니다': 'End the sign-in on this browser',
-  '이 도구가 지키는 규칙 49종과 규약을 지금 도는 그대로 보여 줍니다':
-    'Shows the 49 rules and the conventions this tool enforces, exactly as they are running now',
+  '이 도구가 지키는 규칙 52종과 규약을 지금 도는 그대로 보여 줍니다':
+    'Shows the 52 rules and the conventions this tool enforces, exactly as they are running now',
   '이 브라우저에 저장된 접근 토큰을 지웁니다 — 공용 PC에서 자리를 뜰 때':
     'Clear the access token stored in this browser — when leaving a shared PC',
   되돌리기: 'Undo',
@@ -901,7 +901,7 @@ export const EN_MORE: Record<string, string> = {
   '되돌리기 — 머리줄 「↶ 되돌리기」(Ctrl+Z), 지난 시점은 「이력 · 되돌리기」': 'Undo — "↶ Undo" in the header (Ctrl+Z); earlier versions via "History · revert"',
   '가져온 값은 원본 설비의 값입니다. 이 설비에 맞게 고쳐 주세요.': 'Imported values belong to the source machine. Adjust them for this machine.',
   '검사와 자동 고치기': 'Checks and auto-fix',
-  '파일을 열면 규칙 49종으로 바로 검사합니다. 위반은 반드시 고칩니다.': 'Opening a file checks it against 49 rules right away. Errors must be fixed.',
+  '파일을 열면 규칙 52종으로 바로 검사합니다. 위반은 반드시 고칩니다.': 'Opening a file checks it against 52 rules right away. Errors must be fixed.',
   '머리줄의 「위반 · 경고」를 누르면 검사 결과가 열립니다': 'Press "Errors · Warnings" in the header to open the check result',
   '위반(빨강) — KOSMO 규칙에 어긋남. 0건이 되도록 고칩니다': 'Errors (red) — break a KOSMO rule. Fix them until there are none',
   '경고(노랑) — 표준 · 상호운용에 문제가 될 수 있음. 항목을 누르면 그 요소로 갑니다': 'Warnings (yellow) — may cause standard / interoperability problems. Click an item to jump to it',
@@ -938,7 +938,7 @@ export const EN_MORE: Record<string, string> = {
   'AAS → 서브모델 → 요소 순서입니다. 고르면 가운데에 내용이 나옵니다.': 'AAS → submodel → element. Pick one to see it in the middle.',
   '요약 · 값 고치기 · 부품 구성이 여기에 나옵니다. 값을 바꾸고 「저장」을 누르세요.': 'Summary, value editing and parts structure appear here. Change a value and press "Save".',
   '검사 결과': 'Check result',
-  '파일을 열면 규칙 49종으로 바로 검사합니다. 누르면 무엇이 어긋났는지 보입니다.': 'Opening a file checks it against 49 rules. Click to see what is wrong.',
+  '파일을 열면 규칙 52종으로 바로 검사합니다. 누르면 무엇이 어긋났는지 보입니다.': 'Opening a file checks it against 52 rules. Click to see what is wrong.',
   '고칠 수 있는 항목을 전 / 후로 미리 보고, 고른 것만 고칩니다.': 'Preview fixable items before / after and fix only the ones you pick.',
   '검증 결과서 · 문서용 자료 · 레퍼런스 번들을 만듭니다.': 'Makes the validation report, document material and reference bundles.',
   '지금 파일을 .aasx로 받습니다(회원). 완성본은 위반 0건 상태에서 받으세요.': 'Downloads this file as .aasx (members). Download the finished file once there are no errors.',

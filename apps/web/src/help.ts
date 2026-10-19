@@ -80,7 +80,7 @@ export function helpTopics(): HelpTopic[] {
     {
       id: 'check',
       title: tr('검사와 자동 고치기'),
-      summary: tr('파일을 열면 규칙 49종으로 바로 검사합니다. 위반은 반드시 고칩니다.'),
+      summary: tr('파일을 열면 규칙 52종으로 바로 검사합니다. 위반은 반드시 고칩니다.'),
       steps: [
         tr('머리줄의 「위반 · 경고」를 누르면 검사 결과가 열립니다'),
         tr('위반(빨강) — KOSMO 규칙에 어긋남. 0건이 되도록 고칩니다'),
@@ -194,7 +194,7 @@ export function fileTour(): TourStep[] {
   return [
     { sel: '.tree-pane', title: tr('트리'), body: tr('AAS → 서브모델 → 요소 순서입니다. 고르면 가운데에 내용이 나옵니다.') },
     { sel: '.middle', title: tr('내용'), body: tr('요약 · 값 고치기 · 부품 구성이 여기에 나옵니다. 값을 바꾸고 「저장」을 누르세요.') },
-    { sel: 'header .status.chip', title: tr('검사 결과'), body: tr('파일을 열면 규칙 49종으로 바로 검사합니다. 누르면 무엇이 어긋났는지 보입니다.') },
+    { sel: 'header .status.chip', title: tr('검사 결과'), body: tr('파일을 열면 규칙 52종으로 바로 검사합니다. 누르면 무엇이 어긋났는지 보입니다.') },
     { sel: 'header button', text: tr('자동 고치기'), title: tr('자동 고치기'), body: tr('고칠 수 있는 항목을 전 / 후로 미리 보고, 고른 것만 고칩니다.') },
     { sel: 'header .menu-trigger', text: tr('내보내기'), title: tr('내보내기'), body: tr('검증 결과서 · 문서용 자료 · 레퍼런스 번들을 만듭니다.') },
     { sel: 'header button', text: tr('AASX 내려받기'), title: tr('내려받기'), body: tr('지금 파일을 .aasx로 받습니다(회원). 완성본은 위반 0건 상태에서 받으세요.') },

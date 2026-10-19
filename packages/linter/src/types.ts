@@ -7,7 +7,7 @@
  *   - {remedy}       ← instruction on how to fix it
  * However, we improve on a KOSMO flaw where the AASc-3a family omits the key — we always fill in key.
  */
-import type { Environment, IdentifiableIndex, VisitedNode } from '@aas/core';
+import type { Environment, IdentifiableIndex, MetamodelDetection, MetamodelVersion, VisitedNode } from '@aas/core';
 import type { LinterPolicy } from './policy.js';
 
 /** Check layer — all three must be implemented to leave no gaps (spec §0) */
@@ -63,6 +63,44 @@ export interface LintContext {
   /** Result of traversing all SubmodelElements (collect everything, then report in bulk — spec §6-4) */
   elements: VisitedNode[];
   package?: PackageContext;
+  /** Metamodel version the checks judge by — always set (3.0 when the caller gave none) */
+  metamodel: LintMetamodel;
+}
+
+/**
+ * The version a file is judged by (IDTA-01001 V3.0 · V3.1 · V3.2) — the file's own version, not the newest one.
+ * Constraints were removed (AASd-090 · AASd-120 in 3.1), added (AASd-137 · AASd-138 in 3.2) and loosened between
+ * versions, so a rule that ignores the version raises false alarms on newer files.
+ */
+export interface LintMetamodel {
+  version: MetamodelVersion;
+  /**
+   * How the version was decided: `namespace` = declared (XML), `content` = guessed from what the file holds (JSON has
+   * no marker), `caller` = the caller said so without saying how, `default` = nobody said — 3.0 assumed.
+   */
+  source: MetamodelDetection['source'] | 'caller' | 'default';
+  /** True when the version is a guess (from content, or the 3.0 default) rather than declared */
+  inferred: boolean;
+  /**
+   * Versions the file may be, oldest first. One entry when declared or given; for a version guessed from content it
+   * is every version whose schema holds the content (`fits`) — a JSON file without any 3.1 / 3.2 construct is a valid
+   * 3.0 **and** 3.1 **and** 3.2 file, and nothing in it says which one its author meant.
+   * Rules give such a file the benefit of the doubt: a constraint removed in 3.1 holds only if every candidate is 3.0;
+   * a constraint added in 3.2 holds only if every candidate is 3.2 (see version.ts).
+   */
+  candidates: MetamodelVersion[];
+}
+
+/**
+ * What a caller can pass: `readAasx(...).metamodel` as it is, or just `{ version }` (a store that remembers the
+ * version a file came in).
+ */
+export interface LintMetamodelInput {
+  version: MetamodelVersion;
+  source?: MetamodelDetection['source'];
+  inferred?: boolean;
+  /** For a version guessed from content: every version whose schema holds the content */
+  fits?: MetamodelVersion[];
 }
 
 export interface Rule {

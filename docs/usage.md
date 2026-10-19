@@ -1006,7 +1006,21 @@ Header right **Settings ▾ → Rules and conventions** shows what the tool enfo
 | **Who decides acceptance** | **Not this tool.** The KOSMO Validator and aas-test-engines decide |
 | **Conventions** | Own IRI root · required submodels · how ids are formed · asset kind (Type) · value sync policy |
 | **Rule conflicts** | Where the KTL guideline and KOSMO collide, **what is currently chosen** |
-| **49 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
+| **52 rules** | id · layer (L1, L2, L3) · content · source document · whether it is auto-fixable |
+
+### Which metamodel version a file is checked against
+
+A file is checked against **its own metamodel version** (3.0 · 3.1 · 3.2), not the newest one. An XML file names its version in its namespace; a JSON file has no version marker, so its version is read from its content, and a constraint is only held against it when it applies in every version the content can be.
+
+| Difference | 3.0 file | 3.1 file | 3.2 file |
+|---|---|---|---|
+| `AASd-090` (category) · `AASd-120` (idShort on list children) | Checked | Removed in 3.1 — not checked | Not checked |
+| `PKG-FILE-URI` | Needs a scheme (`file:///…`) | Relative paths are fine; spaces and non-ASCII letters get a warning — percent-encode them on export | Same as 3.1 |
+| idShort pattern | No hyphen, one letter allowed | Hyphen allowed (not last), at least two characters | Same as 3.1 |
+| `AASd-137` · `AASd-138` | — | — | Checked (new in 3.2) |
+| `PKG-MM-VERSION` | A file that declares a version but holds something that version cannot (e.g. a 3.2 `Batch` in a 3.0 file) is an error | | |
+
+A caller that passes no version (an `Environment` given directly) is checked as 3.0, as before.
 
 ### When rules conflict — choose by policy
 

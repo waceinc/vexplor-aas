@@ -5,11 +5,13 @@ import type {
   Finding,
   Layer,
   LintContext,
+  LintMetamodelInput,
   LintResult,
   PackageContext,
   Rule,
   Severity,
 } from './types.js';
+import { resolveMetamodel } from './version.js';
 
 export interface LintOptions {
   policy?: Partial<LinterPolicy>;
@@ -19,6 +21,11 @@ export interface LintOptions {
   only?: string[];
   /** Rules to exclude */
   exclude?: string[];
+  /**
+   * Metamodel version of the file — pass `readAasx(...).metamodel`. Without it the file is judged as 3.0, which is
+   * what every caller got before versions were told apart.
+   */
+  metamodel?: LintMetamodelInput;
 }
 
 export function lint(
@@ -32,6 +39,7 @@ export function lint(
     policy,
     index: indexIdentifiables(environment),
     elements: collectElements(environment),
+    metamodel: resolveMetamodel(options.metamodel),
   };
   if (options.package) ctx.package = options.package;
 

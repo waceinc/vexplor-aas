@@ -5,8 +5,10 @@ import type {
   LangString,
   Reference,
 } from '@aas/core';
+import type { MetamodelVersion } from '@aas/core';
 import type { LinterPolicy } from './policy.js';
 import { IDTA_IRI_PREFIX } from './policy.js';
+import { ID_SHORT_PATTERN_V31, idShortPattern } from './version.js';
 
 /** Value of a Reference's first key. Used for semanticId comparison */
 export function firstKeyValue(ref: Reference | undefined): string | undefined {
@@ -61,11 +63,15 @@ export function idVersionSuffix(id: string): string {
   return parts.slice(-2).join('/');
 }
 
-/** AASd-002 idShort regex — at least 2 characters, starts with a letter, cannot end with a hyphen */
-export const ID_SHORT_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9_]+$/;
+/**
+ * AASd-002 idShort regex of 3.1 and later — at least 2 characters, starts with a letter, cannot end with a hyphen.
+ * 3.0 is stricter on hyphens and looser on length; rules judge with idShortFits (version.ts), which knows the file's version.
+ */
+export const ID_SHORT_PATTERN = ID_SHORT_PATTERN_V31;
 
-export function isValidIdShort(idShort: string): boolean {
-  return ID_SHORT_PATTERN.test(idShort);
+/** Whether the idShort fits the pattern of the given metamodel version */
+export function isValidIdShort(idShort: string, version: MetamodelVersion): boolean {
+  return idShortPattern(version).test(idShort);
 }
 
 /** valueType to dataType mapping (port of XS_OK from _kosmo_selfcheck.py) */

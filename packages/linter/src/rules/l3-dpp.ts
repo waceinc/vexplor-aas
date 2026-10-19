@@ -15,6 +15,7 @@
 import type { AssetAdministrationShell, Submodel, SubmodelElement } from '@aas/core';
 import { fill, tr } from '@aas/core';
 import type { LintContext, Report, Rule } from '../types.js';
+import { atLeast } from '../version.js';
 
 const SOURCE = 'IDTA 02099-1 Digital Product Passport — Part 1 · EN 18223:2026';
 const CDS = 'https://admin-shell.io/idta/cds/';
@@ -35,9 +36,10 @@ const GRANULARITY = ['Model', 'Item', 'Batch'];
 
 /**
  * Granularity → AssetKind (Table 2: "the two values shall map").
- * Important: Batch maps to AssetKind Batch, which only exists from metamodel 3.2 — not checked until the core reads 3.2.
+ * Important: Batch maps to AssetKind Batch, which only exists from metamodel 3.2. In a 3.0 / 3.1 file there is no
+ *    value a batch passport could map to, so the pair is checked only for 3.2 files (see dpp5AssetKind).
  */
-const ASSET_KIND: Record<string, string> = { Model: 'Type', Item: 'Instance' };
+const ASSET_KIND: Record<string, string> = { Model: 'Type', Item: 'Instance', Batch: 'Batch' };
 
 /** ISO 8601 timestamp in UTC (§3.1 lastUpdate) — `Z` or a zero offset */
 const UTC_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]00:00)$/;
@@ -274,7 +276,7 @@ export const dpp5AssetKind: Rule = {
   id: 'DPP-5',
   layer: 'L3',
   get title() {
-    return tr('제품 여권 단위(granularity)와 AAS 의 assetKind 가 짝이 맞는다 — Model 은 Type, Item 은 Instance');
+    return tr('제품 여권 단위(granularity)와 AAS 의 assetKind 가 짝이 맞는다 — Model 은 Type, Item 은 Instance, Batch 는 Batch(메타모델 3.2)');
   },
   source: `${SOURCE} §2.1 Table 2 · §3.1 GranularityEnum`,
   check(ctx: LintContext, report: Report) {
@@ -284,6 +286,7 @@ export const dpp5AssetKind: Rule = {
       const granularity = textOf(found.element);
       const expected = ASSET_KIND[granularity];
       if (!expected) continue;
+      if (expected === 'Batch' && !atLeast(ctx, '3.2')) continue;
       for (const { shell, a } of shellsOf(ctx, passport.submodel)) {
         const actual = shell.assetInformation?.assetKind;
         if (!actual || actual === expected) continue;
@@ -298,7 +301,7 @@ export const dpp5AssetKind: Rule = {
             1: actual,
             2: expected,
           }),
-          remedy: tr('모델 단위 여권이면 assetKind 를 Type, 낱개 단위 여권이면 Instance 로 맞추거나, 여권 단위 값을 고치십시오.'),
+          remedy: tr('모델 단위 여권이면 assetKind 를 Type, 낱개 단위면 Instance, 묶음(Batch) 단위면 Batch 로 맞추거나, 여권 단위 값을 고치십시오.'),
           fixable: false,
         });
       }
