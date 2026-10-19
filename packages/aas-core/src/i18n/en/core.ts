@@ -37,6 +37,12 @@ export const EN_CORE: Record<string, string> = {
     '{field} is longer than 2000 characters. V{since} allows up to 2048, V{target} only 2000, and shortening it would make it a different identifier.',
   '값 목록 항목에 valueId가 없습니다. V{since}부터는 비워 둘 수 있지만 V{target}에서는 필수입니다.':
     'A value list entry has no valueId. It is optional from V{since} but required in V{target}.',
+  'idShort {value}는 한 글자입니다. V3.0에서는 되지만 V{target}은 두 글자 이상이어야 합니다. 이름을 바꾸면 이 요소를 가리키는 참조가 끊깁니다.':
+    'idShort {value} is a single character. V3.0 allows it, V{target} needs at least two. Renaming it would break the references that point to this element.',
+  '{field} {value}는 URI 형식이 아닙니다(공백 · 한글 등). V3.0에서는 되지만 V{target}은 RFC 3986 형식만 받습니다. 바꾸면 패키지 안의 파일 이름과 어긋납니다.':
+    '{field} {value} is not a URI (spaces, non-ASCII letters, …). V3.0 allows it, V{target} only accepts RFC 3986 references. Changing it would no longer match the file name inside the package.',
+  '{field}에 XML에서 쓸 수 없는 제어 문자가 있습니다. V3.0에서는 되지만 V{target}에서는 안 됩니다.':
+    '{field} contains control characters XML does not allow. V3.0 accepts them, V{target} does not.',
   // ── pointer.ts ──
   'JSON Pointer는 /로 시작해야 합니다: {0}': 'A JSON Pointer must start with /: {0}',
 };

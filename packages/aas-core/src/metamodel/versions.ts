@@ -67,6 +67,11 @@ export interface MetamodelDetection {
   source: 'namespace' | 'content';
   /** True when the version was guessed from content rather than declared */
   inferred: boolean;
+  /**
+   * Versions whose schema can hold this content, oldest first — usually from `version` up to 3.2. Empty when the
+   * content mixes a newer construct with a value only 3.0 allows (a 3.2 Batch next to a one-letter idShort).
+   */
+  fits: MetamodelVersion[];
   /** Constructs that need a version above 3.0, in document order — empty for plain 3.0 content */
   evidence: VersionEvidence[];
 }
@@ -78,4 +83,6 @@ export interface VersionEvidence {
   feature: string;
   /** First version that allows it */
   since: MetamodelVersion;
+  /** Last version that allows it — set for 3.0 values the 3.1 / 3.2 schemas reject */
+  until?: MetamodelVersion;
 }

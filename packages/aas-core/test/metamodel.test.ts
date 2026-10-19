@@ -188,6 +188,54 @@ describe('lowering to 3.0', () => {
   });
 });
 
+/** 3.0 values the 3.1 / 3.2 schemas reject — raising must refuse them, not write an invalid file */
+const RAISE_CASES: { name: string; env: Environment }[] = [
+  { name: 'one-character idShort', env: submodel([{ modelType: 'Property', idShort: 'a', valueType: 'xs:string' }]) },
+  {
+    name: 'File value with Korean letters',
+    env: submodel([{ modelType: 'File', idShort: 'Manual', contentType: 'application/pdf', value: '/aasx/files/설명서.pdf' }]),
+  },
+  {
+    name: 'thumbnail path with a space',
+    env: shell({ assetKind: 'Type', globalAssetId: 'urn:example:asset:1', defaultThumbnail: { path: '/my thumb.png' } }),
+  },
+  { name: 'control character in a Property value', env: submodel([{ modelType: 'Property', idShort: 'Code', valueType: 'xs:string', value: 'a\u0001b' }]) },
+  {
+    name: 'control character in a qualifier value',
+    env: submodel([], { qualifiers: [{ type: 'Mode', valueType: 'xs:string', value: 'x\u0002' }] }),
+  },
+];
+
+describe('raising to 3.1 / 3.2 — 3.0 values the newer schemas reject', () => {
+  for (const c of RAISE_CASES) {
+    it(c.name, () => {
+      const detected = detectMetamodelVersion(c.env);
+      expect(detected.version).toBe('3.0');
+      expect(detected.fits).toEqual(['3.0']);
+      expect(detected.evidence.every((e) => e.until === '3.0')).toBe(true);
+      expect(convertEnvironment(c.env, { to: '3.0' }).report.entries).toEqual([]);
+      for (const to of ['3.1', '3.2'] as const) {
+        expect(() => convertEnvironment(c.env, { to })).toThrow(DowngradeError);
+        const { report } = convertEnvironment(c.env, { to, unrepresentable: 'keep' });
+        expect(report.entries.every((e) => e.kind === 'unrepresentable' && e.until === '3.0')).toBe(true);
+      }
+    });
+  }
+
+  it('a two-letter idShort, an ASCII path and a tab are fine in every version', () => {
+    const env = submodel([
+      { modelType: 'Property', idShort: 'ab', valueType: 'xs:string', value: 'a\tb' },
+      { modelType: 'File', idShort: 'Manual', contentType: 'application/pdf', value: 'file:///aasx/files/manual.pdf' },
+    ]);
+    expect(detectMetamodelVersion(env).fits).toEqual(['3.0', '3.1', '3.2']);
+  });
+
+  it('content no single version can hold has no fitting version', () => {
+    const env = shell({ assetKind: 'Batch', globalAssetId: 'urn:example:asset:1' }, { idShort: 'x' });
+    expect(detectMetamodelVersion(env).fits).toEqual([]);
+  });
+});
+
 describe('writeEnvironment', () => {
   it('defaults to 3.0 and refuses what 3.0 cannot hold', () => {
     expect(DEFAULT_METAMODEL_VERSION).toBe('3.0');

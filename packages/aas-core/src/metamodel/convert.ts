@@ -16,6 +16,16 @@ import {
   type MetamodelVersion,
 } from './versions.js';
 
+/** Whether writing `target` runs into this difference — a construct newer than target, or a value target rejects */
+function blocksTarget(hit: FeatureHit, target: MetamodelVersion): boolean {
+  return compareVersions(hit.since, target) > 0 || (hit.until !== undefined && compareVersions(target, hit.until) > 0);
+}
+
+/** Versions that can hold content with these differences, oldest first */
+export function fittingVersions(hits: readonly FeatureHit[]): MetamodelVersion[] {
+  return METAMODEL_VERSIONS.filter((v) => !hits.some((h) => blocksTarget(h, v)));
+}
+
 /** The lowest version that can hold this content. JSON carries no version marker, so this is always an inference */
 export function detectMetamodelVersion(environment: Environment): MetamodelDetection {
   const hits = scanFeatures(environment);
@@ -25,7 +35,12 @@ export function detectMetamodelVersion(environment: Environment): MetamodelDetec
     version,
     source: 'content',
     inferred: true,
-    evidence: hits.map((h) => ({ pointer: h.pointer, feature: h.code, since: h.since })),
+    fits: fittingVersions(hits),
+    evidence: hits.map((h) => {
+      const e: MetamodelDetection['evidence'][number] = { pointer: h.pointer, feature: h.code, since: h.since };
+      if (h.until !== undefined) e.until = h.until;
+      return e;
+    }),
   };
 }
 
@@ -38,6 +53,8 @@ export interface DowngradeEntry {
   field: string;
   /** First version that allows it */
   since: MetamodelVersion;
+  /** Last version that allows it — set for 3.0 values the 3.1 / 3.2 schemas reject */
+  until?: MetamodelVersion;
   /** The value found — for a dropped entry this is everything that was removed, so nothing is lost for good */
   value?: unknown;
   /** What happened and why, in the request's language */
@@ -118,6 +135,12 @@ function messageOf(hit: FeatureHit, target: MetamodelVersion): string {
       return fill(tr('{field}가 2000자를 넘습니다. V{since}부터 2048자까지 되지만 V{target}은 2000자까지이고, 자르면 다른 식별자가 됩니다.'), v);
     case 'valueId-missing':
       return fill(tr('값 목록 항목에 valueId가 없습니다. V{since}부터는 비워 둘 수 있지만 V{target}에서는 필수입니다.'), v);
+    case 'idShort-single-char':
+      return fill(tr('idShort {value}는 한 글자입니다. V3.0에서는 되지만 V{target}은 두 글자 이상이어야 합니다. 이름을 바꾸면 이 요소를 가리키는 참조가 끊깁니다.'), v);
+    case 'path-not-uri':
+      return fill(tr('{field} {value}는 URI 형식이 아닙니다(공백 · 한글 등). V3.0에서는 되지만 V{target}은 RFC 3986 형식만 받습니다. 바꾸면 패키지 안의 파일 이름과 어긋납니다.'), v);
+    case 'value-xml-char':
+      return fill(tr('{field}에 XML에서 쓸 수 없는 제어 문자가 있습니다. V3.0에서는 되지만 V{target}에서는 안 됩니다.'), v);
   }
 }
 
@@ -130,11 +153,14 @@ function removeEmptiedArrays(root: unknown, droppedEntryPointers: string[]): voi
   }
 }
 
-/** Lowers (or keeps) a model for writing as `to`. Raising needs no change: every older construct is still allowed */
+/**
+ * Converts a model for writing as `to` — lower or higher. Raising changes nothing in the content (every 3.0 construct
+ * is a 3.1 / 3.2 construct), but a few 3.0 values fail the newer schemas and are reported like any unrepresentable value.
+ */
 export function convertEnvironment(environment: Environment, options: ConvertOptions = {}): ConvertResult {
   const target = options.to ?? DEFAULT_METAMODEL_VERSION;
   const policy = options.unrepresentable ?? 'error';
-  const hits = scanFeatures(environment).filter((h) => compareVersions(h.since, target) > 0);
+  const hits = scanFeatures(environment).filter((h) => blocksTarget(h, target));
 
   const entries: DowngradeEntry[] = hits.map((h) => {
     const entry: DowngradeEntry = {
@@ -145,6 +171,7 @@ export function convertEnvironment(environment: Environment, options: ConvertOpt
       since: h.since,
       message: messageOf(h, target),
     };
+    if (h.until !== undefined) entry.until = h.until;
     if (h.value !== undefined) entry.value = h.value;
     return entry;
   });

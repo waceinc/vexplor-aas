@@ -252,7 +252,7 @@ function detectedVersion(
     );
     return fromContent;
   }
-  return { version: declared, source: 'namespace', inferred: false, evidence: fromContent.evidence };
+  return { version: declared, source: 'namespace', inferred: false, fits: fromContent.fits, evidence: fromContent.evidence };
 }
 
 /** Shortcut when only aasx/data.json is needed (for structure scanning) */

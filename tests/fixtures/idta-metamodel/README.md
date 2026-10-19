@@ -2,7 +2,9 @@
 
 The `minimal` and `maximal` examples of every class, copied unchanged from the IDTA metamodel repository
 <https://github.com/admin-shell-io/aas-specs-metamodel> (`schemas/json/examples/generated` and
-`schemas/xml/examples/generated`). They are generated test data (`something_…` values), not equipment data.
+`schemas/xml/examples/generated`), and each version's official JSON schema as `aas.schema.json`
+(`schemas/json/aas.json`). The examples are generated test data (`something_…` values, a `John.Doe@example.org`
+placeholder at the reserved example domain), not equipment data.
 
 | Folder | Tag | Commit |
 | --- | --- | --- |
@@ -10,9 +12,10 @@ The `minimal` and `maximal` examples of every class, copied unchanged from the I
 | `3.1/` | `v3.1.2` | `a93e41c07c4018e864cba6016b760b9c7e0d849f` |
 | `3.2/` | `v3.2.0` | `ecd191273a28dd9c4e7bb75e923f0f0fe5da444e` |
 
-Used by `packages/aasx/test/metamodel-versions.test.ts`: XML and JSON of the same example must read to the same
-model, every example must survive read → write in its own version, and lowering 3.1 / 3.2 examples to 3.0 must report
-what it could not keep.
+Used by `packages/aasx/test/metamodel-versions.test.ts` (XML and JSON of the same example read to the same model,
+read → write in its own version loses nothing, lowering reports what it could not keep) and
+`packages/aasx/test/metamodel-schemas.test.ts` (output written in any direction passes the target version's schema;
+round trips between every pair of versions).
 
 Licence: "Specification of the Asset Administration Shell, Part 1: Metamodel" examples, © Industrial Digital Twin
 Association (IDTA), CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>). Do not edit the files — refresh them

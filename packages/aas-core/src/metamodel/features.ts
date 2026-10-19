@@ -12,10 +12,15 @@
  *              a 2048-character id). There is no faithful substitute: writing Instance for a batch, or inventing a
  *              contentType, would state something false. Lowering refuses these unless told to keep them as they are.
  *
- * Not listed on purpose — differences that make a *higher* version stricter (3.1 requires idShort ≥ 2 characters,
- * DateTimeUtc for lastUpdate, a URI pattern for File/value; 3.2 adds AASd-137/138). They never block writing an
- * older version; checking them belongs to the linter.
+ * The table also holds the other direction — values 3.0 allows that the **3.1 / 3.2 schemas reject** (`until: '3.0'`):
+ * a one-character idShort, a File/value or thumbnail path that is not an RFC 3986 reference (spaces, Korean letters),
+ * control characters in a value. Writing 3.1 or 3.2 refuses them like any other unrepresentable value — renaming or
+ * percent-encoding would break the references and package parts that point at them.
+ *
+ * Not listed — constraints the JSON schemas do not encode (AASd-137 / AASd-138 of 3.2, AASd-129's new exception,
+ * AASd-120 and AASd-090 removed in 3.1). Those are linter rules, not a question of which schema a file can pass.
  */
+import { URI_REFERENCE_PATTERN, XML_CHAR_PATTERN } from './patterns.js';
 import { ASSET_KINDS_BY_VERSION, MAX_CONTENT_TYPE_LENGTH, MAX_IDENTIFIER_LENGTH, type MetamodelVersion } from './versions.js';
 
 export type FeatureCode =
@@ -31,13 +36,18 @@ export type FeatureCode =
   | 'contentType-length'
   | 'idShort-hyphen'
   | 'length-2048'
-  | 'valueId-missing';
+  | 'valueId-missing'
+  | 'idShort-single-char'
+  | 'path-not-uri'
+  | 'value-xml-char';
 
 export interface FeatureHit {
   code: FeatureCode;
   kind: 'drop' | 'value';
   /** First version that allows it */
   since: MetamodelVersion;
+  /** Last version that allows it — set only for values the newer schemas reject */
+  until?: MetamodelVersion;
   /** JSON Pointer of the field (or of the array entry, for a dropped entry) */
   pointer: string;
   /** Field name as written in the file */
@@ -77,6 +87,18 @@ export function scanFeatures(environment: unknown): FeatureHit[] {
   const hit = (code: FeatureCode, kind: FeatureHit['kind'], since: MetamodelVersion, pointer: string, field: string, value: unknown): void => {
     hits.push({ code, kind, since, pointer, field, value });
   };
+  /** A 3.0 value the 3.1 / 3.2 schemas reject */
+  const only30 = (code: FeatureCode, pointer: string, field: string, value: unknown): void => {
+    hits.push({ code, kind: 'value', since: '3.0', until: '3.0', pointer, field, value });
+  };
+  const uriPath = (node: Obj, field: string, pointer: string): void => {
+    const v = node[field];
+    if (typeof v === 'string' && !URI_REFERENCE_PATTERN.test(v)) only30('path-not-uri', `${pointer}/${seg(field)}`, field, v);
+  };
+  const xmlChars = (node: Obj, field: string, pointer: string): void => {
+    const v = node[field];
+    if (typeof v === 'string' && !XML_CHAR_PATTERN.test(v)) only30('value-xml-char', `${pointer}/${seg(field)}`, field, v);
+  };
   /** Text that is longer than 3.0 allows but fits 3.1 — longer than 3.1 is a schema error, not a version question */
   const length2048 = (node: Obj, field: string, pointer: string): void => {
     const v = node[field];
@@ -105,9 +127,12 @@ export function scanFeatures(environment: unknown): FeatureHit[] {
     if (!isObj(node)) continue;
 
     const modelType = node['modelType'];
-    if (typeof node['idShort'] === 'string' && node['idShort'].includes('-')) {
-      hit('idShort-hyphen', 'value', '3.1', `${pointer}/idShort`, 'idShort', node['idShort']);
+    const idShort = node['idShort'];
+    if (typeof idShort === 'string' && idShort.includes('-')) {
+      hit('idShort-hyphen', 'value', '3.1', `${pointer}/idShort`, 'idShort', idShort);
     }
+    // 3.1's pattern ^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9_]+$ needs two characters; 3.0's allowed one
+    if (typeof idShort === 'string' && /^[a-zA-Z]$/.test(idShort)) only30('idShort-single-char', `${pointer}/idShort`, 'idShort', idShort);
     if (IDENTIFIABLE_SECTIONS.has(key) && parentKey === '') length2048(node, 'id', pointer);
 
     let skipChildren = false;
@@ -132,6 +157,7 @@ export function scanFeatures(environment: unknown): FeatureHit[] {
       }
       case 'defaultThumbnail':
         length2048(node, 'path', pointer);
+        uriPath(node, 'path', pointer);
         contentType(node, pointer, false);
         break;
       case 'keys':
@@ -141,6 +167,10 @@ export function scanFeatures(environment: unknown): FeatureHit[] {
       case 'valueReferencePairs':
         length2048(node, 'value', pointer);
         if (node['valueId'] === undefined) hit('valueId-missing', 'value', '3.1', `${pointer}/valueId`, 'valueId', undefined);
+        break;
+      case 'qualifiers':
+      case 'extensions':
+        xmlChars(node, 'value', pointer);
         break;
       case 'embeddedDataSpecifications': {
         const content = node['dataSpecificationContent'];
@@ -164,6 +194,12 @@ export function scanFeatures(environment: unknown): FeatureHit[] {
     if (modelType === 'File') {
       contentType(node, pointer, true);
       length2048(node, 'value', pointer);
+      uriPath(node, 'value', pointer);
+    }
+    if (modelType === 'Property') xmlChars(node, 'value', pointer);
+    if (modelType === 'Range') {
+      xmlChars(node, 'min', pointer);
+      xmlChars(node, 'max', pointer);
     }
     if (modelType === 'Blob') contentType(node, pointer, true);
 
