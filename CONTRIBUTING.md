@@ -127,7 +127,7 @@ done while any of these still shows the old version or misses what changed:
    (`AAS_UPDATE_SAMPLES=1 npx vitest run apps/api/test/integration-bundle-build.test.ts`).
 2. **What changed** — the "What's new" table in `README.md` / `README.ko.md` and the guide that covers the feature
    (usage, integration, edge contract), in English and Korean.
-3. **Release** — tag `vX.Y.Z`, the seven library tarballs (`node scripts/pack-libraries.mjs --verify`) and
+3. **Release** — tag `vX.Y.Z`, the seven library tarballs (`npm run build`, then `node scripts/pack-libraries.mjs --verify` — it refuses a stale `dist/`) and
    `SHA256SUMS`. The remote collector is released from its own repository (waceinc/vexplor-edge, its own version and
    checklist); when it needs this release's libraries, release this one first. The site bundle pins `EDGE_VERSION` in
    `scripts/make-release.sh`.

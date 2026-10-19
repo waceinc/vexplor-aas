@@ -64,6 +64,10 @@ const versionAt = args.indexOf('--version');
 const verify = args.includes('--verify');
 const version = versionAt >= 0 ? args[versionAt + 1] : productVersion();
 if (!version || !/^\d+\.\d+\.\d+$/.test(version)) fail(`not a version: ${version}`);
+// Important: the tarballs carry dist/, and this script does not build. A dist/ left from the last release packed the
+//    old PRODUCT_VERSION under the new file names (2.8.1, 2026-10-19). Refuse unless the build matches the source.
+const built = /PRODUCT_VERSION = '([^']+)'/.exec(readFileSync(join(ROOT, 'packages/aas-core/dist/version.js'), 'utf8'))?.[1];
+if (built !== productVersion()) fail(`dist/ is ${built ?? 'missing'} but the source is ${productVersion()} — run \`npm run build\` first`);
 
 const fileOf = (name) => `${name.replace(/^@/, '').replace('/', '-')}-${version}.tgz`;
 const releaseUrl = (name) => `${REPOSITORY}/releases/download/v${version}/${fileOf(name)}`;
