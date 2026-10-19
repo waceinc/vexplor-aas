@@ -33,9 +33,9 @@ export const DEFAULT_POOL_MAX = 10;
 /**
  * `PG_POOL_MAX` — how many connections to PostgreSQL the server opens at most (2.8.1). A whole number from 1 to 1,000;
  * anything else is the default, so a typo does not stop the server.
- * Important: more is not simply faster. Since 2.8.1 a batch is one statement, and 10 connections were enough for the
- *    load test's limit (2026-10-19). Raise it for many people working at once, and keep the sum over every server below
- *    the database's `max_connections` (100 by default).
+ * Important: more is not simply faster. Since 2.8.1 a batch is one statement; in the load test of 2026-10-19, 600
+ *    collectors sending 60,000 values a second were taken with p95 85 ms on 10 connections and 1.07 s on 20. Raise it
+ *    for many people working at once, and keep the sum over every server below the database's `max_connections`.
  */
 export function poolMaxFromEnv(env: NodeJS.ProcessEnv): number {
   const text = env['PG_POOL_MAX']?.trim() ?? '';
