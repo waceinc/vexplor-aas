@@ -16,7 +16,7 @@ import { parsePolicy, type LinterPolicy } from '@aas/linter';
 //    2026-10-06 — the port stayed closed meanwhile and the server looked "dead"). Authoring-only users never use OPC UA.
 import type { SimulatorServer } from '@aas/opcua';
 const opcua = () => import('@aas/opcua');
-// Modbus TCP · MQTT — adapters with no external dependencies (@aas/fieldbus). Like OPC UA, loaded only on use
+// Modbus TCP · MQTT · S7 · MC — adapters with no external dependencies (@aas/fieldbus). Like OPC UA, loaded only on use
 const fieldbus = () => import('@aas/fieldbus');
 import { FolderStore, InMemoryStore, PostgresStore, visibleInWorkspace, type AasStore } from '@aas/store';
 import { createApi, toErrorResponse } from './api.js';
@@ -304,7 +304,7 @@ export function createHttpServer(options: ServerOptions = {}): Server {
   };
 
   /**
-   * Connects to the address the AID specifies — OPC UA via @aas/opcua, Modbus TCP · MQTT via @aas/fieldbus (2026-10-14).
+   * Connects to the address the AID specifies — OPC UA via @aas/opcua, Modbus TCP · MQTT · S7 · MC via @aas/fieldbus (2026-10-14).
    * In demo mode all three go through guardOutbound — everything except the virtual PLC (OPC UA) is blocked.
    */
   const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => {
@@ -312,6 +312,13 @@ export function createHttpServer(options: ServerOptions = {}): Server {
       if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
       guardOutbound(descriptor.base);
       return (await fieldbus()).ModbusReader.connect(descriptor, { guard: guardOutbound });
+    }
+    if (descriptor.protocol === 'S7' || descriptor.protocol === 'MC') {
+      // VEXPLOR extension bindings, read only (2.10.0 draft) — no login; the guard sees the address before any connection
+      if (!descriptor.base) throw new Error(tr('EndpointMetadata.base가 없습니다.'));
+      guardOutbound(descriptor.base);
+      const bus = await fieldbus();
+      return descriptor.protocol === 'S7' ? bus.S7Reader.connect(descriptor, { guard: guardOutbound }) : bus.McReader.connect(descriptor, { guard: guardOutbound });
     }
     if (descriptor.protocol === 'MQTT') {
       // A login the AID asks for (2.8.0) comes from the installer's file by address, never from the AAS

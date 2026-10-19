@@ -643,6 +643,10 @@ unless you mount a folder and point `OPCUA_PKI_DIR` at it; otherwise a rebuild m
 - Prefer **pull** (feed, exports) across the DMZ toward level 4 — the business network asks, the plant answers.
   Use **push** (webhook, MQTT) inside level 3 or to an endpoint the DMZ exposes on purpose.
 - Plant-internal targets (private addresses, plain http, internal brokers) must be listed in `AAS_INTEGRATION_ALLOW`.
+- **Collection ports to open from the tool toward level 1.** OPC UA (usually 4840), Modbus TCP 502, MQTT 1883 / 8883,
+  S7 ISO-on-TCP **102**, and the MC protocol port **set in the PLC's Ethernet settings** (no fixed number). S7 and MC
+  are VEXPLOR extension bindings, read only (docs/usage.md §8). Webhooks are never sent to port 102 or 502 — both are
+  on the blocked port list.
 - The folder store's integration guarantees assume a **local disk**. Network file systems (SMB, NFS, NAS sync folders)
   have weaker rename / fsync behaviour; use PostgreSQL there.
 

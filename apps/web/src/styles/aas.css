@@ -1959,6 +1959,8 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .add-aid .aid-connection .self-warn { margin-top: 0; }
 .picked-list li .unit-input { flex: 0 0 72px; min-width: 0; }
 .picked-list li.modbus select:nth-of-type(3) { width: 208px; }
+/* S7 · MC rows — the PLC data type select ("As the address says" must fit) */
+.picked-list li select.plc-type { width: 128px; }
 
 /* Metamodel version — the header chip and the download window (components/ExportDialog.tsx, 2026-10-19) */
 header .metamodel-chip { font-size: var(--text-xs); color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius); padding: 0 calc(var(--spacing) * 2); white-space: nowrap; }

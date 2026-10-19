@@ -61,7 +61,7 @@ whenever machines change — and they too report that creating the AAS itself is
 | **Undo & history** | One-step undo, and restore a submodel to an earlier point |
 | **Types and units** | Split a type file into units; when the type changes, review the differences line by line and pull only the lines you choose — values edited on site are never overwritten |
 | **Process bundles** | Company → line → process → equipment → part. Group machines into a process and export a submission bundle |
-| **Data collection** | Read live values from OPC UA · Modbus TCP · MQTT devices, addressed by the AID submodel inside the AAS. Each value shows whether it is live, stale or missing, and each machine gets a daily status bar (running · stopped · alarm). Add dozens of tags from one pattern |
+| **Data collection** | Read live values from OPC UA · Modbus TCP · MQTT devices, and directly from S7 and MELSEC (MC protocol) PLCs — read only, a VEXPLOR extension binding not yet checked on real PLCs — addressed by the AID submodel inside the AAS. Each value shows whether it is live, stale or missing, and each machine gets a daily status bar (running · stopped · alarm). Add dozens of tags from one pattern |
 | **Standard API** | IDTA Part 2 REST API, so other systems can read the AAS held here |
 | **MES · ERP · CMMS integration** | A pull feed of every change and runtime event (CloudEvents), signed webhooks and MQTT, equipment / BOM / hierarchy / maintenance / document exports in JSON or CSV, ERP numbers kept next to the AASX, and server-side state, alarm, counter and threshold rules. A secure OPC UA server (accounts + encryption). See [docs/integration.md](docs/integration.md) |
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
@@ -167,7 +167,7 @@ A TypeScript monorepo — one language for the front end and the server.
 | `packages/store` | Storage — in-memory, folder and PostgreSQL pass the same conformance suite |
 | `packages/collector` | Resolves AID and collects field values |
 | `packages/opcua` | OPC UA client and server ([node-opcua](https://github.com/node-opcua/node-opcua)) |
-| `packages/fieldbus` | Modbus TCP · MQTT collection adapters (no external dependencies — `node:net`) · test device and broker |
+| `packages/fieldbus` | Modbus TCP · MQTT · S7 · MC protocol collection adapters, read only (no external dependencies — `node:net`) · test device and broker |
 | `apps/api` | REST API server |
 | `apps/web` | React front end |
 
@@ -202,7 +202,7 @@ side: [docs/edge-install.md](docs/edge-install.md); the contract copy: [docs/edg
 | Checking a written file | V3.0: the official validator aas-test-engines 1.0.3, which checks **V3.0 only**. V3.1 · V3.2: the official JSON schemas of admin-shell-io/aas-specs-metamodel (v3.1.2 · v3.2.0) in this repository's tests — aas-test-engines does not check those versions yet |
 | AASX package (IDTA-01005) | Reads JSON and XML, writes JSON. For V3.1 · V3.2, attachment names with spaces or non-ASCII letters are percent-encoded (RFC 3986, UTF-8) together with their parts and relationships — those versions accept only URIs |
 | **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · partial Registry and Discovery. Served under `/api/v3.0` and, for V3.1 · V3.2 clients, `/api/v3` (same routes). Endpoints new in V3.2 (`$recent-changes`, `$history`, `$signed`, asynchronous package operations) are not implemented and answer 404 |
-| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT address resolution (Modbus · MQTT use the W3C WoT binding notation) |
+| AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT address resolution (Modbus · MQTT use the W3C WoT binding notation). S7 and MC are **not** AID bindings — a VEXPLOR extension in the standard `base` / `href` places, marked by our binding IRI ([docs/usage.md](docs/usage.md) §8) |
 
 `node scripts/part2-coverage.mjs` compares the implementation against the specification's OpenAPI
 files and prints the exact coverage.

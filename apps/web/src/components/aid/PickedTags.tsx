@@ -3,6 +3,7 @@
  * Split out of components/AddAid.tsx (componentization, 2026-10-13) — markup and comments are verbatim from before the move.
  */
 import { fill, tr } from '../../i18n.js';
+import { PLC_TYPE_CHOICES, plcHrefOf, plcHrefOk } from './plc.js';
 import { aidTypeOf, fromModiconAddress, MODBUS_ENTITIES, MODBUS_ORDERS, MODBUS_TYPES, type AidProtocolChoice } from './protocol.js';
 import type { ModbusOrder, TagRow } from './types.js';
 
@@ -20,6 +21,8 @@ interface Props {
   leafNames: readonly string[];
   /** Protocol set by the endpoint address — Modbus takes kind and data type, MQTT takes a topic */
   protocol?: AidProtocolChoice;
+  /** The endpoint as typed — MC reads its `series` (iQ-F numbers X · Y in octal) to check addresses */
+  endpoint?: string;
 }
 
 function entityLabel(entity: string): string {
@@ -29,9 +32,12 @@ function entityLabel(entity: string): string {
   return tr('입력 비트');
 }
 
-export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Props): React.JSX.Element {
+export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA', endpoint = '' }: Props): React.JSX.Element {
   const update = (index: number, patch: Partial<TagRow>): void => setRows(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   const modbus = protocol === 'MODBUS';
+  const plc = protocol === 'S7' || protocol === 'MC' ? protocol : undefined;
+  /** S7 · MC: mark an address the server would refuse — the server still decides on "Create" */
+  const plcBad = (row: TagRow): boolean => plc !== undefined && row.href.trim() !== '' && !plcHrefOk(plc, endpoint, plcHrefOf(row.href, row.plcType));
   return (
     <ul className="picked-list">
       {rows.map((row, index) => (
@@ -46,11 +52,36 @@ export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Pro
           />
           <input
             value={row.href}
-            className="mono"
+            className={plcBad(row) ? 'mono miss' : 'mono'}
             aria-label={fill(tr('태그 {0} 주소'), { 0: index + 1 })}
+            aria-invalid={plcBad(row) || undefined}
+            title={plcBad(row) ? (plc === 'S7' ? tr('S7 주소 형식이 아닙니다 — 예: DB10.DBD4 · DB1.DBX0.3 · M10.3 · MW20 · IB0') : tr('MC 주소 형식이 아닙니다 — 예: D100 · D10.3 · M50 · X1F · W1A')) : undefined}
             onChange={(event) => update(index, { href: event.target.value })}
-            placeholder={modbus ? tr('주소 — 예: 40 · 1/40') : protocol === 'MQTT' ? tr('토픽 — 예: plant/press/temp') : 'NodeId'}
+            placeholder={
+              modbus
+                ? tr('주소 — 예: 40 · 1/40')
+                : protocol === 'MQTT'
+                  ? tr('토픽 — 예: plant/press/temp')
+                  : plc === 'S7'
+                    ? tr('주소 — 예: DB10.DBD4 · M10.3')
+                    : plc === 'MC'
+                      ? tr('주소 — 예: D100 · M50 · X1F')
+                      : 'NodeId'
+            }
           />
+          {plc && (
+            <select
+              className="plc-type"
+              value={row.plcType ?? ''}
+              aria-label={fill(tr('태그 {0} PLC 자료형'), { 0: index + 1 })}
+              title={tr('PLC 쪽 자료형 — 비우면 주소대로(S7 은 크기 글자 X · B · W · D, MC 는 워드 INT · 비트 BOOL). 문자열 길이는 주소에 :STRING[20] 처럼 적습니다')}
+              onChange={(event) => update(index, { plcType: event.target.value })}
+            >
+              {PLC_TYPE_CHOICES[plc].map((type) => (
+                <option key={type} value={type}>{type === '' ? tr('주소대로') : type}</option>
+              ))}
+            </select>
+          )}
           {modbus && (() => {
             const modicon = fromModiconAddress(row.href);
             return (
@@ -93,7 +124,7 @@ export function PickedTags({ rows, setRows, leafNames, protocol = 'OPCUA' }: Pro
               </>
             );
           })()}
-          {!modbus && <select
+          {!modbus && !plc && <select
             value={row.type}
             aria-label={fill(tr('태그 {0} 타입'), { 0: index + 1 })}
             onChange={(event) => update(index, { type: event.target.value })}
