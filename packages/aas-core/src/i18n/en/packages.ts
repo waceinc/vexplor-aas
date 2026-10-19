@@ -8,6 +8,8 @@ export const EN_PACKAGES: Record<string, string> = {
   'aas-spec 관계가 없습니다. {0}로 가정합니다.': 'The aas-spec relationship is missing. Assuming {0}.',
   'AAS 본문 파트를 찾을 수 없습니다: {0}': 'Cannot find the AAS spec part: {0}',
   'XML 판을 읽었습니다({0}). 저장할 때는 JSON({1})으로 씁니다.': 'Read the XML version ({0}). Saving writes JSON ({1}).',
+  '{0}의 XML 네임스페이스로 메타모델 판을 알 수 없어 내용으로 추정했습니다(V{1}).':
+    'The XML namespace of {0} does not name a known metamodel version — inferred from the content (V{1}).',
   '알 수 없는 본문 형식입니다: {0} (.json 또는 .xml)': 'Unknown spec format: {0} (.json or .xml)',
   '썸네일 관계는 있으나 파트가 없습니다: {0}': 'The thumbnail relationship exists but the part is missing: {0}',
   '첨부 파일 관계는 있으나 파트가 없습니다: {0}': 'The supplementary file relationship exists but the part is missing: {0}',

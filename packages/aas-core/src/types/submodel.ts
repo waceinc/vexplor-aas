@@ -46,14 +46,16 @@ export interface Range extends SubmodelElementBase {
 
 export interface Blob extends SubmodelElementBase {
   modelType: 'Blob';
-  contentType: string;
+  /** Required in V3.0, optional from V3.1 */
+  contentType?: string;
   /** base64 encoded */
   value?: string;
 }
 
 export interface File extends SubmodelElementBase {
   modelType: 'File';
-  contentType: string;
+  /** Required in V3.0, optional from V3.1 */
+  contentType?: string;
   /** PKG-FILE-URI: must be a file:// URI (a bare relative path violates the schema) */
   value?: string;
 }
@@ -65,14 +67,18 @@ export interface ReferenceElement extends SubmodelElementBase {
 
 export interface RelationshipElement extends SubmodelElementBase {
   modelType: 'RelationshipElement';
-  first: Reference;
-  second: Reference;
+  /** Required in V3.0, optional from V3.1 */
+  first?: Reference;
+  /** Required in V3.0, optional from V3.1 */
+  second?: Reference;
 }
 
 export interface AnnotatedRelationshipElement extends SubmodelElementBase {
   modelType: 'AnnotatedRelationshipElement';
-  first: Reference;
-  second: Reference;
+  /** Required in V3.0, optional from V3.1 */
+  first?: Reference;
+  /** Required in V3.0, optional from V3.1 */
+  second?: Reference;
   annotations?: SubmodelElement[];
 }
 
@@ -105,7 +111,8 @@ export interface SpecificAssetId extends HasSemantics {
 
 export interface Entity extends SubmodelElementBase {
   modelType: 'Entity';
-  entityType: EntityType;
+  /** Required in V3.0, optional from V3.1 (AASd-014 relaxed) */
+  entityType?: EntityType;
   statements?: SubmodelElement[];
   globalAssetId?: string;
   specificAssetIds?: SpecificAssetId[];

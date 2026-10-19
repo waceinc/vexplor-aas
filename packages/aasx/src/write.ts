@@ -4,7 +4,14 @@
  * Always updates all three places together: parts, relationships and Content_Types (PKG-THUMB-PART).
  * Follows the same relationship ID rule as the golden file (01 roll-forming machine): origin=r1, thumbnail=r3, spec=r0.
  */
-import { serializeEnvironment } from '@aas/core';
+import {
+  convertEnvironment,
+  DowngradeError,
+  serializeEnvironment,
+  type ConvertOptions,
+  type DowngradeReport,
+  type MetamodelVersion,
+} from '@aas/core';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import {
   buildContentTypes,
@@ -29,6 +36,15 @@ export interface WriteOptions {
   mtime?: number;
   /** Compression level 0-9. Default 6 */
   level?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  /**
+   * Metamodel version of the body.
+   * Important: on {@link writeAasx}, leaving it out writes the model **as held** (no conversion) — store snapshots and
+   *    sameness checks round-trip through writeAasx and must never lose a field. Give a version (or use
+   *    {@link writeAasxWithReport}, which defaults to 3.0) wherever the file leaves for someone else.
+   */
+  version?: MetamodelVersion;
+  /** See ConvertOptions.unrepresentable. Default `error` */
+  unrepresentable?: ConvertOptions['unrepresentable'];
 }
 
 /** Default timestamp for deterministic output (2026-01-01T00:00:00Z) */
@@ -54,7 +70,37 @@ export function zipTime(mtime: number): Date {
   );
 }
 
+/**
+ * Writes the package as a chosen metamodel version (default 3.0) and returns what that version could not hold.
+ * A model that already fits the version gives exactly the bytes of `writeAasx(pkg)`.
+ * @throws DowngradeError when a value cannot be expressed and `unrepresentable` is not `keep`
+ */
+export function writeAasxWithReport(
+  pkg: AasxPackage,
+  options: WriteOptions = {},
+): { data: Uint8Array; report: DowngradeReport } {
+  const convertOptions: ConvertOptions = {};
+  if (options.version !== undefined) convertOptions.to = options.version;
+  if (options.unrepresentable !== undefined) convertOptions.unrepresentable = options.unrepresentable;
+  const { environment, report } = convertEnvironment(pkg.environment, convertOptions);
+  return { data: writeBody({ ...pkg, environment }, options), report };
+}
+
+/**
+ * Writes the package.
+ * With `version`, the body is converted, and anything the version cannot hold — dropped fields included — is refused
+ * with a DowngradeError: this function has no way to hand back a report, so it never loses data silently. Call
+ * {@link writeAasxWithReport} to accept drops and receive the report.
+ */
 export function writeAasx(pkg: AasxPackage, options: WriteOptions = {}): Uint8Array {
+  if (options.version === undefined) return writeBody(pkg, options);
+  const { data, report } = writeAasxWithReport(pkg, options);
+  // Important: kept values (unrepresentable: keep) are still in the file; dropped ones would be gone with no report
+  if (report.entries.some((e) => e.kind === 'dropped')) throw new DowngradeError(report, 'would-drop');
+  return data;
+}
+
+function writeBody(pkg: AasxPackage, options: WriteOptions): Uint8Array {
   const { indent = 2, mtime = DETERMINISTIC_MTIME, level = 6 } = options;
 
   const specPart = pkg.specPart;

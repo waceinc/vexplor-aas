@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "AAS V3.0 (IEC 63278-1) metamodel types, JSON serialisation and server-side i18n",
+  "description": "AAS metamodel V3.0 · V3.1 · V3.2 (IEC 63278-1) types, JSON serialisation, version conversion and server-side i18n",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

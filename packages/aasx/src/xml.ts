@@ -14,7 +14,7 @@
  *     per-language text in MultiLanguageProperty -> **array if the children are elements, string if text**
  */
 import { XMLParser } from 'fast-xml-parser';
-import { fill, tr, type Environment } from '@aas/core';
+import { fill, tr, versionFromNamespace, type Environment, type MetamodelVersion } from '@aas/core';
 
 /** Parser that preserves document order. Namespace prefixes (aas:) are stripped */
 const parser = new XMLParser({
@@ -101,6 +101,8 @@ const ITEM_NAMES = new Set([
   'langStringPreferredNameTypeIec61360',
   'langStringShortNameTypeIec61360',
   'langStringDefinitionTypeIec61360',
+  'langStringUom',
+  'langStringDefinitionTypeUom',
   'operationVariable',
 ]);
 
@@ -111,10 +113,23 @@ const ITEM_NAMES = new Set([
  * Reading it as a list yields an array and breaks the schema (caught by measurement).
  */
 const TYPED_SINGLE_WRAPPERS = new Set(['dataSpecificationContent']);
-const TYPED_CONTENT_NAMES = new Set(['dataSpecificationIec61360']);
+// dataSpecificationUom: V3.2 (unit-of-measure data specification, IDTA-01003-b)
+const TYPED_CONTENT_NAMES = new Set(['dataSpecificationIec61360', 'dataSpecificationUom']);
 
-/** Fields that must be read as true/false — leaving them as text breaks the schema */
-const BOOLEAN_FIELDS = new Set(['orderRelevant', 'min', 'max', 'nom', 'typ']);
+/**
+ * Fields that must be read as true/false — leaving them as text breaks the schema.
+ * Important: min/max/nom/typ are booleans **only inside levelType**. Range has text fields of the same names; reading
+ *    those as booleans turned every Range bound into `false` (found with the official 3.0 examples, 2026-10-19).
+ */
+const BOOLEAN_FIELDS = new Set(['orderRelevant']);
+const LEVEL_TYPE_FIELDS = new Set(['min', 'max', 'nom', 'typ']);
+
+/**
+ * Elements that are objects even when written empty (`<administration/>`, `<capability/>` in a list).
+ * Without this an empty element became the empty string — every field of AdministrativeInformation is optional, so
+ * `<administration/>` is valid and common.
+ */
+const OBJECT_WHEN_EMPTY = new Set(['administration']);
 
 /** Not `langStringTextType` -> `LangStringTextType`; in JSON these are unnamed objects */
 const UNNAMED_ITEMS = new Set([
@@ -130,6 +145,8 @@ const UNNAMED_ITEMS = new Set([
   'langStringPreferredNameTypeIec61360',
   'langStringShortNameTypeIec61360',
   'langStringDefinitionTypeIec61360',
+  'langStringUom',
+  'langStringDefinitionTypeUom',
   'operationVariable',
 ]);
 
@@ -137,18 +154,19 @@ function pascal(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** Converts one element into a JSON value */
-function toValue(node: XmlNode, field: string): unknown {
+/** Converts one element into a JSON value. `parent` is the name of the element that holds it */
+function toValue(node: XmlNode, field: string, parent = ''): unknown {
   const children = childrenOf(node);
+  const own = nameOf(node);
   const text = textOf(children);
-  if (text !== undefined) {
-    if (BOOLEAN_FIELDS.has(field)) return text === 'true';
+  const isObject = MODEL_TYPES.has(own) || OBJECT_WHEN_EMPTY.has(own) || TYPED_CONTENT_NAMES.has(own);
+  if (text !== undefined && !(text === '' && isObject)) {
+    if (BOOLEAN_FIELDS.has(field) || (parent === 'levelType' && LEVEL_TYPE_FIELDS.has(field))) return text === 'true';
     return text;
   }
 
   const out: Record<string, unknown> = {};
   // Where the name is the kind, create modelType (JSON requires it)
-  const own = nameOf(node);
   if (MODEL_TYPES.has(own) && !UNNAMED_ITEMS.has(own)) out['modelType'] = pascal(own);
 
   for (const child of children) {
@@ -161,19 +179,27 @@ function toValue(node: XmlNode, field: string): unknown {
     // A single child states the kind — one object, not an array
     if (TYPED_SINGLE_WRAPPERS.has(childName) && items.length === 1) {
       const only = items[0]!;
-      const converted = toValue(only, nameOf(only)) as Record<string, unknown>;
+      const converted = toValue(only, nameOf(only), childName) as Record<string, unknown>;
       if (TYPED_CONTENT_NAMES.has(nameOf(only))) converted['modelType'] = pascal(nameOf(only));
       out[childName] = converted;
+      continue;
+    }
+
+    // OperationVariable/value holds exactly one SubmodelElement — an object in JSON, not a one-item list.
+    // (Found with the official examples: it was read as an array.)
+    if (own === 'operationVariable' && childName === 'value' && items.length === 1) {
+      const only = items[0]!;
+      out[childName] = toValue(only, nameOf(only), childName);
       continue;
     }
 
     // Is it a wrapper? — if every child has an "item name", it is an array
     const allItems = items.length > 0 && items.every((g) => ITEM_NAMES.has(nameOf(g)));
     if (allItems) {
-      out[childName] = items.map((item) => toValue(item, nameOf(item)));
+      out[childName] = items.map((item) => toValue(item, nameOf(item), childName));
       continue;
     }
-    out[childName] = toValue(child, childName);
+    out[childName] = toValue(child, childName, own);
   }
   return out;
 }
@@ -182,10 +208,28 @@ function toValue(node: XmlNode, field: string): unknown {
 function toList(node: XmlNode): unknown[] {
   return childrenOf(node)
     .filter((child) => !(TEXT in child))
-    .map((child) => toValue(child, nameOf(child)));
+    .map((child) => toValue(child, nameOf(child), nameOf(node)));
 }
 
 export class AasxXmlError extends Error {}
+
+/**
+ * The metamodel version an XML body declares, from the namespace of its `<environment>` root
+ * (`https://admin-shell.io/aas/3/0` · `/3/1` · `/3/2`). Undefined when the root has no AAS namespace or names a version
+ * this code does not know.
+ * Important: read from the root start tag only — the parser strips prefixes and ignores attributes, so the namespace
+ *    is no longer visible after parsing. A prefixed root (`<aas:environment xmlns:aas="…">`) uses the prefix's binding.
+ */
+export function xmlMetamodelVersion(text: string): MetamodelVersion | undefined {
+  const root = /<(?:([A-Za-z_][\w.-]*):)?environment\b([^>]*)>/.exec(text);
+  if (!root) return undefined;
+  const prefix = root[1];
+  const attributes = root[2] ?? '';
+  const name = prefix ? `xmlns:${prefix}` : 'xmlns';
+  const declared = new RegExp(`(?:^|\\s)${name.replace(':', '\\:')}\\s*=\\s*("([^"]*)"|'([^']*)')`).exec(attributes);
+  if (!declared) return undefined;
+  return versionFromNamespace(declared[2] ?? declared[3] ?? '');
+}
 
 /**
  * Converts an XML body into an Environment.

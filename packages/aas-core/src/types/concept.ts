@@ -28,7 +28,8 @@ export type LevelType = Record<LevelTypeKey, boolean>;
 
 export interface ValueReferencePair {
   value: string;
-  valueId: Reference;
+  /** Required in V3.0, optional from V3.1 */
+  valueId?: Reference;
 }
 
 export interface ValueList {
@@ -52,6 +53,22 @@ export interface DataSpecificationIec61360 {
   valueList?: ValueList;
   value?: string;
   levelType?: LevelType;
+}
+
+/**
+ * Data specification for units of measure (IDTA-01003-b) — allowed as dataSpecificationContent from **V3.2**.
+ * Lowering to 3.0 / 3.1 removes the whole embedded data specification entry and reports it.
+ */
+export interface DataSpecificationUom {
+  modelType: 'DataSpecificationUom';
+  preferredName: LangString[];
+  symbol: string;
+  specificUnitId?: string;
+  definition?: LangString[];
+  preferredNameQuantity?: LangString[];
+  quantityId?: string;
+  classificationSystem?: string;
+  classificationSystemVersion?: string;
 }
 
 export interface Iec61360EmbeddedDataSpecification extends EmbeddedDataSpecification {
