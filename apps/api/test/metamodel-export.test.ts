@@ -13,7 +13,8 @@ import { InMemoryStore } from '@aas/store';
 import { canonicalPart2Path, createApi, encodeIdentifier, type ApiRequest } from '@aas/api';
 // Named import: the default export does not survive CommonJS interop under NodeNext type checking
 import { Ajv2019, type ValidateFunction } from 'ajv/dist/2019.js';
-import { strFromU8, unzipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { ALL_RULES, lint } from '@aas/linter';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -250,5 +251,83 @@ describe('Part 2 base path of V3.1 / V3.2 clients (/api/v3/)', () => {
   it('a prefix that is neither is still unknown', async () => {
     const id = await upload(goldenBytes, GOLDEN);
     expect((await call('GET', `/packages/${id}/api/v3.1/shells`)).status).toBe(404);
+  });
+});
+
+/**
+ * An AASX whose body is one of the official XML examples — the version is the one its namespace declares.
+ * Built by hand because the writer only writes JSON bodies.
+ */
+function xmlPackage(version: MetamodelVersion, example: string): Uint8Array {
+  const xml = readFileSync(`${fixtures}idta-metamodel/${version}/xml/${example}/maximal.xml`);
+  const rel = (target: string, type: string): string =>
+    `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Target="${target}" Id="r0" Type="${type}"/></Relationships>`;
+  return zipSync({
+    '[Content_Types].xml': strToU8(
+      '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="text/xml"/><Override PartName="/aasx/aasx-origin" ContentType="text/plain"/></Types>',
+    ),
+    '_rels/.rels': strToU8(rel('/aasx/aasx-origin', 'http://admin-shell.io/aasx/relationships/aasx-origin')),
+    'aasx/aasx-origin': new Uint8Array(0),
+    'aasx/_rels/aasx-origin.rels': strToU8(rel('/aasx/data.xml', 'http://admin-shell.io/aasx/relationships/aas-spec')),
+    'aasx/data.xml': new Uint8Array(xml),
+  });
+}
+
+describe('checks judge a stored package by the version it came in as (lint 1b wired in)', () => {
+  const ruleIds = (findings: { ruleId: string }[]): string[] => findings.map((f) => f.ruleId);
+
+  it('a 3.1 file is held to 3.1 — no AASd-090 (removed in 3.1) on /lint, the fix preview or the report', async () => {
+    const id = await upload(xmlPackage('3.1', 'property'), 'property-31.aasx');
+    expect((await call('GET', `/packages/${id}/metadata`)).body.metamodel).toEqual({ version: '3.1', inferred: false });
+    // The same body judged without a version (what the server did before) does carry the 3.0-only error
+    const asBefore = lint(readAasx(xmlPackage('3.1', 'property')).environment, ALL_RULES);
+    expect(ruleIds(asBefore.findings)).toContain('AASd-090');
+
+    const checked = await call('GET', `/packages/${id}/lint`, { query: { detail: 'true' } });
+    expect(checked.status).toBe(200);
+    expect(ruleIds(checked.body.findings)).not.toContain('AASd-090');
+    const preview = await call('POST', `/packages/${id}/fix-preview`, { body: {} });
+    expect(JSON.stringify(preview.body)).not.toContain('AASd-090');
+    const report = await call('GET', `/packages/${id}/report`);
+    expect(strFromU8(report.body as Uint8Array)).not.toContain('AASd-090');
+  });
+
+  it('a 3.0 file keeps every finding it had before — the XML 3.0 example and the JSON golden file', async () => {
+    const keyed = (findings: { ruleId: string; pointer: string }[]): string[] => findings.map((f) => `${f.ruleId} ${f.pointer}`).sort();
+    for (const [bytes, name] of [[xmlPackage('3.0', 'property'), 'property-30.aasx'], [goldenBytes, GOLDEN]] as const) {
+      const id = await upload(bytes, name);
+      expect((await call('GET', `/packages/${id}/metadata`)).body.metamodel.version).toBe('3.0');
+      const checked = await call('GET', `/packages/${id}/lint`, { query: { detail: 'true' } });
+      // Before versions were told apart: the snapshot re-read and judged with no version (3.0)
+      const snapshot = readAasx(writeAasx(readAasx(bytes)));
+      const before = lint(snapshot.environment, ALL_RULES, { package: snapshot.opc });
+      expect(keyed(checked.body.findings), name).toEqual(keyed(before.findings));
+    }
+    // The golden JSON keeps its 3.0 warnings — judged by the stored 3.0, not by every version its content fits
+    const goldenId = (await call('GET', '/packages')).body.result.find((p: { name: string }) => p.name === GOLDEN).packageId;
+    expect(ruleIds((await call('GET', `/packages/${goldenId}/lint`, { query: { detail: 'true' } })).body.findings)).toContain('AASd-120');
+  });
+
+  it('bundle checks use the stored version too — a 3.0 member keeps AASd-120, a 3.1 member is not held to it', async () => {
+    const json = { 'content-type': 'application/json' };
+    const cobotBytes = new Uint8Array(readFileSync(fixtures + '11-cobot-6-axis.aasx'));
+    // The cobot fixture has list children with idShort — AASd-120 under 3.0 rules
+    expect(lint(readAasx(cobotBytes).environment, ALL_RULES).countByRule['AASd-120'] ?? 0).toBeGreaterThan(0);
+    const as30 = await upload(goldenBytes, 'machine-30.aasx');
+    const as31 = await upload(cobotBytes, 'cobot-31.aasx', { metamodel: '3.1' });
+    const process = await call('POST', '/packages/new', { body: { assetName: 'TestLine', unit: 'process' }, headers: json });
+    for (const sourcePackageId of [as30, as31]) {
+      const added = await call('POST', `/packages/${process.body.packageId}/hierarchy/nodes`, { body: { sourcePackageId }, headers: json });
+      expect(added.status).toBe(201);
+    }
+    const linkage = await call('GET', `/packages/${process.body.packageId}/bundle/linkage`);
+    expect(linkage.status).toBe(200);
+    const byFile = new Map((linkage.body.members as { packageId?: string; lint?: { aasd120: number } }[]).map((m) => [m.packageId, m.lint?.aasd120]));
+    expect(byFile.get(as30)).toBeGreaterThan(0);
+    // AASd-120 was removed in 3.1
+    expect(byFile.get(as31)).toBe(0);
   });
 });

@@ -287,12 +287,17 @@ async function snapshotBytes(store: AasStore, packageId: string): Promise<Uint8A
   return writeAasx(await store.exportPackage(packageId));
 }
 
-function lintBytes(data: Uint8Array, policy: Partial<LinterPolicy>) {
+/**
+ * Checks bundle bytes by the version the file is written as — the version it came in as (outgoing.ts). The bytes
+ * alone cannot say it: a body written as JSON reads as "the lowest version that holds the content".
+ */
+function lintBytes(data: Uint8Array, policy: Partial<LinterPolicy>, record: Pick<PackageRecord, 'metamodel'>) {
   const pkg = readAasx(data);
   return {
     pkg,
     result: lint(pkg.environment, ALL_RULES, {
       package: pkg.opc,
+      metamodel: { version: record.metamodel.version, inferred: record.metamodel.inferred },
       ...(Object.keys(policy).length > 0 ? { policy } : {}),
     }),
   };
@@ -412,7 +417,7 @@ export async function buildBundle(
   const processFiles = [];
   for (const record of [resolved.process, ...resolved.nested]) {
     const data = await exportBytes(store, record.id);
-    const { result, pkg } = lintBytes(data, policy);
+    const { result, pkg } = lintBytes(data, policy, record);
     const hier = result.findings.filter((f) => f.ruleId.startsWith('HIER-') && f.severity === 'error').length;
     const path = `${FOLDERS.process}/${safeName(record.name)}`;
     put(path, data);
@@ -463,7 +468,7 @@ export async function buildBundle(
     let entry: Pick<ModelEntry, 'file' | 'sha256' | 'lint' | 'original'> | undefined;
     if (!path) {
       const { data, original } = await modelBytes(store, member.record.id);
-      const { result } = lintBytes(data, policy);
+      const { result } = lintBytes(data, policy, member.record);
       path = `${FOLDERS.models}/${safeName(member.record.name)}`;
       packed.set(member.record.id, path);
       put(path, data);
@@ -913,7 +918,7 @@ export function bundleRoutes(store: AasStore, options: BundleRouteOptions = {}):
           if (member.record) {
             lintSummary = checked.get(member.record.id);
             if (!lintSummary) {
-              const { result } = lintBytes(await snapshotBytes(store, member.record.id), options.policy ?? {});
+              const { result } = lintBytes(await snapshotBytes(store, member.record.id), options.policy ?? {}, member.record);
               lintSummary = {
                 passed: result.passed,
                 error: result.countBySeverity.error,

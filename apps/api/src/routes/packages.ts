@@ -57,6 +57,7 @@ import {
   scaffoldEnvironment,
   type Finding,
   type LinterPolicy,
+  type LintMetamodelInput,
 } from '@aas/linter';
 import type { Environment } from '@aas/core';
 import {
@@ -64,6 +65,7 @@ import {
   type AasStore,
   type IdentifiableModelType,
   type PackageRecord,
+  LEGACY_PACKAGE_METAMODEL,
 } from '@aas/store';
 import { decodeIdentifier } from '../base64url.js';
 import { ApiError, bytes, json, noContent, pagedResponse, type ApiRequest } from '../http.js';
@@ -165,14 +167,26 @@ async function packageDescription(
  * Turns the stored copy back into AASX so L1 (package) rules can be checked too.
  * L1 rules look at ZIP parts, relationships and Content_Types, so the Environment alone cannot be checked.
  */
-async function snapshot(store: AasStore, packageId: string): Promise<ReturnType<typeof readAasx>> {
+async function snapshot(
+  store: AasStore,
+  packageId: string,
+): Promise<ReturnType<typeof readAasx> & { judgedAs: LintMetamodelInput }> {
   const exported = await store.exportPackage(packageId);
   const read = readAasx(writeAasx(exported));
-  // Important: the re-read body is JSON, so on its own it would say "the lowest version that holds the content" —
-  //    the checks must see the version the file is (a 3.1 XML file stays 3.1). The evidence still comes from the content
-  const stored = (await store.getPackage(packageId))?.metamodel;
-  if (stored) read.metamodel = { ...read.metamodel, version: stored.version, inferred: stored.inferred };
-  return read;
+  return { ...read, judgedAs: await judgedVersion(store, packageId) };
+}
+
+/**
+ * The metamodel version the checks judge a stored package by — the version it came in as, which is also what a
+ * download writes unless another one is picked (outgoing.ts).
+ * Important: not the re-read snapshot's own guess. The snapshot body is always JSON, so a 3.1 XML file would read as
+ *    "the lowest version that holds the content" and be judged by 3.0 rules (99 AASd-090 errors on the official 3.1
+ *    examples). And not the candidate list a content guess carries either: the file goes out as the stored version,
+ *    so a legacy 3.0 file keeps its 3.0 findings (AASd-120 and the rest) exactly as before.
+ */
+async function judgedVersion(store: AasStore, packageId: string): Promise<LintMetamodelInput> {
+  const stored = (await store.getPackage(packageId))?.metamodel ?? LEGACY_PACKAGE_METAMODEL;
+  return { version: stored.version, inferred: stored.inferred };
 }
 
 /**
@@ -498,6 +512,7 @@ async function previewFix(
   if (!hasImage) pkg.opc.parts.push(placeholderThumbnail().part);
   return lintAndFix(pkg.environment, {
     package: pkg.opc,
+    metamodel: pkg.judgedAs,
     includeWarnings,
     ...(Object.keys(overrides).length > 0 ? { policy: overrides } : {}),
   });
@@ -532,6 +547,7 @@ async function fixOne(
   const pkg = await snapshot(store, packageId);
   const result = lintAndFix(pkg.environment, {
     package: pkg.opc,
+    metamodel: pkg.judgedAs,
     includeWarnings,
     ...(select ? { select } : {}),
     ...(Object.keys(overrides).length > 0 ? { policy: overrides } : {}),
@@ -1743,6 +1759,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const overrides = { ...options.policy, ...policyFromQuery(request) };
         const result = lint(pkg.environment, ALL_RULES, {
           package: pkg.opc,
+          metamodel: pkg.judgedAs,
           ...(Object.keys(overrides).length > 0 ? { policy: overrides } : {}),
         });
         const detail = request.query['detail'] === 'true';
@@ -1770,6 +1787,7 @@ function baseRoutes(store: AasStore, options: PackageRouteOptions): Route[] {
         const policy = { ...DEFAULT_POLICY, ...overrides };
         const result = lint(pkg.environment, ALL_RULES, {
           package: pkg.opc,
+          metamodel: pkg.judgedAs,
           ...(Object.keys(overrides).length > 0 ? { policy: overrides } : {}),
         });
         const html = formatHtmlReport(result, {
