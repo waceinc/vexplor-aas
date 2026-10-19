@@ -1948,6 +1948,12 @@ p.pick-title, .welcome-files-title { border-left: 0; padding-left: 0; color: var
 .server-status dd.fail { color: var(--fail); }
 .edge-arrived { flex-direction: column; align-items: flex-start; }
 .edge-command .edge-word { white-space: nowrap; }
+.edge-command .edge-word-long { overflow-wrap: anywhere; }
+/* Linux / Windows tabs above the connect command — the same look as the integrations tabs */
+.edge-os-tabs { display: flex; flex-wrap: wrap; gap: var(--space-gap); padding-bottom: var(--space-gap); border-bottom: 1px solid var(--border); }
+.edge-os-tabs button.active { border-color: var(--cb); color: var(--cb); background: var(--aas-accent-soft); }
+.edge-os-panel { display: flex; flex-direction: column; gap: var(--space-gap); }
+.edge-os-panel p { margin: 0; }
 
 /* Create collection link — how to connect (2.8.0): security, login, read period on one line; units on every tag row */
 .add-aid .aid-connection { margin-top: calc(var(--spacing) * 2); }
