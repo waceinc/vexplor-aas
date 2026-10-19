@@ -44,8 +44,8 @@ does not end as a document but becomes **operating data with live values from th
 | One tool per job | Open, edit, check, Part 2 REST, field value collection and OPC UA publishing in one screen |
 | Passing the standard, failing the receiver | Checks the Korean receiving validator's (KOSMO Validator) business rules — semantic ID allow-list, mandatory submodels, package structure — before submission, and shows conflicts with the standard as a policy the user decides |
 
-There are real line deployments (Bosch Rexroth and others). They too report that integration can take
-months whenever machines change. Evidence and sources: [docs/background.md](docs/background.md).
+There are real line deployments (Bosch Rexroth and others). They adopted AAS to end months of integration work
+whenever machines change — and they too report that creating the AAS itself is the first hurdle for many users. Evidence and sources: [docs/background.md](docs/background.md).
 
 > The receiving validator remains the only authority on acceptance. This tool is a pre-check.
 
@@ -98,7 +98,7 @@ AASX files authored and checked here import straight into
 [VEXPLOR Logic Studio](https://wace.me/en-platform-logic-studio) (WACE's factory platform — MES · PLM · ERP · QMS) — nothing to install in the factory,
 no conversion step.
 
-1. Author the equipment AASX here and pass the 43-rule check.
+1. Author the equipment AASX here and pass the 44-rule check.
 2. Drop the file on the equipment screen of Logic Studio Cloud.
 3. Check types, equipment, plant and line in the preview, then import — each machine enters the equipment register
    linked to its type.
