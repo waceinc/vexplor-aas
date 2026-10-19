@@ -110,7 +110,15 @@ export interface ApiOptions {
   /** Batches taken and refused in the last hour — createApi creates it with the registry (admin server status) */
   edgeTraffic?: EdgeTraffic;
   /** What the admin's server status reports about this deployment (2.8.0). The store kind is derived when omitted */
-  server?: { storeKind?: ServerStoreKind; dataDir?: string; startedAt?: Date };
+  server?: {
+    storeKind?: ServerStoreKind;
+    dataDir?: string;
+    startedAt?: Date;
+    /** The store check waits this long at most (default 5 s) */
+    storeTimeoutMs?: number;
+    /** How long the status waits for the store to resolve the session before using what it knows (default 2 s, 2.8.1) */
+    sessionWaitMs?: number;
+  };
 }
 
 export interface EdgeConfig {

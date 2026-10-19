@@ -870,20 +870,28 @@ export class PostgresIntegration implements IntegrationStore {
 
   async putRuntimeState(key: string, value: unknown, packageId?: string): Promise<void> {
     if (packageId !== undefined) await this.packageExists(packageId);
-    // jsonb has no `undefined` — storing undefined is removing the row, which reads back as undefined like the memory log
-    if (value === undefined) {
-      await this.client.query('DELETE FROM integration_state WHERE key = $1', [key]);
-      return;
-    }
     try {
-      await this.client.query(
-        `INSERT INTO integration_state (key, package_id, value, updated_at) VALUES ($1, $2, $3::jsonb, $4::timestamptz)
-         ON CONFLICT (key) DO UPDATE SET package_id = EXCLUDED.package_id, value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,
-        [key, packageId ?? null, JSON.stringify(value), new Date().toISOString()],
-      );
+      await writeRuntimeState(this.client, key, value, packageId);
     } catch (error) {
       if (sqlState(error) === '23503' && packageId !== undefined) throw new NotFoundError(packageId);
       throw error;
     }
   }
+}
+
+/**
+ * One runtime-state row, on the client given — also a transaction's, so a batch of values and the record that it was
+ * stored commit together (postgres.ts appendValueBatch, 2.8.1).
+ */
+export async function writeRuntimeState(client: SqlClient, key: string, value: unknown, packageId?: string): Promise<void> {
+  // jsonb has no `undefined` — storing undefined is removing the row, which reads back as undefined like the memory log
+  if (value === undefined) {
+    await client.query('DELETE FROM integration_state WHERE key = $1', [key]);
+    return;
+  }
+  await client.query(
+    `INSERT INTO integration_state (key, package_id, value, updated_at) VALUES ($1, $2, $3::jsonb, $4::timestamptz)
+     ON CONFLICT (key) DO UPDATE SET package_id = EXCLUDED.package_id, value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,
+    [key, packageId ?? null, JSON.stringify(value), new Date().toISOString()],
+  );
 }

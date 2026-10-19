@@ -99,6 +99,22 @@ describe('files of others look as if they do not exist', () => {
     expect(still).toBeDefined();
   });
 
+  it('a value batch that touches another workspace file stores nothing, not even its own part (2.8.1)', async () => {
+    const bobFile = await runInWorkspace(BOB, async () => (await store.importPackage({ name: '밥.aasx', package: golden() })).id);
+    const value = (packageId: string) => ({ packageId, interfaceName: 'I', propertyName: 'P', observedAt: '2026-08-24T00:00:00.000Z', valueNumber: 1 });
+    await runInWorkspace(BOB, async () => {
+      await expect(
+        store.appendValueBatch!([
+          { packageId: bobFile, values: [value(bobFile)] },
+          { packageId: aliceFile, values: [value(aliceFile)] },
+        ]),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(await store.readValues(bobFile)).toEqual([]);
+      await store.appendValueBatch!([{ packageId: bobFile, values: [value(bobFile)] }]);
+      expect(await store.readValues(bobFile)).toHaveLength(1);
+    });
+  });
+
   it('gives **the same answer** as a truly missing one — any difference leaks existence', async () => {
     const [hidden, missing] = await runInWorkspace(BOB, async () => [
       await store.exportPackage(aliceFile).catch((error: Error) => error),

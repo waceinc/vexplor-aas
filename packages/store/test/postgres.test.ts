@@ -5,6 +5,10 @@
  * a real engine rather than a mock, so DDL/SQL syntax and transaction semantics are verified as is.
  * In production, plug `pg`'s Client/Pool into the same SqlClient slot (no code changes).
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+import { readAasx } from '@aas/aasx';
 import { PGlite } from '@electric-sql/pglite';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -14,6 +18,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 import {
   INTEGRATION_SCHEMA_SQL,
+  NotFoundError,
   PostgresStore,
   runAsActor,
   SCHEMA_SQL,
@@ -271,5 +276,74 @@ describe('schema version number (schema_version)', () => {
     await expect(later.init()).rejects.toBeInstanceOf(SchemaVersionError);
     await expect(later.init()).rejects.toThrow(/판올림/);
     expect(later.schemaVersion).toBeUndefined();
+  });
+});
+
+describe('collected values — one batch, one transaction (2.8.1)', () => {
+  const golden = readAasx(new Uint8Array(readFileSync(fileURLToPath(new URL('../../../tests/fixtures/01-roll-forming-machine.aasx', import.meta.url)))));
+  const values = (packageId: string, count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      packageId,
+      interfaceName: 'InterfaceOPCUA',
+      propertyName: `Tag${index % 7}`,
+      source: index % 2 === 0 ? `ns=2;s=T${index}` : undefined,
+      observedAt: new Date(Date.UTC(2026, 9, 18, 0, 0, 0, index)).toISOString(),
+      receivedAt: index % 3 === 0 ? undefined : new Date(Date.UTC(2026, 9, 18, 0, 0, 1, index)).toISOString(),
+      ...(index % 5 === 0 ? { valueText: `text ${index}` } : { valueNumber: index + 0.25 }),
+      ...(index % 11 === 0 ? { quality: 'Good' } : {}),
+      ...(index % 13 === 0 ? { error: 'IllegalDataAddress' } : {}),
+      key: `edge:dev:boot:1:${index}`,
+    }));
+
+  /** Counts the statements that insert collected values — before 2.8.1 it was one per value */
+  function counting(db: PGlite) {
+    const seen = { inserts: 0 };
+    const client: SqlClient = {
+      async query(text, params) {
+        if (/INSERT INTO collected_value/.test(text)) seen.inserts += 1;
+        return { rows: (await db.query(text, params as unknown[])).rows as never[] };
+      },
+    };
+    return { client, seen };
+  }
+
+  it('a batch of 5,000 values is one INSERT, and every column reads back as written', async () => {
+    const db = new PGlite();
+    const { client, seen } = counting(db);
+    const store = new PostgresStore(client);
+    await store.init();
+    const { id } = await store.importPackage({ name: 'line.aasx', package: golden });
+    const batch = values(id, 5_000);
+    await store.appendValues(id, batch);
+    expect(seen.inserts).toBe(1);
+    const back = await store.readValues(id, { limit: 10_000 });
+    expect(back).toHaveLength(5_000);
+    const byTime = new Map(back.map((value) => [value.observedAt, value]));
+    for (const sent of batch) {
+      const { key: _key, ...expected } = sent;
+      const got = byTime.get(sent.observedAt)!;
+      expect(got).toEqual(Object.fromEntries(Object.entries(expected).filter(([, v]) => v !== undefined)));
+    }
+    // The same batch again stores nothing twice (keys), and still in one statement
+    await store.appendValues(id, batch);
+    expect(seen.inserts).toBe(2);
+    expect(await store.readValues(id, { limit: 20_000 })).toHaveLength(5_000);
+  });
+
+  it('a value that cannot be stored stops the whole batch — nothing of it is kept', async () => {
+    const db = new PGlite();
+    const store = new PostgresStore(clientOf(db));
+    await store.init();
+    const { id } = await store.importPackage({ name: 'line.aasx', package: golden });
+    const batch = values(id, 10);
+    batch[6] = { ...batch[6]!, observedAt: 'not a time' };
+    await expect(store.appendValues(id, batch)).rejects.toThrow();
+    expect(await store.readValues(id)).toEqual([]);
+  });
+
+  it('a value for a file that is gone is "not found", as before', async () => {
+    const store = await freshStore();
+    await store.init();
+    await expect(store.appendValues('pkg_gone', values('pkg_gone', 2))).rejects.toBeInstanceOf(NotFoundError);
   });
 });

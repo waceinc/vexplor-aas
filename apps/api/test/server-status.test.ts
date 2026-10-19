@@ -123,6 +123,50 @@ describe('GET /server/status', () => {
   });
 });
 
+describe('GET /server/status while the store hangs (2.8.1)', () => {
+  /** A store that stops answering when told to — what a paused or overloaded database looks like from the server */
+  class HangingStore extends InMemoryStore {
+    hang = false;
+    private wait<T>(call: () => Promise<T>): Promise<T> {
+      return this.hang ? new Promise<T>(() => undefined) : call();
+    }
+    override getUser(id: string) {
+      return this.wait(() => super.getUser(id));
+    }
+    override countUsers() {
+      return this.wait(() => super.countUsers());
+    }
+  }
+
+  it('answers within its time limit and reports the store as down — the login check does not wait on the store forever', async () => {
+    const store = new HangingStore();
+    await store.createUser({ login: 'admin', displayName: 'admin', role: 'admin', passwordHash: await hashPassword(PASSWORD) });
+    await store.createUser({ login: 'viewer', displayName: 'viewer', role: 'viewer', passwordHash: await hashPassword(PASSWORD) });
+    const api = createApi(store, { server: { storeKind: 'postgres', storeTimeoutMs: 200, sessionWaitMs: 200 } });
+    const cookieOf = async (login: string) =>
+      ((await api({ method: 'POST', path: '/auth/login', query: {}, headers: {}, body: { login, password: PASSWORD } } as ApiRequest)).headers['set-cookie'] ?? '').split(';')[0]!;
+    const admin = await cookieOf('admin');
+    const viewer = await cookieOf('viewer');
+    // Seen once while the store answered — the session knows who it is
+    expect((await api({ method: 'GET', path: '/server/status', query: {}, headers: { cookie: admin } } as ApiRequest)).status).toBe(200);
+    expect((await api({ method: 'GET', path: '/server/status', query: {}, headers: { cookie: viewer } } as ApiRequest)).status).toBe(403);
+
+    store.hang = true;
+    const started = Date.now();
+    const late = new Promise<'late'>((resolve) => setTimeout(() => resolve('late'), 3_000).unref());
+    const answer = await Promise.race([api({ method: 'GET', path: '/server/status', query: {}, headers: { cookie: admin } } as ApiRequest), late]);
+    expect(answer).not.toBe('late');
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect((answer as ApiResponse).status).toBe(200);
+    expect((answer as ApiResponse).body).toMatchObject({ store: { kind: 'postgres', ok: false } });
+    // The fallback is the role seen last — a viewer stays a viewer, and no session is still no session
+    const asViewer = await Promise.race([api({ method: 'GET', path: '/server/status', query: {}, headers: { cookie: viewer } } as ApiRequest), late]);
+    expect((asViewer as ApiResponse).status).toBe(403);
+    const anonymous = await Promise.race([api({ method: 'GET', path: '/server/status', query: {}, headers: {} } as ApiRequest), late]);
+    expect((anonymous as ApiResponse).status).toBe(401);
+  });
+});
+
 describe('the store check and the disk', () => {
   const ask = async (options: Parameters<typeof serverStatusRoutes>[0]) => {
     const found = match(compile(serverStatusRoutes(options)), 'GET', '/server/status');

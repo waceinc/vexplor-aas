@@ -5,7 +5,7 @@
  *  (1) Responses show live field values (same appearance as BaSyx DataBridge)
  *  (2) **The original stays unchanged** — if option A (the file is the source of truth) breaks, the product's premise collapses
  */
-import { overlayEnvironment, overlaySubmodel, latestByProperty, type ValueSample } from '@aas/collector';
+import { findValuedElement, overlayEnvironment, overlaySubmodel, latestByProperty, valuedElementIndex, type ValueSample } from '@aas/collector';
 import type { Environment } from '@aas/core';
 import { describe, expect, it } from 'vitest';
 
@@ -177,5 +177,39 @@ describe('Duplicate names across submodel boundaries', () => {
         observedAt: '2026-09-01T00:00:00.000Z', valueText: 'v' },
     ] as never);
     expect(result.notes[0]!.paths).toEqual(['DigitalNameplate.X', 'OperationalData.X']);
+  });
+});
+
+describe('valuedElementIndex — every name looked up in one walk (2.8.1)', () => {
+  const environment = {
+    submodels: [
+      {
+        modelType: 'Submodel',
+        id: 'urn:sm:1',
+        submodelElements: [
+          { modelType: 'Property', idShort: 'Speed', valueType: 'xs:double' },
+          { modelType: 'Property', idShort: 'Twice', valueType: 'xs:double' },
+          {
+            modelType: 'SubmodelElementCollection',
+            idShort: 'Group',
+            value: [
+              { modelType: 'Property', idShort: 'Inner', valueType: 'xs:int' },
+              { modelType: 'SubmodelElementList', idShort: 'Rows', value: [{ modelType: 'Property', idShort: 'Cell', valueType: 'xs:int' }] },
+              { modelType: 'SubmodelElementCollection', idShort: 'NotValued', value: [] },
+            ],
+          },
+        ],
+      },
+      { modelType: 'Submodel', id: 'urn:sm:2', submodelElements: [{ modelType: 'Property', idShort: 'Twice', valueType: 'xs:string' }] },
+    ],
+  } as unknown as Environment;
+
+  it('answers exactly what findValuedElement answers — found, ambiguous or missing', () => {
+    const index = valuedElementIndex(environment);
+    for (const name of ['Speed', 'Twice', 'Inner', 'Cell', 'NotValued', 'Group', 'Missing']) {
+      expect(index(name)).toEqual(findValuedElement(environment, name));
+    }
+    expect(index('Twice')).toBe('ambiguous');
+    expect(index('Cell')).toMatchObject({ submodelId: 'urn:sm:1', idShortPath: 'Group.Rows[0]' });
   });
 });

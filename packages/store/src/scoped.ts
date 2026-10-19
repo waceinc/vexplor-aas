@@ -30,6 +30,8 @@ import {
   NotFoundError,
   type AasStore,
   type CollectedValue,
+  type RuntimeStateWrite,
+  type ValueGroup,
   type CreateOptions,
   type HistoryRecord,
   type IdentifiableModelType,
@@ -283,6 +285,18 @@ class ScopedStore implements AasStore {
   async appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void> {
     await this.writable(packageId);
     return this.base.appendValues(packageId, values);
+  }
+
+  /**
+   * Every file of the batch must be writable in this workspace before anything is stored (2.8.1).
+   * Important: `state` is the server's own bookkeeping (the remote collector's record that the batch was stored), chosen
+   *    by server code, never by a request body — it is passed on as given. The workspace limits the files, not that record.
+   */
+  async appendValueBatch(groups: readonly ValueGroup[], options: { state?: RuntimeStateWrite } = {}): Promise<void> {
+    for (const group of groups) if (group.values.length > 0) await this.writable(group.packageId);
+    if (this.base.appendValueBatch) return this.base.appendValueBatch(groups, options);
+    for (const group of groups) if (group.values.length > 0) await this.base.appendValues(group.packageId, group.values);
+    if (options.state) await this.base.putRuntimeState(options.state.key, options.state.value);
   }
 
   async readValues(packageId: string, query?: ValueQuery): Promise<CollectedValue[]> {

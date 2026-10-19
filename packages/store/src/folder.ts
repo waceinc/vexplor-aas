@@ -52,8 +52,8 @@ import type {
   PackageRecord,
   NewUser,
   UserRecord,
-  WriteOptions, CreateOptions } from './types.js';
-import { InvalidPackageIdError } from './types.js';
+  WriteOptions, CreateOptions, RuntimeStateWrite, ValueGroup } from './types.js';
+import { InvalidPackageIdError, NotFoundError } from './types.js';
 
 const MODEL_FILE = 'model.json';
 const USERS_FILE = 'users.json';
@@ -342,6 +342,19 @@ export class FolderStore extends InMemoryStore {
     await mkdir(folder, { recursive: true });
     const lines = fresh.map((value) => JSON.stringify(value)).join('\n');
     await appendFile(join(folder, VALUES_FILE), `${lines}\n`, 'utf8');
+  }
+
+  /**
+   * A batch over several files (2.8.1): every file is looked up first, so a missing one stores nothing. The values
+   * are then appended file by file — a disk error part way leaves the earlier files written, and the keys make the
+   * resend store nothing twice.
+   */
+  override async appendValueBatch(groups: readonly ValueGroup[], options: { state?: RuntimeStateWrite } = {}): Promise<void> {
+    for (const group of groups) {
+      if (group.values.length > 0 && !(await this.getPackage(group.packageId))) throw new NotFoundError(fill(tr('패키지 {0}'), { 0: group.packageId }));
+    }
+    for (const group of groups) await this.appendValues(group.packageId, group.values);
+    if (options.state) await this.putRuntimeState(options.state.key, options.state.value);
   }
 
   override async pruneValues(before: string): Promise<number> {

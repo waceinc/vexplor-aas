@@ -100,9 +100,16 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       const interfaces = await currentInterfaces(options.store, options.intervalMs, device.workspace);
       return { revision: revisionOf(interfaces), interfaces };
     });
-  const summary = async (device: EdgeDevice) => {
+  type Preview = Awaited<ReturnType<typeof preview>>;
+  /**
+   * `previews` is shared by the devices of one request: the list depends only on the device's workspace, so it is made
+   * once per workspace, not once per device (2.8.1 — 200 devices took 114 s, each re-reading every file).
+   */
+  const summary = async (device: EdgeDevice, previews = new Map<string | null, Promise<Preview>>()) => {
     const { publicKey: _key, approved, ...rest } = device;
-    const current = await preview(device);
+    let pending = previews.get(device.workspace);
+    if (!pending) previews.set(device.workspace, (pending = preview(device)));
+    const current = await pending;
     const activity = await options.registry.activity(device.deviceId);
     return {
       ...rest,
@@ -188,7 +195,8 @@ export function edgeAdminRoutes(options: EdgeAdminOptions): Route[] {
       pattern: '/edge/devices',
       async handle() {
         const devices = (await options.registry.list()).filter(visible);
-        return json(200, { items: await Promise.all(devices.map(summary)) });
+        const previews = new Map<string | null, Promise<Preview>>();
+        return json(200, { items: await Promise.all(devices.map((device) => summary(device, previews))) });
       },
     },
     {

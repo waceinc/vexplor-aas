@@ -11,6 +11,7 @@
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { tr } from '@aas/core';
+import type { Principal } from './auth.js';
 
 export interface Session {
   userId: string;
@@ -26,6 +27,13 @@ export interface Session {
    *    is written to the DB. It is generated separately so the secret is not copied into the store.
    */
   visitor: string;
+  /**
+   * Who the session was the last time the store was asked (2.8.1). Used only when the store does not answer in time on
+   * the admin's server status — that page must say "the store is down" instead of waiting with it.
+   * Important: safe to fall back on because changing a role, locking or deleting an account drops its sessions
+   *    (routes/auth.ts) — a session never outlives the role it remembers.
+   */
+  known?: Principal;
 }
 
 /** Disconnect after this much time with no activity */

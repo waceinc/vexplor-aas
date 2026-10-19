@@ -71,6 +71,8 @@ months whenever machines change. Evidence and sources: [docs/background.md](docs
 
 | Feature | Release | Detail |
 |---|---|---|
+| **Remote collector intake, faster and whole** | 2.8.1 | A batch from a remote collector is one write to the database: the values of every file in it and the record that it arrived go in one transaction, so a batch is stored whole or not at all. Before, each value was its own write, which capped a 4-core test server near 11,500 values a second with the database half idle; the same server now takes about 50,000. The remote collector list reads each file once per request instead of once per collector, and approving one collector writes only that collector. `PG_POOL_MAX` sets the number of database connections (default 10) — [install](docs/install.md) |
+| **Server status while the database is down** | 2.8.1 | With the database stopped or overloaded, "Server status" answered after more than 10 seconds or not at all. It now answers within about 7 seconds and shows the store connection as failed |
 | **Security and login on collection links** | 2.8.0 | "Create collection link" picks the OPC UA security mode (Sign · SignAndEncrypt) and policy, and "Login required" for OPC UA and MQTT. The user name and password never go into the equipment file — they stay in the server's credentials file and the factory PC's `credentials.json`, keyed by the endpoint. "Load from equipment" connects with the chosen security and login. An old MQTT link with a password in its address is left out of the remote collector list and rule `AID-1` says so (MQTT login needs VEXPLOR Edge 1.1.0 or later) |
 | **Why a read failed is kept** | 2.8.0 | Automatic collection and remote collectors store the reason with the value. The row keeps "Read failed — reason" after the screen is opened again, and Modbus and MQTT, which have no quality code, show it too |
 | **Units, Modbus order, read period** | 2.8.0 | A unit on every tag row, byte and word order (ABCD · CDAB · BADC · DCBA) on Modbus rows and a read period per machine, all on the screen. Remote collectors read at that period, and "Edit link" opens filled in with the current link |
@@ -171,7 +173,7 @@ uses them) are attached to each GitHub release as npm tarballs (`node scripts/pa
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.8.0/aas-aasx-2.8.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.8.1/aas-aasx-2.8.1.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would

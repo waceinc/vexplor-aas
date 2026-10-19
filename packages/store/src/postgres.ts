@@ -23,6 +23,8 @@ import {
 import { MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION, SCHEMA_VERSION_SQL } from './schema.js';
 import {
   type CollectedValue,
+  type RuntimeStateWrite,
+  type ValueGroup,
   type NewUser,
   type UserRecord,
   type ValueQuery,
@@ -61,7 +63,7 @@ import type {
   Versioned,
 } from './integration-types.js';
 import { identifiableEvent, packageCreatedEvent, packageDeletedEvent, packageFileEvent } from './model-events.js';
-import { PostgresIntegration, packageFacts, recordModelEvent, toIso, withTransaction } from './postgres-integration.js';
+import { PostgresIntegration, packageFacts, recordModelEvent, toIso, withTransaction, writeRuntimeState } from './postgres-integration.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -179,6 +181,49 @@ function toIdentifiableRecord(row: IdentifiableRow): IdentifiableRecord {
 
 const IDENTIFIABLE_COLUMNS =
   'uid, package_id, model_type, id, id_short, semantic_id, asset_kind, kind, ordinal, content, revision, updated_at';
+
+/**
+ * Values per INSERT statement. The statement has 11 parameters whatever its size (arrays), so this only bounds how
+ * much one statement carries — a remote collector batch (5,000 at most) is one statement.
+ */
+const VALUES_PER_STATEMENT = 5_000;
+
+/** One INSERT for the values of one file — see appendValueBatch */
+async function insertValues(client: SqlClient, packageId: string, values: readonly CollectedValue[]): Promise<void> {
+  const column = (pick: (value: CollectedValue) => string | number | undefined): (string | null)[] =>
+    values.map((value) => {
+      const picked = pick(value);
+      return picked === undefined ? null : String(picked);
+    });
+  try {
+    await client.query(
+      `INSERT INTO collected_value
+         (package_id, interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at, value_key, error)
+       SELECT $1, v.interface_name, v.property_name, v.source, v.observed_at::timestamptz, v.value_number::double precision,
+              v.value_text, v.quality, v.received_at::timestamptz, v.value_key, v.error
+         FROM unnest($2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[], $11::text[])
+           AS v(interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at, value_key, error)
+       ON CONFLICT DO NOTHING`,
+      [
+        packageId,
+        column((value) => value.interfaceName),
+        column((value) => value.propertyName),
+        column((value) => value.source),
+        column((value) => value.observedAt),
+        column((value) => value.valueNumber),
+        column((value) => value.valueText),
+        column((value) => value.quality),
+        column((value) => value.receivedAt),
+        column((value) => value.key),
+        column((value) => value.error),
+      ],
+    );
+  } catch (error) {
+    // The only foreign key of collected_value is its file
+    if ((error as { code?: string } | null)?.code === '23503') throw new NotFoundError(fill(tr('패키지 {0}'), { 0: packageId }));
+    throw error;
+  }
+}
 
 export class PostgresStore implements AasStore, IntegrationStore {
   /** Integration part of the port (postgres-integration.ts). Model events are written by the methods below instead */
@@ -334,29 +379,38 @@ export class PostgresStore implements AasStore, IntegrationStore {
 
   async appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void> {
     if (values.length === 0) return;
-    await this.requirePackage(packageId);
-    // Collection does not change the model — the package revision is not bumped (Option A)
-    for (const value of values) {
-      await this.client.query(
-        `INSERT INTO collected_value
-           (package_id, interface_name, property_name, source, observed_at, value_number, value_text, quality, received_at, value_key, error)
-         VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8, $9::timestamptz, $10, $11)
-         ON CONFLICT DO NOTHING`,
-        [
-          packageId,
-          value.interfaceName,
-          value.propertyName,
-          value.source ?? null,
-          value.observedAt,
-          value.valueNumber ?? null,
-          value.valueText ?? null,
-          value.quality ?? null,
-          value.receivedAt ?? null,
-          value.key ?? null,
-          value.error ?? null,
-        ],
-      );
+    await this.appendValueBatch([{ packageId, values }]);
+  }
+
+  /**
+   * Values in one statement per file (and per {@link VALUES_PER_STATEMENT}), all in one transaction (2.8.1).
+   *
+   * Important: before 2.8.1 every value was its own INSERT and its own commit. A load test (2026-10-18) found that this
+   *    alone capped the server near 11,500 values a second with the database half idle, and a batch cut off part way
+   *    stayed partly stored. One `INSERT … SELECT FROM unnest(…)` per file inside one transaction stores the batch
+   *    whole or not at all and is several times faster.
+   * Important: the arrays are text and cast in the SELECT, exactly as the single-value statement cast its parameters —
+   *    a JavaScript number goes in as its decimal text (what pg sends for a number parameter), NaN and Infinity included.
+   * Important: no separate "does the file exist" read — the foreign key refuses a missing file inside the transaction
+   *    (23503), and that becomes the same NotFoundError as before.
+   * Important: a single file without `state` needs no BEGIN · COMMIT — one statement is atomic by itself.
+   */
+  async appendValueBatch(groups: readonly ValueGroup[], options: { state?: RuntimeStateWrite } = {}): Promise<void> {
+    const filled = groups.filter((group) => group.values.length > 0);
+    const statements = filled.reduce((sum, group) => sum + Math.ceil(group.values.length / VALUES_PER_STATEMENT), 0);
+    if (statements === 0 && !options.state) return;
+    if (statements === 1 && !options.state) {
+      await insertValues(this.client, filled[0]!.packageId, filled[0]!.values);
+      return;
     }
+    await withTransaction(this.client, async (tx) => {
+      for (const group of filled) {
+        for (let from = 0; from < group.values.length; from += VALUES_PER_STATEMENT) {
+          await insertValues(tx, group.packageId, group.values.slice(from, from + VALUES_PER_STATEMENT));
+        }
+      }
+      if (options.state) await writeRuntimeState(tx, options.state.key, options.state.value);
+    });
   }
 
   async pruneValues(before: string): Promise<number> {

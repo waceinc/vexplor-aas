@@ -98,6 +98,18 @@ export interface IdentifiableRecord {
  * Important: value sync **Option A**: these values **never flow back into the model.** They only reference the model tables;
  * there is no reverse direction. Since the deliverable is a Type/Template, writing runtime values back would violate metamodel semantics.
  */
+/** The values of one file in a batch (`appendValueBatch`) */
+export interface ValueGroup {
+  packageId: string;
+  values: readonly CollectedValue[];
+}
+
+/** A runtime-state entry written together with a batch of values */
+export interface RuntimeStateWrite {
+  key: string;
+  value: unknown;
+}
+
 export interface CollectedValue {
   packageId: string;
   /** AID interface name */
@@ -419,6 +431,14 @@ export interface AasStore extends IntegrationStore {
   // ── Collected values (time series) ────────────────────────────────────────
   /** Appends collected values. Does not touch the model (Option A) */
   appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void>;
+  /**
+   * Appends the values of several files as one batch (2.8.1, remote collector): every file is checked first, then all
+   * of it is stored or none of it. `state` (a runtime-state key and value, e.g. the record that this batch was stored)
+   * is written with the values — in the same transaction on PostgreSQL, so a crash cannot keep one without the other.
+   * Values with a key already stored are skipped, as in `appendValues`.
+   * Optional so that a store written against an older version still compiles; callers fall back to `appendValues`.
+   */
+  appendValueBatch?(groups: readonly ValueGroup[], options?: { state?: RuntimeStateWrite }): Promise<void>;
   /** Most recent first */
   readValues(packageId: string, query?: ValueQuery): Promise<CollectedValue[]>;
   /**

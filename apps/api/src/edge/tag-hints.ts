@@ -5,15 +5,16 @@
  * Important: advisory only. A receiver shows them as a starting point and a person confirms — nothing here decides how
  *    a value is used. They are left out of the list revision (read-list.ts), so a new hint never asks a site to
  *    approve its list again and an edge never restarts for one.
- * Important: the element is found with the collector's own lookup (`findValuedElement`, the rule of the live overlay
- *    and of runtime event sources), so a hint names exactly the element events name. A property that resolves to no
- *    element, or to more than one, gets no semanticId and the role `value` — never a guess among candidates.
+ * Important: the element is found with the collector's own lookup (`valuedElementIndex`, the rule of `findValuedElement`,
+ *    the live overlay and runtime event sources), so a hint names exactly the element events name. A property that
+ *    resolves to no element, or to more than one, gets no semanticId and the role `value` — never a guess among
+ *    candidates.
  * Important: matching is by semanticId, exactly, never by idShort — an idShort is renameable and a different version
  *    suffix is a different concept. The tables below are data: add a semanticId (a KOSMO concept IRI or an eCLASS IRDI
  *    with its version) to the role or pair it means.
  */
 import type { Environment, Reference } from '@aas/core';
-import { findValuedElement } from '@aas/collector';
+import { valuedElementIndex } from '@aas/collector';
 import { asArray, idShortOf, numberOf, topElements, walk, type Json } from '../integration/exports/elements.js';
 
 import type { TagLimit, TagRole } from '../integration/bundle-types.js';
@@ -64,8 +65,8 @@ function firstKeyOf(element: { semanticId?: Reference }): string | undefined {
 }
 
 /**
- * Returns a lookup for the hints of one file. The limit values are indexed once, so a file with many tags is walked
- * once, not once per tag.
+ * Returns a lookup for the hints of one file. The limit values and the valued elements are indexed once, so a file
+ * with many tags is walked once, not once per tag (the element index since 2.8.1 — before, each tag walked the file).
  */
 export function tagHintsOf(environment: Environment): (propertyName: string) => TagHints {
   const limitsBySemanticId = new Map<string, { value: number; source: string }[]>();
@@ -81,8 +82,9 @@ export function tagHintsOf(environment: Environment): (propertyName: string) => 
       limitsBySemanticId.set(id, found);
     }
   }
+  const elementOf = valuedElementIndex(environment);
   return (propertyName) => {
-    const found = findValuedElement(environment, propertyName);
+    const found = elementOf(propertyName);
     if (found === undefined || found === 'ambiguous') return { suggestedRole: 'value' };
     const semanticId = firstKeyOf(found.element as { semanticId?: Reference });
     if (semanticId === undefined) return { suggestedRole: 'value' };

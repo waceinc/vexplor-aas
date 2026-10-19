@@ -10,6 +10,13 @@
  *    so the second sees the first.
  * Important: the idempotency memory is bounded. Per boot it keeps `floor` (every seq up to it was stored) and the few seqs
  *    above it, for the last few boots — a device cannot grow it by sending long or many boot ids (review H2).
+ * Important: the idempotency record of a device is read from the store once, then kept in memory (one process — above)
+ *    and written with every stored batch. The batch handler writes it in the same transaction as the values where the
+ *    store can (PostgreSQL), so a crash cannot keep one without the other (2.8.1).
+ * Important: each device is its own record (`edge.device.<id>`, with the ids in `edge.deviceIds`) since 2.8.1. Before, all
+ *    devices with their approved read lists were one value rewritten on every approval — 30 MB at 200 devices with
+ *    1,000 tags. A store from 2.8.0 or older has that one value (`edge.devices`); it is read as before and replaced by
+ *    the records on the next change.
  * Important: registration codes are stored as SHA-256 only. A code is a bearer secret until it is used.
  * Important: activity (last batch, values stored, the status a batch carries) lives in memory and is written at most once
  *    a minute — it is for the screen, not a record. A restart may lose the last minute of it; values are never lost.
@@ -26,7 +33,10 @@ import { EdgeTrend } from './history.js';
 import type { ReadListInterface } from './read-list.js';
 
 const CODES = 'edge.codes';
-const DEVICES = 'edge.devices';
+/** All devices as one value — how 2.8.0 and older stored them; read when the records below are not there yet */
+const LEGACY_DEVICES = 'edge.devices';
+const DEVICE_IDS = 'edge.deviceIds';
+const deviceKey = (deviceId: string): string => `edge.device.${deviceId}`;
 const ENABLED = 'edge.enabled';
 const ACTIVITY = 'edge.activity';
 /** Activity is kept in memory and written at most this often — a batch every 5 s must not rewrite the store each time */
@@ -93,6 +103,12 @@ interface BootWindow {
 
 type RuntimeState = Pick<IntegrationStore, 'getRuntimeState' | 'putRuntimeState'>;
 
+/** The idempotency record a stored batch leaves — `once` hands it to the batch so the store can write it with the values */
+export interface SeenRecord {
+  key: string;
+  value: unknown;
+}
+
 export const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 class Lock {
@@ -107,7 +123,11 @@ class Lock {
 export class EdgeRegistry {
   private readonly lock = new Lock();
   private readonly deviceLocks = new Map<string, Lock>();
+  /** Idempotency record per device, read from the store on the device's first batch since start */
+  private readonly seen = new Map<string, BootWindow[]>();
   private loaded: Promise<{ codes: Map<string, CodeRecord>; devices: Map<string, EdgeDevice> }> | undefined;
+  /** Devices are still in the one value of 2.8.0 and older — the next save writes every record, then drops it */
+  private legacyDevices = false;
   private activityLoaded: Promise<Map<string, EdgeActivity>> | undefined;
   private activityWrittenAt = 0;
   /** The trend of every collector — written with the activity, at most once a minute */
@@ -123,18 +143,45 @@ export class EdgeRegistry {
   private load() {
     this.loaded ??= (async () => {
       const codes = (await this.store.getRuntimeState(CODES)) as Record<string, CodeRecord> | undefined;
-      const devices = (await this.store.getRuntimeState(DEVICES)) as Record<string, EdgeDevice> | undefined;
-      return { codes: new Map(Object.entries(codes ?? {})), devices: new Map(Object.entries(devices ?? {})) };
+      return { codes: new Map(Object.entries(codes ?? {})), devices: await this.loadDevices() };
     })();
     return this.loaded;
+  }
+
+  private async loadDevices(): Promise<Map<string, EdgeDevice>> {
+    const ids = (await this.store.getRuntimeState(DEVICE_IDS)) as string[] | undefined;
+    if (ids === undefined) {
+      const legacy = (await this.store.getRuntimeState(LEGACY_DEVICES)) as Record<string, EdgeDevice> | undefined;
+      this.legacyDevices = legacy !== undefined;
+      return new Map(Object.entries(legacy ?? {}));
+    }
+    const devices = new Map<string, EdgeDevice>();
+    for (const id of ids) {
+      const device = (await this.store.getRuntimeState(deviceKey(id))) as EdgeDevice | undefined;
+      if (device) devices.set(id, device);
+    }
+    return devices;
   }
 
   private async saveCodes(codes: Map<string, CodeRecord>): Promise<void> {
     await this.store.putRuntimeState(CODES, Object.fromEntries(codes));
   }
 
-  private async saveDevices(devices: Map<string, EdgeDevice>): Promise<void> {
-    await this.store.putRuntimeState(DEVICES, Object.fromEntries(devices));
+  /**
+   * Writes the record of the device that changed, and the id list when a device was added.
+   * Important: the order keeps a crash harmless — records first, then the id list that names them, and the old single
+   *    value is dropped last. A crash before the id list leaves the old value, which still loads.
+   */
+  private async saveDevice(devices: Map<string, EdgeDevice>, changed: EdgeDevice, added: boolean): Promise<void> {
+    if (this.legacyDevices) {
+      for (const device of devices.values()) await this.store.putRuntimeState(deviceKey(device.deviceId), device);
+      await this.store.putRuntimeState(DEVICE_IDS, [...devices.keys()]);
+      await this.store.putRuntimeState(LEGACY_DEVICES, undefined);
+      this.legacyDevices = false;
+      return;
+    }
+    await this.store.putRuntimeState(deviceKey(changed.deviceId), changed);
+    if (added) await this.store.putRuntimeState(DEVICE_IDS, [...devices.keys()]);
   }
 
   /** Whether the edge is switched on from the screen (used only when EDGE is not set) */
@@ -234,7 +281,7 @@ export class EdgeRegistry {
       codes.delete(hash);
       for (const [key, value] of codes) if (Date.parse(value.expiresAt) <= now.getTime()) codes.delete(key);
       // Device first, then the used code: a crash in between leaves an unused code, never a code that made two devices
-      await this.saveDevices(devices);
+      await this.saveDevice(devices, created, true);
       await this.saveCodes(codes);
       return created;
     });
@@ -256,7 +303,7 @@ export class EdgeRegistry {
       if (!current) return undefined;
       const next = change(current);
       devices.set(deviceId, next);
-      await this.saveDevices(devices);
+      await this.saveDevice(devices, next, false);
       return next;
     });
   }
@@ -265,19 +312,25 @@ export class EdgeRegistry {
    * Runs `store` once for (device, bootId, seq). Returns false — and runs nothing — when the batch was already stored.
    * `store` runs inside the device's lock, so a duplicate arriving meanwhile waits and then sees it. When `store` throws,
    * nothing is recorded and a retry runs it again — so `store` must write all or nothing (routes-edge.ts checks every
-   * package before writing).
+   * package before writing, and the store writes the batch in one transaction).
+   * `store` gets the record that this batch was stored. It returns 'recorded' when it wrote that record itself (with the
+   * values, in one transaction); otherwise the record is written here, after it.
    */
-  once(deviceId: string, bootId: string, seq: number, store: () => Promise<void>): Promise<boolean> {
+  once(deviceId: string, bootId: string, seq: number, store: (record: SeenRecord) => Promise<void | 'recorded'>): Promise<boolean> {
     let lock = this.deviceLocks.get(deviceId);
     if (!lock) this.deviceLocks.set(deviceId, (lock = new Lock()));
     return lock.run(async () => {
-      const boots = ((await this.store.getRuntimeState(seenKey(deviceId))) as BootWindow[] | undefined) ?? [];
-      let window = boots.find((boot) => boot.bootId === bootId);
-      if (window && (seq <= window.floor || window.above.includes(seq))) return false;
-      await store();
+      let known = this.seen.get(deviceId);
+      if (!known) {
+        known = ((await this.store.getRuntimeState(seenKey(deviceId))) as BootWindow[] | undefined) ?? [];
+        this.seen.set(deviceId, known);
+      }
+      const current = known.find((boot) => boot.bootId === bootId);
+      if (current && (seq <= current.floor || current.above.includes(seq))) return false;
+      // The next record is built on copies — memory changes only once the batch is stored
+      const boots = known.filter((boot) => boot !== current).map((boot) => ({ ...boot }));
+      const window: BootWindow = current ? { ...current, above: [...current.above] } : { bootId, floor: 0, above: [] };
       // The boot just used goes last, so `slice(-BOOTS_KEPT)` drops the boots unused the longest
-      if (window) boots.splice(boots.indexOf(window), 1);
-      else window = { bootId, floor: 0, above: [] };
       boots.push(window);
       window.above = [...window.above, seq].sort((a, b) => a - b);
       while (window.above[0] === window.floor + 1) {
@@ -286,7 +339,10 @@ export class EdgeRegistry {
       }
       // A gap that never fills would grow `above` forever — past the cap the oldest out-of-order seqs move into floor
       while (window.above.length > ABOVE_FLOOR_KEPT) window.floor = window.above.shift()!;
-      await this.store.putRuntimeState(seenKey(deviceId), boots.slice(-BOOTS_KEPT));
+      const next = boots.slice(-BOOTS_KEPT);
+      const record: SeenRecord = { key: seenKey(deviceId), value: next };
+      if ((await store(record)) !== 'recorded') await this.store.putRuntimeState(record.key, record.value);
+      this.seen.set(deviceId, next);
       return true;
     });
   }

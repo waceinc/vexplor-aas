@@ -45,6 +45,8 @@ import {
 } from './model-events.js';
 import {
   type CollectedValue,
+  type RuntimeStateWrite,
+  type ValueGroup,
   type NewUser,
   type UserRecord,
   type ValueQuery,
@@ -257,6 +259,16 @@ export class InMemoryStore implements AasStore, IntegrationStore {
   async appendValues(packageId: string, values: readonly CollectedValue[]): Promise<void> {
     this.acceptValues(packageId, values);
     // Collection does not change the model, so the package revision is not bumped — it is not an edit
+  }
+
+  /**
+   * A batch over several files (2.8.1): every file is looked up before anything is stored, so a missing one stores
+   * nothing. Nothing in between can fail, so this is all or nothing.
+   */
+  async appendValueBatch(groups: readonly ValueGroup[], options: { state?: RuntimeStateWrite } = {}): Promise<void> {
+    for (const group of groups) if (group.values.length > 0) this.state(group.packageId);
+    for (const group of groups) if (group.values.length > 0) this.acceptValues(group.packageId, group.values);
+    if (options.state) await this.putRuntimeState(options.state.key, options.state.value);
   }
 
   /** Stores the values whose key is new (or that have none) and returns them — FolderStore writes exactly these */
