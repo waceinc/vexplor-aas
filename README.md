@@ -73,6 +73,7 @@ whenever machines change — and they too report that creating the AAS itself is
 
 | Feature | Release | Detail |
 |---|---|---|
+| **Empty list elements in XML read as empty lists** | 2.12.1 | A list closed with no items (`<qualifiers />`, `<description />`, a collection's `<value />` …) was read as the empty string. In KOSMO's 179 public reference models the check then stopped part way in 45 files and a saved copy could not be opened again for 27; both are now 0. The empty list is kept as it was and reported by `PKG-EMPTY-ARRAY` (auto-fix). `scripts/lint.mjs` now checks each file by its own metamodel version and looks into subfolders. New guide: [using KOSMO reference models](docs/kosmo-compat.md) with a file-by-file table |
 | **Range limits in tag hints** | 2.12.0 | A `Range` element with the same semanticId as a tag's value now gives limits too — its `min` as `lsl`, its `max` as `usl` — so a receiver such as Logic Studio gets lower specification limits from the file. Limits from the KOSMO property pairs come first, ranges after; a tag may carry several of the same bound, each with its `source`, for a person to choose. No schema change. The KOSMO model files in use today hold no `Range`, so their hints are unchanged; for a lower limit, add a `Range` with the value's semanticId and an idShort different from the value's ([integration](docs/integration.md)) |
 | **LS ELECTRIC XGT, read directly** | 2.11.0 | XGK · XGI · XGR · XGB PLCs with an FEnet module are read over the XGT dedicated protocol (TCP 2004) without a gateway — read only. Addresses are written as XG5000 shows them (`D100`, `D100.3`, `P0001A`, `%MW100`, `%IX0.0.3`). AID 1.1 has no XGT binding, so this is a VEXPLOR extension binding marked by our binding IRI. Built from LS ELECTRIC's published FEnet manual and tested against a test server built from it — not yet checked on a real PLC; please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md). The server reads it with `COLLECT=on`, the remote collector from VEXPLOR Edge 1.3.0 — [usage §8](docs/usage.md) |
 | **XGT in the edge contract · PLC field report** | 2.11.0 | The read list's `protocol` adds `XGT`; the contract stays `vexplor.edge/1`. An older edge reports `XGT is not read by this edge yet` and keeps reading the others. A new issue form collects real-PLC results for S7, MC and XGT. Webhooks and MQTT subscriptions now also refuse port 2004 unless the allow entry names it |
@@ -187,7 +188,7 @@ uses them) are attached to each GitHub release as npm tarballs (`node scripts/pa
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.0/aas-aasx-2.12.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.1/aas-aasx-2.12.1.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would
@@ -260,7 +261,7 @@ Measured 2026-10-20 against commit `6f6ac69` of that repository with AAS Studio 
 | Check | ran to the end on all 179 (2.12.0 stopped on 45 files with empty list elements such as `<qualifiers />` — fixed in 2.12.1) |
 | Findings (179 files) | L1 errors 12,182 · L2 errors 48,117 · L3 errors 152,445. Of all errors, 64,357 are empty Property values (`KOSMO-SME-4`) and 146,106 are auto-fixable. Most frequent: `KOSMO-SME-4` · `AASd-121~128` · `KOSMO-CD-2` · `KOSMO-CD-4` · `KOSMO-SME-5` |
 | Round trip | 179 the same — every saved copy opens again |
-| Export as V3.1 | 156 written with 0 dropped values; 23 refused (one-letter idShorts). 33 of the 156 pass the official V3.1 schema — the rest hold empty values in the source, mostly removed by auto-fix and by filling in values |
+| Export as V3.1 | 156 written with 0 dropped values; 23 refused (one-letter idShorts). 33 of the 156 pass the official V3.1 schema — the rest fail on values in the source: empty lists (`minItems` 1), empty text, units or idShorts |
 
 Every file, rule by rule: [docs/kosmo-compat.md](docs/kosmo-compat.md).
 **License:** that repository shows no license, so this repository does not include its files — it only links to them.
