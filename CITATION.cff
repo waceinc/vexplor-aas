@@ -22,6 +22,9 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.23487127
     description: "Version 2.11.0"
+  - type: doi
+    value: 10.5281/zenodo.23499451
+    description: "Version 2.12.0"
 keywords:
   - Asset Administration Shell
   - AAS
