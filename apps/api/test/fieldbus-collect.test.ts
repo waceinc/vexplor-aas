@@ -5,12 +5,13 @@
 import { readAasx } from '@aas/aasx';
 import { createApi, type ApiRequest } from '@aas/api';
 import type { AidInterface, ProtocolReader } from '@aas/collector';
-import { McReader, ModbusReader, ModbusTestServer, MqttReader, MqttTestBroker, S7Reader } from '@aas/fieldbus';
+import { McReader, ModbusReader, ModbusTestServer, MqttReader, MqttTestBroker, S7Reader, XgtReader } from '@aas/fieldbus';
 import { InMemoryStore } from '@aas/store';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { McMockServer } from '../../../packages/fieldbus/test/mc-mock-server.js';
 import { S7MockServer } from '../../../packages/fieldbus/test/s7-mock-server.js';
+import { XgtMockServer } from '../../../packages/fieldbus/test/xgt-mock-server.js';
 
 const golden = () => readAasx(new Uint8Array(readFileSync('tests/fixtures/01-roll-forming-machine.aasx')));
 
@@ -19,6 +20,7 @@ const openReader = async (descriptor: AidInterface): Promise<ProtocolReader> => 
   if (descriptor.protocol === 'MQTT') return MqttReader.connect(descriptor, { settleMs: 150, timeoutMs: 1000 });
   if (descriptor.protocol === 'S7') return S7Reader.connect(descriptor, { timeoutMs: 1000 });
   if (descriptor.protocol === 'MC') return McReader.connect(descriptor, { timeoutMs: 1000 });
+  if (descriptor.protocol === 'XGT') return XgtReader.connect(descriptor, { timeoutMs: 1000 });
   throw new Error(`아직 지원하지 않는 프로토콜입니다: ${descriptor.protocol}`);
 };
 
@@ -89,12 +91,14 @@ describe('Modbus / MQTT collection — from creating the AID to values', () => {
   });
 });
 
-describe('S7 / MC collection (VEXPLOR extension bindings) — from creating the AID to values', () => {
+describe('S7 / MC / XGT collection (VEXPLOR extension bindings) — from creating the AID to values', () => {
   let s7: S7MockServer | undefined;
   let mc: McMockServer | undefined;
+  let xgt: XgtMockServer | undefined;
   afterEach(async () => {
     await s7?.close();
     await mc?.close();
+    await xgt?.close();
   });
 
   it('S7 — the created AID adds no rule violations, values accumulate, a missing DB is a failure with its reason', async () => {
@@ -142,6 +146,31 @@ describe('S7 / MC collection (VEXPLOR extension bindings) — from creating the 
     const values = (await h.call('GET', `/packages/${h.id}/values`)).body['result'] as { propertyName: string; valueNumber?: number }[];
     expect(Object.fromEntries(values.map((v) => [v.propertyName, v.valueNumber]))).toEqual({ Counter: 1234, Running: 1 });
     const refused = await h.call('POST', `/packages/${h.id}/aid`, { endpoint: `melsec://127.0.0.1:${port}`, tags: [{ name: 'Bad', href: 'M5:INT' }] });
+    expect(refused.status).toBe(400);
+  });
+
+  it('XGT — values accumulate, an out-of-range address fails with its reason, a refused address is a 400', async () => {
+    const h = await harness();
+    const before = await h.errors();
+    xgt = new XgtMockServer();
+    xgt.memory.get('D')!.writeFloatLE(42.5, 400);
+    xgt.memory.get('M')![2] = 1;
+    const port = await xgt.listen();
+    const made = await h.call('POST', `/packages/${h.id}/aid`, {
+      endpoint: `xgt://127.0.0.1:${port}?series=XGK`,
+      tags: [
+        { name: 'Speed', href: 'D200:REAL', type: 'float' },
+        { name: 'Running', href: 'M0010:BOOL', type: 'boolean' },
+        { name: 'Missing', href: 'D9000', type: 'integer' },
+      ],
+    });
+    expect(made.status).toBe(201);
+    expect(await h.errors()).toEqual(before);
+    const collected = await h.call('POST', `/packages/${h.id}/collect`);
+    expect(JSON.stringify(collected.body)).toContain('AddressOutOfRange');
+    const values = (await h.call('GET', `/packages/${h.id}/values`)).body['result'] as { propertyName: string; valueNumber?: number }[];
+    expect(Object.fromEntries(values.filter((v) => v.valueNumber !== undefined).map((v) => [v.propertyName, v.valueNumber]))).toEqual({ Speed: 42.5, Running: 1 });
+    const refused = await h.call('POST', `/packages/${h.id}/aid`, { endpoint: `xgt://127.0.0.1:${port}?series=XGI`, tags: [{ name: 'Bad', href: 'D100' }] });
     expect(refused.status).toBe(400);
   });
 });

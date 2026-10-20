@@ -80,7 +80,8 @@
             "MQTT",
             "HTTP",
             "S7",
-            "MC"
+            "MC",
+            "XGT"
           ]
         },
         "endpoint": {

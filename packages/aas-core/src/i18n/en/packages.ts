@@ -48,8 +48,8 @@ export const EN_PACKAGES: Record<string, string> = {
   '리비전이 어긋납니다: 기대 {0}, 현재 {1}. 다시 읽고 편집하십시오.': 'Revision mismatch: expected {0}, current {1}. Reload and edit again.',
 
   // ── collector — building collection connections (AID) · collection ──
-  '접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// · s7:// · melsec:// 중 하나로 시작해야 합니다: {0}':
-    'The endpoint must start with opc.tcp:// · modbus+tcp:// · mqtt:// · s7:// · melsec://: {0}',
+  '접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// · s7:// · melsec:// · xgt:// 중 하나로 시작해야 합니다: {0}':
+    'The endpoint must start with opc.tcp:// · modbus+tcp:// · mqtt:// · s7:// · melsec:// · xgt://: {0}',
   '태그가 하나도 없습니다.': 'There are no tags.',
   '태그 이름은 영문으로 시작하고 영문·숫자·밑줄만 씁니다: {0}':
     'A tag name must start with a letter and use only letters, digits and underscores: {0}',
@@ -108,11 +108,11 @@ export const EN_PACKAGES: Record<string, string> = {
     'The database schema is version {0}, but this program only knows up to version {1} — upgrade the program. It does not start, because an older program reading newer tables could silently lose data.',
   '{0}을(를) 읽지 못했습니다 — 손으로 고치거나 지운 뒤 다시 띄우십시오: {1}':
     'Could not read {0} — fix it by hand or delete it, then start again: {1}',
-  // ── fieldbus — S7 · MC protocol (VEXPLOR extension bindings, read only) ──
+  // ── fieldbus — S7 · MC · XGT protocol (VEXPLOR extension bindings, read only) ──
   "태그 {0}: {1}":
     "Tag {0}: {1}",
-  "S7 · MC 프로토콜 읽기에는 로그인이 없습니다.":
-    "Reading over S7 or the MC protocol has no login.",
+  "S7 · MC · XGT 프로토콜 읽기에는 로그인이 없습니다.":
+    "Reading over S7, the MC protocol or the XGT dedicated protocol has no login.",
   "PLC 주소가 이상합니다: {0}":
     "Invalid PLC address: {0}",
   "PLC 자료형을 모릅니다: {0} — 쓸 수 있는 것: {1}":
@@ -149,4 +149,18 @@ export const EN_PACKAGES: Record<string, string> = {
     "The S7 device sent an answer in an unexpected format.",
   "S7 장치가 요청을 거절했습니다(오류 {0}) — S7-1200 · 1500 은 CPU 설정에서 「PUT/GET 통신 허용」을 켜고, 읽을 DB 의 「최적화된 블록 액세스」를 꺼야 읽힙니다.":
     "The S7 device refused the request (error {0}) — on S7-1200 · 1500, turn on \"Permit access with PUT/GET communication\" in the CPU settings and turn off \"Optimized block access\" for the DBs to read.",
+  "접속 주소의 series 값이 이상합니다: {0} — 쓸 수 있는 것: XGK · XGI · XGR · XGB · XEC":
+    "Invalid series in the endpoint: {0} — allowed: XGK · XGI · XGR · XGB · XEC",
+  "XGT 주소가 이상합니다: {0} — 예: {1}":
+    "Invalid XGT address: {0} — e.g. {1}",
+  "XGT 주소 {0} 에는 자료형 {1} 을 쓸 수 없습니다":
+    "XGT address {0} cannot hold data type {1}",
+  "{0} 계열에서 읽는 디바이스가 아닙니다: {1} — 계열은 접속 주소에 ?series=XGK · XGI · XGR · XGB · XEC 로 적습니다":
+    "{1} is not a device read on the {0} series — state the series in the endpoint as ?series=XGK · XGI · XGR · XGB · XEC",
+  "{0} 의 비트는 {0}100.3 처럼 점을 찍어 적습니다: {1}":
+    "Write a bit of {0} with a dot, like {0}100.3: {1}",
+  "XGT 장치의 응답 형식이 이상합니다.":
+    "The XGT device sent an answer in an unexpected format.",
+  "{0} (오류 코드 0x{1})":
+    "{0} (error code 0x{1})",
 };

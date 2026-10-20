@@ -61,13 +61,14 @@ export interface AidTagInput {
 }
 
 /** Protocol determined from the endpoint address — also used to name the AID interface (pairs with protocolOf in parseAid) */
-export type AidBuildProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC';
+export type AidBuildProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'S7' | 'MC' | 'XGT';
 export function endpointProtocol(endpoint: string): AidBuildProtocol | undefined {
   if (/^opc\.tcp:\/\/.+/i.test(endpoint)) return 'OPCUA';
   if (/^modbus\+tcp:\/\/.+/i.test(endpoint)) return 'MODBUS';
   if (/^mqtts?:\/\/.+/i.test(endpoint)) return 'MQTT';
   if (/^s7:\/\/.+/i.test(endpoint)) return 'S7';
   if (/^melsec:\/\/.+/i.test(endpoint)) return 'MC';
+  if (/^xgt:\/\/.+/i.test(endpoint)) return 'XGT';
   return undefined;
 }
 
@@ -77,8 +78,9 @@ const INTERFACE_NAME: Record<AidBuildProtocol, string> = {
   MQTT: 'InterfaceTemplateForMQTT',
   S7: 'InterfaceTemplateForS7',
   MC: 'InterfaceTemplateForMC',
+  XGT: 'InterfaceTemplateForXGT',
 };
-const PROTOCOL_LABEL: Record<AidBuildProtocol, string> = { OPCUA: 'OPC UA', MODBUS: 'Modbus TCP', MQTT: 'MQTT', S7: 'S7', MC: 'MC' };
+const PROTOCOL_LABEL: Record<AidBuildProtocol, string> = { OPCUA: 'OPC UA', MODBUS: 'Modbus TCP', MQTT: 'MQTT', S7: 'S7', MC: 'MC', XGT: 'XGT' };
 
 /**
  * Form fields and their vocabulary (W3C WoT bindings). The source spec defines only the namespace, not per-field IRIs —
@@ -91,7 +93,7 @@ const MQTT_NS = 'https://www.w3.org/2019/wot/mqtt';
  * the OPC UA and MQTT bindings have none, so they carry ours (`vxp_pollingTime`, this tool's vocabulary).
  */
 const VXP_POLLING = 'vxp_pollingTime';
-export const POLLING_FIELD: Record<AidBuildProtocol, string> = { MODBUS: 'modv_pollingTime', OPCUA: VXP_POLLING, MQTT: VXP_POLLING, S7: VXP_POLLING, MC: VXP_POLLING };
+export const POLLING_FIELD: Record<AidBuildProtocol, string> = { MODBUS: 'modv_pollingTime', OPCUA: VXP_POLLING, MQTT: VXP_POLLING, S7: VXP_POLLING, MC: VXP_POLLING, XGT: VXP_POLLING };
 const POLLING_NS: Record<string, string> = { modv_pollingTime: MODBUS_NS, vxp_pollingTime: 'urn:vexplor:aid:pollingTime' };
 /** The bounds the edge approval accepts for a read interval (routes-edge-admin.ts) */
 export const POLLING_MS = { min: 100, max: 3_600_000 } as const;
@@ -131,7 +133,7 @@ export function checkAidInput(input: AidBuildInput): void {
   const protocol = endpointProtocol(input.endpoint);
   if (!protocol) {
     throw new AidBuildError(
-      fill(tr('접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// · s7:// · melsec:// 중 하나로 시작해야 합니다: {0}'), { 0: input.endpoint }),
+      fill(tr('접속 주소는 opc.tcp:// · modbus+tcp:// · mqtt:// · s7:// · melsec:// · xgt:// 중 하나로 시작해야 합니다: {0}'), { 0: input.endpoint }),
     );
   }
   // Important: a user name or password in the address would be stored in the file and handed out in the edge read list
@@ -139,8 +141,8 @@ export function checkAidInput(input: AidBuildInput): void {
     throw new AidBuildError(tr('접속 주소에 사용자 이름 · 암호를 넣지 마십시오 — 「로그인 필요」를 켜고, 사용자 이름 · 암호는 서버의 credentials 파일(OPCUA_CLIENT_CREDENTIALS)과 공장 PC 의 credentials.json 에 이 주소로 적습니다.'));
   }
   checkSecurity(protocol, input.security);
-  // S7 · MC (VEXPLOR extension bindings): the endpoint and every address go through the same grammar the reader uses
-  const plcHref = protocol === 'S7' || protocol === 'MC' ? plcHrefCheck(protocol, input.endpoint) : undefined;
+  // S7 · MC · XGT (VEXPLOR extension bindings): the endpoint and every address go through the same grammar the reader uses
+  const plcHref = protocol === 'S7' || protocol === 'MC' || protocol === 'XGT' ? plcHrefCheck(protocol, input.endpoint) : undefined;
   if (input.intervalMs !== undefined && (!Number.isInteger(input.intervalMs) || input.intervalMs < POLLING_MS.min || input.intervalMs > POLLING_MS.max)) {
     throw new AidBuildError(fill(tr('읽기 주기는 {0}ms ~ {1}ms 사이의 정수여야 합니다: {2}'), { 0: POLLING_MS.min, 1: POLLING_MS.max, 2: String(input.intervalMs) }));
   }

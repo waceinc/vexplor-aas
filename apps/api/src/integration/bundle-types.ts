@@ -40,7 +40,7 @@ export interface BundleManifest {
  * The edge read list (docs/edge-contract.md §4) — here so `@aas/bundle` can ship `aidReadList` with standalone types.
  * The server's read list (apps/api/src/edge/read-list.ts) uses exactly these.
  */
-export type EdgeProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'HTTP' | 'S7' | 'MC';
+export type EdgeProtocol = 'OPCUA' | 'MODBUS' | 'MQTT' | 'HTTP' | 'S7' | 'MC' | 'XGT';
 
 /** Role a receiver may pre-fill for a tag (docs/edge-contract.md §4.1) — a person confirms it */
 export type TagRole = 'run_state' | 'counter' | 'alarm_source' | 'meter' | 'condition' | 'quality' | 'value';

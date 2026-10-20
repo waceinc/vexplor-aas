@@ -29,9 +29,10 @@ export const AID_SEMANTIC_ID_PREFIX = 'https://admin-shell.io/idta/AssetInterfac
 
 /**
  * BACNET is recognised (AID 1.1) but not collected yet — callers treat it like UNKNOWN.
- * S7 and MC are VEXPLOR extension bindings, not AID 1.1 (plc-address.ts) — recognised by our binding IRI or the scheme.
+ * S7, MC and XGT are VEXPLOR extension bindings, not AID 1.1 (plc-address.ts · xgt-address.ts) — recognised by our
+ * binding IRI or the scheme.
  */
-export type AidProtocol = 'OPCUA' | 'HTTP' | 'MODBUS' | 'MQTT' | 'BACNET' | 'S7' | 'MC' | 'UNKNOWN';
+export type AidProtocol = 'OPCUA' | 'HTTP' | 'MODBUS' | 'MQTT' | 'BACNET' | 'S7' | 'MC' | 'XGT' | 'UNKNOWN';
 
 /** AID 1.1 interface supplementalSemanticIds (IDTA-02017 1.1 Table 3) */
 const PROTOCOL_IRIS: Record<string, AidProtocol> = {
@@ -42,6 +43,7 @@ const PROTOCOL_IRIS: Record<string, AidProtocol> = {
   'http://opcfoundation.org/UA/WoT-Binding/': 'OPCUA',
   [BINDING_IRI.S7]: 'S7',
   [BINDING_IRI.MC]: 'MC',
+  [BINDING_IRI.XGT]: 'XGT',
 };
 
 export interface AidProperty {
@@ -182,6 +184,7 @@ export function protocolOf(name: string, base?: string, supplementalSemanticIds?
   if (scheme.startsWith('bacnet')) return 'BACNET';
   if (scheme.startsWith('s7:')) return 'S7';
   if (scheme.startsWith('melsec:')) return 'MC';
+  if (scheme.startsWith('xgt:')) return 'XGT';
   const upper = name.toUpperCase();
   if (upper.includes('OPCUA') || upper.includes('OPC_UA')) return 'OPCUA';
   if (upper.includes('MODBUS')) return 'MODBUS';

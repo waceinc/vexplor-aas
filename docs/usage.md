@@ -707,9 +707,10 @@ The AID defines **where to connect and what to read** (address, NodeId, register
 | MQTT | `mqtt://host:1883` · `mqtts://…` | topic `plant/press/temp` (no wildcards) | Reads the **last value** the device sent. A topic that has not arrived yet shows "Waiting for a value". For a broker that wants a login, turn on "Login required" (8-1) — never put the user name and password in the address |
 | S7 (VEXPLOR extension) | `s7://host[:102]?rack=0&slot=1` | absolute address + type `DB10.DBD4:REAL` · `M10.3` · `MW20:INT` | S7-300 / 400 / 1200 / 1500 over ISO-on-TCP. See "S7 and MC" below |
 | MC protocol (VEXPLOR extension) | `melsec://host:port?series=Q` | device + type `D100` · `D200:REAL` · `D10.3` · `X1F` | MELSEC Q · L · iQ-R · iQ-F, 3E frame binary. See "S7 and MC" below |
+| XGT dedicated protocol (VEXPLOR extension) | `xgt://host[:2004]?series=XGK` | as XG5000 shows it + type `D100` · `D200:REAL` · `D100.3` · `P0001A` · `%MW100` · `%IX0.0.3` | LS ELECTRIC XGK · XGI · XGR · XGB over an FEnet module. See "XGT" below |
 
 The Modbus and MQTT notation follows the W3C WoT bindings (used by the AID), and the tool reads them itself without external libraries (read only — it never writes to the machine).
-Vendor-specific protocols such as LS XGT FEnet are not supported yet — enable the machine's Modbus TCP or OPC UA server instead.
+Other vendor-specific protocols are not supported yet — enable the machine's Modbus TCP or OPC UA server instead.
 
 **S7 and MC — read directly, without a gateway.** Siemens S7 and MELSEC PLCs can be read as they are. Read only: the
 tool sends only read requests (S7 "Read Var", MC "Batch read") and never changes the PLC program or its values.
@@ -745,6 +746,63 @@ tool sends only read requests (S7 "Read Var", MC "Batch read") and never changes
   machines keep being read. Open TCP **102** (S7) or the MC port from the factory PC to the PLC. This server's automatic
   collection (`COLLECT=on`) reads them too.
 
+**XGT — LS ELECTRIC PLCs over FEnet, read directly.** XGK · XGI · XGR · XGB PLCs with an FEnet Ethernet module are read
+with LS ELECTRIC's XGT dedicated protocol. Read only: the tool sends only the read request (instruction `0x0054`); the
+write instruction is not built anywhere.
+
+- **This is a VEXPLOR extension too** — the same places as S7 and MC (`base`, `href`), binding IRI
+  `urn:vexplor:aid:binding:xgt`.
+- **Endpoint** — `xgt://host[:2004]?series=XGK`. 2004 is the XGT dedicated TCP port the FEnet manual names. `series` =
+  `XGK` (the default) · `XGI` · `XGR` · `XGB` (the XGB "MK" type, XBM · XBC) · `XEC` (the XGB IEC type, also `XGB-IEC`).
+  The series decides the address notation and the CPU byte sent in the frame header.
+- **XGK / XGB address** — as XG5000 shows it: device `P` · `M` · `K` · `F` · `T` · `C` · `L` · `N` · `D` · `R` and the
+  word number (`D100`, `M0010`), then optionally `:TYPE` — a word defaults to INT. A bit of a bit device (`P` · `M` ·
+  `K` · `F` · `L`) is the last hexadecimal digit (`P0001A` = word 1, bit A) — write `:BOOL` when that digit is 0 – 9
+  (`M0010:BOOL` = word 1, bit 0) — or a dot (`P0001.A`). A bit of `D` · `R` · `N` always takes a dot (`D100.3`).
+  `T10` / `C10` is the current value (a word), `T10:BOOL` / `C10:BOOL` the contact. A value over several words is read
+  low word first (`D100:DINT` = D100 low, D101 high). The protocol's own names (`%DW100`, `%PX26`) work too.
+- **XGI / XGR / XEC address** — the IEC direct variable as XG5000 shows it: `%MW100`, `%MD10:REAL`, `%MX1603` (a bit
+  number is word × 16 + bit), `%ML1`, `%MB4:STRING[10]` on `M` · `R` · `W` · `F` · `K` · `L` · `N`; inputs and outputs by
+  base . slot . number, `%IX0.0.3` · `%QW0.1.2`. Without a type: `X` = BOOL, `B` = BYTE, `W` = WORD, `D` = DWORD, `L` =
+  LWORD (read as ULINT). Not read: `U`, `Z`, `ZR`, `S` and XGI's `%A` and timer / counter structures.
+- **Batching and limits.** Neighbouring addresses on one device are read with one continuous read (up to 1,400 bytes);
+  inputs, outputs and contacts are read by name, up to 16 per request — the limits of the manual. One bad address fails
+  alone with the module's reason (`AddressOutOfRange (error code 0x0004)`, `DeviceNotSupported (error code 0x0003)`).
+- **XG5000 settings.** In the FEnet module's basic settings: the IP address; "Driver (server) setting" = **XGT server**
+  (TCP 2004 — the module serves it when nothing else is set); "Number of dedicated connections" 1 – 16 (3 by default;
+  up to 64 per port from module OS 6.0) — each AAS Studio server or VEXPLOR Edge takes one. If **"Enable host table"**
+  is on, add the IP address of this server or the factory PC, otherwise the module refuses the connection. Download the
+  parameters. A connection idle longer than "Reception waiting time" is closed by the module; the tool opens it again
+  on the next read.
+- **What is verified.** The frames follow LS ELECTRIC's "XGT FEnet I/F Module User's Manual" V2.30 (chapter 8,
+  §10.4 error codes) and "XGB FEnet I/F Module" V1.5 (§5.2 frame examples), and are tested against a test server built
+  from them — **not on a real PLC.**
+- **Check this first on a real PLC — the word order of values over several words.** The manuals give the frame fields
+  as little-endian and a word as two byte addresses, but never show the order of the words inside a DINT, UDINT, DWORD,
+  REAL, LREAL, LINT or ULINT. This tool reads **low byte and low word first**. If a REAL or DINT reads wrong while INT
+  and BOOL read right, that is the reason — please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md) with the value XG5000 shows and the
+  value read.
+- **What the published manuals do not settle** (read as stated; each one is a question for a field report):
+  1. The word order above.
+  2. The error-code field length — 1 byte in chapter 8, 2 bytes in §10.4. Both forms are read.
+  3. The CPU-info byte in a request — the manual says "Don't care" and its example sends 0xA0. This tool sends the
+     series' value (0xA0 · 0xA4 · 0xA8 · 0xB0 · 0xB4); whether the module checks it is not known.
+  4. Continuous reads of XGK `R` — the continuous-read list (p. 8-9) leaves R out, error code 3 (p. 10-12) names it.
+     Accepted; if the module answers 0x0003, the row says so.
+  5. Continuous reads of XGI `W`, and XGI I / Q read by name (`%IX0.0.3`) — the manual has no example of either.
+  6. The 1,400-byte limit on XGB — given in the XGT FEnet manual V2.30, not in the XGB manuals. A request over the
+     module's limit fails and falls back to one address at a time.
+  7. Device ranges per CPU (XGK-CPUH D 0 – 32767, CPUS 0 – 19999, XGB smaller) — only the digits are checked; an
+     address out of range comes back as `AddressOutOfRange` from the module.
+  8. The checksum in table 5-6 of the XGB manual (0x4E) does not match the formula the other three examples follow —
+     read as a misprint.
+  9. XG5000 menu names here are translated from the English manual V2.30 §5.2.3 and may differ on a Korean XG5000.
+  10. Whether the built-in Ethernet port of an XGB CPU (not an FEnet module) speaks the same protocol.
+- **Remote collector (VEXPLOR Edge).** From 2.11.0 XGT interfaces are in the remote collector's read list
+  (`protocol` `XGT`, [edge-contract.md](edge-contract.md) §4). VEXPLOR Edge 1.3.0 or later reads them; an older
+  collector shows "Machine connection error: XGT is not read by this edge yet" and keeps reading its other machines.
+  Open TCP **2004** from the factory PC to the PLC.
+
 The server must be started with **`COLLECT=on`**.
 
 > **Note:** **collected values are not written back to the model (AASX)**, because the deliverable is a type. Values go into a time-series store only; the file stays as it is.
@@ -756,7 +814,7 @@ Without an AID, the right pane shows **"Create collection link"**.
 ![Create collection link](images/manual/en/m30-aid-new-browse.png)
 
 1. **① Endpoint of the machine (PLC)** — e.g. `opc.tcp://192.168.0.50:4840` · `modbus+tcp://192.168.0.20:502/1` · `mqtt://broker:1883`. **This is not the address the tool itself serves on (8-6)** — the tool blocks that
-2. **"Load from equipment"** (OPC UA) — connects to the machine and browses its tags. Current values and data types are shown so you can check what each one is. Nothing is changed. Modbus TCP, MQTT, S7 and MC have no browse; add them by hand or by pattern in step 3 (an S7 or MC row has an address box and a "PLC data type" select; an address the server would refuse is outlined)
+2. **"Load from equipment"** (OPC UA) — connects to the machine and browses its tags. Current values and data types are shown so you can check what each one is. Nothing is changed. Modbus TCP, MQTT, S7, MC and XGT have no browse; add them by hand or by pattern in step 3 (an S7, MC or XGT row has an address box and a "PLC data type" select; an address the server would refuse is outlined)
    - Once an address is entered, a **how to connect** line appears below it (2.8.0). OPC UA has **"Security mode"** (None · Sign · SignAndEncrypt) and **"Security policy"** (Basic256Sha256 · Aes128_Sha256_RsaOaep · Aes256_Sha256_RsaPss), OPC UA and MQTT have **"Login required"**, and every protocol has **"Read period (s)"**. "Load from equipment" connects with the chosen security and login too — a machine without a None endpoint can be browsed
 
    ![How to connect — security mode, login, read period](images/manual/en/m42-aid-security.png)
@@ -956,7 +1014,8 @@ An MQTT broker that wants a login ("Login required") is read by **VEXPLOR Edge 1
 
 S7 and MC PLCs (2.10.0, VEXPLOR extension bindings, read only — the start of §8) are read by **VEXPLOR Edge 1.2.0 or later**. The
 factory PC needs TCP **102** to an S7 PLC and the port set in a MELSEC PLC's Ethernet settings. Tested against test
-servers built from the published formats, not yet against real PLCs.
+servers built from the published formats, not yet against real PLCs. XGT PLCs (2.11.0, the same kind of extension)
+need TCP **2004** from the factory PC and **VEXPLOR Edge 1.3.0 or later**.
 
 After that the same screen shows the last batch, values received and machine connections, and **pauses, resumes or
 revokes**. What each state means and the API: **[edge-install.md](edge-install.md)**; installing, layouts and

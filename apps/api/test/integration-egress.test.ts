@@ -107,6 +107,7 @@ describe('checkTarget — refused targets (each fails if its protection is remov
     ['plain http to a public host', 'http://hooks.example.com/hook'],
     ['blocked port (Redis)', 'https://hooks.example.com:6379/'],
     ['blocked port (Modbus)', 'https://hooks.example.com:502/'],
+    ['blocked port (LS ELECTRIC XGT dedicated protocol)', 'https://hooks.example.com:2004/'],
   ])('%s', async (_name, url) => {
     const kind = url.startsWith('mqtt') ? 'mqtt' : 'webhook';
     const result = await checkTarget(url, kind, policy('', PUBLIC));

@@ -41,7 +41,7 @@ export function rowsOf(iface: AidInterfaceView): TagRow[] {
       row.dataType = fields['modv_type'] ?? 'xsd:unsignedShort';
       row.order = orderOf(fields);
     }
-    if (protocol === 'S7' || protocol === 'MC') {
+    if (protocol === 'S7' || protocol === 'MC' || protocol === 'XGT') {
       const { address, plcType } = splitPlcHref(protocol, property.href);
       row.href = address;
       row.plcType = plcType;
@@ -84,9 +84,9 @@ export function formFor(protocol: AidProtocolChoice | undefined, row: TagRow): {
   return {};
 }
 
-/** The href and AID type to send — S7 · MC join address and data type, the rest send the row as typed */
+/** The href and AID type to send — S7 · MC · XGT join address and data type, the rest send the row as typed */
 export function tagAddressOf(protocol: AidProtocolChoice | undefined, row: TagRow): { href: string; type: string } {
-  if (protocol === 'S7' || protocol === 'MC') {
+  if (protocol === 'S7' || protocol === 'MC' || protocol === 'XGT') {
     const href = plcHrefOf(row.href, row.plcType);
     return { href, type: plcWotType(protocol, href) };
   }

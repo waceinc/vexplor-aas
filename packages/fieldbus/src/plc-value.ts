@@ -1,14 +1,16 @@
 /**
- * PLC bytes → typed value, for the S7 and MC readers.
+ * PLC bytes → typed value, for the S7, MC and XGT readers.
  *
  * S7 is big-endian throughout (high byte first, as a DB shows it). MELSEC words are little-endian and a value that
  * spans words puts its low word first — so a MELSEC value is simply little-endian over all its bytes, the order the
- * 3E frame returns them in.
+ * 3E frame returns them in. XGT is read the same way: the manual states its frame fields little-endian ("h0054 ⇒
+ * 5400") and maps a word onto two byte addresses (`%DW1234` = `%DB2468`), but it does not show the byte order of word
+ * data — little-endian there is our reading, to be confirmed on a real CPU. XGT strings are read like MELSEC's.
  */
-import type { PlcValueType } from '@aas/collector';
+import type { PlcProtocolName, PlcValueType } from '@aas/collector';
 
 /** Decodes a non-BOOL value. `bytes` starts at the value and holds at least its width */
-export function decodePlcValue(bytes: Uint8Array, value: PlcValueType, littleEndian: boolean, protocol: 'S7' | 'MC'): number | string {
+export function decodePlcValue(bytes: Uint8Array, value: PlcValueType, littleEndian: boolean, protocol: PlcProtocolName): number | string {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   switch (value.type) {
     case 'BYTE':
