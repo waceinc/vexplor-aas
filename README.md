@@ -69,10 +69,11 @@ whenever machines change — and they too report that creating the AAS itself is
 | **Accounts** | Admin / editor / viewer, with an audit trail of who changed what |
 | **English & Korean, light & dark** | The interface **and** everything the server writes — findings, rule descriptions, the validation report, bundle README, errors — come in English or Korean. If you never choose, the browser language decides (Korean browser → Korean, anything else → English). Light and dark themes |
 
-## What's new in 2.3 – 2.11
+## What's new in 2.3 – 2.12
 
 | Feature | Release | Detail |
 |---|---|---|
+| **Range limits in tag hints** | 2.12.0 | A `Range` element with the same semanticId as a tag's value now gives limits too — its `min` as `lsl`, its `max` as `usl` — so a receiver such as Logic Studio gets lower specification limits from the file. Limits from the KOSMO property pairs come first, ranges after; a tag may carry several of the same bound, each with its `source`, for a person to choose. No schema change. The KOSMO model files in use today hold no `Range`, so their hints are unchanged; for a lower limit, add a `Range` with the value's semanticId and an idShort different from the value's ([integration](docs/integration.md)) |
 | **LS ELECTRIC XGT, read directly** | 2.11.0 | XGK · XGI · XGR · XGB PLCs with an FEnet module are read over the XGT dedicated protocol (TCP 2004) without a gateway — read only. Addresses are written as XG5000 shows them (`D100`, `D100.3`, `P0001A`, `%MW100`, `%IX0.0.3`). AID 1.1 has no XGT binding, so this is a VEXPLOR extension binding marked by our binding IRI. Built from LS ELECTRIC's published FEnet manual and tested against a test server built from it — not yet checked on a real PLC; please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md). The server reads it with `COLLECT=on`, the remote collector from VEXPLOR Edge 1.3.0 — [usage §8](docs/usage.md) |
 | **XGT in the edge contract · PLC field report** | 2.11.0 | The read list's `protocol` adds `XGT`; the contract stays `vexplor.edge/1`. An older edge reports `XGT is not read by this edge yet` and keeps reading the others. A new issue form collects real-PLC results for S7, MC and XGT. Webhooks and MQTT subscriptions now also refuse port 2004 unless the allow entry names it |
 | **S7 and MC protocol, read directly** | 2.10.0 | Siemens S7-300 / 400 / 1200 / 1500 (ISO-on-TCP) and MELSEC Q · L · iQ-R · iQ-F (MC protocol 3E binary) are read without a gateway — read only. Addresses are written as the engineering tool shows them (`DB10.DBD4:REAL`, `D100`, `D10.3`). AID 1.1 has no binding for either, so this is a VEXPLOR extension binding, marked by our binding IRI; other AID tools do not read these interfaces. Tested against test servers built from the published formats — not yet checked on real PLCs. The server reads them with `COLLECT=on`, and the remote collector from VEXPLOR Edge 1.2.0 — [usage §8](docs/usage.md) |
@@ -186,7 +187,7 @@ uses them) are attached to each GitHub release as npm tarballs (`node scripts/pa
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.11.0/aas-aasx-2.11.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.0/aas-aasx-2.12.0.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would

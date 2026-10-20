@@ -69,10 +69,11 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 | **계정** | 관리자 · 편집자 · 열람자. 변경 이력에 누가 고쳤는지 남습니다 |
 | **한국어 · 영어, 밝은 · 어두운 화면** | 화면 글자**와** 서버가 만드는 글(지적 문구 · 규칙 설명 · 검증 결과서 · 번들 README · 오류)이 한국어와 영어로 나옵니다. 고른 적이 없으면 브라우저 언어를 따릅니다(한국어 브라우저는 한국어, 그 밖은 영어). 밝은 화면과 어두운 화면이 있습니다 |
 
-## 2.3 ~ 2.11 에서 새로 생긴 것
+## 2.3 ~ 2.12 에서 새로 생긴 것
 
 | 기능 | 버전 | 내용 |
 |---|---|---|
+| **태그 힌트에 Range 한계** | 2.12.0 | 태그 값과 semanticId 가 같은 `Range` 요소도 한계값을 줍니다 — `min` 은 `lsl`, `max` 는 `usl`. 그래서 Logic Studio 같은 받는 쪽이 파일에서 하한까지 받습니다. KOSMO 속성 짝에서 나온 한계가 먼저, Range 가 다음이고, 한 태그에 같은 하한 · 상한이 여럿이면 각각 `source` 와 함께 실어 사람이 고르게 합니다. 스키마는 바뀌지 않았습니다. 지금 쓰는 KOSMO 모델 파일에는 `Range` 가 없어 그 파일들의 힌트는 그대로입니다. 하한이 필요하면 값과 semanticId 가 같고 idShort 는 다른 `Range` 를 넣습니다([연동](docs/연동.md)) |
 | **LS ELECTRIC XGT 바로 읽기** | 2.11.0 | FEnet 모듈을 단 XGK · XGI · XGR · XGB PLC 를 XGT 전용 프로토콜(TCP 2004)로 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 XG5000 에 보이는 그대로 적습니다(`D100` · `D100.3` · `P0001A` · `%MW100` · `%IX0.0.3`). AID 1.1 에 XGT 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩입니다. LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만들고 그대로 만든 시험용 서버로 시험했으며, 실제 PLC 확인은 아직 없습니다 — [PLC 실기 확인 보고](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)로 알려 주십시오. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.3.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
 | **엣지 계약에 XGT · 실기 확인 보고 서식** | 2.11.0 | 읽을 목록의 `protocol` 에 `XGT` 를 더했습니다. 규격 버전은 `vexplor.edge/1` 그대로입니다. 이전 버전 엣지는 `XGT is not read by this edge yet` 를 알리고 나머지를 계속 읽습니다. S7 · MC · XGT 의 실제 PLC 결과를 받는 이슈 서식을 더했습니다. 웹훅 · MQTT 구독도 이제 허용 항목에 포트를 적지 않으면 2004 포트로 보내지 않습니다 |
 | **S7 · MC 프로토콜 바로 읽기** | 2.10.0 | Siemens S7-300 / 400 / 1200 / 1500(ISO-on-TCP)과 MELSEC Q · L · iQ-R · iQ-F(MC 프로토콜 3E 바이너리)를 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 엔지니어링 도구에 보이는 그대로 적습니다(`DB10.DBD4:REAL` · `D100` · `D10.3`). AID 1.1 에 두 프로토콜의 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩이며, 다른 AID 도구는 이 인터페이스를 읽지 못합니다. 공개 형식대로 만든 시험용 서버로 시험했고 실제 PLC 실측은 아직 없습니다. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.2.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
@@ -182,7 +183,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 (`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.11.0/aas-aasx-2.11.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.0/aas-aasx-2.12.0.tgz"
 ```
 
 버전 번호로 설치하지 마십시오 — 공개 npm 저장소의 `@aas` 이름 공간은 우리 것이 아니어서 `"@aas/core": "^2.0.0"` 이라고
