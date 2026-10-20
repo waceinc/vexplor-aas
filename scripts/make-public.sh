@@ -50,6 +50,8 @@ ALLOW=(
   docs/edge-contract.md docs/엣지계약.md docs/edge docs/edge-install.md docs/엣지설치.md
   # the site server install (AAS Studio + TimescaleDB + remote collector on one Linux server)
   docs/site-install.md docs/현장설치.md
+  # KOSMO reference models — measured compatibility (README and usage §10 link to it)
+  docs/kosmo-compat.md docs/kosmo-호환.md
   # tools
   scripts/ci.sh scripts/lint.mjs scripts/roundtrip.mjs scripts/part2-coverage.mjs
   scripts/make-rule-list.mjs scripts/make-third-party-notices.mjs scripts/set-license.mjs

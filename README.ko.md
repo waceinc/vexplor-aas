@@ -73,6 +73,7 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 
 | 기능 | 버전 | 내용 |
 |---|---|---|
+| **XML 의 빈 목록 요소를 빈 목록으로** | 2.12.1 | 항목 없이 닫힌 목록(`<qualifiers />` · `<description />` · 컬렉션의 `<value />` 등)을 빈 문자열로 읽었습니다. 그래서 KOSMO 공개 참조모델 179개 가운데 45개는 검사가 중간에 멈추고 27개는 저장한 사본을 다시 열지 못했습니다. 이제 둘 다 0 입니다. 빈 목록은 원본 그대로 두고 `PKG-EMPTY-ARRAY`(자동 고치기)가 알려 줍니다. `scripts/lint.mjs` 는 파일마다 그 파일의 메타모델 버전으로 검사하고 하위 폴더까지 찾습니다. 새 안내: [KOSMO 참조모델과 함께 쓰기](docs/kosmo-호환.md) — 파일별 표 포함 |
 | **태그 힌트에 Range 한계** | 2.12.0 | 태그 값과 semanticId 가 같은 `Range` 요소도 한계값을 줍니다 — `min` 은 `lsl`, `max` 는 `usl`. 그래서 Logic Studio 같은 받는 쪽이 파일에서 하한까지 받습니다. KOSMO 속성 짝에서 나온 한계가 먼저, Range 가 다음이고, 한 태그에 같은 하한 · 상한이 여럿이면 각각 `source` 와 함께 실어 사람이 고르게 합니다. 스키마는 바뀌지 않았습니다. 지금 쓰는 KOSMO 모델 파일에는 `Range` 가 없어 그 파일들의 힌트는 그대로입니다. 하한이 필요하면 값과 semanticId 가 같고 idShort 는 다른 `Range` 를 넣습니다([연동](docs/연동.md)) |
 | **LS ELECTRIC XGT 바로 읽기** | 2.11.0 | FEnet 모듈을 단 XGK · XGI · XGR · XGB PLC 를 XGT 전용 프로토콜(TCP 2004)로 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 XG5000 에 보이는 그대로 적습니다(`D100` · `D100.3` · `P0001A` · `%MW100` · `%IX0.0.3`). AID 1.1 에 XGT 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩입니다. LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만들고 그대로 만든 시험용 서버로 시험했으며, 실제 PLC 확인은 아직 없습니다 — [PLC 실기 확인 보고](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)로 알려 주십시오. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.3.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
 | **엣지 계약에 XGT · 실기 확인 보고 서식** | 2.11.0 | 읽을 목록의 `protocol` 에 `XGT` 를 더했습니다. 규격 버전은 `vexplor.edge/1` 그대로입니다. 이전 버전 엣지는 `XGT is not read by this edge yet` 를 알리고 나머지를 계속 읽습니다. S7 · MC · XGT 의 실제 PLC 결과를 받는 이슈 서식을 더했습니다. 웹훅 · MQTT 구독도 이제 허용 항목에 포트를 적지 않으면 2004 포트로 보내지 않습니다 |
@@ -183,7 +184,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 (`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.0/aas-aasx-2.12.0.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.1/aas-aasx-2.12.1.tgz"
 ```
 
 버전 번호로 설치하지 마십시오 — 공개 npm 저장소의 `@aas` 이름 공간은 우리 것이 아니어서 `"@aas/core": "^2.0.0"` 이라고
@@ -230,6 +231,33 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 정해지지 않은 것」)에 목록으로 있습니다.
 
 모두 읽기만 합니다. AID 안의 HTTP · BACnet 인터페이스는 알아보지만 값을 모으지 않습니다.
+
+## KOSMO 참조모델과 함께 쓰기
+
+KOSMO 는 국내 제조데이터 표준화 사업의 장비별 AAS 참조모델을 [github.com/kosmo-AAS](https://github.com/kosmo-AAS) 에
+공개합니다. 파일은 [kosmo-AAS/kasmo-AAS_Pubilc](https://github.com/kosmo-AAS/kasmo-AAS_Pubilc) 에 있습니다(저장소
+이름의 철자 그대로). KOSMO 제출은 메타모델 V3.1 을 요구하고, 공개된 파일 자체는 V3.0 으로 선언돼 있습니다.
+
+1. 그 저장소에서 장비에 맞는 참조모델을 **내려받습니다**.
+2. AAS Studio 로 **엽니다** — XML 본문은 열 때 JSON 으로 바뀝니다.
+3. KOSMO 제출 규칙으로 **검사합니다** — 지적 목록을 L3 로 거르고, 자동 고치기가 있는 것은 적용합니다([사용법 §4-8](docs/사용법.md)).
+4. 설비 **값을 채웁니다** — 지적의 대부분은 참조모델이 비워 둔 Property 값입니다([사용법 §4-3](docs/사용법.md)).
+5. **V3.1 로 내려받습니다**([사용법 §4-10](docs/사용법.md)). 한 글자 idShort(`Q` · `T` · `X` 등)는 V3.0 에서는 되지만
+   V3.1 에서는 안 되므로 다운로드 창이 막습니다 — 이름을 먼저 바꾸십시오.
+
+2026-10-20, 그 저장소의 커밋 `6f6ac69` 를 AAS Studio 2.12.1 로 잰 결과:
+
+| 항목 | 결과 |
+|---|---|
+| 파일 | AASX 179개 — 모두 열림, 모두 메타모델 V3.0 선언 |
+| 검사 | 179개 모두 끝까지 돎 (2.12.0 은 `<qualifiers />` 같은 빈 목록 요소가 있는 45개에서 멈췄음 — 2.12.1 에서 고침) |
+| 지적 (179개) | L1 오류 12,182 · L2 오류 48,117 · L3 오류 152,445. 오류 가운데 64,357 이 빈 Property 값(`KOSMO-SME-4`), 146,106 이 자동 고치기 대상. 많은 순: `KOSMO-SME-4` · `AASd-121~128` · `KOSMO-CD-2` · `KOSMO-CD-4` · `KOSMO-SME-5` |
+| 왕복 | 179개 모두 같음 — 저장한 사본이 모두 다시 열림 |
+| V3.1 내보내기 | 156개는 잃는 값 0 으로 씀. 23개 거부(한 글자 idShort). 156개 중 33개가 V3.1 공식 스키마 통과 — 나머지는 원본 값 때문에 떨어짐: 빈 목록(`minItems` 1) · 빈 글자 · 빈 단위 · 빈 idShort |
+
+파일별 · 규칙별 결과: [docs/kosmo-호환.md](docs/kosmo-호환.md).
+**라이선스:** 그 저장소에는 라이선스 표시가 없어, 이 저장소는 그 파일을 싣지 않고 링크만 둡니다.
+다시 배포하려면 제공처의 조건을 먼저 확인하십시오.
 
 ## 알아 둘 것
 

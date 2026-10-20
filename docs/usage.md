@@ -1156,6 +1156,26 @@ Precedence: **query parameter > environment variable > policy file > default**. 
 > **Why is AASd-120 a warning** — it is in the specification, but the KOSMO Validator does not check it. `aas-test-engines`, however, treats it as an error,
 > and `basyx-python-sdk` **silently drops the elements.** For submission only you can leave it, but if you plan to load into BaSyx, remove them with "Auto-fix" (it removes them by default).
 
+### Using KOSMO reference models
+
+KOSMO's public reference models ([kosmo-AAS/kasmo-AAS_Pubilc](https://github.com/kosmo-AAS/kasmo-AAS_Pubilc)) are a
+starting point per equipment type. They are XML files declaring metamodel V3.0, so they are **checked as V3.0** (the table
+above) and converted to JSON on import. A KOSMO submission asks for V3.1.
+
+1. Download the model for your machine from that repository and open it (§2).
+2. Open the findings (§4-8), filter by **L3 KOSMO**, and apply the auto-fixes offered. In the 179 files measured, 146,106 of
+   212,744 errors were auto-fixable.
+3. Fill in the machine's values (§4-3 value table). `KOSMO-SME-4` — "Property has no value" — is the largest group
+   (64,357 of those errors) and goes down as values are entered.
+4. Fix what remains by hand — usually missing English definitions (`KOSMO-CD-3`) and duplicate CDs (`KOSMO-CD-5`).
+5. Download as **V3.1** (§4-10). The window refuses values V3.1 cannot hold — in these models, one-letter idShorts such as
+   `Q`, `T`, `X`. Rename them first; the tool tells you when a rename would break a reference.
+
+Fixed in 2.12.1: lists closed with no items (`<qualifiers />`, `<description />` …), found in 61 of the 179 files, were read
+as the empty string by 2.12.0 — the check stopped in 45 of them and 27 could not be opened again once saved. They are now
+read as empty lists and reported as `PKG-EMPTY-ARRAY`, which auto-fix removes. Per-file results and the measurement method: [kosmo-compat.md](kosmo-compat.md). That repository shows no license, so its
+files are not included here.
+
 ---
 
 ## 11. Document assets
