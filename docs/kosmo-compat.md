@@ -12,7 +12,7 @@ Studio. How to use them is in the [README](../README.md#using-kosmo-reference-mo
 | Measured on | 2026-10-20 |
 | Repository | [kosmo-AAS/kasmo-AAS_Pubilc](https://github.com/kosmo-AAS/kasmo-AAS_Pubilc) (the repository's own spelling) |
 | Commit | `6f6ac69aece946b9531c9051d5970a72bcbf81c6` (2026-06-23) |
-| AAS Studio | 2.12.0 (`main` `b179f22`) |
+| AAS Studio | 2.12.1 |
 | Files | **179** AASX — `2025_KPC_Public` 60 · `2025_MICUBE_Public` 60 · `ABH_MICUBE_IMPIX-main` 32 · `LSELECTRIC_OCUBY-main` 27 |
 
 Every file went through these steps, calling this repository's libraries (`@aas/aasx` · `@aas/linter` · `@aas/core`) as they are.
@@ -23,45 +23,81 @@ Every file went through these steps, calling this repository's libraries (`@aas/
 4. **Export as 3.1** — `writeAasxWithReport(pkg, { version: '3.1', encodePaths: true })`. Dropped values counted, the body read back
    compared with the original, and checked against the official 3.1 JSON schema (`tests/fixtures/idta-metamodel/3.1`, ajv draft 2019-09).
 
+### How to measure it again
+
+The reference models are not in this repository, so clone the source repository and pass its folder. The second command
+prints the open · check · round-trip · 3.1-export numbers of the summary.
+
+```bash
+git clone https://github.com/kosmo-AAS/kasmo-AAS_Pubilc /tmp/kosmo
+git -C /tmp/kosmo checkout 6f6ac69aece946b9531c9051d5970a72bcbf81c6
+# in this repository
+npm ci && npx tsc -b
+node scripts/lint.mjs /tmp/kosmo     # findings per file (subfolders included), judged by each file's own version
+node --input-type=module -e '
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { readAasx, writeAasx, writeAasxWithReport } from "@aas/aasx";
+import { canonicalJson, writeEnvironment } from "@aas/core";
+import { ALL_RULES, lint } from "@aas/linter";
+import { Ajv2019 } from "ajv/dist/2019.js";
+const schema31 = new Ajv2019({ strict: false, unicodeRegExp: false })
+  .compile(JSON.parse(readFileSync("tests/fixtures/idta-metamodel/3.1/aas.schema.json", "utf8")));
+const files = readdirSync(process.argv[1], { recursive: true }).filter((f) => f.endsWith(".aasx"));
+const n = { files: files.length, checked: 0, sameAfterRoundTrip: 0, written31: 0, dropped31: 0, refused31: 0, schema31: 0 };
+for (const f of files) {
+  const pkg = readAasx(new Uint8Array(readFileSync(join(process.argv[1], f))));
+  lint(pkg.environment, ALL_RULES, { package: pkg.opc, metamodel: pkg.metamodel }); n.checked++;
+  if (canonicalJson(readAasx(writeAasx(pkg)).environment) === canonicalJson(pkg.environment)) n.sameAfterRoundTrip++;
+  try {
+    const { data, report } = writeAasxWithReport(pkg, { version: "3.1", encodePaths: true });
+    n.written31++; n.dropped31 += report.entries.filter((e) => e.kind === "dropped").length;
+    if (schema31(JSON.parse(writeEnvironment(readAasx(data).environment, { version: "3.1" }).text))) n.schema31++;
+  } catch { n.refused31++; }
+}
+console.log(n);' /tmp/kosmo
+```
+
 ## Summary
 
 | Item | Result |
 |---|---|
 | Opened | **179 / 179** — every body is XML and is converted to JSON on import |
 | Metamodel version | **3.0 — all 179** (declared by the XML namespace `https://admin-shell.io/aas/3/0`). No file declares 3.1 or 3.2 |
-| Check ran to the end | **134 / 179** — the other 45 stop, see "Known problem (A)" below |
-| Files with 0 errors | 0 / 134 |
-| Findings (sum of 134 files) | L1 errors 2,493 · info 34 / L2 errors 3,045 · warnings 77 / L3 errors 123,881 · warnings 4,931 · info 2,415 |
-| What the 129,419 errors are | Empty Property values (`KOSMO-SME-4`) 45,829 — the reference model leaves values for you to fill, so these go down as you enter the machine's values · **82,000 auto-fixable** · the remaining 1,590 need a person |
-| Round trip | same **152** · not re-readable 27 (A) |
-| Export as 3.1 | written with 0 dropped values **141** (the body read back equals the original) · refused 23 (values 3.1 does not accept, such as one-letter idShorts `Q` · `T` · `X` — rename them first) · failed 15 (A) |
-| Official 3.1 schema | **33** of the 141 written pass. The others fail on empty strings in the source (empty LangString text — 73 of the 118 files without (A), text over the length limit 29, empty unit 14, empty idShort 9 …) and on (A) |
+| Check ran to the end | **179 / 179** |
+| Files with 0 errors | 0 / 179 |
+| Findings (sum of 179 files) | L1 errors 12,182 · info 35 / L2 errors 48,117 · warnings 77 / L3 errors 152,445 · warnings 5,769 · info 2,561 |
+| What the 212,744 errors are | Empty Property values (`KOSMO-SME-4`) 64,357 — the reference model leaves values for you to fill, so these go down as you enter the machine's values · **146,106 auto-fixable** · the remaining 2,281 need a person |
+| Round trip | **179 / 179 the same** — every saved copy opens again |
+| Export as 3.1 | written with 0 dropped values **156** (the body read back equals the original) · refused 23 (values 3.1 does not accept, such as one-letter idShorts `Q` · `T` · `X` — rename them first) |
+| Official 3.1 schema | **33** of the 156 written pass. The others hold empty values in the source — empty strings (LangString text, unit, idShort) and lists closed with no items (`<description />` …, the schema asks for at least one). Auto-fix and filling in values remove most of them |
 
-### Rules with the most findings (sum of the 134 checked files)
+### Rules with the most findings (sum of 179 files)
 
 | Rule | Layer · severity | Findings | Files | Auto-fix | What |
 |---|---|---|---|---|---|
-| `KOSMO-SME-4` | L3 error | 45,829 | 134 | no | Property has no value — a place for the machine's value |
-| `KOSMO-CD-2` | L3 error | 32,845 | 134 | yes | ConceptDescription id is neither IRDI nor an allow-listed own IRI |
-| `KOSMO-CD-4` | L3 error | 25,511 | 134 | yes | dataType missing or outside the KOSMO allow list |
-| `KOSMO-SME-5` | L3 error | 11,274 | 119 | yes | Property valueType and CD dataType differ |
-| `KOSMO-CD-5` | L3 warning · error · info | 4,907 · 2,665 · 2,415 | 133 | partly | CDs with the same id · idShort |
-| `PKG-LANG-DUP` | L1 error | 2,473 | 129 | yes | The same language tag (usually `en`) twice in one LangString |
-| `KOSMO-SME-3` | L3 error | 2,438 | 110 | yes | semanticId missing, or no CD with that id |
-| `AASc-3a-002` | L2 error | 2,280 | 64 | yes | CD preferredName has no English |
-| `KOSMO-CD-3` | L3 error | 1,263 | 83 | no | No English definition |
-| `KOSMO-SM-3` | L3 error | 739 | 134 | yes | Submodel semanticId missing or outside the allow list |
+| `KOSMO-SME-4` | L3 error | 64,357 | 179 | no | Property has no value — a place for the machine's value |
+| `AASd-121~128` | L2 error | 42,091 | 60 | yes | Reference key chain — the first · last key of an ExternalReference is not GlobalReference (usually `ConceptDescription`) |
+| `KOSMO-CD-2` | L3 error | 35,046 | 176 | yes | ConceptDescription id is neither IRDI nor an allow-listed own IRI |
+| `KOSMO-CD-4` | L3 error | 28,378 | 179 | yes | dataType missing or outside the KOSMO allow list |
+| `KOSMO-SME-5` | L3 error | 13,411 | 164 | yes | Property valueType and CD dataType differ |
+| `PKG-EMPTY-ARRAY` | L1 error | 9,197 | 61 | yes | A list closed with no items is left in the file |
+| `KOSMO-CD-5` | L3 warning · error · info | 5,719 · 2,897 · 2,561 | 178 | partly | CDs with the same id · idShort |
+| `KOSMO-SME-3` | L3 error | 4,231 | 146 | yes | semanticId missing, or no CD with that id |
+| `AASc-3a-002` | L2 error | 4,005 | 103 | yes | CD preferredName has no English |
+| `PKG-LANG-DUP` | L1 error | 2,965 | 173 | yes | The same language tag (usually `en`) twice in one LangString |
+| `KOSMO-CD-3` | L3 error | 1,350 | 100 | no | No English definition |
 
 The grounds and policies of the rules are in the [rule list](rules.md) and [usage §10](usage.md). **The submission's validator makes the final acceptance decision.**
 
-## Known problem (A) — empty list elements
+## Fixed in 2.12.1 — empty list elements
 
-The XML of some files has list elements closed with no children (`<qualifiers />` · `<description />` · `<keys />` ·
-`<embeddedDataSpecifications />` · a collection's `<value />`). 2.12.0 reads them as an **empty string** instead of an empty
-list. 61 files have such elements (`ABH_MICUBE_IMPIX-main` 32 · `LSELECTRIC_OCUBY-main` 27 · `2025_KPC_Public` 2); in 45 of
-them the check stops part way (rules `AASd-119/129` · `AASd-116/133` · `KOSMO-CD-3`), and for 27 a saved copy cannot be
-opened again by this tool. "stopped (A)" and "not re-readable" in the table below are this problem. The table is measured
-again once it is fixed.
+The XML of some files has list elements closed with no items (`<qualifiers />` · `<description />` · `<keys />` · a
+collection's `<value />`). 2.12.0 read them as the empty string instead of an empty list: of the 61 files with such
+elements, the check stopped part way in 45 and a saved copy could not be opened again for 27. **Fixed in 2.12.1** — they
+are read as empty lists, and the check reports them as `PKG-EMPTY-ARRAY` (auto-fix removes them). The numbers above are
+measured after the fix. Findings the stopped checks used to hide (`AASd-121~128` in those 45 files, among others) now
+show too, so the totals are higher than with 2.12.0.
 
 ## License
 
@@ -71,14 +107,14 @@ source repository, and check the provider's terms before redistributing them.
 
 ## Per file
 
-- **Check**: done = all 52 rules ran · stopped (A) = stopped by the known problem above (no findings counted)
+- **Check**: done = all 52 rules ran
 - **L1 · L2 · L3**: errors / warnings (info not counted)
 - **Round trip**: is the body the same after writing it as read and reading it again
 - **Export as 3.1**: dropped values and the official 3.1 schema result. refused = values 3.1 does not accept, so nothing is written (the "values that cannot be written" of the download window)
 
 | # | File (path in the repository) | Metamodel | Check | L1 errors / warnings | L2 errors / warnings | L3 errors / warnings | Round trip | Export as 3.1 |
 |---|---|---|---|---|---|---|---|---|
-| 1 | `2025_KPC_Public/INTERX/01. 수치제어 방전가공기/[공.9]NumericalControlElectricalDischargeMachine.aasx` | 3.0 | done | 8 / 0 | 31 / 0 | 1143 / 53 | same | dropped 0 · schema fail |
+| 1 | `2025_KPC_Public/INTERX/01. 수치제어 방전가공기/[공.9]NumericalControlElectricalDischargeMachine.aasx` | 3.0 | done | 9 / 0 | 31 / 0 | 1143 / 53 | same | dropped 0 · schema fail |
 | 2 | `2025_KPC_Public/INTERX/02. 스피닝기/[공.11]SpinningMachine.aasx` | 3.0 | done | 8 / 0 | 37 / 0 | 1574 / 41 | same | dropped 0 · schema fail |
 | 3 | `2025_KPC_Public/INTERX/03. 전해가공기/[공.13]ElectrochemicalMachine.aasx` | 3.0 | done | 8 / 0 | 28 / 0 | 1309 / 40 | same | dropped 0 · schema fail |
 | 4 | `2025_KPC_Public/INTERX/04. 플레이너/[공.14]Planner.aasx` | 3.0 | done | 8 / 0 | 32 / 0 | 1403 / 42 | same | dropped 0 · schema fail |
@@ -87,7 +123,7 @@ source repository, and check the provider's terms before redistributing them.
 | 7 | `2025_KPC_Public/INTERX/07. 유압식 프레스/[공.26]HydraulicPress.aasx` | 3.0 | done | 9 / 0 | 70 / 0 | 1671 / 64 | same | dropped 0 · schema fail |
 | 8 | `2025_KPC_Public/INTERX/08. 복사파식(복사식) 건조기/[범.23]RadiantHeatDryer.aasx` | 3.0 | done | 8 / 0 | 37 / 0 | 1439 / 40 | same | dropped 0 · schema fail |
 | 9 | `2025_KPC_Public/INTERX/09. 플라즈마식 절단기/[범.40]PlasmaCuttingMachine.aasx` | 3.0 | done | 8 / 0 | 44 / 0 | 1554 / 46 | same | dropped 0 · schema fail |
-| 10 | `2025_KPC_Public/INTERX/10. 레이저식 절단기/[범.41]LaserCuttingMachine.aasx` | 3.0 | done | 8 / 0 | 17 / 0 | 1466 / 41 | same | dropped 0 · schema fail |
+| 10 | `2025_KPC_Public/INTERX/10. 레이저식 절단기/[범.41]LaserCuttingMachine.aasx` | 3.0 | done | 9 / 0 | 17 / 0 | 1466 / 41 | same | dropped 0 · schema fail |
 | 11 | `2025_KPC_Public/INTERX/11. 수치제어 절단기/[범.43]NumericalControlCuttingMachine.aasx` | 3.0 | done | 8 / 0 | 36 / 0 | 1479 / 40 | same | dropped 0 · schema fail |
 | 12 | `2025_KPC_Public/INTERX/12. 기계식 절단기/[범.44]MechanicalCuttingMachine.aasx` | 3.0 | done | 8 / 0 | 32 / 0 | 1439 / 40 | same | dropped 0 · schema fail |
 | 13 | `2025_KPC_Public/INTERX/13. 교류직류전원 공급장치/[범.70]Rectifier.aasx` | 3.0 | done | 8 / 0 | 23 / 0 | 1263 / 40 | same | dropped 0 · schema fail |
@@ -198,62 +234,62 @@ source repository, and check the provider's terms before redistributing them.
 | 118 | `2025_MICUBE_Public/MICUBE/18. 정밀프레스/PrecisionPress.aasx` | 3.0 | done | 38 / 0 | 0 / 0 | 700 / 18 | same | dropped 0 · schema pass |
 | 119 | `2025_MICUBE_Public/MICUBE/19. 조향내구시험기/SteeringDurabilityTester.aasx` | 3.0 | done | 22 / 0 | 0 / 0 | 648 / 17 | same | dropped 0 · schema pass |
 | 120 | `2025_MICUBE_Public/MICUBE/20. 캘리브레이터/Calibrator.aasx` | 3.0 | done | 38 / 0 | 0 / 0 | 702 / 18 | same | dropped 0 · schema pass |
-| 121 | `ABH_MICUBE_IMPIX-main/ABH_V2/1. HopperDryer(호퍼기)/HopperDryer.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 122 | `ABH_MICUBE_IMPIX-main/ABH_V2/10. PhysicalVaporDeposition(증발증착기)/PhysicalVaporDeposition.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 123 | `ABH_MICUBE_IMPIX-main/ABH_V2/11. PositiveDisplacementPump(용적형 펌프)/PositiveDisplacementPump.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 124 | `ABH_MICUBE_IMPIX-main/ABH_V2/12. CentrifugalPump(터보형 펌프)/CentrifugalPump.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 125 | `ABH_MICUBE_IMPIX-main/ABH_V2/13. Extruder(압출기)/Extruder.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 126 | `ABH_MICUBE_IMPIX-main/ABH_V2/2. VacuumPump(진공펌프)/VacuumPump.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 127 | `ABH_MICUBE_IMPIX-main/ABH_V2/3. HotForgingPress(열간단조프레스)/HotForgingPress.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 128 | `ABH_MICUBE_IMPIX-main/ABH_V2/4. RollingMill(압연기)/RollingMill.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 129 | `ABH_MICUBE_IMPIX-main/ABH_V2/5. QuenchingFurnace(퀜칭로)/QuenchingFurnace.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 130 | `ABH_MICUBE_IMPIX-main/ABH_V2/6. ShotBlast(쇼트블라스트)/ShotBlast.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 131 | `ABH_MICUBE_IMPIX-main/ABH_V2/7. Crystallizer(결정화기)/Crystallizer.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 132 | `ABH_MICUBE_IMPIX-main/ABH_V2/7. Crystallizer(결정화기)/Crystallizerl.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 133 | `ABH_MICUBE_IMPIX-main/ABH_V2/8. DeepFryer(유탕기)/DeepFryer.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 134 | `ABH_MICUBE_IMPIX-main/ABH_V2/9. ResistanceWeldingController(저항용접기)/ResistanceWelding.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 135 | `ABH_MICUBE_IMPIX-main/IMPIX/1. Distiller(증류기)/Distiller.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 136 | `ABH_MICUBE_IMPIX-main/IMPIX/1. Distiller(증류기)/Distiller_v2.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 137 | `ABH_MICUBE_IMPIX-main/IMPIX/2. Extractor(추출기)/Extractor.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 138 | `ABH_MICUBE_IMPIX-main/IMPIX/2. Extractor(추출기)/Extractor_v2.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 139 | `ABH_MICUBE_IMPIX-main/IMPIX/3. FiltrationSystem(여과기)/FiltrationSystem.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 140 | `ABH_MICUBE_IMPIX-main/IMPIX/3. FiltrationSystem(여과기)/FiltrationSystem_v2.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 141 | `ABH_MICUBE_IMPIX-main/IMPIX/4. Cooler(냉각기)/Cooler.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 142 | `ABH_MICUBE_IMPIX-main/IMPIX/4. Cooler(냉각기)/Cooler_v2.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 143 | `ABH_MICUBE_IMPIX-main/IMPIX/5. Mixer(혼합기)/Mixer.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 144 | `ABH_MICUBE_IMPIX-main/IMPIX/5. Mixer(혼합기)/Mixer_v2.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 145 | `ABH_MICUBE_IMPIX-main/IMPIX/6. PostWeldHeatTreatment(용접후열처리장비)/PostWeldHeatTreatment.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 146 | `ABH_MICUBE_IMPIX-main/IMPIX/6. PostWeldHeatTreatment(용접후열처리장비)/PostWeldHeatTreatment_v2.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 147 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/1. SPI/SPI_final.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 148 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/2. ScreenPrinter/ScreenPrinter_final.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 149 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/3. Reflow/Reflow_final.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 150 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/4. Mounter/Mounter_final.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 151 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/5. AOI/AOI_final.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 152 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/6. ICT/ICT_fin.aasx` | 3.0 | stopped (A) | — | — | — | same | dropped 0 · schema fail |
-| 153 | `LSELECTRIC_OCUBY-main/Model/01_PLC_CPU_r7.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | failed — not re-readable |
-| 154 | `LSELECTRIC_OCUBY-main/Model/02_PLC_전원_r8.aasx` | 3.0 | done | 0 / 0 | 115 / 0 | 474 / 24 | not re-readable | failed — not re-readable |
-| 155 | `LSELECTRIC_OCUBY-main/Model/03_입출력_디지털_r8.aasx` | 3.0 | done | 0 / 0 | 116 / 0 | 490 / 24 | not re-readable | failed — not re-readable |
-| 156 | `LSELECTRIC_OCUBY-main/Model/03_입출력_아날로그_r9.aasx` | 3.0 | done | 0 / 0 | 116 / 0 | 495 / 25 | not re-readable | failed — not re-readable |
-| 157 | `LSELECTRIC_OCUBY-main/Model/04_PLC_통신_r8.aasx` | 3.0 | done | 0 / 0 | 127 / 0 | 546 / 24 | not re-readable | failed — not re-readable |
-| 158 | `LSELECTRIC_OCUBY-main/Model/05_단독형모션컨트롤러_r7.aasx` | 3.0 | done | 1 / 0 | 130 / 0 | 634 / 24 | not re-readable | failed — not re-readable |
-| 159 | `LSELECTRIC_OCUBY-main/Model/06_서보드라이브_r6.aasx` | 3.0 | done | 1 / 0 | 117 / 0 | 623 / 25 | not re-readable | failed — not re-readable |
-| 160 | `LSELECTRIC_OCUBY-main/Model/06_서보모터_r6.aasx` | 3.0 | done | 1 / 0 | 113 / 0 | 546 / 24 | not re-readable | failed — not re-readable |
-| 161 | `LSELECTRIC_OCUBY-main/Model/07_저압고성능드라이브_r8.aasx` | 3.0 | done | 1 / 0 | 114 / 0 | 596 / 24 | not re-readable | failed — not re-readable |
-| 162 | `LSELECTRIC_OCUBY-main/Model/08_감속기_r6.aasx` | 3.0 | done | 1 / 0 | 120 / 0 | 533 / 24 | not re-readable | failed — not re-readable |
-| 163 | `LSELECTRIC_OCUBY-main/Model/09_델타로봇_r4.aasx` | 3.0 | done | 1 / 0 | 119 / 0 | 647 / 24 | not re-readable | failed — not re-readable |
-| 164 | `LSELECTRIC_OCUBY-main/Model/10_무빙마그넷장치_r5.aasx` | 3.0 | done | 1 / 0 | 129 / 0 | 740 / 41 | not re-readable | failed — not re-readable |
-| 165 | `LSELECTRIC_OCUBY-main/Model/11_그래픽터치패널_r8.aasx` | 3.0 | done | 0 / 0 | 111 / 0 | 612 / 25 | not re-readable | failed — not re-readable |
-| 166 | `LSELECTRIC_OCUBY-main/Model/12_팬펌프제어기_r6.aasx` | 3.0 | done | 1 / 0 | 120 / 0 | 627 / 24 | not re-readable | failed — not re-readable |
-| 167 | `LSELECTRIC_OCUBY-main/Model/13_소프트스타터_r4.aasx` | 3.0 | done | 1 / 0 | 120 / 0 | 621 / 25 | not re-readable | failed — not re-readable |
-| 168 | `LSELECTRIC_OCUBY-main/Model/14_기중차단기_r8.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 638 values (one-letter idShort …) |
-| 169 | `LSELECTRIC_OCUBY-main/Model/15_배선용차단기_r6.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 638 values (one-letter idShort …) |
-| 170 | `LSELECTRIC_OCUBY-main/Model/16_진공차단기_r6.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 706 values (one-letter idShort …) |
-| 171 | `LSELECTRIC_OCUBY-main/Model/17_소형회로차단기_r6.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 517 values (one-letter idShort …) |
-| 172 | `LSELECTRIC_OCUBY-main/Model/18_모터관리장치_r4.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 104 values (one-letter idShort …) |
-| 173 | `LSELECTRIC_OCUBY-main/Model/19_누전차단기_r4.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 505 values (one-letter idShort …) |
-| 174 | `LSELECTRIC_OCUBY-main/Model/20_잔류전류차단기_r6.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 452 values (one-letter idShort …) |
-| 175 | `LSELECTRIC_OCUBY-main/Model/21_소형회로잔류전류차단기_r4.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 452 values (one-letter idShort …) |
-| 176 | `LSELECTRIC_OCUBY-main/Model/22_전자접촉기_r5.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 90 values (one-letter idShort …) |
-| 177 | `LSELECTRIC_OCUBY-main/Model/23_열과부하계전기_r3.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 61 values (one-letter idShort …) |
-| 178 | `LSELECTRIC_OCUBY-main/Model/24_보조_계전기_r4.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 59 values (one-letter idShort …) |
-| 179 | `LSELECTRIC_OCUBY-main/Model/25_시리얼내장_다기능측정기_r5.aasx` | 3.0 | stopped (A) | — | — | — | not re-readable | refused — 508 values (one-letter idShort …) |
+| 121 | `ABH_MICUBE_IMPIX-main/ABH_V2/1. HopperDryer(호퍼기)/HopperDryer.aasx` | 3.0 | done | 160 / 0 | 107 / 0 | 347 / 10 | same | dropped 0 · schema fail |
+| 122 | `ABH_MICUBE_IMPIX-main/ABH_V2/10. PhysicalVaporDeposition(증발증착기)/PhysicalVaporDeposition.aasx` | 3.0 | done | 158 / 0 | 168 / 0 | 312 / 11 | same | dropped 0 · schema fail |
+| 123 | `ABH_MICUBE_IMPIX-main/ABH_V2/11. PositiveDisplacementPump(용적형 펌프)/PositiveDisplacementPump.aasx` | 3.0 | done | 156 / 0 | 184 / 0 | 328 / 12 | same | dropped 0 · schema fail |
+| 124 | `ABH_MICUBE_IMPIX-main/ABH_V2/12. CentrifugalPump(터보형 펌프)/CentrifugalPump.aasx` | 3.0 | done | 156 / 0 | 163 / 0 | 318 / 12 | same | dropped 0 · schema fail |
+| 125 | `ABH_MICUBE_IMPIX-main/ABH_V2/13. Extruder(압출기)/Extruder.aasx` | 3.0 | done | 156 / 0 | 178 / 0 | 298 / 14 | same | dropped 0 · schema fail |
+| 126 | `ABH_MICUBE_IMPIX-main/ABH_V2/2. VacuumPump(진공펌프)/VacuumPump.aasx` | 3.0 | done | 160 / 0 | 184 / 0 | 310 / 11 | same | dropped 0 · schema fail |
+| 127 | `ABH_MICUBE_IMPIX-main/ABH_V2/3. HotForgingPress(열간단조프레스)/HotForgingPress.aasx` | 3.0 | done | 156 / 0 | 140 / 0 | 303 / 12 | same | dropped 0 · schema fail |
+| 128 | `ABH_MICUBE_IMPIX-main/ABH_V2/4. RollingMill(압연기)/RollingMill.aasx` | 3.0 | done | 165 / 0 | 157 / 0 | 491 / 10 | same | dropped 0 · schema fail |
+| 129 | `ABH_MICUBE_IMPIX-main/ABH_V2/5. QuenchingFurnace(퀜칭로)/QuenchingFurnace.aasx` | 3.0 | done | 156 / 0 | 275 / 0 | 537 / 10 | same | dropped 0 · schema fail |
+| 130 | `ABH_MICUBE_IMPIX-main/ABH_V2/6. ShotBlast(쇼트블라스트)/ShotBlast.aasx` | 3.0 | done | 156 / 0 | 253 / 0 | 341 / 11 | same | dropped 0 · schema fail |
+| 131 | `ABH_MICUBE_IMPIX-main/ABH_V2/7. Crystallizer(결정화기)/Crystallizer.aasx` | 3.0 | done | 156 / 0 | 174 / 0 | 507 / 10 | same | dropped 0 · schema fail |
+| 132 | `ABH_MICUBE_IMPIX-main/ABH_V2/7. Crystallizer(결정화기)/Crystallizerl.aasx` | 3.0 | done | 155 / 0 | 148 / 0 | 288 / 6 | same | dropped 0 · schema fail |
+| 133 | `ABH_MICUBE_IMPIX-main/ABH_V2/8. DeepFryer(유탕기)/DeepFryer.aasx` | 3.0 | done | 158 / 0 | 148 / 0 | 506 / 12 | same | dropped 0 · schema fail |
+| 134 | `ABH_MICUBE_IMPIX-main/ABH_V2/9. ResistanceWeldingController(저항용접기)/ResistanceWelding.aasx` | 3.0 | done | 156 / 0 | 161 / 0 | 324 / 11 | same | dropped 0 · schema fail |
+| 135 | `ABH_MICUBE_IMPIX-main/IMPIX/1. Distiller(증류기)/Distiller.aasx` | 3.0 | done | 188 / 0 | 123 / 0 | 245 / 2 | same | dropped 0 · schema fail |
+| 136 | `ABH_MICUBE_IMPIX-main/IMPIX/1. Distiller(증류기)/Distiller_v2.aasx` | 3.0 | done | 189 / 0 | 140 / 0 | 279 / 2 | same | dropped 0 · schema fail |
+| 137 | `ABH_MICUBE_IMPIX-main/IMPIX/2. Extractor(추출기)/Extractor.aasx` | 3.0 | done | 206 / 0 | 161 / 0 | 250 / 3 | same | dropped 0 · schema fail |
+| 138 | `ABH_MICUBE_IMPIX-main/IMPIX/2. Extractor(추출기)/Extractor_v2.aasx` | 3.0 | done | 206 / 0 | 173 / 0 | 276 / 3 | same | dropped 0 · schema fail |
+| 139 | `ABH_MICUBE_IMPIX-main/IMPIX/3. FiltrationSystem(여과기)/FiltrationSystem.aasx` | 3.0 | done | 187 / 0 | 161 / 0 | 238 / 3 | same | dropped 0 · schema fail |
+| 140 | `ABH_MICUBE_IMPIX-main/IMPIX/3. FiltrationSystem(여과기)/FiltrationSystem_v2.aasx` | 3.0 | done | 187 / 0 | 161 / 0 | 238 / 3 | same | dropped 0 · schema fail |
+| 141 | `ABH_MICUBE_IMPIX-main/IMPIX/4. Cooler(냉각기)/Cooler.aasx` | 3.0 | done | 189 / 0 | 154 / 0 | 266 / 4 | same | dropped 0 · schema fail |
+| 142 | `ABH_MICUBE_IMPIX-main/IMPIX/4. Cooler(냉각기)/Cooler_v2.aasx` | 3.0 | done | 190 / 0 | 171 / 0 | 296 / 4 | same | dropped 0 · schema fail |
+| 143 | `ABH_MICUBE_IMPIX-main/IMPIX/5. Mixer(혼합기)/Mixer.aasx` | 3.0 | done | 187 / 0 | 151 / 0 | 236 / 3 | same | dropped 0 · schema fail |
+| 144 | `ABH_MICUBE_IMPIX-main/IMPIX/5. Mixer(혼합기)/Mixer_v2.aasx` | 3.0 | done | 187 / 0 | 159 / 0 | 250 / 3 | same | dropped 0 · schema fail |
+| 145 | `ABH_MICUBE_IMPIX-main/IMPIX/6. PostWeldHeatTreatment(용접후열처리장비)/PostWeldHeatTreatment.aasx` | 3.0 | done | 187 / 0 | 154 / 0 | 242 / 3 | same | dropped 0 · schema fail |
+| 146 | `ABH_MICUBE_IMPIX-main/IMPIX/6. PostWeldHeatTreatment(용접후열처리장비)/PostWeldHeatTreatment_v2.aasx` | 3.0 | done | 187 / 0 | 154 / 0 | 242 / 3 | same | dropped 0 · schema fail |
+| 147 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/1. SPI/SPI_final.aasx` | 3.0 | done | 189 / 0 | 201 / 0 | 291 / 3 | same | dropped 0 · schema fail |
+| 148 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/2. ScreenPrinter/ScreenPrinter_final.aasx` | 3.0 | done | 192 / 0 | 258 / 0 | 323 / 4 | same | dropped 0 · schema fail |
+| 149 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/3. Reflow/Reflow_final.aasx` | 3.0 | done | 192 / 0 | 176 / 0 | 254 / 4 | same | dropped 0 · schema fail |
+| 150 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/4. Mounter/Mounter_final.aasx` | 3.0 | done | 196 / 0 | 313 / 0 | 428 / 31 | same | dropped 0 · schema fail |
+| 151 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/5. AOI/AOI_final.aasx` | 3.0 | done | 196 / 0 | 177 / 0 | 257 / 3 | same | dropped 0 · schema fail |
+| 152 | `ABH_MICUBE_IMPIX-main/MICUBE-SOLUTION/6. ICT/ICT_fin.aasx` | 3.0 | done | 196 / 0 | 200 / 0 | 270 / 3 | same | dropped 0 · schema fail |
+| 153 | `LSELECTRIC_OCUBY-main/Model/01_PLC_CPU_r7.aasx` | 3.0 | done | 108 / 0 | 122 / 0 | 533 / 25 | same | dropped 0 · schema fail |
+| 154 | `LSELECTRIC_OCUBY-main/Model/02_PLC_전원_r8.aasx` | 3.0 | done | 95 / 0 | 115 / 0 | 474 / 24 | same | dropped 0 · schema fail |
+| 155 | `LSELECTRIC_OCUBY-main/Model/03_입출력_디지털_r8.aasx` | 3.0 | done | 91 / 0 | 116 / 0 | 490 / 24 | same | dropped 0 · schema fail |
+| 156 | `LSELECTRIC_OCUBY-main/Model/03_입출력_아날로그_r9.aasx` | 3.0 | done | 91 / 0 | 116 / 0 | 495 / 25 | same | dropped 0 · schema fail |
+| 157 | `LSELECTRIC_OCUBY-main/Model/04_PLC_통신_r8.aasx` | 3.0 | done | 93 / 0 | 127 / 0 | 546 / 24 | same | dropped 0 · schema fail |
+| 158 | `LSELECTRIC_OCUBY-main/Model/05_단독형모션컨트롤러_r7.aasx` | 3.0 | done | 111 / 0 | 130 / 0 | 634 / 24 | same | dropped 0 · schema fail |
+| 159 | `LSELECTRIC_OCUBY-main/Model/06_서보드라이브_r6.aasx` | 3.0 | done | 97 / 0 | 117 / 0 | 623 / 25 | same | dropped 0 · schema fail |
+| 160 | `LSELECTRIC_OCUBY-main/Model/06_서보모터_r6.aasx` | 3.0 | done | 101 / 0 | 113 / 0 | 546 / 24 | same | dropped 0 · schema fail |
+| 161 | `LSELECTRIC_OCUBY-main/Model/07_저압고성능드라이브_r8.aasx` | 3.0 | done | 94 / 0 | 114 / 0 | 596 / 24 | same | dropped 0 · schema fail |
+| 162 | `LSELECTRIC_OCUBY-main/Model/08_감속기_r6.aasx` | 3.0 | done | 93 / 0 | 120 / 0 | 533 / 24 | same | dropped 0 · schema fail |
+| 163 | `LSELECTRIC_OCUBY-main/Model/09_델타로봇_r4.aasx` | 3.0 | done | 100 / 0 | 119 / 0 | 647 / 24 | same | dropped 0 · schema fail |
+| 164 | `LSELECTRIC_OCUBY-main/Model/10_무빙마그넷장치_r5.aasx` | 3.0 | done | 178 / 0 | 129 / 0 | 740 / 41 | same | dropped 0 · schema fail |
+| 165 | `LSELECTRIC_OCUBY-main/Model/11_그래픽터치패널_r8.aasx` | 3.0 | done | 93 / 0 | 111 / 0 | 612 / 25 | same | dropped 0 · schema fail |
+| 166 | `LSELECTRIC_OCUBY-main/Model/12_팬펌프제어기_r6.aasx` | 3.0 | done | 94 / 0 | 120 / 0 | 627 / 24 | same | dropped 0 · schema fail |
+| 167 | `LSELECTRIC_OCUBY-main/Model/13_소프트스타터_r4.aasx` | 3.0 | done | 97 / 0 | 120 / 0 | 621 / 25 | same | dropped 0 · schema fail |
+| 168 | `LSELECTRIC_OCUBY-main/Model/14_기중차단기_r8.aasx` | 3.0 | done | 263 / 0 | 4908 / 0 | 2042 / 67 | same | refused — 638 values (one-letter idShort …) |
+| 169 | `LSELECTRIC_OCUBY-main/Model/15_배선용차단기_r6.aasx` | 3.0 | done | 263 / 0 | 4913 / 0 | 2055 / 70 | same | refused — 638 values (one-letter idShort …) |
+| 170 | `LSELECTRIC_OCUBY-main/Model/16_진공차단기_r6.aasx` | 3.0 | done | 287 / 0 | 5299 / 0 | 2228 / 68 | same | refused — 706 values (one-letter idShort …) |
+| 171 | `LSELECTRIC_OCUBY-main/Model/17_소형회로차단기_r6.aasx` | 3.0 | done | 217 / 0 | 4092 / 0 | 1745 / 61 | same | refused — 517 values (one-letter idShort …) |
+| 172 | `LSELECTRIC_OCUBY-main/Model/18_모터관리장치_r4.aasx` | 3.0 | done | 188 / 0 | 1868 / 0 | 1122 / 37 | same | refused — 104 values (one-letter idShort …) |
+| 173 | `LSELECTRIC_OCUBY-main/Model/19_누전차단기_r4.aasx` | 3.0 | done | 215 / 0 | 3676 / 0 | 1650 / 62 | same | refused — 505 values (one-letter idShort …) |
+| 174 | `LSELECTRIC_OCUBY-main/Model/20_잔류전류차단기_r6.aasx` | 3.0 | done | 192 / 0 | 3285 / 0 | 1467 / 48 | same | refused — 452 values (one-letter idShort …) |
+| 175 | `LSELECTRIC_OCUBY-main/Model/21_소형회로잔류전류차단기_r4.aasx` | 3.0 | done | 191 / 0 | 3512 / 0 | 1492 / 49 | same | refused — 452 values (one-letter idShort …) |
+| 176 | `LSELECTRIC_OCUBY-main/Model/22_전자접촉기_r5.aasx` | 3.0 | done | 175 / 0 | 1539 / 0 | 920 / 36 | same | refused — 90 values (one-letter idShort …) |
+| 177 | `LSELECTRIC_OCUBY-main/Model/23_열과부하계전기_r3.aasx` | 3.0 | done | 161 / 0 | 1277 / 0 | 790 / 23 | same | refused — 61 values (one-letter idShort …) |
+| 178 | `LSELECTRIC_OCUBY-main/Model/24_보조_계전기_r4.aasx` | 3.0 | done | 157 / 0 | 1304 / 0 | 801 / 19 | same | refused — 59 values (one-letter idShort …) |
+| 179 | `LSELECTRIC_OCUBY-main/Model/25_시리얼내장_다기능측정기_r5.aasx` | 3.0 | done | 196 / 0 | 3650 / 0 | 1628 / 37 | same | refused — 508 values (one-letter idShort …) |

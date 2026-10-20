@@ -252,15 +252,15 @@ submissions ask for metamodel V3.1; the published files themselves declare V3.0.
 5. **Download as V3.1** ([usage §4-10](docs/usage.md)). One-letter idShorts (`Q`, `T`, `X` …) are valid in V3.0 but not in
    V3.1, so the download window refuses them — rename them first.
 
-Measured 2026-10-20 against commit `6f6ac69` of that repository with AAS Studio 2.12.0:
+Measured 2026-10-20 against commit `6f6ac69` of that repository with AAS Studio 2.12.1:
 
 | Item | Result |
 |---|---|
 | Files | 179 AASX — all open, all declare metamodel V3.0 |
-| Check | ran to the end on 134; stops on 45 because of empty list elements such as `<qualifiers />` (known problem) |
-| Findings (134 files) | L1 errors 2,493 · L2 errors 3,045 · L3 errors 123,881. Of all errors, 45,829 are empty Property values (`KOSMO-SME-4`) and 82,000 are auto-fixable. Most frequent: `KOSMO-SME-4` · `KOSMO-CD-2` · `KOSMO-CD-4` · `KOSMO-SME-5` · `PKG-LANG-DUP` |
-| Round trip | 152 the same; 27 not re-readable (same known problem) |
-| Export as V3.1 | 141 written with 0 dropped values; 23 refused (one-letter idShorts); 15 fail (same known problem). 33 of the 141 pass the official V3.1 schema — the rest hold empty strings in the source |
+| Check | ran to the end on all 179 (2.12.0 stopped on 45 files with empty list elements such as `<qualifiers />` — fixed in 2.12.1) |
+| Findings (179 files) | L1 errors 12,182 · L2 errors 48,117 · L3 errors 152,445. Of all errors, 64,357 are empty Property values (`KOSMO-SME-4`) and 146,106 are auto-fixable. Most frequent: `KOSMO-SME-4` · `AASd-121~128` · `KOSMO-CD-2` · `KOSMO-CD-4` · `KOSMO-SME-5` |
+| Round trip | 179 the same — every saved copy opens again |
+| Export as V3.1 | 156 written with 0 dropped values; 23 refused (one-letter idShorts). 33 of the 156 pass the official V3.1 schema — the rest hold empty values in the source, mostly removed by auto-fix and by filling in values |
 
 Every file, rule by rule: [docs/kosmo-compat.md](docs/kosmo-compat.md).
 **License:** that repository shows no license, so this repository does not include its files — it only links to them.
