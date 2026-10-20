@@ -40,7 +40,8 @@ This guide covers what AAS Studio hands over and how. Logic Studio's own screens
 The remote collector (`vexplor-edge`, [install](edge-install.md)) reads PLCs in the factory and sends values out only.
 Since 2.5.0 each tag of its read list carries hints — the model element's `semanticId`, a suggested role and limits
 from the same file ([contract §4.1](edge-contract.md)) — so a receiver can pre-fill roles and SPC limits for a person
-to confirm.
+to confirm. A lower limit (`lsl`) comes only from a `Range` element with the same semanticId as the value (its `min`);
+the paired limit properties give upper limits only ([integration](integration.md)).
 
 Sending those values to Logic Studio Cloud is **in preparation and not offered yet.** Until then values are collected
 and kept by AAS Studio itself (usage §8).
