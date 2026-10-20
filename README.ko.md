@@ -2,6 +2,8 @@
 
 # VEXPLOR AAS Studio
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23485080.svg)](https://doi.org/10.5281/zenodo.23485080)
+
 **AAS(Asset Administration Shell)를 만들고 · 검증하고 · 내주고 · 현장 값까지 모으는 일을 웹 화면 하나로.**
 설비 한 대의 AASX를 올리면 무엇이 규칙에 어긋나는지 짚어 주고, 고칠 수 있는 것은 한 번에 고칩니다.
 

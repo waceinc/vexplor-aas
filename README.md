@@ -2,6 +2,8 @@
 
 # VEXPLOR AAS Studio
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23485080.svg)](https://doi.org/10.5281/zenodo.23485080)
+
 **Author, validate, serve and collect live values for AAS (Asset Administration Shell) — in one web app.**
 Upload one machine's AASX, see exactly which rules it breaks, and fix what can be fixed in one step.
 

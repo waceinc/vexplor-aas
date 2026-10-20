@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "VEXPLOR AAS Studio"
+version: 2.10.0
+type: software
+authors:
+  - name: "WACE Inc."
+repository-code: "https://github.com/waceinc/vexplor-aas"
+url: "https://wace.me/en-platform-aas-studio"
+license: Apache-2.0
+doi: 10.5281/zenodo.23485080
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23485080
+    description: "Concept DOI — all versions"
+  - type: doi
+    value: 10.5281/zenodo.23485081
+    description: "Version 2.9.0"
+  - type: doi
+    value: 10.5281/zenodo.23485129
+    description: "Version 2.10.0"
+keywords:
+  - Asset Administration Shell
+  - AAS
+  - IEC 63278
+  - digital twin
+  - OPC UA
