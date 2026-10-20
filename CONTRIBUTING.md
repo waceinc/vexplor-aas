@@ -136,6 +136,10 @@ done while any of these still shows the old version or misses what changed:
    `SHA256SUMS`. The remote collector is released from its own repository (waceinc/vexplor-edge, its own version and
    checklist); when it needs this release's libraries, release this one first. The site bundle pins `EDGE_VERSION` in
    `scripts/make-release.sh`.
+   **Tag only what was merged.** After merging the release pull request, read its state back (`gh pr view <n> --json state`
+   must say `MERGED`) and check that `main`'s tree equals the tree the tarballs were built from
+   (`git rev-parse origin/main^{tree}` against the release branch). A merge command can fail quietly; a tag on the wrong
+   commit with tarballs from another one is a release that does not match its own source.
 4. **Website** — the product page on wace.me (Korean, English, Japanese) and the project page on the `gh-pages` branch
    (waceinc.github.io/vexplor-aas): version label, "What's new", release-notes link, and screenshots when the screens
    changed. Whoever bumps the version writes the What's new text, checked against the code. A daily check compares the latest release with the README and the website and reports a
