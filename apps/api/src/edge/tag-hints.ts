@@ -1,6 +1,7 @@
 /**
  * Hints that let a receiver pre-fill what a read-list tag means (docs/edge-contract.md §4.1): the `semanticId` of the
- * model element the tag's value belongs to, a `suggestedRole`, and `limits` taken from the same file.
+ * model element the tag's value belongs to, a `suggestedRole`, and `limits` taken from the same file (bounding
+ * properties and Range elements).
  *
  * Important: advisory only. A receiver shows them as a starting point and a person confirms — nothing here decides how
  *    a value is used. They are left out of the list revision (read-list.ts), so a new hint never asks a site to
@@ -12,10 +13,13 @@
  * Important: matching is by semanticId, exactly, never by idShort — an idShort is renameable and a different version
  *    suffix is a different concept. The tables below are data: add a semanticId (a KOSMO concept IRI or an eCLASS IRDI
  *    with its version) to the role or pair it means.
+ * Important: a `Range` element (min · max) with the **same semanticId** as the value bounds it — the Range states the
+ *    interval of that very concept, so no table is needed. Being in the same collection, or a name such as
+ *    `…Range` / `…Limits`, pairs nothing: two Ranges next to two values cannot be told apart without a guess.
  */
 import type { Environment, Reference } from '@aas/core';
 import { valuedElementIndex } from '@aas/collector';
-import { asArray, idShortOf, numberOf, topElements, walk, type Json } from '../integration/exports/elements.js';
+import { asArray, idShortOf, modelTypeOf, numberOf, topElements, walk, type Json } from '../integration/exports/elements.js';
 
 import type { TagLimit, TagRole } from '../integration/bundle-types.js';
 
@@ -64,6 +68,32 @@ function firstKeyOf(element: { semanticId?: Reference }): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
+/** A Range bound as a number — undefined when absent, blank or not a finite number (never guessed) */
+function boundOf(text: unknown): number | undefined {
+  if (typeof text !== 'string' || text.trim() === '') return undefined;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+interface RangeFound {
+  element: Json;
+  min?: number;
+  max?: number;
+  source: string;
+}
+
+/**
+ * min → lsl, max → usl. Either may be missing; an unreadable bound is left out and the other still counts.
+ * Important: min above max gives nothing — one of the two is wrong and nothing says which.
+ */
+function rangeLimits(range: RangeFound, semanticId: string): TagLimit[] {
+  if (range.min !== undefined && range.max !== undefined && range.min > range.max) return [];
+  return [
+    ...(range.min !== undefined ? [{ bound: 'lsl' as const, value: range.min, semanticId, source: range.source }] : []),
+    ...(range.max !== undefined ? [{ bound: 'usl' as const, value: range.max, semanticId, source: range.source }] : []),
+  ];
+}
+
 /**
  * Returns a lookup for the hints of one file. The limit values and the valued elements are indexed once, so a file
  * with many tags is walked once, not once per tag (the element index since 2.8.1 — before, each tag walked the file).
@@ -71,10 +101,20 @@ function firstKeyOf(element: { semanticId?: Reference }): string | undefined {
 export function tagHintsOf(environment: Environment): (propertyName: string) => TagHints {
   const limitsBySemanticId = new Map<string, { value: number; source: string }[]>();
   const wanted = new Set(LIMIT_PAIRS.map((pair) => pair.limit));
+  const rangesBySemanticId = new Map<string, RangeFound[]>();
   for (const submodel of asArray(environment.submodels as unknown)) {
     for (const item of walk(topElements(submodel))) {
       const id = firstKeyOf(item.element as { semanticId?: Reference });
-      if (id === undefined || !wanted.has(id)) continue;
+      if (id === undefined) continue;
+      if (modelTypeOf(item.element) === 'Range') {
+        const found = rangesBySemanticId.get(id) ?? [];
+        const min = boundOf(item.element['min']);
+        const max = boundOf(item.element['max']);
+        found.push({ element: item.element, source: `${idShortOf(submodel) ?? ''}:${item.path}`, ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) });
+        rangesBySemanticId.set(id, found);
+        continue;
+      }
+      if (!wanted.has(id)) continue;
       const value = numberOf(item.element as Json);
       if (value === null) continue;
       const found = limitsBySemanticId.get(id) ?? [];
@@ -88,9 +128,15 @@ export function tagHintsOf(environment: Environment): (propertyName: string) => 
     if (found === undefined || found === 'ambiguous') return { suggestedRole: 'value' };
     const semanticId = firstKeyOf(found.element as { semanticId?: Reference });
     if (semanticId === undefined) return { suggestedRole: 'value' };
-    const limits: TagLimit[] = LIMIT_PAIRS.filter((pair) => pair.measured === semanticId).flatMap((pair) =>
-      (limitsBySemanticId.get(pair.limit) ?? []).map((limit) => ({ bound: pair.bound, value: limit.value, semanticId: pair.limit, source: limit.source })),
-    );
+    // Important: property pairs first, then Ranges — a file without a Range keeps exactly the limits it had. When both
+    //    bound the value, both are listed with their source and a person picks (as for two property limits).
+    const limits: TagLimit[] = [
+      ...LIMIT_PAIRS.filter((pair) => pair.measured === semanticId).flatMap((pair) =>
+        (limitsBySemanticId.get(pair.limit) ?? []).map((limit) => ({ bound: pair.bound, value: limit.value, semanticId: pair.limit, source: limit.source })),
+      ),
+      // A tag may name a Range itself (the overlay writes into Ranges too); that Range is not its own limit
+      ...(rangesBySemanticId.get(semanticId) ?? []).filter((range) => range.element !== (found.element as unknown)).flatMap((range) => rangeLimits(range, semanticId)),
+    ];
     return {
       semanticId,
       suggestedRole: ROLE_BY_SEMANTIC_ID.get(semanticId) ?? 'value',

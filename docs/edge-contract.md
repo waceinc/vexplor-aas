@@ -135,8 +135,9 @@ building its own read list with `aidReadList` from `@aas/bundle` gets the same):
 - `suggestedRole` — `run_state` · `counter` · `alarm_source` · `meter` · `condition` · `quality` · `value`, from a
   table of semanticIds (`apps/api/src/edge/tag-hints.ts`, exact match). Unknown semanticIds suggest `value`.
 - `limits[]` — `{ bound: "usl" | "lsl", value, semanticId, source }` from properties of the same file that bound this
-  value (e.g. TechnicalData `MaxSettingForce` for `SettingForce`). A value may have several (a performance limit and a
-  safety limit); all are listed with their `source` (`<submodel idShort>:<idShortPath>`).
+  value (e.g. TechnicalData `MaxSettingForce` for `SettingForce`), and from a `Range` element with the same semanticId
+  as the value (`min` → `lsl`, `max` → `usl`). A value may have several (a performance limit, a safety limit, a range);
+  all are listed with their `source` (`<submodel idShort>:<idShortPath>`), the properties first and the ranges after.
 
 Hints are **not part of `revision`**: a server update that adds or changes hints never asks a site to approve again,
 and an edge never restarts for one. An edge ignores them. A person confirms every role and limit — a hint decides

@@ -553,6 +553,13 @@ XGT (`protocol` `XGT`) — a receiver that reads only some protocols skips the o
 Since 2.5.0 each tag also carries hints — the model element's `semanticId`, a `suggestedRole` (`run_state` ·
 `counter` · `alarm_source` · `meter` · `condition` · `quality` · `value`) and `limits` from the same file — so a receiver
 can pre-fill roles and specification limits for a person to confirm (`docs/edge-contract.md` §4.1).
+`limits` come from two places: a property paired with the value in a table (`MaxSettingForce` bounds `SettingForce`,
+always `usl`), and a `Range` element with **the same semanticId** as the value — its `min` gives `lsl`, its `max` gives
+`usl`, either alone when the other is empty. A bound that is not a number is left out, and a Range whose `min` is above
+its `max` gives nothing. A Range is never paired by its name (`…Range`, `…Limits`) or by sitting next to the value.
+When both places bound a value, all limits are listed — the table's first, then the Range's — each with its `source`,
+and a person picks. The Range's idShort must differ from the value's: two elements answering to one name make the name
+ambiguous, and that tag then carries no hints at all (2.12.0).
 
 **Type link (`typeAasId`).** An Instance row names its Type by the server's link ("link to type") when there is one,
 otherwise by the shell's own AAS `derivedFrom` reference — which "split per unit" writes and which travels inside the
@@ -716,6 +723,8 @@ Sign this with the customer before go-live.
 
 ## 14. Changes in this release
 
+- **Range limits in tag hints (2.12.0).** `limits[]` also comes from a `Range` with the value's semanticId (`min` →
+  `lsl`, `max` → `usl`), after the property pairs. Same schema; a consumer that assumed `usl` only gets `lsl` rows too.
 - **XGT (2.11.0).** Automatic collection reads LS ELECTRIC XGK · XGI · XGR · XGB PLCs over the XGT dedicated
   protocol (FEnet, TCP 2004; read only, a VEXPLOR extension binding, tested against test servers only), and
   `aidReadList` / the edge read list carry `protocol` `XGT`. Consumers that switch on `protocol` should expect the new
