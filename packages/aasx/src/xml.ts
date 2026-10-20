@@ -131,6 +131,52 @@ const LEVEL_TYPE_FIELDS = new Set(['min', 'max', 'nom', 'typ']);
  */
 const OBJECT_WHEN_EMPTY = new Set(['administration']);
 
+/**
+ * Fields that are arrays in the metamodel — every `type: array` property of the official 3.0 · 3.1 · 3.2 JSON schemas
+ * (a test compares this set with those schemas). Only consulted for a wrapper written **empty** (`<qualifiers />`):
+ * a wrapper with items is already told apart by its item names.
+ * Important: without this an empty wrapper became the empty string — the linter then threw on `''.some` and a saved
+ *    copy could not be opened again (61 of the 179 public KOSMO reference models, measured 2026-10-20).
+ */
+export const XML_LIST_FIELDS: ReadonlySet<string> = new Set([
+  'annotations',
+  'assetAdministrationShells',
+  'conceptDescriptions',
+  'definition',
+  'description',
+  'displayName',
+  'embeddedDataSpecifications',
+  'extensions',
+  'inoutputVariables',
+  'inputVariables',
+  'isCaseOf',
+  'keys',
+  'outputVariables',
+  'preferredName',
+  'preferredNameQuantity',
+  'qualifiers',
+  'refersTo',
+  'shortName',
+  'specificAssetIds',
+  'statements',
+  'submodelElements',
+  'submodels',
+  'supplementalSemanticIds',
+  'valueReferencePairs',
+]);
+
+/** `value` is an array only in these elements — in Property it is text, in ReferenceElement a Reference */
+export const XML_LIST_VALUE_OWNERS: ReadonlySet<string> = new Set([
+  'multiLanguageProperty',
+  'submodelElementCollection',
+  'submodelElementList',
+]);
+
+function isEmptyList(field: string, owner: string, children: XmlNode[]): boolean {
+  if (children.some((g) => !(TEXT in g)) || textOf(children) !== '') return false;
+  return field === 'value' ? XML_LIST_VALUE_OWNERS.has(owner) : XML_LIST_FIELDS.has(field);
+}
+
 /** Not `langStringTextType` -> `LangStringTextType`; in JSON these are unnamed objects */
 const UNNAMED_ITEMS = new Set([
   'key',
@@ -197,6 +243,11 @@ function toValue(node: XmlNode, field: string, parent = ''): unknown {
     const allItems = items.length > 0 && items.every((g) => ITEM_NAMES.has(nameOf(g)));
     if (allItems) {
       out[childName] = items.map((item) => toValue(item, nameOf(item), childName));
+      continue;
+    }
+    // A wrapper written with no items is an empty list, not the empty string
+    if (isEmptyList(childName, own, grandChildren)) {
+      out[childName] = [];
       continue;
     }
     out[childName] = toValue(child, childName, own);
