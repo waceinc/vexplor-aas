@@ -238,6 +238,34 @@ manuals are listed in [usage §8](docs/usage.md) (XGT, "What the published manua
 
 All of them are read only. HTTP and BACnet interfaces in an AID are recognised but not collected.
 
+## Using KOSMO reference models
+
+KOSMO publishes AAS reference models per equipment type from the Korean manufacturing-data standardization programme
+at [github.com/kosmo-AAS](https://github.com/kosmo-AAS) — the files are in
+[kosmo-AAS/kasmo-AAS_Pubilc](https://github.com/kosmo-AAS/kasmo-AAS_Pubilc) (the repository's own spelling). KOSMO
+submissions ask for metamodel V3.1; the published files themselves declare V3.0.
+
+1. **Download** the reference model for your machine from that repository.
+2. **Open** it in AAS Studio — the XML body is converted to JSON on import.
+3. **Check** against the KOSMO submission rules: filter the findings by L3, apply auto-fix where offered ([usage §4-8](docs/usage.md)).
+4. **Fill in** the machine's values — most findings are empty Property values the model leaves for you ([usage §4-3](docs/usage.md)).
+5. **Download as V3.1** ([usage §4-10](docs/usage.md)). One-letter idShorts (`Q`, `T`, `X` …) are valid in V3.0 but not in
+   V3.1, so the download window refuses them — rename them first.
+
+Measured 2026-10-20 against commit `6f6ac69` of that repository with AAS Studio 2.12.0:
+
+| Item | Result |
+|---|---|
+| Files | 179 AASX — all open, all declare metamodel V3.0 |
+| Check | ran to the end on 134; stops on 45 because of empty list elements such as `<qualifiers />` (known problem) |
+| Findings (134 files) | L1 errors 2,493 · L2 errors 3,045 · L3 errors 123,881. Of all errors, 45,829 are empty Property values (`KOSMO-SME-4`) and 82,000 are auto-fixable. Most frequent: `KOSMO-SME-4` · `KOSMO-CD-2` · `KOSMO-CD-4` · `KOSMO-SME-5` · `PKG-LANG-DUP` |
+| Round trip | 152 the same; 27 not re-readable (same known problem) |
+| Export as V3.1 | 141 written with 0 dropped values; 23 refused (one-letter idShorts); 15 fail (same known problem). 33 of the 141 pass the official V3.1 schema — the rest hold empty strings in the source |
+
+Every file, rule by rule: [docs/kosmo-compat.md](docs/kosmo-compat.md).
+**License:** that repository shows no license, so this repository does not include its files — it only links to them.
+Check the provider's terms before redistributing them.
+
 ## Things to know
 
 - **Authentication is opt-in.** With neither accounts nor an API key the server only listens on
