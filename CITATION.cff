@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
 title: "VEXPLOR AAS Studio"
-version: 2.10.0
+version: 2.11.0
 type: software
 authors:
   - name: "WACE Inc."
