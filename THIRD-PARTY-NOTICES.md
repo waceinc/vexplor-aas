@@ -9,7 +9,7 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 ## Summary
 
 - Shipped for execution (runtime): **248**
-- Development and testing only: 189 (not included in releases)
+- Development and testing only: 206 (not included in releases)
 - Copyleft at runtime (GPL, LGPL, AGPL): **0**
 
 | Runtime license | Count |
@@ -313,21 +313,37 @@ These packages do not state a license in `package.json`, so the files inside the
 | @jridgewell/sourcemap-codec | 1.5.5 | MIT |
 | @jridgewell/trace-mapping | 0.3.31 | MIT |
 | @oxc-project/types | 0.146.0 | MIT |
+| @oxc-project/types | 0.155.0 | MIT |
 | @rolldown/binding-android-arm-eabi | 1.2.5 | MIT |
+| @rolldown/binding-android-arm-eabi | 1.2.15 | MIT |
 | @rolldown/binding-android-arm64 | 1.2.5 | MIT |
+| @rolldown/binding-android-arm64 | 1.2.15 | MIT |
 | @rolldown/binding-darwin-arm64 | 1.2.5 | MIT |
+| @rolldown/binding-darwin-arm64 | 1.2.15 | MIT |
 | @rolldown/binding-darwin-x64 | 1.2.5 | MIT |
+| @rolldown/binding-darwin-x64 | 1.2.15 | MIT |
 | @rolldown/binding-freebsd-x64 | 1.2.5 | MIT |
+| @rolldown/binding-freebsd-x64 | 1.2.15 | MIT |
 | @rolldown/binding-linux-arm-gnueabihf | 1.2.5 | MIT |
+| @rolldown/binding-linux-arm-gnueabihf | 1.2.15 | MIT |
 | @rolldown/binding-linux-arm64-gnu | 1.2.5 | MIT |
+| @rolldown/binding-linux-arm64-gnu | 1.2.15 | MIT |
 | @rolldown/binding-linux-arm64-musl | 1.2.5 | MIT |
+| @rolldown/binding-linux-arm64-musl | 1.2.15 | MIT |
 | @rolldown/binding-linux-ppc64-gnu | 1.2.5 | MIT |
+| @rolldown/binding-linux-ppc64-gnu | 1.2.15 | MIT |
 | @rolldown/binding-linux-s390x-gnu | 1.2.5 | MIT |
+| @rolldown/binding-linux-s390x-gnu | 1.2.15 | MIT |
 | @rolldown/binding-linux-x64-gnu | 1.2.5 | MIT |
+| @rolldown/binding-linux-x64-gnu | 1.2.15 | MIT |
 | @rolldown/binding-linux-x64-musl | 1.2.5 | MIT |
+| @rolldown/binding-linux-x64-musl | 1.2.15 | MIT |
 | @rolldown/binding-openharmony-arm64 | 1.2.5 | MIT |
+| @rolldown/binding-openharmony-arm64 | 1.2.15 | MIT |
 | @rolldown/binding-win32-arm64-msvc | 1.2.5 | MIT |
+| @rolldown/binding-win32-arm64-msvc | 1.2.15 | MIT |
 | @rolldown/binding-win32-x64-msvc | 1.2.5 | MIT |
+| @rolldown/binding-win32-x64-msvc | 1.2.15 | MIT |
 | @rolldown/pluginutils | 1.0.1 | MIT |
 | @standard-schema/spec | 1.1.0 | MIT |
 | @tailwindcss/node | 4.3.3 | MIT |
@@ -438,19 +454,20 @@ These packages do not state a license in `package.json`, so the files inside the
 | lz-string | 1.5.0 | MIT |
 | magic-string | 0.30.21 | MIT |
 | mdn-data | 2.27.1 | CC0-1.0 |
-| nanoid | 3.3.18 | MIT |
+| nanoid | 3.3.20 | MIT |
 | obug | 2.1.4 | MIT |
 | parse5 | 8.0.1 | MIT |
 | pathe | 2.0.3 | MIT |
 | picocolors | 1.1.1 | ISC |
-| picomatch | 4.0.5 | MIT |
-| postcss | 8.5.26 | MIT |
+| picomatch | 4.0.7 | MIT |
+| postcss | 8.5.31 | MIT |
 | postject | 1.0.0-alpha.6 | MIT |
 | pretty-format | 27.5.1 | MIT |
 | punycode | 2.3.1 | MIT |
 | react-is | 17.0.2 | MIT |
 | require-from-string | 2.0.2 | MIT |
 | rolldown | 1.2.5 | MIT |
+| rolldown | 1.2.15 | MIT |
 | saxes | 6.0.0 | ISC |
 | siginfo | 2.0.0 | ISC |
 | source-map-js | 1.2.2 | BSD-3-Clause |
@@ -469,7 +486,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | tr46 | 6.0.0 | MIT |
 | typescript | 7.0.2 | Apache-2.0 |
 | undici | 8.11.2 | MIT |
-| vite | 8.2.2 | MIT |
+| vite | 8.3.5 | MIT |
 | vitest | 4.1.11 | MIT |
 | w3c-xmlserializer | 5.0.0 | MIT |
 | webidl-conversions | 8.0.1 | BSD-2-Clause |
