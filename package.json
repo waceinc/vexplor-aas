@@ -7,7 +7,7 @@
   "type": "module",
   "description": "AAS authoring, serving and data collection platform",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.23.4"
   },
   "workspaces": [
     "packages/*",

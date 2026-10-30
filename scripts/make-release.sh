@@ -40,7 +40,7 @@ EDITION="${3:-apache2}"
 TIMESCALE=2.30.2
 # The remote collector is its own program (github.com/waceinc/vexplor-edge) — the Linux bundle carries this release of
 # it, checked against that release's SHA256SUMS
-EDGE_VERSION=1.1.0
+EDGE_VERSION=1.3.1
 case "${EDITION}" in
   apache2)   DB_IMAGE="timescale/timescaledb:${TIMESCALE}-pg17-oss"; EDITION_NAME="TimescaleDB Apache-2 Edition"; SUFFIX="" ;;
   community) DB_IMAGE="timescale/timescaledb:${TIMESCALE}-pg17"; EDITION_NAME="TimescaleDB Community Edition"; SUFFIX="-community" ;;

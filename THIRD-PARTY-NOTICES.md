@@ -485,7 +485,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | tough-cookie | 6.0.2 | BSD-3-Clause |
 | tr46 | 6.0.0 | MIT |
 | typescript | 7.0.2 | Apache-2.0 |
-| undici | 8.11.2 | MIT |
+| undici | 8.12.3 | MIT |
 | vite | 8.3.5 | MIT |
 | vitest | 4.1.11 | MIT |
 | w3c-xmlserializer | 5.0.0 | MIT |

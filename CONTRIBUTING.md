@@ -6,7 +6,7 @@ Thank you for wanting to improve this project. There are only a few rules.
 
 ## Getting started
 
-Node.js 24 LTS is recommended (22 or later works; `.nvmrc` pins 24).
+Node.js 24 LTS is recommended (22 or later works — at least 24.22.1 or 22.23.4; `.nvmrc` pins 24).
 
 ```bash
 npm ci

@@ -73,6 +73,7 @@ whenever machines change — and they too report that creating the AAS itself is
 
 | Feature | Release | Detail |
 |---|---|---|
+| **Node.js security releases** | 2.12.2 | The Docker image now pins Node.js 24.22.1 (it followed the floating `node:24` tag before), and `engines` asks for Node.js 22.23.4 or later — the October 2026 Node.js security releases. `undici` goes to 8.12.3. The site bundle for Linux now carries VEXPLOR Edge 1.3.1 (it still named 1.1.0). No feature or storage change; rebuild a running image to take it |
 | **Empty list elements in XML read as empty lists** | 2.12.1 | A list closed with no items (`<qualifiers />`, `<description />`, a collection's `<value />` …) was read as the empty string. In KOSMO's 179 public reference models the check then stopped part way in 45 files and a saved copy could not be opened again for 27; both are now 0. The empty list is kept as it was and reported by `PKG-EMPTY-ARRAY` (auto-fix). `scripts/lint.mjs` now checks each file by its own metamodel version and looks into subfolders. New guide: [using KOSMO reference models](docs/kosmo-compat.md) with a file-by-file table |
 | **Range limits in tag hints** | 2.12.0 | A `Range` element with the same semanticId as a tag's value now gives limits too — its `min` as `lsl`, its `max` as `usl` — so a receiver such as Logic Studio gets lower specification limits from the file. Limits from the KOSMO property pairs come first, ranges after; a tag may carry several of the same bound, each with its `source`, for a person to choose. No schema change. The KOSMO model files in use today hold no `Range`, so their hints are unchanged; for a lower limit, add a `Range` with the value's semanticId and an idShort different from the value's ([integration](docs/integration.md)) |
 | **LS ELECTRIC XGT, read directly** | 2.11.0 | XGK · XGI · XGR · XGB PLCs with an FEnet module are read over the XGT dedicated protocol (TCP 2004) without a gateway — read only. Addresses are written as XG5000 shows them (`D100`, `D100.3`, `P0001A`, `%MW100`, `%IX0.0.3`). AID 1.1 has no XGT binding, so this is a VEXPLOR extension binding marked by our binding IRI. Built from LS ELECTRIC's published FEnet manual and tested against a test server built from it — not yet checked on a real PLC; please send a [PLC field report](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md). The server reads it with `COLLECT=on`, the remote collector from VEXPLOR Edge 1.3.0 — [usage §8](docs/usage.md) |
@@ -142,7 +143,7 @@ The database image `timescale/timescaledb` is **TimescaleDB Community Edition** 
 License (https://www.tigerdata.com/legal/licenses) — not under this repository's licence; Docker pulls it from Docker Hub
 on your machine. `-oss` images are TimescaleDB Apache-2 Edition (no compression or continuous aggregates).
 
-### From source — Node.js 24 LTS (22 or later works)
+### From source — Node.js 24 LTS (22 or later works; at least 24.22.1 / 22.23.4)
 
 ```bash
 npm install
@@ -188,7 +189,7 @@ uses them) are attached to each GitHub release as npm tarballs (`node scripts/pa
 checksums in `SHA256SUMS`). Install them **by release URL**:
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.1/aas-aasx-2.12.1.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.2/aas-aasx-2.12.2.tgz"
 ```
 
 Never by version number — the `@aas` scope on the public npm registry is not ours, so `"@aas/core": "^2.0.0"` would

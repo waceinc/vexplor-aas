@@ -73,6 +73,7 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 
 | 기능 | 버전 | 내용 |
 |---|---|---|
+| **Node.js 보안 수정판** | 2.12.2 | Docker 이미지를 Node.js 24.22.1 로 고정했습니다(전에는 떠다니는 `node:24` 태그를 따랐습니다). `engines` 는 Node.js 22.23.4 이상을 요구합니다 — 2026년 10월 Node.js 보안 수정판입니다. `undici` 를 8.12.3 으로 올렸습니다. 리눅스 현장 설치 묶음에 들어가는 VEXPLOR Edge 를 1.3.1 로 맞췄습니다(1.1.0 에 머물러 있었습니다). 기능 · 저장 구조 변경은 없습니다. 돌고 있는 이미지는 다시 빌드해야 반영됩니다 |
 | **XML 의 빈 목록 요소를 빈 목록으로** | 2.12.1 | 항목 없이 닫힌 목록(`<qualifiers />` · `<description />` · 컬렉션의 `<value />` 등)을 빈 문자열로 읽었습니다. 그래서 KOSMO 공개 참조모델 179개 가운데 45개는 검사가 중간에 멈추고 27개는 저장한 사본을 다시 열지 못했습니다. 이제 둘 다 0 입니다. 빈 목록은 원본 그대로 두고 `PKG-EMPTY-ARRAY`(자동 고치기)가 알려 줍니다. `scripts/lint.mjs` 는 파일마다 그 파일의 메타모델 버전으로 검사하고 하위 폴더까지 찾습니다. 새 안내: [KOSMO 참조모델과 함께 쓰기](docs/kosmo-호환.md) — 파일별 표 포함 |
 | **태그 힌트에 Range 한계** | 2.12.0 | 태그 값과 semanticId 가 같은 `Range` 요소도 한계값을 줍니다 — `min` 은 `lsl`, `max` 는 `usl`. 그래서 Logic Studio 같은 받는 쪽이 파일에서 하한까지 받습니다. KOSMO 속성 짝에서 나온 한계가 먼저, Range 가 다음이고, 한 태그에 같은 하한 · 상한이 여럿이면 각각 `source` 와 함께 실어 사람이 고르게 합니다. 스키마는 바뀌지 않았습니다. 지금 쓰는 KOSMO 모델 파일에는 `Range` 가 없어 그 파일들의 힌트는 그대로입니다. 하한이 필요하면 값과 semanticId 가 같고 idShort 는 다른 `Range` 를 넣습니다([연동](docs/연동.md)) |
 | **LS ELECTRIC XGT 바로 읽기** | 2.11.0 | FEnet 모듈을 단 XGK · XGI · XGR · XGB PLC 를 XGT 전용 프로토콜(TCP 2004)로 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 XG5000 에 보이는 그대로 적습니다(`D100` · `D100.3` · `P0001A` · `%MW100` · `%IX0.0.3`). AID 1.1 에 XGT 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩입니다. LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만들고 그대로 만든 시험용 서버로 시험했으며, 실제 PLC 확인은 아직 없습니다 — [PLC 실기 확인 보고](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)로 알려 주십시오. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.3.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
@@ -139,7 +140,7 @@ docker compose up -d --build
 아니라 Timescale License(https://www.tigerdata.com/legal/licenses)가 적용됩니다 — 사용하는 쪽 PC 의 Docker 가 Docker Hub
 에서 직접 받습니다. `-oss` 이미지는 TimescaleDB Apache-2 Edition 입니다(압축 · 연속 집계 없음).
 
-### 소스에서 — Node.js 24 LTS 권장(22 이상이면 동작)
+### 소스에서 — Node.js 24 LTS 권장(22 이상이면 동작, 24.22.1 · 22.23.4 이상)
 
 ```bash
 npm install
@@ -184,7 +185,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 (`node scripts/pack-libraries.mjs`, 해시는 `SHA256SUMS`). **릴리스 주소로** 설치하십시오.
 
 ```json
-"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.1/aas-aasx-2.12.1.tgz"
+"@aas/aasx": "https://github.com/waceinc/vexplor-aas/releases/download/v2.12.2/aas-aasx-2.12.2.tgz"
 ```
 
 버전 번호로 설치하지 마십시오 — 공개 npm 저장소의 `@aas` 이름 공간은 우리 것이 아니어서 `"@aas/core": "^2.0.0"` 이라고
