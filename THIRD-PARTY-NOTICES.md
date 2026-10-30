@@ -416,7 +416,7 @@ These packages do not state a license in `package.json`, so the files inside the
 | es-module-lexer | 2.3.2 | MIT |
 | estree-walker | 3.0.3 | MIT |
 | expect-type | 1.4.0 | Apache-2.0 |
-| fast-uri | 3.1.8 | BSD-3-Clause |
+| fast-uri | 3.1.9 | BSD-3-Clause |
 | fdir | 6.5.0 | MIT |
 | fsevents | 2.3.3 | MIT |
 | graceful-fs | 4.2.11 | ISC |
