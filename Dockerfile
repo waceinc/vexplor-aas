@@ -6,7 +6,7 @@
 # Why two stages: build tools (typescript, vite, test dependencies) have no reason to stay in the runtime image.
 
 # ── Stage 1: build ────────────────────────────────────────────────
-FROM node:24-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 WORKDIR /app
 
 # Copy the lock file as-is to install **exactly the same versions** (npm ci)
@@ -26,7 +26,7 @@ COPY . .
 RUN npm run build && npm run --silent build --workspace @aas/web
 
 # ── Stage 2: runtime ────────────────────────────────────────────────
-FROM node:24-bookworm-slim AS runtime
+FROM node:24.22.1-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 

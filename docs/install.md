@@ -37,8 +37,8 @@ The script file names are in Korean: `설치` = install, `실행` = start, `중�
 On a Linux server, use a terminal:
 
 ```bash
-tar xzf VEXPLOR-AAS-Studio-2.12.1-windows.tar.gz
-cd VEXPLOR-AAS-Studio-2.12.1-windows
+tar xzf VEXPLOR-AAS-Studio-2.12.2-windows.tar.gz
+cd VEXPLOR-AAS-Studio-2.12.2-windows
 cp .env.example .env      # 1. create the settings file
 # open .env and fill in POSTGRES_PASSWORD  <- 2.
 docker load -i images.tar.gz && docker compose up -d   # 3.
@@ -126,8 +126,8 @@ The startup log states the current mode in one line — check it once.
 
 ## Running without Docker (Node.js)
 
-Instead of the release package, you can run it straight from source. **Node.js 24 LTS is recommended**; **Node.js 22 or later** works
-(`engines` in `package.json` requires 22 or later · the Docker image uses Node 24 · CI tests on both Node 22 and 24 · `.nvmrc` says 24).
+Instead of the release package, you can run it straight from source. **Node.js 24 LTS is recommended**; **Node.js 22 or later** works —
+at least **24.22.1 or 22.23.4**, the security releases of October 2026 (`engines` in `package.json` requires 22.23.4 or later · the Docker image pins Node 24.22.1 · CI tests on both Node 22 and 24 · `.nvmrc` says 24).
 
 ```bash
 npm ci
@@ -161,7 +161,7 @@ docker compose down -v         # deletes the data too — cannot be undone
 docker compose exec db psql -U aas -d aas   # connect to the database directly
 ```
 
-**Health check**: `curl http://localhost:8080/health` → `{"status":"ok","version":"2.12.1","auth":"on"}`
+**Health check**: `curl http://localhost:8080/health` → `{"status":"ok","version":"2.12.2","auth":"on"}`
 
 ## Data backup — do it
 
@@ -186,12 +186,12 @@ docker volume ls | grep pgdata
 #   local     vexplor-aas-studio-110-windows_pgdata
 
 # 2. stop the old version
-cd VEXPLOR-AAS-Studio-2.12.1-windows && docker compose down && cd ..
+cd VEXPLOR-AAS-Studio-2.12.2-windows && docker compose down && cd ..
 
 # 3. extract the new version and bring the settings over
 tar xzf VEXPLOR-AAS-Studio-1.2.0-windows.tar.gz
 cd VEXPLOR-AAS-Studio-1.2.0-windows
-cp ../VEXPLOR-AAS-Studio-2.12.1-windows/.env .
+cp ../VEXPLOR-AAS-Studio-2.12.2-windows/.env .
 grep -q '^COMPOSE_PROJECT_NAME=' .env || echo 'COMPOSE_PROJECT_NAME=vexplor-aas-studio-110-windows' >> .env   # the name from step 1
 
 # 4. start it
@@ -270,6 +270,6 @@ Running a public demo server: [deployment.md](deployment.md). The list of valida
 
 | | |
 |---|---|
-| Version | `v2.12.1` at the top left of the screen, or `/health` |
+| Version | `v2.12.2` at the top left of the screen, or `/health` |
 | Startup log | `docker compose logs app | tail -50` |
 | Symptom | Which screen, what you clicked, and what appeared |
