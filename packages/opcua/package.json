@@ -19,7 +19,7 @@
   "dependencies": {
     "@aas/collector": "0.1.0",
     "@aas/core": "0.1.0",
-    "node-opcua": "^2.178.0"
+    "node-opcua": "^2.187.26"
   },
   "devDependencies": {
     "@aas/store": "0.1.0"
