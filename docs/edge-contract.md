@@ -123,7 +123,7 @@ All three are VEXPLOR extension bindings, not AID 1.1 bindings, and read only:
 | `XGT` | LS ELECTRIC XGK · XGI · XGR · XGB with an FEnet module, XGT dedicated protocol (TCP 2004) | `xgt://host[:2004]?series=XGK` (`XGK` · `XGI` · `XGR` · `XGB` · `XEC`) | As XG5000 shows it, optional `:TYPE` — `D100`, `D200:REAL`, `D100.3`, `P0001A`, `%MW100`, `%IX0.0.3` |
 
 `security.mode` is `None` and there is no `credentialRef`. The frames are tested against test servers built from the
-published formats, not yet against real PLCs.
+published formats.
 
 ### 4.1 Tag hints (added in 2.5.0 — optional, advisory)
 

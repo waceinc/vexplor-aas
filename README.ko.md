@@ -76,10 +76,10 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 | **Node.js 보안 수정판** | 2.12.2 | Docker 이미지를 Node.js 24.22.1 로 고정했습니다(전에는 떠다니는 `node:24` 태그를 따랐습니다). `engines` 는 Node.js 22.23.4 이상을 요구합니다 — 2026년 10월 Node.js 보안 수정판입니다. `undici` 를 8.12.3 으로 올렸습니다. 리눅스 현장 설치 묶음에 들어가는 VEXPLOR Edge 를 1.3.1 로 맞췄습니다(1.1.0 에 머물러 있었습니다). 기능 · 저장 구조 변경은 없습니다. 돌고 있는 이미지는 다시 빌드해야 반영됩니다 |
 | **XML 의 빈 목록 요소를 빈 목록으로** | 2.12.1 | 항목 없이 닫힌 목록(`<qualifiers />` · `<description />` · 컬렉션의 `<value />` 등)을 빈 문자열로 읽었습니다. 그래서 KOSMO 공개 참조모델 179개 가운데 45개는 검사가 중간에 멈추고 27개는 저장한 사본을 다시 열지 못했습니다. 이제 둘 다 0 입니다. 빈 목록은 원본 그대로 두고 `PKG-EMPTY-ARRAY`(자동 고치기)가 알려 줍니다. `scripts/lint.mjs` 는 파일마다 그 파일의 메타모델 버전으로 검사하고 하위 폴더까지 찾습니다. 새 안내: [KOSMO 참조모델과 함께 쓰기](docs/kosmo-호환.md) — 파일별 표 포함 |
 | **태그 힌트에 Range 한계** | 2.12.0 | 태그 값과 semanticId 가 같은 `Range` 요소도 한계값을 줍니다 — `min` 은 `lsl`, `max` 는 `usl`. 그래서 Logic Studio 같은 받는 쪽이 파일에서 하한까지 받습니다. KOSMO 속성 짝에서 나온 한계가 먼저, Range 가 다음이고, 한 태그에 같은 하한 · 상한이 여럿이면 각각 `source` 와 함께 실어 사람이 고르게 합니다. 스키마는 바뀌지 않았습니다. 지금 쓰는 KOSMO 모델 파일에는 `Range` 가 없어 그 파일들의 힌트는 그대로입니다. 하한이 필요하면 값과 semanticId 가 같고 idShort 는 다른 `Range` 를 넣습니다([연동](docs/연동.md)) |
-| **LS ELECTRIC XGT 바로 읽기** | 2.11.0 | FEnet 모듈을 단 XGK · XGI · XGR · XGB PLC 를 XGT 전용 프로토콜(TCP 2004)로 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 XG5000 에 보이는 그대로 적습니다(`D100` · `D100.3` · `P0001A` · `%MW100` · `%IX0.0.3`). AID 1.1 에 XGT 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩입니다. LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만들고 그대로 만든 시험용 서버로 시험했으며, 실제 PLC 확인은 아직 없습니다 — [PLC 실기 확인 보고](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)로 알려 주십시오. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.3.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
+| **LS ELECTRIC XGT 바로 읽기** | 2.11.0 | FEnet 모듈을 단 XGK · XGI · XGR · XGB PLC 를 XGT 전용 프로토콜(TCP 2004)로 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 XG5000 에 보이는 그대로 적습니다(`D100` · `D100.3` · `P0001A` · `%MW100` · `%IX0.0.3`). AID 1.1 에 XGT 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩입니다. LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만들고 그대로 만든 시험용 서버로 시험했습니다 — [PLC 실기 확인 보고](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)로 알려 주십시오. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.3.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
 | **엣지 계약에 XGT · 실기 확인 보고 서식** | 2.11.0 | 읽을 목록의 `protocol` 에 `XGT` 를 더했습니다. 규격 버전은 `vexplor.edge/1` 그대로입니다. 이전 버전 엣지는 `XGT is not read by this edge yet` 를 알리고 나머지를 계속 읽습니다. S7 · MC · XGT 의 실제 PLC 결과를 받는 이슈 서식을 더했습니다. 웹훅 · MQTT 구독도 이제 허용 항목에 포트를 적지 않으면 2004 포트로 보내지 않습니다 |
-| **S7 · MC 프로토콜 바로 읽기** | 2.10.0 | Siemens S7-300 / 400 / 1200 / 1500(ISO-on-TCP)과 MELSEC Q · L · iQ-R · iQ-F(MC 프로토콜 3E 바이너리)를 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 엔지니어링 도구에 보이는 그대로 적습니다(`DB10.DBD4:REAL` · `D100` · `D10.3`). AID 1.1 에 두 프로토콜의 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩이며, 다른 AID 도구는 이 인터페이스를 읽지 못합니다. 공개 형식대로 만든 시험용 서버로 시험했고 실제 PLC 실측은 아직 없습니다. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.2.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
-| **Windows 공장 PC 에 원격 수집기** | 2.10.0 | **설정 → 원격 수집기 → 「+ 수집기 연결」**에 **Linux** · **Windows** 탭이 있습니다. Windows 탭은 명령 프롬프트나 PowerShell(관리자 권한)에 붙여 넣을 한 줄을 줍니다 — 내려받기 · 해시 확인 · 설치 · Windows 서비스 시작까지 하고, 실행 정책은 바꾸지 않습니다. **VEXPLOR Edge 1.2.0 이상**(Windows x64)이 필요합니다. 서비스 설치는 GitHub 의 Windows 시험 환경에서 확인했고, 공장 PC 설치는 아직입니다 — [원격 수집기 설치](docs/엣지설치.md) |
+| **S7 · MC 프로토콜 바로 읽기** | 2.10.0 | Siemens S7-300 / 400 / 1200 / 1500(ISO-on-TCP)과 MELSEC Q · L · iQ-R · iQ-F(MC 프로토콜 3E 바이너리)를 게이트웨이 없이 읽습니다 — 읽기만 합니다. 주소는 엔지니어링 도구에 보이는 그대로 적습니다(`DB10.DBD4:REAL` · `D100` · `D10.3`). AID 1.1 에 두 프로토콜의 바인딩이 없어 우리 바인딩 IRI 로 표시한 VEXPLOR 확장 바인딩이며, 다른 AID 도구는 이 인터페이스를 읽지 못합니다. 공개 형식대로 만든 시험용 서버로 시험했습니다. 서버는 `COLLECT=on` 으로, 원격 수집기는 VEXPLOR Edge 1.2.0 부터 읽습니다 — [사용법 8절](docs/사용법.md) |
+| **Windows 공장 PC 에 원격 수집기** | 2.10.0 | **설정 → 원격 수집기 → 「+ 수집기 연결」**에 **Linux** · **Windows** 탭이 있습니다. Windows 탭은 명령 프롬프트나 PowerShell(관리자 권한)에 붙여 넣을 한 줄을 줍니다 — 내려받기 · 해시 확인 · 설치 · Windows 서비스 시작까지 하고, 실행 정책은 바꾸지 않습니다. **VEXPLOR Edge 1.2.0 이상**(Windows x64)이 필요합니다. 서비스 설치는 GitHub 의 Windows 시험 환경에서 확인했습니다 — [원격 수집기 설치](docs/엣지설치.md) |
 | **엣지 계약에 S7 · MC** | 2.10.0 | 읽을 목록의 `protocol` 에 `S7` · `MC` 를 더했습니다. 규격 버전은 `vexplor.edge/1` 그대로입니다. 1.2.0 보다 오래된 엣지는 그 인터페이스를 읽지 않고 이유(`S7 is not read by this edge yet`)를 알린 뒤 나머지를 계속 읽습니다 — [계약 4절](docs/엣지계약.md) |
 | **AAS 메타모델 V3.0 · V3.1 · V3.2** | 2.9.0 | 세 버전의 파일을 모두 엽니다. XML 은 네임스페이스로, 버전 표시가 없는 JSON 은 내용을 담을 수 있는 가장 낮은 버전으로 정하고, 파일마다 들어온 버전을 기억합니다. **AASX 내려받기**는 다른 버전을 고르지 않으면 그 버전으로 파일을 만듭니다. 새 설비 · 견본 · 제품 여권 서식은 KOSMO 가 요구하는 V3.1 입니다. 낮은 버전으로 쓰면 빠지는 칸을 값과 함께 모두 보여 주고, 그 버전으로 말할 수 없는 값(assetKind `Role` · `Batch`, 비어 있는 `entityType` 등)은 「그대로 두고 내려받기」를 고르지 않는 한 파일을 만들지 않습니다. V3.1 · V3.2 로 만든 파일은 시험에서 공식 JSON 스키마로 대조합니다 — 공식 검증기 aas-test-engines 1.0.3 은 V3.0 만 판정합니다. [사용법 §4-10](docs/사용법.md#4-10-aasx-내려받기--제출-점검표) |
 | **제품 여권(DPP) 서식 · 검사** | 2.9.0 | 시작 화면의 **「제품 여권(DPP) 서식으로 시작하기」**에서 IDTA 공식 서식 8종을 원본 그대로(CC BY 4.0) 엽니다 — DPP Part 1 메타데이터(IDTA 02099-1 1.0.2)와 배터리 여권 7부(IDTA 02035-1 ~ 7). 규칙 `DPP-1` ~ `DPP-5` 가 여권 메타데이터를 검사합니다: 필수 7항목, granularity(Model · Item · Batch), UTC 기준 `lastUpdate`, 내용 사양 ID, granularity 와 셸 assetKind 의 짝. 여권 데이터 작성 · 필수 항목 검사를 돕는 기능이며, EU DPP 규정 적합 판정이 아닙니다 |
@@ -120,8 +120,8 @@ AAS를 실제 라인에 적용한 사례(Bosch Rexroth 등)도 있습니다. 기
 - 기종(Type) 파일과 설비(Instance) 파일을 나눠 받습니다.
 - 같은 파일을 다시 놓으면 「바뀌는 것이 없습니다」로 끝나고, 같은 설비가 두 번 생기지 않습니다.
 - 단계별 안내: [docs/로직스튜디오.md](docs/로직스튜디오.md). 앱의 **? 도움말**에도 같은 단계가 있습니다.
-- **실시간 값 연결은 준비 중입니다.** 같은 원격 수집기가 Logic Studio Cloud로도 설비 값을 보내는 연결을 준비하고
-  있습니다. 받는 쪽이 구현할 두 끝점은 [docs/엣지계약.md](docs/엣지계약.md)에 있습니다. 지금은 제공하지 않습니다.
+- **실시간 값은 AAS Studio 가 모읍니다.** 원격 수집기가 보낸 설비 값은 AAS Studio 가 모으고 보관합니다. 받는 쪽이
+  구현할 두 끝점은 [docs/엣지계약.md](docs/엣지계약.md)에 있습니다.
 
 ## 바로 써 보기
 
@@ -204,7 +204,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | 표준 | 상태 |
 |---|---|
 | AAS 메타모델 **V3.0 · V3.1 · V3.2** (IDTA-01001-3-0 · 3-1 · 3-2) | 세 버전 모두 읽습니다. 내려받을 때는 그 파일이 들어온 버전으로 만듭니다(XML 은 네임스페이스로, 버전 표시가 없는 JSON 은 내용을 담을 수 있는 가장 낮은 버전으로 정합니다). 새로 만드는 모델 — 새 설비 · 견본 · 제품 여권 서식 — 은 KOSMO 가 요구하는 V3.1 입니다. 내려받을 때 다른 버전을 고를 수 있고, 낮은 버전으로 쓰면 빠지는 칸을 보여 주고 그 버전으로 말할 수 없는 값은 막습니다 |
-| 쓴 파일 검증 | V3.0: 공식 검증기 aas-test-engines 1.0.3 — 이 검증기는 **V3.0 만** 판정합니다. V3.1 · V3.2: 이 저장소의 시험이 admin-shell-io/aas-specs-metamodel 공식 JSON 스키마(v3.1.2 · v3.2.0)로 대조합니다 — aas-test-engines 는 아직 이 버전들을 판정하지 않습니다 |
+| 쓴 파일 검증 | V3.0: 공식 검증기 aas-test-engines 1.0.3 — 이 검증기는 **V3.0 만** 판정합니다. V3.1 · V3.2: 이 저장소의 시험이 admin-shell-io/aas-specs-metamodel 공식 JSON 스키마(v3.1.2 · v3.2.0)로 대조합니다 |
 | AASX 패키지 (IDTA-01005) | JSON · XML 읽기, JSON 쓰기. V3.1 · V3.2 로 쓸 때 공백 · 한글이 든 첨부 파일 이름은 패키지 안 파일 이름 · 관계와 함께 퍼센트 인코딩(RFC 3986, UTF-8)합니다 — 이 버전들은 URI 만 받습니다 |
 | **Part 2 REST API** (IDTA-01002-3-0) | AasxFileServer 6/6 · ConceptDescription 7/7 · AAS Repository 47/54 · Submodel Repository 38/45 · Registry · Discovery 일부. `/api/v3.0` 과, V3.1 · V3.2 클라이언트용 `/api/v3` 로 같은 경로를 받습니다. V3.2 에서 새로 생긴 엔드포인트(`$recent-changes` · `$history` · `$signed` · 비동기 패키지 작업)는 구현하지 않았고 404 를 돌려줍니다 |
 | AID 1.1 (IDTA-02017) | OPC UA · Modbus TCP · MQTT 주소 해석(Modbus · MQTT 는 W3C WoT 바인딩 표기). S7 · MC · XGT 는 AID 바인딩이 **아닙니다** — 표준 `base` / `href` 자리에 넣고 우리 바인딩 IRI 로 표시한 VEXPLOR 확장입니다([docs/사용법.md](docs/사용법.md) 8절) |
@@ -222,7 +222,7 @@ TypeScript 모노레포입니다. 화면도 서버도 한 언어입니다.
 | MC 프로토콜(3E 바이너리) | MELSEC Q · L · iQ-R · iQ-F | 읽음(2.10.0) | Edge 1.2.0 이상 | VEXPLOR 확장 바인딩 — 시험용 서버로만 시험. 실기 확인: 사용자 보고 기다림([이 서식으로 알려 주세요](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)) |
 | XGT 전용 프로토콜(FEnet, TCP 2004) | LS ELECTRIC XGK · XGI · XGR · XGB | 읽음(2.11.0) | Edge 1.3.0 이상 | LS ELECTRIC 이 공개한 FEnet 사용 설명서대로 만든 VEXPLOR 확장 바인딩 — 시험용 서버로만 시험. 실기 확인: 사용자 보고 기다림([이 서식으로 알려 주세요](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)) |
 
-**실제 PLC 로 확인했나요?** S7 · MC · XGT 는 아직입니다. 실물 PLC 없이 공개 규격대로 구현하고, 그 규격대로 만든 시험용 서버로
+**실제 PLC 로 확인했나요?** S7 · MC · XGT 는 실물 PLC 없이 공개 규격대로 구현하고, 그 규격대로 만든 시험용 서버로
 시험했습니다. 이 PLC 를 읽어 보셨다면 [PLC 실기 확인 보고 서식](https://github.com/waceinc/vexplor-aas/issues/new?template=field_report.md)으로 알려 주십시오 — 제조사 · 계열 · CPU · 펌웨어 ·
 주소 · 기대한 값과 읽은 값(못 읽었으면 그 이유)을 적으면 됩니다. 보내 주신 결과는 이 표에 반영합니다.
 

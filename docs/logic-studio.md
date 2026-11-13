@@ -35,7 +35,7 @@ This guide covers what AAS Studio hands over and how. Logic Studio's own screens
 | globalAssetId | The key that ties the equipment to this file — the same machine stays the same row |
 | AID (collection link), when the file has one | Material for the remote collector's draft read list — used once live values open (see 3) |
 
-## 3. Live values — in preparation
+## 3. Live values
 
 The remote collector (`vexplor-edge`, [install](edge-install.md)) reads PLCs in the factory and sends values out only.
 Since 2.5.0 each tag of its read list carries hints — the model element's `semanticId`, a suggested role and limits
@@ -43,8 +43,7 @@ from the same file ([contract §4.1](edge-contract.md)) — so a receiver can pr
 to confirm. A lower limit (`lsl`) comes only from a `Range` element with the same semanticId as the value (its `min`);
 the paired limit properties give upper limits only ([integration](integration.md)).
 
-Sending those values to Logic Studio Cloud is **in preparation and not offered yet.** Until then values are collected
-and kept by AAS Studio itself (usage §8).
+Values are collected and kept by AAS Studio itself (usage §8).
 
 ## 4. What stays where
 
