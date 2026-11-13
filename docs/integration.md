@@ -47,8 +47,8 @@ decision here is [design/integration-v1.md](design/integration-v1.md).
 
 [VEXPLOR Logic Studio](https://wace.me/en-platform-logic-studio) Cloud imports the AASX files themselves — drop a file
 on its equipment screen, check the preview, import. Type and Instance files are imported separately, and dropping the
-same file again changes nothing. No subscription, export or factory install is needed for this. Sending live values
-from the remote collector to Logic Studio Cloud is in preparation and not offered yet.
+same file again changes nothing. No subscription, export or factory install is needed for this. Live values are collected
+and kept by AAS Studio itself.
 
 ## 2. Turning it on
 
