@@ -149,4 +149,11 @@ done while any of these still shows the old version or misses what changed:
    `wace-home/scripts/oss_seo.py` (the site repository's README has the four commands). Run them twice before
    deploying and check nothing changes the second time, then announce the changed URLs with IndexNow.
 
+5. **Archive** — a new version of the Zenodo record under the concept DOI 10.5281/zenodo.23485080, made by hand from the latest
+   version. Zenodo's GitHub switch stays off for this repository on purpose: it would start a second concept DOI and
+   split the version history. File: the tag's source as `vexplor-aas-X.Y.Z.zip` (`git archive --format=zip --prefix=vexplor-aas-X.Y.Z/ vX.Y.Z`); metadata as the previous
+   version with the new title, version, date, release link and what changed. Before publishing, the deposit's file list
+   and the record's files must both show the local size and md5; after publishing, download it from outside and compare.
+   Then add the version DOI to `CITATION.cff`. A daily check reports a release that is missing on Zenodo.
+
 Contributions are distributed under this repository's [Apache License 2.0](LICENSE).
