@@ -8,16 +8,16 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 
 ## Summary
 
-- Shipped for execution (runtime): **248**
+- Shipped for execution (runtime): **254**
 - Development and testing only: 206 (not included in releases)
 - Copyleft at runtime (GPL, LGPL, AGPL): **0**
 
 | Runtime license | Count |
 |---|---|
-| MIT | 234 |
+| MIT | 241 |
 | ISC | 4 |
-| Apache-2.0 | 3 |
 | BSD-3-Clause | 2 |
+| Apache-2.0 | 2 |
 | 0BSD | 2 |
 | BSD-2-Clause | 1 |
 | OFL-1.1 | 1 |
@@ -32,21 +32,23 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 | @floating-ui/react-dom | 2.1.9 | MIT |
 | @floating-ui/utils | 0.2.12 | MIT |
 | @leichtgewicht/ip-codec | 2.0.5 | MIT |
-| @nodable/entities | 3.0.0 | MIT |
-| @peculiar/asn1-cms | 2.9.4 | MIT |
-| @peculiar/asn1-csr | 2.9.4 | MIT |
-| @peculiar/asn1-ecc | 2.9.4 | MIT |
-| @peculiar/asn1-pfx | 2.9.4 | MIT |
-| @peculiar/asn1-pkcs8 | 2.9.4 | MIT |
-| @peculiar/asn1-pkcs9 | 2.9.4 | MIT |
-| @peculiar/asn1-rsa | 2.9.4 | MIT |
-| @peculiar/asn1-schema | 2.9.4 | MIT |
-| @peculiar/asn1-x509 | 2.9.4 | MIT |
-| @peculiar/asn1-x509-attr | 2.9.4 | MIT |
+| @nodable/entities | 3.1.0 | MIT |
+| @peculiar/asn1-asym-key | 2.11.1 | MIT |
+| @peculiar/asn1-cms | 2.11.1 | MIT |
+| @peculiar/asn1-csr | 2.11.1 | MIT |
+| @peculiar/asn1-ecc | 2.11.1 | MIT |
+| @peculiar/asn1-pfx | 2.11.1 | MIT |
+| @peculiar/asn1-pkcs8 | 2.11.1 | MIT |
+| @peculiar/asn1-pkcs9 | 2.11.1 | MIT |
+| @peculiar/asn1-rsa | 2.11.1 | MIT |
+| @peculiar/asn1-schema | 2.11.1 | MIT |
+| @peculiar/asn1-x509 | 2.11.1 | MIT |
+| @peculiar/asn1-x509-attr | 2.11.1 | MIT |
+| @peculiar/asn1-x509-post-quantum | 2.11.1 | MIT |
 | @peculiar/json-schema | 1.1.12 | MIT |
 | @peculiar/utils | 2.0.3 | MIT |
-| @peculiar/webcrypto | 1.7.1 | MIT |
-| @peculiar/x509 | 2.0.0 | MIT |
+| @peculiar/webcrypto | 1.7.2 | MIT |
+| @peculiar/x509 | 2.2.0 | MIT |
 | @radix-ui/number | 1.1.3 | MIT |
 | @radix-ui/primitive | 1.1.7 | MIT |
 | @radix-ui/react-accessible-icon | 1.1.16 | MIT |
@@ -120,11 +122,12 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 | array-back | 6.2.3 | MIT |
 | array-flatten | 2.1.2 | MIT |
 | asn1 | 0.2.6 | MIT |
-| asn1js | 3.0.10 | BSD-3-Clause |
+| asn1js | 3.1.0 | BSD-3-Clause |
 | assert-plus | 1.0.0 | MIT |
 | backoff | 2.5.0 | MIT |
 | bcrypt-pbkdf | 1.0.2 | BSD-3-Clause |
 | byline | 5.0.0 | MIT |
+| chalk | 6.0.1 | MIT |
 | chalk | 4.1.2 | MIT |
 | chalk-template | 0.4.0 | MIT |
 | chokidar | 4.0.3 | MIT |
@@ -141,10 +144,10 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 | dns-equal | 1.0.0 | MIT |
 | dns-packet | 5.6.1 | MIT |
 | ecc-jsbn | 0.1.2 | MIT |
-| env-paths | 2.2.1 | MIT |
+| env-paths | 4.0.0 | MIT |
 | fast-deep-equal | 3.1.3 | MIT |
-| fast-xml-builder | 1.3.1 | MIT |
-| fast-xml-parser | 5.11.0 | MIT |
+| fast-xml-builder | 1.3.2 | MIT |
+| fast-xml-parser | 5.12.1 | MIT |
 | fflate | 0.8.3 | MIT |
 | find-replace | 5.0.2 | MIT |
 | get-nonce | 1.0.1 | MIT |
@@ -152,77 +155,80 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 | has-flag | 4.0.0 | MIT |
 | hexy | 0.4.0 | MIT |
 | humanize | 0.0.9 | MIT |
-| is-unsafe | 2.0.2 | MIT |
+| is-safe-filename | 0.1.1 | MIT |
+| is-unsafe | 2.0.3 | MIT |
 | jsbn | 0.1.1 | MIT |
 | lodash.camelcase | 4.3.0 | MIT |
 | lodash.partition | 4.6.0 | MIT |
 | lodash.sortby | 4.7.0 | MIT |
-| long | 5.3.2 | Apache-2.0 |
 | lucide-react | 1.52.0 | ISC |
 | multicast-dns | 7.2.5 | MIT |
-| node-opcua | 2.178.0 | MIT |
-| node-opcua-address-space | 2.178.0 | MIT |
-| node-opcua-address-space-base | 2.178.0 | MIT |
-| node-opcua-address-space-for-conformance-testing | 2.178.0 | MIT |
-| node-opcua-aggregates | 2.178.0 | MIT |
-| node-opcua-alarm-condition | 2.178.0 | MIT |
-| node-opcua-assert | 2.175.6 | MIT |
-| node-opcua-basic-types | 2.177.0 | MIT |
-| node-opcua-binary-stream | 2.176.0 | MIT |
-| node-opcua-buffer-utils | 2.176.0 | MIT |
-| node-opcua-certificate-manager | 2.178.0 | MIT |
-| node-opcua-chunkmanager | 2.177.0 | MIT |
-| node-opcua-client | 2.178.0 | MIT |
-| node-opcua-client-dynamic-extension-object | 2.178.0 | MIT |
-| node-opcua-client-proxy | 2.178.0 | MIT |
-| node-opcua-common | 2.178.0 | MIT |
-| node-opcua-constants | 2.176.0 | MIT |
-| node-opcua-crypto | 5.6.0 | MIT |
-| node-opcua-data-access | 2.177.0 | MIT |
-| node-opcua-data-model | 2.177.0 | MIT |
-| node-opcua-data-value | 2.177.0 | MIT |
-| node-opcua-date-time | 2.176.0 | MIT |
-| node-opcua-debug | 2.175.6 | MIT |
-| node-opcua-enum | 2.176.0 | MIT |
-| node-opcua-extension-object | 2.177.0 | MIT |
-| node-opcua-factory | 2.177.0 | MIT |
-| node-opcua-guid | 2.175.1 | MIT |
-| node-opcua-hostname | 2.175.1 | MIT |
-| node-opcua-nodeid | 2.177.0 | MIT |
-| node-opcua-nodeset-ua | 2.178.0 | MIT |
-| node-opcua-nodesets | 2.175.3 | MIT |
-| node-opcua-numeric-range | 2.177.0 | MIT |
-| node-opcua-object-registry | 2.175.6 | MIT |
-| node-opcua-packet-analyzer | 2.177.0 | MIT |
-| node-opcua-packet-assembler | 2.175.6 | MIT |
-| node-opcua-pki | 6.20.0 | MIT |
-| node-opcua-pseudo-session | 2.178.0 | MIT |
-| node-opcua-schemas | 2.177.0 | MIT |
-| node-opcua-secure-channel | 2.178.0 | MIT |
-| node-opcua-server | 2.178.0 | MIT |
-| node-opcua-server-discovery | 2.178.0 | MIT |
-| node-opcua-service-browse | 2.177.0 | MIT |
-| node-opcua-service-call | 2.177.0 | MIT |
-| node-opcua-service-discovery | 2.177.0 | MIT |
-| node-opcua-service-endpoints | 2.177.0 | MIT |
-| node-opcua-service-filter | 2.178.0 | MIT |
-| node-opcua-service-history | 2.177.0 | MIT |
-| node-opcua-service-node-management | 2.177.0 | MIT |
-| node-opcua-service-query | 2.177.0 | MIT |
-| node-opcua-service-read | 2.177.0 | MIT |
-| node-opcua-service-register-node | 2.177.0 | MIT |
-| node-opcua-service-secure-channel | 2.177.0 | MIT |
-| node-opcua-service-session | 2.177.0 | MIT |
-| node-opcua-service-subscription | 2.178.0 | MIT |
-| node-opcua-service-translate-browse-path | 2.177.0 | MIT |
-| node-opcua-service-write | 2.177.0 | MIT |
-| node-opcua-status-code | 2.176.0 | MIT |
-| node-opcua-transport | 2.177.0 | MIT |
-| node-opcua-types | 2.177.0 | MIT |
-| node-opcua-utils | 2.176.0 | MIT |
-| node-opcua-variant | 2.177.0 | MIT |
-| node-opcua-vendor-diagnostic | 2.178.0 | MIT |
-| node-opcua-xml2json | 2.176.0 | MIT |
+| node-opcua | 2.187.31 | MIT |
+| node-opcua-address-space | 2.187.31 | MIT |
+| node-opcua-address-space-base | 2.187.31 | MIT |
+| node-opcua-address-space-for-conformance-testing | 2.187.31 | MIT |
+| node-opcua-address-space-store | 2.187.31 | MIT |
+| node-opcua-aggregates | 2.187.31 | MIT |
+| node-opcua-alarm-condition | 2.187.31 | MIT |
+| node-opcua-assert | 2.186.7 | MIT |
+| node-opcua-basic-types | 2.187.28 | MIT |
+| node-opcua-binary-stream | 2.187.28 | MIT |
+| node-opcua-buffer-utils | 2.187.28 | MIT |
+| node-opcua-certificate-manager | 2.187.28 | MIT |
+| node-opcua-chunkmanager | 2.187.28 | MIT |
+| node-opcua-client | 2.187.31 | MIT |
+| node-opcua-client-dynamic-extension-object | 2.187.28 | MIT |
+| node-opcua-client-proxy | 2.187.28 | MIT |
+| node-opcua-common | 2.187.28 | MIT |
+| node-opcua-constants | 2.185.0 | MIT |
+| node-opcua-crypto | 6.2.5 | MIT |
+| node-opcua-data-access | 2.187.28 | MIT |
+| node-opcua-data-model | 2.187.28 | MIT |
+| node-opcua-data-value | 2.187.28 | MIT |
+| node-opcua-date-time | 2.187.28 | MIT |
+| node-opcua-debug | 2.186.7 | MIT |
+| node-opcua-enum | 2.187.28 | MIT |
+| node-opcua-extension-object | 2.187.28 | MIT |
+| node-opcua-factory | 2.187.28 | MIT |
+| node-opcua-guid | 2.184.0 | MIT |
+| node-opcua-hostname | 2.187.6 | MIT |
+| node-opcua-json | 2.187.31 | MIT |
+| node-opcua-nodeid | 2.187.28 | MIT |
+| node-opcua-nodeset-ua | 2.187.31 | MIT |
+| node-opcua-nodesets | 2.187.4 | MIT |
+| node-opcua-numeric-range | 2.187.28 | MIT |
+| node-opcua-object-registry | 2.186.7 | MIT |
+| node-opcua-packet-analyzer | 2.187.28 | MIT |
+| node-opcua-packet-assembler | 2.187.28 | MIT |
+| node-opcua-pki | 7.1.6 | MIT |
+| node-opcua-pseudo-session | 2.187.28 | MIT |
+| node-opcua-schemas | 2.187.28 | MIT |
+| node-opcua-secure-channel | 2.187.28 | MIT |
+| node-opcua-server | 2.187.31 | MIT |
+| node-opcua-server-discovery | 2.187.31 | MIT |
+| node-opcua-service-browse | 2.187.28 | MIT |
+| node-opcua-service-call | 2.187.28 | MIT |
+| node-opcua-service-discovery | 2.187.28 | MIT |
+| node-opcua-service-endpoints | 2.187.28 | MIT |
+| node-opcua-service-filter | 2.187.31 | MIT |
+| node-opcua-service-history | 2.187.28 | MIT |
+| node-opcua-service-node-management | 2.187.28 | MIT |
+| node-opcua-service-query | 2.187.28 | MIT |
+| node-opcua-service-read | 2.187.28 | MIT |
+| node-opcua-service-register-node | 2.187.28 | MIT |
+| node-opcua-service-secure-channel | 2.187.28 | MIT |
+| node-opcua-service-session | 2.187.28 | MIT |
+| node-opcua-service-subscription | 2.187.28 | MIT |
+| node-opcua-service-translate-browse-path | 2.187.28 | MIT |
+| node-opcua-service-write | 2.187.28 | MIT |
+| node-opcua-status-code | 2.187.28 | MIT |
+| node-opcua-transport | 2.187.28 | MIT |
+| node-opcua-types | 2.187.28 | MIT |
+| node-opcua-uanodeset-json | 2.187.31 | MIT |
+| node-opcua-utils | 2.187.28 | MIT |
+| node-opcua-variant | 2.187.28 | MIT |
+| node-opcua-vendor-diagnostic | 2.187.31 | MIT |
+| node-opcua-xml2json | 2.187.28 | MIT |
 | path-expression-matcher | 1.6.2 | MIT |
 | pend | 1.2.0 | MIT |
 | pg | 8.23.0 | MIT |
@@ -251,11 +257,11 @@ and used under the license shown. Full license texts are in `node_modules/<name>
 | reflect-metadata | 0.2.2 | Apache-2.0 |
 | safer-buffer | 2.1.2 | MIT |
 | scheduler | 0.27.0 | MIT |
-| semver | 7.8.5 | ISC |
+| semver | 7.8.6 | ISC |
 | split2 | 4.2.0 | ISC |
 | sshpk | 1.18.0 | MIT |
 | sterfive-bonjour-service | 1.1.4 | MIT |
-| strnum | 2.4.2 | MIT |
+| strnum | 2.5.1 | MIT |
 | supports-color | 7.2.0 | MIT |
 | table-layout | 4.1.1 | MIT |
 | tailwind-merge | 3.7.0 | MIT |
