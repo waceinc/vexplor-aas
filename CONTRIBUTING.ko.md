@@ -140,4 +140,10 @@ node scripts/make-third-party-notices.mjs      # 카피레프트가 있으면 �
    둘 다 `wace-home/scripts/oss_seo.py` 의 `VERSIONS` 에서 만들어집니다(명령 4개는 사이트 저장소 README). 배포 전에 두 번 실행해
    두 번째 실행에서 바뀌는 것이 없는지 보고, 배포 뒤 바뀐 주소를 IndexNow 로 알립니다.
 
+5. **보관(Zenodo)** — 개념 DOI 10.5281/zenodo.23485080 아래에 최신 판의 새 버전으로 손으로 올립니다. 이 저장소의 Zenodo GitHub 스위치는 일부러
+   꺼 둡니다 — 켜면 개념 DOI 가 하나 더 생겨 버전 기록이 둘로 갈라집니다. 파일은 태그 소스 `vexplor-aas-X.Y.Z.zip`(`git archive --format=zip --prefix=vexplor-aas-X.Y.Z/ vX.Y.Z`),
+   메타데이터는 직전 버전과 같게 하고 제목 · 버전 · 날짜 · 릴리스 링크 · 바뀐 것만 바꿉니다. 공개 전에 파일 목록과 레코드 본문 두 곳이
+   로컬 크기 · md5 와 같아야 하고, 공개 뒤 바깥에서 내려받아 대조합니다. 그다음 `CITATION.cff` 에 버전 DOI 를 넣습니다. 매일 점검이
+   Zenodo 에 빠진 릴리스를 알립니다.
+
 기여하신 코드는 이 저장소의 [Apache License 2.0](LICENSE)으로 배포됩니다.
